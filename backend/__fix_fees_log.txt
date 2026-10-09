@@ -1,0 +1,47 @@
+cwd = C:\Users\HP\OneDrive\Documents\BoardingEdu\backend
+PYTHONPATH=['C:\\Users\\HP\\OneDrive\\Documents\\BoardingEdu\\backend', 'C:\\Users\\HP\\AppData\\Local\\Programs\\Python\\Python313\\python313.zip', 'C:\\Users\\HP\\AppData\\Local\\Programs\\Python\\Python313\\DLLs']
+=== STEP 0: setup django ===
+import django OK
+django.setup() OK
+imports OK
+=== STEP 1: PRE check ===
+  academic_years            BEFORE: EXISTS
+  fee_terms                 BEFORE: MISSING
+  fee_structures            BEFORE: MISSING
+  fee_items                 BEFORE: MISSING
+  fees.0001 tracking rows BEFORE: 1
+=== STEP 2: Unmark fees.0001 tracking row ===
+  Deleted rows from django_migrations: 1
+  fees.0001 tracking rows AFTER delete: 0
+=== STEP 3: call_command('migrate', 'fees') ===
+FAIL migrate fees: InconsistentMigrationHistory: Migration admissions.0001_initial is applied before its dependency fees.0001_initial on database 'default'.
+TRACEBACK:
+Traceback (most recent call last):
+  File "C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\__fix_fees_tables.py", line 78, in <module>
+    call_command("migrate", "fees", verbosity=3, stdout=out, stderr=err)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\venv\Lib\site-packages\django\core\management\__init__.py", line 195, in call_command
+    return command.execute(*args, **defaults)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\venv\Lib\site-packages\django\core\management\base.py", line 466, in execute
+    output = self.handle(*args, **options)
+  File "C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\venv\Lib\site-packages\django\core\management\base.py", line 113, in wrapper
+    res = handle_func(*args, **kwargs)
+  File "C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\venv\Lib\site-packages\django\core\management\commands\migrate.py", line 119, in handle
+    executor.loader.check_consistent_history(connection)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\venv\Lib\site-packages\django\db\migrations\loader.py", line 361, in check_consistent_history
+    raise InconsistentMigrationHistory(
+    ...<8 lines>...
+    )
+django.db.migrations.exceptions.InconsistentMigrationHistory: Migration admissions.0001_initial is applied before its dependency fees.0001_initial on database 'default'.
+
+=== STEP 4: POST check ===
+  [✓] academic_years            AFTER: EXISTS
+  [✗] fee_terms                 AFTER: MISSING
+  [✗] fee_structures            AFTER: MISSING
+  [✗] fee_items                 AFTER: MISSING
+  fees.0001 tracking rows AFTER migrate: 0
+  migrate exit status: 9
+=== FINAL SUMMARY ===
+FAIL: ALL_OK=False tracking_count=0

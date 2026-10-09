@@ -1,0 +1,187 @@
+# Python 
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*$py.class
+.Python
+
+#Python virtual environments
+
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+env.bak/
+venv.bak/
+
+#Python build and packaging
+
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-wheel-metadata/
+
+#Python testing and coverage
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.cover
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Jupyter
+
+.ipynb_checkpoints/
+
+# Django 
+
+*.log
+*.pot
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Django generated files
+
+staticfiles/
+media/
+
+# Environment Variables
+
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Next.js 
+
+.next/
+out/
+next-env.d.ts
+.vercel/
+
+# Node.js
+
+node_modules/
+jspm_packages/
+bower_components/
+.npm/
+.pnp
+.pnp.js
+.pnp.*
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Node logs
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+logs/
+
+# Node build and test outputs
+
+coverage/
+.nyc_output/
+*.tsbuildinfo
+*.lcov
+
+# Other Frontend Framework Build Outputs
+
+.nuxt/
+.svelte-kit/
+.parcel-cache/
+.webpack/
+.cache/
+
+# Redis
+
+*.rdb
+*.aof
+dump.rdb
+appendonly.aof
+
+# PostgreSQL 
+
+# Local database files and backups
+
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.pgdump
+
+# Docker
+
+# Keep Dockerfile and docker-compose.yml tracked.
+
+docker-compose.override.yml
+*.pid
+
+# Celery 
+
+celerybeat-schedule
+celerybeat.pid
+
+# Uploaded and Generated Files 
+
+uploads/
+tmp/
+temp/
+
+# IDE and Editors 
+
+.vscode/
+.idea/
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Operating System 
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Certificates and Private Keys 
+
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Build Outputs 
+/build/
+/dist/
+
+# Local Development Files 
+*.local
+.python-version.local
+
