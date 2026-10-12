@@ -6,8 +6,6 @@ import type { BoardListItem, SchoolListItem, SchoolTypeListItem } from "@/lib/ap
 import {
   exploreItems,
   howItWorksSteps,
-  popularCitySearches,
-  popularStateSearches,
   whyUsCards,
   faqItems,
 } from "@/lib/home-content";
@@ -58,17 +56,22 @@ export default function HomeLanding({
       .sort((a, b) => b[1] - a[1])
       .map(([label]) => label);
 
-    const cities = [...rankedCities, ...popularCitySearches.filter((city) => !rankedCities.includes(city))];
-    const states = [...rankedStates, ...popularStateSearches.filter((state) => !rankedStates.includes(state))];
-
     const merged: SeoPlace[] = [];
-    const max = Math.max(cities.length, states.length);
+    const max = Math.max(rankedCities.length, rankedStates.length);
     for (let index = 0; index < max; index += 1) {
-      if (cities[index]) {
-        merged.push({ key: `city-${cities[index]}`, label: cities[index], kind: "city" });
+      if (rankedCities[index]) {
+        merged.push({
+          key: `city-${rankedCities[index]}`,
+          label: rankedCities[index],
+          kind: "city",
+        });
       }
-      if (states[index]) {
-        merged.push({ key: `state-${states[index]}`, label: states[index], kind: "state" });
+      if (rankedStates[index]) {
+        merged.push({
+          key: `state-${rankedStates[index]}`,
+          label: rankedStates[index],
+          kind: "state",
+        });
       }
     }
     return merged;

@@ -1,14 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  popularCitySearches,
-  popularCountrySearches,
-  popularStateSearches,
-} from "@/lib/home-content";
-
-function boardingPath(place: string, kind: "city" | "state" | "country") {
-  return `/?search=${encodeURIComponent(place)}&kind=${encodeURIComponent(kind)}#schools`;
-}
 
 export default function SiteFooterSeo() {
   return (
@@ -86,39 +77,6 @@ export default function SiteFooterSeo() {
           <Link href="/#counselling">Careers</Link>
           <Link href="/#counselling">Contact Us</Link>
           <Link href="/#faq">Blog</Link>
-        </div>
-      </div>
-
-      <div className="seo-footer__searches">
-        <h3>Popular School Searches</h3>
-        <div>
-          <Link href="/#schools">Boarding Schools</Link>
-          <Link href="/#schools">Day Schools</Link>
-          <Link href="/#schools">Day cum Boarding</Link>
-        </div>
-        <h4>By City</h4>
-        <div>
-          {popularCitySearches.map((city) => (
-            <Link key={city} href={boardingPath(city, "city")}>
-              Boarding Schools in {city}
-            </Link>
-          ))}
-        </div>
-        <h4>By State</h4>
-        <div>
-          {popularStateSearches.map((state) => (
-            <Link key={state} href={boardingPath(state, "state")}>
-              Boarding Schools in {state}
-            </Link>
-          ))}
-        </div>
-        <h4>By Country</h4>
-        <div>
-          {popularCountrySearches.map((country) => (
-            <Link key={country} href={boardingPath(country, "country")}>
-              Boarding Schools in {country}
-            </Link>
-          ))}
         </div>
       </div>
 

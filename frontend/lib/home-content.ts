@@ -71,7 +71,7 @@ export const faqItems = [
   {
     question: "How do I find CBSE, ICSE, IB or IGCSE boarding schools?",
     answer:
-      "Use the homepage search: choose Country → State → City → Locality, then select one or more boards (CBSE, ICSE, IB, IGCSE, Cambridge) and school types. Results update from verified school profiles.",
+      "Use the homepage search: choose Country → State → City → Locality, then select one or more boards (CBSE, ICSE, IB, IGCSE) and school types. Results update from verified school profiles.",
   },
   {
     question: "Can I compare boarding schools and day schools on BoardingEdu?",
@@ -95,50 +95,6 @@ export const faqItems = [
   },
 ];
 
-export const popularCitySearches = [
-  "Dehradun",
-  "Bangalore",
-  "Pune",
-  "Ooty",
-  "Mussoorie",
-  "Darjeeling",
-  "Nainital",
-  "Shimla",
-  "Mumbai",
-  "Delhi",
-  "Chennai",
-  "Kolkata",
-  "Ajmer",
-  "Coimbatore",
-  "Kodaikanal",
-];
-
-export const popularStateSearches = [
-  "Uttarakhand",
-  "Karnataka",
-  "Maharashtra",
-  "Tamil Nadu",
-  "Rajasthan",
-  "West Bengal",
-  "Himachal Pradesh",
-  "Delhi",
-  "Punjab",
-  "Kerala",
-  "Madhya Pradesh",
-  "Telangana",
-  "Andhra Pradesh",
-];
-
-export const popularCountrySearches = [
-  "India",
-  "UAE",
-  "UK",
-  "Singapore",
-  "Australia",
-  "Canada",
-  "USA",
-];
-
 export const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -149,7 +105,7 @@ export const jsonLd = {
       email: "hello@boardingedu.com",
       telephone: "+91-80-4611-0000",
       description:
-        "India's #1 school platform connecting over 1 million parents with 12,000+ verified boarding and day schools.",
+        "A school discovery platform helping families explore schools and compare options.",
     },
     {
       "@type": "WebSite",

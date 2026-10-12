@@ -27,7 +27,13 @@ type Props = {
   value: HeroFinderValue;
   boards: BoardListItem[];
   schoolTypes: SchoolTypeListItem[];
+  rememberLocation: boolean;
+  hasSavedLocation: boolean;
+  locationMessage: string | null;
+  locationError: string | null;
   onChange: (next: HeroFinderValue) => void;
+  onRememberLocationChange: (remember: boolean) => void;
+  onClearSavedLocation: () => void;
   onSubmit: () => void;
 };
 
@@ -86,7 +92,13 @@ export default function HeroFinder({
   value,
   boards,
   schoolTypes,
+  rememberLocation,
+  hasSavedLocation,
+  locationMessage,
+  locationError,
   onChange,
+  onRememberLocationChange,
+  onClearSavedLocation,
   onSubmit,
 }: Props) {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
@@ -200,165 +212,203 @@ export default function HeroFinder({
 
   return (
     <form className="hero-finder" onSubmit={submit} role="search">
-      <SelectMenu
-        label="Country"
-        placeholder="Select country"
-        valueLabel={countryName}
-        open={openMenu === "country"}
-        onToggle={() => setOpenMenu(openMenu === "country" ? null : "country")}
-      >
-        {countries.map((row) => (
-          <button
-            type="button"
-            key={row.country_id}
-            onClick={() => {
-              patch({
-                country: row.country_id,
-                state: "",
-                city: "",
-                location: "",
-              });
-              setOpenMenu("state");
-            }}
+      <fieldset className="finder-group">
+        <legend>
+          <span>01</span> Choose a location
+        </legend>
+        <div className="finder-group__fields">
+          <SelectMenu
+            label="Country"
+            placeholder="Select country"
+            valueLabel={countryName}
+            open={openMenu === "country"}
+            onToggle={() => setOpenMenu(openMenu === "country" ? null : "country")}
           >
-            {row.country_name}
-          </button>
-        ))}
-      </SelectMenu>
+            {countries.map((row) => (
+              <button
+                type="button"
+                key={row.country_id}
+                onClick={() => {
+                  patch({
+                    country: row.country_id,
+                    state: "",
+                    city: "",
+                    location: "",
+                  });
+                  setOpenMenu("state");
+                }}
+              >
+                {row.country_name}
+              </button>
+            ))}
+          </SelectMenu>
 
-      <SelectMenu
-        label="State"
-        placeholder="Select state"
-        disabled={!value.country}
-        valueLabel={stateName}
-        open={openMenu === "state"}
-        onToggle={() => setOpenMenu(openMenu === "state" ? null : "state")}
-      >
-        {states.length === 0 ? (
-          <p>No states for this country yet.</p>
-        ) : (
-          states.map((row) => (
-            <button
-              type="button"
-              key={row.state_id}
-              onClick={() => {
-                patch({ state: row.state_id, city: "", location: "" });
-                setOpenMenu("city");
-              }}
-            >
-              {row.state_name}
-            </button>
-          ))
-        )}
-      </SelectMenu>
-
-      <SelectMenu
-        label="City"
-        placeholder="Select city"
-        disabled={!value.state}
-        valueLabel={cityName}
-        open={openMenu === "city"}
-        onToggle={() => setOpenMenu(openMenu === "city" ? null : "city")}
-      >
-        {cities.length === 0 ? (
-          <p>No cities for this state yet.</p>
-        ) : (
-          cities.map((row) => (
-            <button
-              type="button"
-              key={row.city_id}
-              onClick={() => {
-                patch({ city: row.city_id, location: "" });
-                setOpenMenu("location");
-              }}
-            >
-              {row.city_name}
-            </button>
-          ))
-        )}
-      </SelectMenu>
-
-      <SelectMenu
-        label="Locality"
-        placeholder={value.city && locations.length === 0 ? "No localities listed" : "Select locality"}
-        disabled={!value.city || locations.length === 0}
-        valueLabel={locationName}
-        open={openMenu === "location"}
-        onToggle={() => setOpenMenu(openMenu === "location" ? null : "location")}
-      >
-        {locations.map((row) => (
-          <button
-            type="button"
-            key={row.location_id}
-            onClick={() => {
-              patch({ location: row.location_id });
-              setOpenMenu(null);
-            }}
+          <SelectMenu
+            label="State"
+            placeholder="Select state"
+            disabled={!value.country}
+            valueLabel={stateName}
+            open={openMenu === "state"}
+            onToggle={() => setOpenMenu(openMenu === "state" ? null : "state")}
           >
-            {row.location_name}
+            {states.length === 0 ? (
+              <p>No states for this country yet.</p>
+            ) : (
+              states.map((row) => (
+                <button
+                  type="button"
+                  key={row.state_id}
+                  onClick={() => {
+                    patch({ state: row.state_id, city: "", location: "" });
+                    setOpenMenu("city");
+                  }}
+                >
+                  {row.state_name}
+                </button>
+              ))
+            )}
+          </SelectMenu>
+
+          <SelectMenu
+            label="City"
+            placeholder="Select city"
+            disabled={!value.state}
+            valueLabel={cityName}
+            open={openMenu === "city"}
+            onToggle={() => setOpenMenu(openMenu === "city" ? null : "city")}
+          >
+            {cities.length === 0 ? (
+              <p>No cities for this state yet.</p>
+            ) : (
+              cities.map((row) => (
+                <button
+                  type="button"
+                  key={row.city_id}
+                  onClick={() => {
+                    patch({ city: row.city_id, location: "" });
+                    setOpenMenu("location");
+                  }}
+                >
+                  {row.city_name}
+                </button>
+              ))
+            )}
+          </SelectMenu>
+
+          <SelectMenu
+            label="Locality"
+            placeholder={value.city && locations.length === 0 ? "No localities listed" : "Select locality"}
+            disabled={!value.city || locations.length === 0}
+            valueLabel={locationName}
+            open={openMenu === "location"}
+            onToggle={() => setOpenMenu(openMenu === "location" ? null : "location")}
+          >
+            {locations.map((row) => (
+              <button
+                type="button"
+                key={row.location_id}
+                onClick={() => {
+                  patch({ location: row.location_id });
+                  setOpenMenu(null);
+                }}
+              >
+                {row.location_name}
+              </button>
+            ))}
+          </SelectMenu>
+        </div>
+      </fieldset>
+
+      <fieldset className="finder-group">
+        <legend>
+          <span>02</span> Refine your search
+        </legend>
+        <div className="finder-group__fields">
+          <SelectMenu
+            label="Board"
+            placeholder="Select boards"
+            valueLabel={boardLabel}
+            open={openMenu === "board"}
+            onToggle={() => setOpenMenu(openMenu === "board" ? null : "board")}
+          >
+            {boards.map((row) => {
+              const checked = value.board.includes(row.board_id);
+              return (
+                <label key={row.board_id} className="finder-check">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      patch({
+                        board: checked
+                          ? value.board.filter((id) => id !== row.board_id)
+                          : [...value.board, row.board_id],
+                      })
+                    }
+                  />
+                  {row.board_name}
+                </label>
+              );
+            })}
+          </SelectMenu>
+
+          <SelectMenu
+            label="School type"
+            placeholder="Select types"
+            valueLabel={typeLabel}
+            open={openMenu === "type"}
+            onToggle={() => setOpenMenu(openMenu === "type" ? null : "type")}
+          >
+            {schoolTypes.map((row) => {
+              const checked = value.schoolType.includes(row.school_type_id);
+              return (
+                <label key={row.school_type_id} className="finder-check">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      patch({
+                        schoolType: checked
+                          ? value.schoolType.filter((id) => id !== row.school_type_id)
+                          : [...value.schoolType, row.school_type_id],
+                      })
+                    }
+                  />
+                  {row.type_name}
+                </label>
+              );
+            })}
+          </SelectMenu>
+        </div>
+      </fieldset>
+
+      <div className="finder-actions">
+        <label className="finder-remember">
+          <input
+            type="checkbox"
+            checked={rememberLocation}
+            onChange={(event) => onRememberLocationChange(event.target.checked)}
+          />
+          <span>
+            Remember my location
+            <small>Saved separately for each selected school type on this device.</small>
+          </span>
+        </label>
+        <button className="hero-finder__submit" type="submit">
+          <Search size={16} /> Find Schools
+        </button>
+      </div>
+
+      {hasSavedLocation && (
+        <div className="finder-saved-location">
+          <span>Saved location loaded. Change it above and search to update it.</span>
+          <button type="button" onClick={onClearSavedLocation}>
+            Clear saved locations
           </button>
-        ))}
-      </SelectMenu>
-
-      <SelectMenu
-        label="Board"
-        placeholder="Select boards"
-        valueLabel={boardLabel}
-        open={openMenu === "board"}
-        onToggle={() => setOpenMenu(openMenu === "board" ? null : "board")}
-      >
-        {boards.map((row) => {
-          const checked = value.board.includes(row.board_id);
-          return (
-            <label key={row.board_id} className="finder-check">
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() =>
-                  patch({
-                    board: checked
-                      ? value.board.filter((id) => id !== row.board_id)
-                      : [...value.board, row.board_id],
-                  })
-                }
-              />
-              {row.board_name}
-            </label>
-          );
-        })}
-      </SelectMenu>
-
-      <SelectMenu
-        label="School type"
-        placeholder="Select types"
-        valueLabel={typeLabel}
-        open={openMenu === "type"}
-        onToggle={() => setOpenMenu(openMenu === "type" ? null : "type")}
-      >
-        {schoolTypes.map((row) => {
-          const checked = value.schoolType.includes(row.school_type_id);
-          return (
-            <label key={row.school_type_id} className="finder-check">
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() =>
-                  patch({
-                    schoolType: checked
-                      ? value.schoolType.filter((id) => id !== row.school_type_id)
-                      : [...value.schoolType, row.school_type_id],
-                  })
-                }
-              />
-              {row.type_name}
-            </label>
-          );
-        })}
-      </SelectMenu>
-
-      <button className="hero-finder__submit" type="submit">
-        <Search size={16} /> Find Schools
-      </button>
+        </div>
+      )}
+      {locationMessage && <p className="finder-message" role="status">{locationMessage}</p>}
+      {locationError && <p className="finder-error" role="alert">{locationError}</p>}
     </form>
   );
 }
