@@ -7,6 +7,7 @@ from .models import (
     Facility,
     School,
     SchoolFacility,
+    SchoolGrade,
 )
 
 
@@ -88,6 +89,13 @@ class SchoolFacilityInline(admin.TabularInline):
     extra = 1
     autocomplete_fields = ("facility",)
 
+class SchoolGradeInline(admin.TabularInline):
+    model = SchoolGrade
+    extra = 1
+    autocomplete_fields = ("grade",)
+    list_display_links = ("grade",)
+
+
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
@@ -96,8 +104,8 @@ class SchoolAdmin(admin.ModelAdmin):
         "school_name",
         "city",
         "location",
-        "board",
-        "school_type",
+        "board_names",
+        "school_type_names",
         "gender",
         "verification_status",
         "status",
@@ -107,8 +115,8 @@ class SchoolAdmin(admin.ModelAdmin):
         "status",
         "verification_status",
         "gender",
-        "school_type",
-        "board",
+        "school_types",
+        "boards",
         "country",
         "state",
         "city",
@@ -130,9 +138,8 @@ class SchoolAdmin(admin.ModelAdmin):
         "state",
         "city",
         "location",
-        "board",
-        "school_type",
     )
+    filter_horizontal = ("boards", "school_types")
 
     prepopulated_fields = {
         "slug": ("school_name",),
@@ -174,8 +181,8 @@ class SchoolAdmin(admin.ModelAdmin):
             "School Classification",
             {
                 "fields": (
-                    "board",
-                    "school_type",
+                    "boards",
+                    "school_types",
                     "gender",
                 )
             },
@@ -215,6 +222,7 @@ class SchoolAdmin(admin.ModelAdmin):
 
     inlines = [
         SchoolFacilityInline,
+        SchoolGradeInline,
     ]
 
     list_select_related = (
@@ -222,9 +230,15 @@ class SchoolAdmin(admin.ModelAdmin):
         "state",
         "city",
         "location",
-        "board",
-        "school_type",
     )
+
+    @admin.display(description="Boards")
+    def board_names(self, obj):
+        return ", ".join(obj.boards.values_list("board_name", flat=True))
+
+    @admin.display(description="School types")
+    def school_type_names(self, obj):
+        return ", ".join(obj.school_types.values_list("type_name", flat=True))
 
 
 @admin.register(SchoolFacility)
@@ -252,3 +266,33 @@ class SchoolFacilityAdmin(admin.ModelAdmin):
         "school",
         "facility",
     )
+
+@admin.register(SchoolGrade)
+class SchoolGradeAdmin(admin.ModelAdmin):
+    list_display = (
+        "school",
+        "grade",
+        "seats_available",
+        "entry_age_min",
+        "entry_age_max",
+        "is_active",
+    )
+
+    list_filter = (
+        "is_active",
+        "grade",
+    )
+
+    search_fields = (
+        "school__school_name",
+        "school__school_code",
+        "grade__grade_name",
+        "grade__grade_code",
+    )
+
+    autocomplete_fields = (
+        "school",
+        "grade",
+    )
+
+    list_select_related = ("school", "grade")

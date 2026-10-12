@@ -22,7 +22,14 @@ class AdmissionEnquiryAdmin(admin.ModelAdmin):
         "next_followup_at",
     )
     list_filter = ("status", "priority", "source", "school")
-    search_fields = ("enquiry_code", "message", "parent_profile__user__username")
+    search_fields = (
+        "enquiry_code",
+        "message",
+        "guest_full_name",
+        "guest_email",
+        "guest_phone",
+        "parent_profile__user__username",
+    )
     autocomplete_fields = (
         "parent_profile",
         "child",
@@ -49,6 +56,19 @@ class AdmissionEnquiryAdmin(admin.ModelAdmin):
                     "school",
                     "academic_year",
                     "applying_for_grade",
+                ),
+            },
+        ),
+        (
+            "Guest contact",
+            {
+                "fields": (
+                    "guest_full_name",
+                    "guest_email",
+                    "guest_phone",
+                    "guest_child_name",
+                    "guest_child_dob",
+                    "guest_child_gender",
                 ),
             },
         ),

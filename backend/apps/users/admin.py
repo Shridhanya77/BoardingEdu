@@ -29,7 +29,7 @@ class ParentProfileAdmin(admin.ModelAdmin):
 @admin.register(SchoolAdminProfile)
 class SchoolAdminProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "school", "designation", "created_at")
-    list_filter = ("school__school_type", "school__board")
+    list_filter = ("school__school_types", "school__boards")
     search_fields = ("user__username", "school__school_name", "designation")
     autocomplete_fields = ("user", "school")
     readonly_fields = ("created_at", "updated_at")

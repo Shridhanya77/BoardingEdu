@@ -1,6 +1,12 @@
 from rest_framework import viewsets, filters
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.db.models import DecimalField, OuterRef, Subquery, Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Board, SchoolType, Grade, Facility, School, SchoolFacility
+from django_filters import rest_framework as django_filters
+from apps.fees.models import FeeItem
+from .models import Board, SchoolType, Grade, Facility, School, SchoolFacility,SchoolGrade
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -8,6 +14,7 @@ from .serializers import (
     FacilityDetailSerializer, FacilityListSerializer,
     SchoolDetailSerializer, SchoolListSerializer,
     SchoolFacilityDetailSerializer, SchoolFacilityListSerializer,
+    SchoolGradeDetailSerializer, SchoolGradeListSerializer,
 )
 
 
@@ -18,6 +25,59 @@ class ReadWriteModelViewSet(viewsets.ModelViewSet):
         if self.action in ('list',) and hasattr(self, 'list_serializer_class'):
             return self.list_serializer_class
         return self.serializer_class
+
+
+class SchoolFilter(django_filters.FilterSet):
+    board = django_filters.ModelMultipleChoiceFilter(
+        field_name='boards',
+        queryset=Board.objects.all(),
+    )
+    school_type = django_filters.ModelMultipleChoiceFilter(
+        field_name='school_types',
+        queryset=SchoolType.objects.all(),
+    )
+    min_fee = django_filters.NumberFilter(method='filter_min_fee')
+    max_fee = django_filters.NumberFilter(method='filter_max_fee')
+
+    class Meta:
+        model = School
+        fields = [
+            'country', 'state', 'city', 'location',
+            'gender', 'status', 'verification_status', 'boarding_required',
+        ]
+
+    @staticmethod
+    def annual_fee_subquery():
+        return (
+            FeeItem.objects.filter(
+                fee_structure__school_id=OuterRef('pk'),
+                fee_structure__status=True,
+                fee_structure__published=True,
+                fee_structure__academic_year__is_current=True,
+            )
+            .order_by()
+            .values('fee_structure__school_id')
+            .annotate(total=Sum('amount'))
+            .values('total')[:1]
+        )
+
+    def _filter_fee(self, queryset, lookup, value):
+        if value is None:
+            return queryset
+        if 'annual_fee' not in queryset.query.annotations:
+            queryset = queryset.annotate(
+                annual_fee=Subquery(
+                    self.annual_fee_subquery(),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                )
+            )
+        return queryset.filter(**{f'annual_fee__{lookup}': value})
+
+    def filter_min_fee(self, queryset, name, value):
+        return self._filter_fee(queryset, 'gte', value)
+
+    def filter_max_fee(self, queryset, name, value):
+        return self._filter_fee(queryset, 'lte', value)
 
 
 # ---------- Board ----------
@@ -66,26 +126,66 @@ class FacilityViewSet(ReadWriteModelViewSet):
 
 # ---------- School ----------
 class SchoolViewSet(ReadWriteModelViewSet):
-    queryset = School.objects.select_related(
-        'country', 'state', 'city', 'location', 'board', 'school_type'
-    ).all()
+    queryset = (
+        School.objects.select_related(
+            'country', 'state', 'city', 'location'
+        )
+        .prefetch_related(
+            'boards',
+            'school_types',
+            'school_grades__grade',
+            'school_facilities__facility',
+        )
+        .annotate(
+            annual_fee=Subquery(
+                SchoolFilter.annual_fee_subquery(),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
+        .all()
+    )
     serializer_class = SchoolDetailSerializer
     list_serializer_class = SchoolListSerializer
+    filterset_class = SchoolFilter
     filterset_fields = [
         'country', 'state', 'city', 'location',
-        'board', 'school_type',
         'gender', 'status', 'verification_status', 'boarding_required',
     ]
     search_fields = [
         'school_code', 'school_name', 'short_name', 'slug',
         'address', 'pincode', 'phone', 'email',
-        'city__city_name', 'board__board_name',
+        'city__city_name', 'boards__board_name',
     ]
     ordering_fields = [
         'school_name', 'school_code', 'established_year',
-        'created_at', 'published_at',
+        'created_at', 'published_at', 'annual_fee',
     ]
     ordering = ['school_name']
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path=r'by-slug/(?P<slug>[^/.]+)',
+        name='School by slug',
+    )
+    def by_slug(self, request, slug=None):
+        """
+        Direct slug lookup — exactly one DB hit.
+        Frontend previously called list({search: slug}) -> loop -> retrieve(uuid).
+        Usage: GET /api/schools/schools/by-slug/doon-public-school/
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        school = get_object_or_404(queryset, slug=slug)
+        serializer = self.get_serializer(school)
+        return Response(serializer.data)
+
+    def get_serializer_class(self):
+        # Use detail serializer for by-slug action (returns full nested profile)
+        if self.action == 'by_slug':
+            return self.serializer_class
+        return super().get_serializer_class()
+
+
 
 
 # ---------- SchoolFacility ----------
@@ -102,3 +202,22 @@ class SchoolFacilityViewSet(ReadWriteModelViewSet):
     filterset_fields = ['school', 'facility', 'available', 'facility__category']
     ordering_fields = ['school__school_name', 'facility__category', 'facility__facility_name', 'created_at']
     ordering = ['school__school_name', 'facility__category', 'facility__facility_name']
+
+
+
+# ---------- SchoolGrade (Grades Offered) ----------
+class SchoolGradeViewSet(ReadWriteModelViewSet):
+    queryset = SchoolGrade.objects.select_related(
+        'school', 'grade'
+    ).all()
+    serializer_class = SchoolGradeDetailSerializer
+    list_serializer_class = SchoolGradeListSerializer
+    search_fields = [
+        'school__school_code', 'school__school_name',
+        'grade__grade_code', 'grade__grade_name',
+    ]
+    filterset_fields = ['school', 'grade', 'is_active']
+    ordering_fields = [
+        'school__school_name', 'grade__sort_order', 'created_at',
+    ]
+    ordering = ['school__school_name', 'grade__sort_order']

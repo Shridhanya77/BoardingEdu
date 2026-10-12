@@ -70,6 +70,10 @@ AUTH_USER_MODEL = 'users.User'
 # YOUR CORS DECISION
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')
 CORS_ALLOW_CREDENTIALS = True
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$',
+    ]
 
 # YOUR DRF + JWT AUTH DECISION (WITH TOKEN ROTATION)
 REST_FRAMEWORK = {

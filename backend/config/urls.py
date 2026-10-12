@@ -9,6 +9,7 @@ Root routes:
   /api/auth/jwt/token/             -> JWT obtain (SimpleJWT w/ rotation)
   /api/auth/jwt/token/refresh/     -> JWT refresh
   /api/auth/jwt/token/verify/      -> JWT verify
+  /api/auth/jwt/blacklist/         -> JWT refresh token blacklist
   /api/geography/                  -> Country / State / City / Location CRUD
   /api/schools/                    -> Board / SchoolType / Grade / Facility / School / SchoolFacility
   /api/fees/                       -> AcademicYear / FeeTerm / FeeStructure / FeeItem
@@ -27,7 +28,13 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
+    TokenBlacklistView,
 )
+from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
+
+
+class EmailOrUsernameTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailOrUsernameTokenObtainPairSerializer
 
 
 def root_redirect_view(request):
@@ -57,6 +64,7 @@ class BoardingEduApiRoot(APIView):
                     "token_obtain_pair": drf_reverse("token_obtain_pair", request=request, format=format),
                     "token_refresh": drf_reverse("token_refresh", request=request, format=format),
                     "token_verify": drf_reverse("token_verify", request=request, format=format),
+                    "token_blacklist": drf_reverse("token_blacklist", request=request, format=format),
                     "browsable_api_login": drf_reverse("rest_framework:login", request=request, format=format),
                 },
                 "apps": {
@@ -83,7 +91,7 @@ urlpatterns = [
     # ===== JWT AUTH (SimpleJWT with token rotation + blacklist enabled) =====
     path(
         "api/auth/jwt/token/",
-        TokenObtainPairView.as_view(),
+        EmailOrUsernameTokenObtainPairView.as_view(),
         name="token_obtain_pair",
     ),
     path(
@@ -95,6 +103,11 @@ urlpatterns = [
         "api/auth/jwt/token/verify/",
         TokenVerifyView.as_view(),
         name="token_verify",
+    ),
+    path(
+        "api/auth/jwt/blacklist/",
+        TokenBlacklistView.as_view(),
+        name="token_blacklist",
     ),
     # ===== Geography App =====
     path("api/geography/", include("apps.geography.urls", namespace="geography")),

@@ -7,6 +7,7 @@ from .views import (
     FacilityViewSet,
     SchoolViewSet,
     SchoolFacilityViewSet,
+    SchoolGradeViewSet,
 )
 
 app_name = 'schools'
@@ -18,6 +19,7 @@ router.register(r'grades',         GradeViewSet,        basename='grade')
 router.register(r'facilities',       FacilityViewSet,     basename='facility')
 router.register(r'schools',          SchoolViewSet,        basename='school')
 router.register(r'school-facilities', SchoolFacilityViewSet, basename='schoolfacility')
+router.register(r'school-grades',   SchoolGradeViewSet,   basename='schoolgrade')
 
 urlpatterns = [
     path('', include(router.urls)),

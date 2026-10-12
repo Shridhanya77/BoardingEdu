@@ -94,9 +94,9 @@ class School(models.Model):
     city = models.ForeignKey(City, on_delete=models.RESTRICT, related_name='schools', db_column='city_id', null=False)
     location = models.ForeignKey(Location, on_delete=models.RESTRICT, related_name='schools', db_column='location_id', null=True, blank=True)
 
-    # MASTER DATA FKs
-    board = models.ForeignKey(Board, on_delete=models.RESTRICT, related_name='schools', db_column='board_id', null=False)
-    school_type = models.ForeignKey(SchoolType, on_delete=models.RESTRICT, related_name='schools', db_column='school_type_id', null=False)
+    # MASTER DATA
+    boards = models.ManyToManyField(Board, related_name='schools')
+    school_types = models.ManyToManyField(SchoolType, related_name='schools')
 
     # SCHOOL ATTRIBUTES
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='COED', null=False)
@@ -124,7 +124,6 @@ class School(models.Model):
         verbose_name_plural = "Schools"
         indexes = [
             models.Index(fields=['country', 'state', 'city', 'status']),
-            models.Index(fields=['board', 'school_type', 'status']),
             models.Index(fields=['city', 'location', 'status', 'verification_status']),
         ]
 
@@ -158,3 +157,64 @@ class SchoolFacility(models.Model):
 
     def __str__(self):
         return f"{self.school.short_name or self.school.school_code} + {self.facility.facility_name}"
+
+# ---------- M2M JUNCTION: SCHOOL ↔ GRADES OFFERED (missing ERD link) ----------
+class SchoolGrade(models.Model):
+    """
+    Which grades a school actually offers for enrolment.
+    Grade is master data; this table scopes it to a specific school with
+    real-world capacity fields.
+    """
+    school_grade_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name='school_grades',
+        db_column='school_id',
+        null=False,
+    )
+    grade = models.ForeignKey(
+        Grade,
+        on_delete=models.RESTRICT,
+        related_name='school_grades',
+        db_column='grade_id',
+        null=False,
+    )
+    seats_available = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Available seats for current / next intake",
+    )
+    entry_age_min = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Minimum age at admission (years)",
+    )
+    entry_age_max = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum age at admission (years)",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        null=False,
+        db_index=True,
+        help_text="School currently accepting applications for this grade",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'school_grades'
+        verbose_name = "School Grade Offered"
+        verbose_name_plural = "School Grades Offered"
+        ordering = ['grade__sort_order']
+        constraints = [
+            models.UniqueConstraint(fields=['school', 'grade'], name='uq_school_grade'),
+        ]
+        indexes = [
+            models.Index(fields=['school', 'grade', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.school.short_name or self.school.school_code} offers {self.grade.grade_name}"

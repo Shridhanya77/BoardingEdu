@@ -77,7 +77,7 @@ class FeeStructureAdmin(admin.ModelAdmin):
         "status",
         "published",
     )
-    list_filter = ("status", "published", "academic_year", "school__school_type", "school__board")
+    list_filter = ("status", "published", "academic_year", "school__school_types", "school__boards")
     search_fields = (
         "structure_code",
         "structure_name",

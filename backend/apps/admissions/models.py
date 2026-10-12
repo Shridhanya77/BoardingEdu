@@ -122,6 +122,7 @@ class AdmissionEnquiry(models.Model):
     enquiry_code = models.CharField(
         max_length=30,
         unique=True,
+        blank=True,
         null=False,
     )
 
@@ -171,8 +172,17 @@ class AdmissionEnquiry(models.Model):
         blank=True,
     )
 
+    # ---------- Guest contact (when parent_profile is null) ----------
+    guest_full_name = models.CharField(max_length=150, blank=True)
+    guest_email = models.EmailField(blank=True)
+    guest_phone = models.CharField(max_length=30, blank=True)
+    guest_child_name = models.CharField(max_length=100, blank=True)
+    guest_child_dob = models.DateField(null=True, blank=True)
+    guest_child_gender = models.CharField(max_length=10, blank=True)
+
     # ---------- Enquiry content ----------
     message = models.TextField(
+        blank=True,
         null=False,
     )
 
@@ -232,6 +242,16 @@ class AdmissionEnquiry(models.Model):
         indexes = [
             models.Index(fields=["status", "priority", "assigned_to"]),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.enquiry_code:
+            from .utils import generate_enquiry_code
+
+            self.enquiry_code = generate_enquiry_code()
+        if not self.message:
+            who = self.guest_full_name or "Website visitor"
+            self.message = f"Admission enquiry from {who}."
+        super().save(*args, **kwargs)
 
     def __str__(self):
         school_code = "school not set"
