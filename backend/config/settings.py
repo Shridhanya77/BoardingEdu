@@ -16,8 +16,12 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
-        "ALLOWED_HOSTS",
-        "boardingedu-6ng7.onrender.com"
+
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "boardingedu-production-4144.up.railway.app",
+]
     ).split(",")
     if host.strip()
 ]
