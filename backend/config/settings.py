@@ -86,14 +86,17 @@ AUTH_USER_MODEL = 'users.User'
 
 # YOUR CORS DECISION
 
+# CORS configuration
 CORS_ALLOWED_ORIGINS = [
+    "https://boarding-6em855fv3-shridhanya77s-projects.vercel.app",
     "https://boarding-1cemfnzoq-shridhanya77s-projects.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
 if DEBUG:
     CORS_ALLOWED_ORIGIN_REGEXES = [
-        r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$',
+        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     ]
 
 # YOUR DRF + JWT AUTH DECISION (WITH TOKEN ROTATION)
