@@ -5,7 +5,7 @@ if (!configuredApiBase && process.env.NODE_ENV === "production") {
 }
 
 export const API_BASE = (
-  configuredApiBase ?? "http://127.0.0.1:8000/api"
+  configuredApiBase ?? "https://boardingedu-mtjnrv7eo-shridhanya77s-projects.vercel.app"
 ).replace(/\/+$/, "");
 const API_ORIGIN = new URL(API_BASE).origin;
 
