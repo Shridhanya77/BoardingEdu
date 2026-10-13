@@ -13,18 +13,17 @@ if not SECRET_KEY:
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
+
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
-
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "boardingedu-production-4144.up.railway.app",
-]
+        "ALLOWED_HOSTS",
+        "localhost,127.0.0.1,boardingedu-production-4144.up.railway.app,boardingedu-6ng7.onrender.com"
     ).split(",")
     if host.strip()
 ]
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -110,9 +109,12 @@ def _csv_env(name, default=""):
 
 # Set this in Render to the deployed Vercel production URL and any required
 # preview URLs, separated by commas.
+
 CORS_ALLOWED_ORIGINS = [
+    "https://boardingedu-mtjnrv7eo-shridhanya77s-projects.vercel.app",
     "https://boardingedu-15wcqs7nt-shridhanya77s-projects.vercel.app",
 ]
+
 CORS_ALLOWED_ORIGIN_REGEXES = _csv_env(
     "CORS_ALLOWED_ORIGIN_REGEXES",
     r"^https://[a-z0-9-]+\.vercel\.app$",
