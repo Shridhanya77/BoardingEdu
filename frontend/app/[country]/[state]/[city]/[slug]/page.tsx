@@ -3,6 +3,8 @@ import { ApiError, schools } from "@/lib/api";
 import type { SchoolDetail } from "@/lib/api";
 import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 
+export const dynamic = "force-dynamic";
+
 type SchoolRouteParams = {
   country: string;
   state: string;

@@ -46,8 +46,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -72,6 +73,8 @@ DATABASES = {
     "default": dj_database_url.parse(
         DATABASE_URL,
         conn_max_age=600,
+        conn_health_checks=True,
+        ssl_require=os.getenv("DATABASE_SSL_REQUIRE", str(not DEBUG)).lower() == "true",
     )
 }
 
@@ -80,24 +83,66 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 
-# YOUR CORS DECISION
+def _csv_env(name, default=""):
+    return [
+        value.strip().rstrip("/")
+        for value in os.getenv(name, default).split(",")
+        if value.strip()
+    ]
 
-# CORS configuration
-CORS_ALLOWED_ORIGINS = [
-    "https://boarding-6em855fv3-shridhanya77s-projects.vercel.app",
+
+# Set this in Render to the deployed Vercel production URL and any required
+# preview URLs, separated by commas.
+CORS_ALLOWED_ORIGINS = _csv_env(
+    "CORS_ALLOWED_ORIGINS",
+    "https://boarding-6em855fv3-shridhanya77s-projects.vercel.app,"
     "https://boarding-1cemfnzoq-shridhanya77s-projects.vercel.app",
-]
+)
+CORS_ALLOWED_ORIGIN_REGEXES = _csv_env(
+    "CORS_ALLOWED_ORIGIN_REGEXES",
+    r"^https://[a-z0-9-]+\.vercel\.app$",
+)
 
 CORS_ALLOW_CREDENTIALS = True
 
 if DEBUG:
-    CORS_ALLOWED_ORIGIN_REGEXES = [
-        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    ]
+    CORS_ALLOWED_ORIGIN_REGEXES.extend(
+        [r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"]
+    )
+    for _host in ("localhost", "127.0.0.1"):
+        if _host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_host)
+
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS", ",".join(CORS_ALLOWED_ORIGINS))
+if RENDER_EXTERNAL_HOSTNAME:
+    _render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    if _render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_render_origin)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # YOUR DRF + JWT AUTH DECISION (WITH TOKEN ROTATION)
 REST_FRAMEWORK = {

@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { ApiError, schools } from "@/lib/api";
 import { schoolProfilePath } from "@/components/SchoolProfile";
 
+export const dynamic = "force-dynamic";
+
 export default async function LegacySchoolPage({ params }: { params: { slug: string } }) {
   try {
     const school = await schools.bySlug(params.slug);
