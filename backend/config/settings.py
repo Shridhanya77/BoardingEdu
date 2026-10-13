@@ -46,9 +46,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -87,8 +87,9 @@ AUTH_USER_MODEL = 'users.User'
 # YOUR CORS DECISION
 
 CORS_ALLOWED_ORIGINS = [
-    "https://boarding-4vp4iit1t-shridhanya77s-projects.vercel.app",
+    "https://boarding-1cemfnzoq-shridhanya77s-projects.vercel.app",
 ]
+
 CORS_ALLOW_CREDENTIALS = True
 if DEBUG:
     CORS_ALLOWED_ORIGIN_REGEXES = [
