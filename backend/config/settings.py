@@ -85,10 +85,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 
 # YOUR CORS DECISION
-CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000"
-).split(",")
+
+CORS_ALLOWED_ORIGINS = [
+    "https://boarding-4vp4iit1t-shridhanya77s-projects.vercel.app",
+]
 CORS_ALLOW_CREDENTIALS = True
 if DEBUG:
     CORS_ALLOWED_ORIGIN_REGEXES = [
