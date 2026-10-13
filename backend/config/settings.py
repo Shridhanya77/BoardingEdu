@@ -110,11 +110,9 @@ def _csv_env(name, default=""):
 
 # Set this in Render to the deployed Vercel production URL and any required
 # preview URLs, separated by commas.
-CORS_ALLOWED_ORIGINS = _csv_env(
-    "CORS_ALLOWED_ORIGINS",
-    "https://boarding-6em855fv3-shridhanya77s-projects.vercel.app,"
-    "https://boarding-1cemfnzoq-shridhanya77s-projects.vercel.app",
-)
+CORS_ALLOWED_ORIGINS = [
+    "https://boardingedu-15wcqs7nt-shridhanya77s-projects.vercel.app",
+]
 CORS_ALLOWED_ORIGIN_REGEXES = _csv_env(
     "CORS_ALLOWED_ORIGIN_REGEXES",
     r"^https://[a-z0-9-]+\.vercel\.app$",
