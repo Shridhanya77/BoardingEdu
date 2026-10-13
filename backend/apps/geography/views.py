@@ -35,7 +35,11 @@ class CountryViewSet(ReadWriteModelViewSet):
     ordering_fields = ['country_name', 'country_code', 'created_at']
     ordering = ['country_name']
 
-    @action(detail=True, methods=['get'])
+    @action(
+        detail=True,
+        methods=['get'],
+        filter_backends=[DjangoFilterBackend, SearchFilter],
+    )
     def states(self, request, pk=None):
         country = self.get_object()
         queryset = country.states.select_related('country').all()
@@ -56,7 +60,11 @@ class StateViewSet(ReadWriteModelViewSet):
     ordering_fields = ['state_name', 'state_code', 'created_at']
     ordering = ['state_name']
 
-    @action(detail=True, methods=['get'])
+    @action(
+        detail=True,
+        methods=['get'],
+        filter_backends=[DjangoFilterBackend, SearchFilter],
+    )
     def cities(self, request, pk=None):
         state = self.get_object()
         queryset = state.cities.select_related('state', 'state__country').all()
@@ -77,7 +85,11 @@ class CityViewSet(ReadWriteModelViewSet):
     ordering_fields = ['city_name', 'city_code', 'created_at']
     ordering = ['city_name']
 
-    @action(detail=True, methods=['get'])
+    @action(
+        detail=True,
+        methods=['get'],
+        filter_backends=[DjangoFilterBackend, SearchFilter],
+    )
     def locations(self, request, pk=None):
         city = self.get_object()
         queryset = city.locations.select_related('city', 'city__state', 'city__state__country').all()

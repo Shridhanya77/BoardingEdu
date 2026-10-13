@@ -76,6 +76,7 @@ function SelectMenu({
       <button
         type="button"
         disabled={disabled}
+        aria-label={valueLabel ? `${label}: ${valueLabel}` : label}
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={onToggle}
@@ -219,7 +220,7 @@ export default function HeroFinder({
         <div className="finder-group__fields">
           <SelectMenu
             label="Country"
-            placeholder="Select country"
+            placeholder="Select"
             valueLabel={countryName}
             open={openMenu === "country"}
             onToggle={() => setOpenMenu(openMenu === "country" ? null : "country")}
@@ -245,7 +246,7 @@ export default function HeroFinder({
 
           <SelectMenu
             label="State"
-            placeholder="Select state"
+            placeholder="Select"
             disabled={!value.country}
             valueLabel={stateName}
             open={openMenu === "state"}
@@ -271,7 +272,7 @@ export default function HeroFinder({
 
           <SelectMenu
             label="City"
-            placeholder="Select city"
+            placeholder="Select"
             disabled={!value.state}
             valueLabel={cityName}
             open={openMenu === "city"}
@@ -297,7 +298,7 @@ export default function HeroFinder({
 
           <SelectMenu
             label="Locality"
-            placeholder={value.city && locations.length === 0 ? "No localities listed" : "Select locality"}
+            placeholder={value.city && locations.length === 0 ? "No localities listed" : "Select"}
             disabled={!value.city || locations.length === 0}
             valueLabel={locationName}
             open={openMenu === "location"}
@@ -317,6 +318,29 @@ export default function HeroFinder({
             ))}
           </SelectMenu>
         </div>
+        <div className="finder-preference">
+          <label className="finder-remember">
+            <input
+              type="checkbox"
+              checked={rememberLocation}
+              onChange={(event) => onRememberLocationChange(event.target.checked)}
+            />
+            <span>
+              <strong>Remember my location</strong>
+              <small>Save these selections for your next visit.</small>
+            </span>
+          </label>
+          {hasSavedLocation && (
+            <div className="finder-saved-location">
+              <span>Saved location is active</span>
+              <button type="button" onClick={onClearSavedLocation}>
+                Clear saved location
+              </button>
+            </div>
+          )}
+        </div>
+        {locationMessage && <p className="finder-message" role="status">{locationMessage}</p>}
+        {locationError && <p className="finder-error" role="alert">{locationError}</p>}
       </fieldset>
 
       <fieldset className="finder-group">
@@ -326,7 +350,7 @@ export default function HeroFinder({
         <div className="finder-group__fields">
           <SelectMenu
             label="Board"
-            placeholder="Select boards"
+            placeholder="Select"
             valueLabel={boardLabel}
             open={openMenu === "board"}
             onToggle={() => setOpenMenu(openMenu === "board" ? null : "board")}
@@ -354,7 +378,7 @@ export default function HeroFinder({
 
           <SelectMenu
             label="School type"
-            placeholder="Select types"
+            placeholder="Select"
             valueLabel={typeLabel}
             open={openMenu === "type"}
             onToggle={() => setOpenMenu(openMenu === "type" ? null : "type")}
@@ -383,32 +407,10 @@ export default function HeroFinder({
       </fieldset>
 
       <div className="finder-actions">
-        <label className="finder-remember">
-          <input
-            type="checkbox"
-            checked={rememberLocation}
-            onChange={(event) => onRememberLocationChange(event.target.checked)}
-          />
-          <span>
-            Remember my location
-            <small>Saved separately for each selected school type on this device.</small>
-          </span>
-        </label>
         <button className="hero-finder__submit" type="submit">
           <Search size={16} /> Find Schools
         </button>
       </div>
-
-      {hasSavedLocation && (
-        <div className="finder-saved-location">
-          <span>Saved location loaded. Change it above and search to update it.</span>
-          <button type="button" onClick={onClearSavedLocation}>
-            Clear saved locations
-          </button>
-        </div>
-      )}
-      {locationMessage && <p className="finder-message" role="status">{locationMessage}</p>}
-      {locationError && <p className="finder-error" role="alert">{locationError}</p>}
     </form>
   );
 }

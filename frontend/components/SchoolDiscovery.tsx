@@ -38,6 +38,11 @@ import {
   type LocationPreferences,
   type SavedLocationPreference,
 } from "@/lib/location-preferences";
+import {
+  exploreItems,
+  faqItems,
+  howItWorksSteps,
+} from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
 
@@ -245,7 +250,6 @@ export default function SchoolDiscovery() {
   const [search, setSearch] = useState("");
   const [schoolType, setSchoolType] = useState<string[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
-  const [schoolTypesLoaded, setSchoolTypesLoaded] = useState(false);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
   const [schoolTypesError, setSchoolTypesError] = useState<string | null>(
     null
@@ -276,6 +280,7 @@ export default function SchoolDiscovery() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [schoolTypesLoaded, setSchoolTypesLoaded] = useState(false);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
@@ -293,6 +298,7 @@ export default function SchoolDiscovery() {
   const locationFromPreference = useRef(false);
   const initialLocationWasInUrl = useRef(false);
   const initialSchoolTypesWereInUrl = useRef(false);
+  const [activeFaq, setActiveFaq] = useState<number | null>(0);
 
   const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
   const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
@@ -301,7 +307,15 @@ export default function SchoolDiscovery() {
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
 
-  const boardCards = boards;
+  const boardCards = [
+    "CBSE",
+    "ICSE",
+    "IB",
+    "IGCSE",
+  ].map((code) => ({
+    code,
+    board: boards.find((item) => item.board_code.toUpperCase() === code),
+  }));
   const cityCards = useMemo(() => {
     const uniqueCities = new Map<string, SchoolListItem>();
     for (const school of [...featuredSchools, ...results]) {
@@ -311,6 +325,15 @@ export default function SchoolDiscovery() {
     }
     return [...uniqueCities.values()].slice(0, 6);
   }, [featuredSchools, results]);
+
+  const whyBoardingEdu = [
+    "Verified school profiles",
+    "Transparent fees",
+    "Side-by-side comparison",
+    "Expert guidance",
+    "Application support",
+    "Pan-India coverage",
+  ];
 
   useEffect(() => {
     if (!queryRestored) return;
@@ -576,13 +599,13 @@ export default function SchoolDiscovery() {
 
   useEffect(() => {
     if (
-      !queryRestored ||
-      !locationPreferencesLoaded ||
-      !schoolTypesLoaded ||
-      !locationPreferences ||
-      locationRestoreApplied.current
+    !queryRestored ||
+    !locationPreferencesLoaded ||
+    !schoolTypesLoaded ||
+    !locationPreferences ||
+    locationRestoreApplied.current
     ) {
-      return;
+    return;
     }
 
     locationRestoreApplied.current = true;
@@ -590,96 +613,96 @@ export default function SchoolDiscovery() {
 
     const liveTypeIds = new Set(schoolTypes.map((item) => item.school_type_id));
     const requestedTypeIds = initialSchoolTypesWereInUrl.current
-      ? schoolType
-      : locationPreferences.active_school_type_ids;
+    ? schoolType
+    : locationPreferences.active_school_type_ids;
     const candidateTypeIds = requestedTypeIds.filter(
-      (id) => liveTypeIds.has(id) && locationPreferences.preferences[id],
+    (id) => liveTypeIds.has(id) && locationPreferences.preferences[id],
     );
 
     if (candidateTypeIds.length === 0) return;
 
     let cancelled = false;
     Promise.all(
-      candidateTypeIds.map(async (typeId) => ({
-        typeId,
-        current: await savedLocationIsCurrent(
-          locationPreferences.preferences[typeId],
-        ),
-      })),
+    candidateTypeIds.map(async (typeId) => ({
+      typeId,
+      current: await savedLocationIsCurrent(
+        locationPreferences.preferences[typeId],
+      ),
+    })),
     )
-      .then(async (validated) => {
-        if (cancelled) return;
-        const validTypeIds = validated
-          .filter((item) => item.current)
-          .map((item) => item.typeId);
-        const nextPreferences: LocationPreferences = {
-          version: 1,
-          active_school_type_ids: [],
-          preferences: Object.fromEntries(
-            Object.entries(locationPreferences.preferences).filter(([id]) =>
-              liveTypeIds.has(id),
-            ),
+    .then(async (validated) => {
+      if (cancelled) return;
+      const validTypeIds = validated
+        .filter((item) => item.current)
+        .map((item) => item.typeId);
+      const nextPreferences: LocationPreferences = {
+        version: 1,
+        active_school_type_ids: [],
+        preferences: Object.fromEntries(
+          Object.entries(locationPreferences.preferences).filter(([id]) =>
+            liveTypeIds.has(id),
           ),
-        };
+        ),
+      };
 
-        for (const item of validated) {
-          if (!item.current) delete nextPreferences.preferences[item.typeId];
-        }
+      for (const item of validated) {
+        if (!item.current) delete nextPreferences.preferences[item.typeId];
+      }
 
-        if (validTypeIds.length === 0) {
-          if (!initialSchoolTypesWereInUrl.current) {
-            setLocationMessage(
-              "Your saved location is no longer available. Choose a new location to save it.",
-            );
-          }
-          return;
-        }
-
-        const saved = commonSavedLocation(validTypeIds, nextPreferences);
-        if (!saved) return;
-
+      if (validTypeIds.length === 0) {
         if (!initialSchoolTypesWereInUrl.current) {
-          setSchoolType(validTypeIds);
-        }
-        setGeoCountry(saved.country_id);
-        setGeoState(saved.state_id ?? "");
-        setGeoCity(saved.city_id ?? "");
-        setGeoLocation(saved.location_id ?? "");
-        locationFromPreference.current = true;
-        setLocationMessage("Your saved location has been restored.");
-
-        const activeTypeIds = initialSchoolTypesWereInUrl.current
-          ? locationPreferences.active_school_type_ids.filter(
-              (id) => nextPreferences.preferences[id],
-            )
-          : validTypeIds;
-        nextPreferences.active_school_type_ids =
-          activeTypeIds.length > 0 ? activeTypeIds : validTypeIds;
-
-        if (JSON.stringify(nextPreferences) !== JSON.stringify(locationPreferences)) {
-          const response = await fetch("/api/location-preferences", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nextPreferences),
-          });
-          if (!response.ok) {
-            throw new Error("Could not update outdated saved locations.");
-          }
-          setLocationPreferences(nextPreferences);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setLocationError(
-            reason instanceof Error
-              ? reason.message
-              : "Saved locations could not be validated.",
+          setLocationMessage(
+            "Your saved location is no longer available. Choose a new location to save it.",
           );
         }
-      });
+        return;
+      }
+
+      const saved = commonSavedLocation(validTypeIds, nextPreferences);
+      if (!saved) return;
+
+      if (!initialSchoolTypesWereInUrl.current) {
+        setSchoolType(validTypeIds);
+      }
+      setGeoCountry(saved.country_id);
+      setGeoState(saved.state_id ?? "");
+      setGeoCity(saved.city_id ?? "");
+      setGeoLocation(saved.location_id ?? "");
+      locationFromPreference.current = true;
+      setLocationMessage("Your saved location has been restored.");
+
+      const activeTypeIds = initialSchoolTypesWereInUrl.current
+        ? locationPreferences.active_school_type_ids.filter(
+            (id) => nextPreferences.preferences[id],
+          )
+        : validTypeIds;
+      nextPreferences.active_school_type_ids =
+        activeTypeIds.length > 0 ? activeTypeIds : validTypeIds;
+
+      if (JSON.stringify(nextPreferences) !== JSON.stringify(locationPreferences)) {
+        const response = await fetch("/api/location-preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nextPreferences),
+        });
+        if (!response.ok) {
+          throw new Error("Could not update outdated saved locations.");
+        }
+        setLocationPreferences(nextPreferences);
+      }
+    })
+    .catch((reason: unknown) => {
+      if (!cancelled) {
+        setLocationError(
+          reason instanceof Error
+            ? reason.message
+            : "Saved locations could not be validated.",
+        );
+      }
+    });
 
     return () => {
-      cancelled = true;
+    cancelled = true;
     };
   }, [
     locationPreferences,
@@ -768,7 +791,6 @@ export default function SchoolDiscovery() {
     setSearchInput("");
     setSearch("");
     setSchoolType([]);
-    locationFromPreference.current = false;
     setBoard([]);
     setGeoCountry("");
     setGeoState("");
@@ -833,13 +855,13 @@ export default function SchoolDiscovery() {
     setBoard([selectedBoard.board_id]);
     setSearchInput("");
     setSearch("");
-    updateSchoolTypeSelection([]);
+    setSchoolType([]);
     setFeeRange([0, 3_000_000]);
     setGender(undefined);
   }
 
   function selectSchoolType(selectedType: SchoolTypeListItem) {
-    updateSchoolTypeSelection([selectedType.school_type_id]);
+    setSchoolType([selectedType.school_type_id]);
     setSearchInput("");
     setSearch("");
     setBoard([]);
@@ -868,17 +890,6 @@ export default function SchoolDiscovery() {
     setGeoLocation(saved.location_id ?? "");
     locationFromPreference.current = true;
     return true;
-  }
-
-  function updateSchoolTypeSelection(typeIds: string[]) {
-    setSchoolType(typeIds);
-    if (locationFromPreference.current && !applySavedLocationForTypes(typeIds)) {
-      setGeoCountry("");
-      setGeoState("");
-      setGeoCity("");
-      setGeoLocation("");
-      locationFromPreference.current = false;
-    }
   }
 
   function handleFinderChange(next: HeroFinderValue) {
@@ -1004,8 +1015,64 @@ export default function SchoolDiscovery() {
     scrollToSchools();
   }
 
+  function handleExplore(query: (typeof exploreItems)[number]["query"]) {
+    if (!query) return;
+    const matchBoard = (code: string) =>
+      boards.find((item) => item.board_code.toUpperCase() === code);
+    const matchType = (needle: string) =>
+      schoolTypes.find(
+        (item) =>
+          item.slug.includes(needle) ||
+          item.type_name.toLowerCase().includes(needle)
+      );
+
+    if (query === "boarding") {
+      const type = matchType("boarding") ?? matchType("full-boarding");
+      if (type) selectSchoolType(type);
+      else searchFor("Boarding");
+    } else if (query === "day") {
+      const type = matchType("day");
+      if (type) selectSchoolType(type);
+      else searchFor("Day school");
+    } else if (query === "cbse") {
+      const item = matchBoard("CBSE");
+      if (item) selectBoard(item);
+      else searchFor("CBSE");
+    } else if (query === "ib") {
+      const item = matchBoard("IB");
+      if (item) selectBoard(item);
+      else searchFor("IB");
+    } else if (query === "icse") {
+      const item = matchBoard("ICSE");
+      if (item) selectBoard(item);
+      else searchFor("ICSE");
+    } else if (query === "igcse") {
+      const item = matchBoard("IGCSE");
+      if (item) selectBoard(item);
+      else searchFor("IGCSE");
+    } else if (query === "girls") {
+      setGender("GIRLS");
+      const type = matchType("boarding");
+      if (type) setSchoolType([type.school_type_id]);
+      setSearch("");
+      setSearchInput("");
+    } else if (query === "boys") {
+      setGender("BOYS");
+      const type = matchType("boarding");
+      if (type) setSchoolType([type.school_type_id]);
+      setSearch("");
+      setSearchInput("");
+    } else if (query === "india") {
+      searchFor("India");
+    } else if (query === "sainik") {
+      searchFor("Sainik");
+    }
+    scrollToSchools();
+  }
+
   void submitSearch;
   void selectSuggestion;
+  void handleExplore;
 
   return (
     <main className="discovery-page">
@@ -1036,7 +1103,9 @@ export default function SchoolDiscovery() {
             )}
             locationMessage={locationMessage}
             locationError={locationError}
-            onChange={handleFinderChange}
+            onChange={(next) => {
+              handleFinderChange(next);
+            }}
             onRememberLocationChange={setRememberLocation}
             onClearSavedLocation={() => void clearSavedLocations()}
             onSubmit={() => void handleFinderSubmit()}
@@ -1095,6 +1164,33 @@ export default function SchoolDiscovery() {
         </a>
       </section>
 
+      <section className="home-section home-section--steps" id="how-it-works">
+        <div className="home-section__heading home-section__heading--centered">
+          <div>
+            <div className="section-eyebrow">HOW IT WORKS</div>
+            <h2>Simple steps to your ideal school</h2>
+          </div>
+        </div>
+
+        <div className="how-it-works-grid">
+          {howItWorksSteps.map((step, index) => (
+            <article className="how-step" key={step.title}>
+              <div className="how-step__number">0{index + 1}</div>
+
+              <div className="how-step__icon">
+                {index === 0 && <Search size={18} />}
+                {index === 1 && <SlidersHorizontal size={18} />}
+                {index === 2 && <CheckCircle2 size={18} />}
+                {index === 3 && <ArrowRight size={18} />}
+              </div>
+
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="home-section home-section--cities" id="cities">
         <div className="home-section__heading">
           <div>
@@ -1103,7 +1199,7 @@ export default function SchoolDiscovery() {
           </div>
 
           <a href="#schools">
-            Explore all schools <ArrowRight size={15} />
+            Explore all cities <ArrowRight size={15} />
           </a>
         </div>
 
@@ -1134,7 +1230,9 @@ export default function SchoolDiscovery() {
             </button>
           ))}
           {cityCards.length === 0 && (
-            <p className="section-empty">School locations will appear here when listings are available.</p>
+            <p className="section-empty">
+              School locations will appear here when listings are available.
+            </p>
           )}
         </div>
       </section>
@@ -1154,24 +1252,29 @@ export default function SchoolDiscovery() {
         </div>
 
         <div className="board-grid">
-          {boardCards.map((boardItem, index) => (
+          {boardCards.map(({ code, board: boardItem }, index) => (
             <button
               className={`board-card board-card--${index + 1}`}
-              key={boardItem.board_id}
-              onClick={() => selectBoard(boardItem)}
+              key={code}
+              onClick={() =>
+                boardItem ? selectBoard(boardItem) : searchFor(code)
+              }
             >
-              <span className="board-card__mark">{boardItem.board_code}</span>
-              <span className="board-card__name">{boardItem.board_name}</span>
+              <span className="board-card__mark">{code}</span>
+
+              <span className="board-card__name">
+                {boardItem?.board_name ??
+                  (code === "IGCSE"
+                    ? "International General Certificate of Secondary Education"
+                    : `${code} curriculum`)}
+              </span>
 
               <span className="board-card__action">
-                Browse schools{" "}
+                {boardItem ? "Browse schools" : "Search directory"}{" "}
                 <ArrowRight size={14} />
               </span>
             </button>
           ))}
-          {boardCards.length === 0 && (
-            <p className="section-empty">Education boards will appear here when configured.</p>
-          )}
         </div>
       </section>
 
@@ -1212,6 +1315,100 @@ export default function SchoolDiscovery() {
             listings.
           </p>
         )}
+      </section>
+
+      <section
+        className="home-section home-section--testimonials"
+        id="parent-stories"
+      >
+        <div className="home-section__heading">
+          <div>
+            <div className="section-eyebrow">TRUST, EARNED</div>
+            <h2>Parent testimonials</h2>
+          </div>
+
+          <span className="coming-soon-label">
+            <Heart size={14} /> Coming soon
+          </span>
+        </div>
+
+        <div
+          className="coming-soon-grid"
+          aria-label="Parent testimonials are coming soon"
+        >
+          {[1, 2, 3].map((item) => (
+            <article className="coming-soon-card" key={item}>
+              <div className="coming-soon-card__icon">
+                <Users size={19} />
+              </div>
+              <span>Parent stories</span>
+              <p>
+                We’ll share verified experiences from families once reviews are
+                available.
+              </p>
+              <div className="coming-soon-card__rule" />
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="home-section home-section--blog" id="blog">
+        <div className="home-section__heading">
+          <div>
+            <div className="section-eyebrow">FROM THE BLOG</div>
+            <h2>Latest school guides</h2>
+          </div>
+
+          <span className="coming-soon-label">
+            <Newspaper size={14} /> Coming soon
+          </span>
+        </div>
+
+        <div
+          className="coming-soon-grid coming-soon-grid--blog"
+          aria-label="Blog articles are coming soon"
+        >
+          {[
+            "Boarding school admissions",
+            "Choosing an education board",
+            "Planning a school visit",
+          ].map((title) => (
+            <article className="blog-placeholder" key={title}>
+              <span className="blog-placeholder__icon">
+                <Newspaper size={19} />
+              </span>
+              <span className="blog-placeholder__tag">SCHOOL GUIDE</span>
+              <h3>{title}</h3>
+              <p>Practical guides from BoardingEdu are on the way.</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="home-section home-section--benefits" id="about">
+        <div className="home-section__heading home-section__heading--centered">
+          <div>
+            <div className="section-eyebrow">WHY BOARDINGEDU</div>
+            <h2>Everything parents need to choose with confidence</h2>
+          </div>
+        </div>
+
+        <div className="benefit-grid">
+          {whyBoardingEdu.map((benefit, index) => (
+            <article className="benefit-card" key={benefit}>
+              <span className="benefit-card__icon">
+                {index === 0 && <Building2 size={18} />}
+                {index === 1 && <ShieldCheck size={18} />}
+                {index === 2 && <SearchCheck size={18} />}
+                {index === 3 && <CheckCircle2 size={18} />}
+                {index === 4 && <ArrowRight size={18} />}
+                {index === 5 && <Users size={18} />}
+              </span>
+
+              <h3>{benefit}</h3>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section
@@ -1259,6 +1456,39 @@ export default function SchoolDiscovery() {
               Create Parent Account
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className="home-section home-section--faq" id="faq">
+        <div className="home-section__heading home-section__heading--centered">
+          <div>
+            <div className="section-eyebrow">FAQ</div>
+            <h2>Common questions</h2>
+          </div>
+        </div>
+
+        <div className="faq-list">
+          {faqItems.map((item, index) => {
+            const open = activeFaq === index;
+
+            return (
+              <div
+                className={`faq-item ${open ? "faq-item--open" : ""}`}
+                key={item.question}
+              >
+                <button
+                  type="button"
+                  className="faq-question"
+                  onClick={() => setActiveFaq(open ? null : index)}
+                >
+                  <span>{item.question}</span>
+                  <span className="faq-toggle">{open ? "−" : "+"}</span>
+                </button>
+
+                {open && <p className="faq-answer">{item.answer}</p>}
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -1388,10 +1618,10 @@ export default function SchoolDiscovery() {
                       checked={schoolType.includes(type.school_type_id)}
                       onChange={() => {
                         const selected = !schoolType.includes(type.school_type_id);
-                        updateSchoolTypeSelection(
-                          schoolType
-                            .filter((id) => id !== type.school_type_id)
-                            .concat(selected ? [type.school_type_id] : []),
+                        setSchoolType((current) =>
+                          selected
+                            ? [...current, type.school_type_id]
+                            : current.filter((id) => id !== type.school_type_id)
                         );
                         trackSearchEvent("filter_applied", {
                           filter_type: "school_type",
