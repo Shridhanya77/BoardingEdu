@@ -1,95 +1,125 @@
-export type SavedLocationPreference = {
+import type { SchoolTypeListItem } from "@/lib/api";
+
+export type SavedCountryPreference = {
   country_id: string;
-  state_id: string | null;
-  city_id: string | null;
-  location_id: string | null;
+  state_ids: string[];
 };
 
 export type LocationPreferences = {
-  version: 1;
-  active_school_type_ids: string[];
-  preferences: Record<string, SavedLocationPreference>;
+  version: 2;
+  countries: SavedCountryPreference[];
+  updated_at: string;
 };
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const LOCATION_FIELDS = [
-  "country_id",
-  "state_id",
-  "city_id",
-  "location_id",
-] as const;
+
+export function isBoardingOnlySelection(
+  typeIds: string[],
+  schoolTypes: SchoolTypeListItem[],
+): boolean {
+  return (
+    typeIds.length > 0 &&
+    typeIds.every((id) => {
+      const type = schoolTypes.find((item) => item.school_type_id === id);
+      return Boolean(
+        type &&
+          `${type.type_code} ${type.type_name} ${type.slug}`
+            .toLowerCase()
+            .includes("boarding"),
+      );
+    })
+  );
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function normalizeId(value: unknown, allowNull = false): string | null | undefined {
-  if (allowNull && value === null) return null;
-  if (typeof value !== "string" || !UUID_PATTERN.test(value)) return undefined;
+function normalizeId(value: unknown): string | null {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) return null;
   return value.toLowerCase();
+}
+
+function normalizeCountries(value: unknown): SavedCountryPreference[] | null {
+  if (!Array.isArray(value) || value.length > 50) return null;
+  const countries: SavedCountryPreference[] = [];
+  const seenCountries = new Set<string>();
+
+  for (const entry of value) {
+    if (!isRecord(entry) || !Array.isArray(entry.state_ids)) return null;
+    const countryId = normalizeId(entry.country_id);
+    if (!countryId || seenCountries.has(countryId) || entry.state_ids.length > 500) {
+      return null;
+    }
+    seenCountries.add(countryId);
+
+    const stateIds: string[] = [];
+    for (const rawStateId of entry.state_ids) {
+      const stateId = normalizeId(rawStateId);
+      if (!stateId) return null;
+      if (!stateIds.includes(stateId)) stateIds.push(stateId);
+    }
+    countries.push({ country_id: countryId, state_ids: stateIds });
+  }
+  return countries;
+}
+
+function normalizeLegacyPreferences(value: Record<string, unknown>): LocationPreferences | null {
+  if (!Array.isArray(value.active_school_type_ids) || !isRecord(value.preferences)) {
+    return null;
+  }
+
+  const grouped = new Map<string, Set<string>>();
+  for (const rawLocation of Object.values(value.preferences)) {
+    if (!isRecord(rawLocation)) return null;
+    const countryId = normalizeId(rawLocation.country_id);
+    const stateId =
+      rawLocation.state_id === null ? null : normalizeId(rawLocation.state_id);
+    if (!countryId || (rawLocation.state_id !== null && !stateId)) return null;
+    const states = grouped.get(countryId) ?? new Set<string>();
+    if (stateId) states.add(stateId);
+    grouped.set(countryId, states);
+  }
+  if (grouped.size > 50) return null;
+
+  return {
+    version: 2,
+    countries: [...grouped].map(([country_id, states]) => ({
+      country_id,
+      state_ids: [...states],
+    })),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 export function normalizeLocationPreferences(
   value: unknown,
 ): LocationPreferences | null {
-  if (!isRecord(value) || value.version !== 1) return null;
-  if (!Array.isArray(value.active_school_type_ids) || !isRecord(value.preferences)) {
-    return null;
-  }
+  if (!isRecord(value)) return null;
+  if (value.version === 1) return normalizeLegacyPreferences(value);
+  if (value.version !== 2) return null;
 
-  const preferenceEntries = Object.entries(value.preferences);
-  if (
-    value.active_school_type_ids.length > 20 ||
-    preferenceEntries.length > 50
-  ) {
-    return null;
-  }
+  const countries = normalizeCountries(value.countries);
+  if (!countries) return null;
+  const updatedAt =
+    typeof value.updated_at === "string" &&
+    Number.isFinite(Date.parse(value.updated_at))
+      ? value.updated_at
+      : new Date().toISOString();
 
-  const preferences: Record<string, SavedLocationPreference> = {};
-  for (const [rawTypeId, rawLocation] of preferenceEntries) {
-    const typeId = normalizeId(rawTypeId);
-    if (!typeId || !isRecord(rawLocation)) return null;
-    if (Object.keys(rawLocation).some((key) => !LOCATION_FIELDS.includes(key as typeof LOCATION_FIELDS[number]))) {
-      return null;
-    }
+  return { version: 2, countries, updated_at: updatedAt };
+}
 
-    const countryId = normalizeId(rawLocation.country_id);
-    const stateId = normalizeId(rawLocation.state_id, true);
-    const cityId = normalizeId(rawLocation.city_id, true);
-    const locationId = normalizeId(rawLocation.location_id, true);
-    if (
-      !countryId ||
-      stateId === undefined ||
-      cityId === undefined ||
-      locationId === undefined ||
-      (stateId && !countryId) ||
-      (cityId && !stateId) ||
-      (locationId && !cityId)
-    ) {
-      return null;
-    }
-
-    preferences[typeId] = {
-      country_id: countryId,
-      state_id: stateId,
-      city_id: cityId,
-      location_id: locationId,
-    };
-  }
-
-  const activeTypeIds: string[] = [];
-  for (const rawId of value.active_school_type_ids) {
-    const typeId = normalizeId(rawId);
-    if (!typeId || !preferences[typeId]) return null;
-    if (!activeTypeIds.includes(typeId)) activeTypeIds.push(typeId);
-  }
-
-  if (activeTypeIds.length === 0 && preferenceEntries.length !== 0) return null;
-
+export function createLocationPreferences(
+  countries: SavedCountryPreference[],
+): LocationPreferences {
   return {
-    version: 1,
-    active_school_type_ids: activeTypeIds,
-    preferences,
+    version: 2,
+    countries: countries.map(({ country_id, state_ids }) => ({
+      country_id,
+      state_ids: [...new Set(state_ids)],
+    })),
+    updated_at: new Date().toISOString(),
   };
 }

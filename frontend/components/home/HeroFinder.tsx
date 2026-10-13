@@ -13,6 +13,7 @@ import {
   type SchoolTypeListItem,
   type StateListItem,
 } from "@/lib/api";
+import { isBoardingOnlySelection } from "@/lib/location-preferences";
 
 export type HeroFinderValue = {
   country: string;
@@ -27,13 +28,9 @@ type Props = {
   value: HeroFinderValue;
   boards: BoardListItem[];
   schoolTypes: SchoolTypeListItem[];
-  rememberLocation: boolean;
-  hasSavedLocation: boolean;
   locationMessage: string | null;
   locationError: string | null;
   onChange: (next: HeroFinderValue) => void;
-  onRememberLocationChange: (remember: boolean) => void;
-  onClearSavedLocation: () => void;
   onSubmit: () => void;
 };
 
@@ -93,31 +90,40 @@ export default function HeroFinder({
   value,
   boards,
   schoolTypes,
-  rememberLocation,
-  hasSavedLocation,
   locationMessage,
   locationError,
   onChange,
-  onRememberLocationChange,
-  onClearSavedLocation,
   onSubmit,
 }: Props) {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(true);
+  const [countriesError, setCountriesError] = useState<string | null>(null);
   const [states, setStates] = useState<StateListItem[]>([]);
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [statesError, setStatesError] = useState<string | null>(null);
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [locations, setLocations] = useState<LocationListItem[]>([]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setCountriesLoading(true);
+    setCountriesError(null);
     geography
       .countries()
       .then((page) => fetchAllPages(page))
       .then((rows) => {
         if (!cancelled) setCountries(rows.filter((row) => row.status));
       })
-      .catch(() => {
-        if (!cancelled) setCountries([]);
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setCountriesError(
+            reason instanceof Error ? reason.message : "Countries could not be loaded.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCountriesLoading(false);
       });
     return () => {
       cancelled = true;
@@ -127,17 +133,35 @@ export default function HeroFinder({
   useEffect(() => {
     if (!value.country) {
       setStates([]);
+      setStatesLoading(false);
+      setStatesError(null);
       return;
     }
     let cancelled = false;
+    setStatesLoading(true);
+    setStatesError(null);
     geography
       .statesOf(value.country)
       .then((page) => fetchAllPages(page))
       .then((rows) => {
-        if (!cancelled) setStates(rows.filter((row) => row.status));
+        if (!cancelled) {
+          setStates(
+            rows.filter(
+              (row) => row.status && row.country_id === value.country,
+            ),
+          );
+        }
       })
-      .catch(() => {
-        if (!cancelled) setStates([]);
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setStates([]);
+          setStatesError(
+            reason instanceof Error ? reason.message : "States could not be loaded.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStatesLoading(false);
       });
     return () => {
       cancelled = true;
@@ -200,7 +224,7 @@ export default function HeroFinder({
       : value.schoolType.length === 1
         ? schoolTypes.find((row) => row.school_type_id === value.schoolType[0])?.type_name
         : `${value.schoolType.length} types`;
-
+  const boardingOnly = isBoardingOnlySelection(value.schoolType, schoolTypes);
   function patch(partial: Partial<HeroFinderValue>) {
     onChange({ ...value, ...partial });
   }
@@ -217,7 +241,9 @@ export default function HeroFinder({
         <legend>
           <span>01</span> Choose a location
         </legend>
-        <div className="finder-group__fields">
+        <div
+          className={`finder-group__fields${boardingOnly ? " finder-group__fields--regional" : ""}`}
+        >
           <SelectMenu
             label="Country"
             placeholder="Select"
@@ -225,23 +251,27 @@ export default function HeroFinder({
             open={openMenu === "country"}
             onToggle={() => setOpenMenu(openMenu === "country" ? null : "country")}
           >
-            {countries.map((row) => (
-              <button
-                type="button"
-                key={row.country_id}
-                onClick={() => {
-                  patch({
-                    country: row.country_id,
-                    state: "",
-                    city: "",
-                    location: "",
-                  });
-                  setOpenMenu("state");
-                }}
-              >
-                {row.country_name}
-              </button>
-            ))}
+            {countriesLoading ? (
+              <p role="status">Loading countries…</p>
+            ) : countriesError ? (
+              <p role="alert">{countriesError}</p>
+            ) : countries.map((row) => (
+                <button
+                  type="button"
+                  key={row.country_id}
+                  onClick={() => {
+                    patch({
+                      country: row.country_id,
+                      state: "",
+                      city: "",
+                      location: "",
+                    });
+                    setOpenMenu("state");
+                  }}
+                >
+                  {row.country_name}
+                </button>
+              ))}
           </SelectMenu>
 
           <SelectMenu
@@ -252,7 +282,11 @@ export default function HeroFinder({
             open={openMenu === "state"}
             onToggle={() => setOpenMenu(openMenu === "state" ? null : "state")}
           >
-            {states.length === 0 ? (
+            {statesLoading ? (
+              <p role="status">Loading states…</p>
+            ) : statesError ? (
+              <p role="alert">{statesError}</p>
+            ) : states.length === 0 ? (
               <p>No states for this country yet.</p>
             ) : (
               states.map((row) => (
@@ -261,7 +295,7 @@ export default function HeroFinder({
                   key={row.state_id}
                   onClick={() => {
                     patch({ state: row.state_id, city: "", location: "" });
-                    setOpenMenu("city");
+                    setOpenMenu(boardingOnly ? null : "city");
                   }}
                 >
                   {row.state_name}
@@ -270,73 +304,56 @@ export default function HeroFinder({
             )}
           </SelectMenu>
 
-          <SelectMenu
-            label="City"
-            placeholder="Select"
-            disabled={!value.state}
-            valueLabel={cityName}
-            open={openMenu === "city"}
-            onToggle={() => setOpenMenu(openMenu === "city" ? null : "city")}
-          >
-            {cities.length === 0 ? (
-              <p>No cities for this state yet.</p>
-            ) : (
-              cities.map((row) => (
-                <button
-                  type="button"
-                  key={row.city_id}
-                  onClick={() => {
-                    patch({ city: row.city_id, location: "" });
-                    setOpenMenu("location");
-                  }}
-                >
-                  {row.city_name}
-                </button>
-              ))
-            )}
-          </SelectMenu>
-
-          <SelectMenu
-            label="Locality"
-            placeholder={value.city && locations.length === 0 ? "No localities listed" : "Select"}
-            disabled={!value.city || locations.length === 0}
-            valueLabel={locationName}
-            open={openMenu === "location"}
-            onToggle={() => setOpenMenu(openMenu === "location" ? null : "location")}
-          >
-            {locations.map((row) => (
-              <button
-                type="button"
-                key={row.location_id}
-                onClick={() => {
-                  patch({ location: row.location_id });
-                  setOpenMenu(null);
-                }}
+          {!boardingOnly && (
+            <>
+              <SelectMenu
+                label="City"
+                placeholder="Select"
+                disabled={!value.state}
+                valueLabel={cityName}
+                open={openMenu === "city"}
+                onToggle={() => setOpenMenu(openMenu === "city" ? null : "city")}
               >
-                {row.location_name}
-              </button>
-            ))}
-          </SelectMenu>
-        </div>
-        <div className="finder-preference">
-          <label className="finder-remember">
-            <input
-              type="checkbox"
-              checked={rememberLocation}
-              onChange={(event) => onRememberLocationChange(event.target.checked)}
-            />
-            <span>
-              <strong>Remember my location</strong>
-              <small>Save these selections for your next visit.</small>
-            </span>
-          </label>
-          {hasSavedLocation && (
-            <div className="finder-saved-location">
-              <span>Saved location is active</span>
-              <button type="button" onClick={onClearSavedLocation}>
-                Clear saved location
-              </button>
-            </div>
+                {cities.length === 0 ? (
+                  <p>No cities for this state yet.</p>
+                ) : (
+                  cities.map((row) => (
+                    <button
+                      type="button"
+                      key={row.city_id}
+                      onClick={() => {
+                        patch({ city: row.city_id, location: "" });
+                        setOpenMenu("location");
+                      }}
+                    >
+                      {row.city_name}
+                    </button>
+                  ))
+                )}
+              </SelectMenu>
+
+              <SelectMenu
+                label="Locality"
+                placeholder={value.city && locations.length === 0 ? "No localities listed" : "Select"}
+                disabled={!value.city || locations.length === 0}
+                valueLabel={locationName}
+                open={openMenu === "location"}
+                onToggle={() => setOpenMenu(openMenu === "location" ? null : "location")}
+              >
+                {locations.map((row) => (
+                  <button
+                    type="button"
+                    key={row.location_id}
+                    onClick={() => {
+                      patch({ location: row.location_id });
+                      setOpenMenu(null);
+                    }}
+                  >
+                    {row.location_name}
+                  </button>
+                ))}
+              </SelectMenu>
+            </>
           )}
         </div>
         {locationMessage && <p className="finder-message" role="status">{locationMessage}</p>}

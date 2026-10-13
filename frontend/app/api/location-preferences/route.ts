@@ -4,6 +4,7 @@ import { normalizeLocationPreferences } from "@/lib/location-preferences";
 const COOKIE_NAME = "boardingu_location_preferences";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 180;
 const MAX_BODY_LENGTH = 16_384;
+const MAX_COOKIE_LENGTH = 3_500;
 
 function cookieOptions() {
   return {
@@ -17,9 +18,9 @@ function cookieOptions() {
 
 function emptyPreferences() {
   return {
-    version: 1 as const,
-    active_school_type_ids: [],
-    preferences: {},
+    version: 2 as const,
+    countries: [],
+    updated_at: new Date().toISOString(),
   };
 }
 
@@ -43,9 +44,13 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  return NextResponse.json(preferences, {
+  const response = NextResponse.json(preferences, {
     headers: { "Cache-Control": "no-store" },
   });
+  if (isRecord(decoded) && decoded.version !== 2) {
+    response.cookies.set(COOKIE_NAME, JSON.stringify(preferences), cookieOptions());
+  }
+  return response;
 }
 
 export async function POST(request: NextRequest) {
@@ -68,15 +73,27 @@ export async function POST(request: NextRequest) {
   }
 
   const preferences = normalizeLocationPreferences(payload);
-  if (!preferences || preferences.active_school_type_ids.length === 0) {
+  if (!preferences) {
     return NextResponse.json(
-      { error: "Select a valid school type and location before saving." },
+      { error: "Invalid location preference data." },
       { status: 400 },
     );
   }
 
+  const serialized = JSON.stringify(preferences);
+  if (preferences.countries.length > 0 && serialized.length > MAX_COOKIE_LENGTH) {
+    return NextResponse.json(
+      { error: "Reduce the number of saved states before saving preferences." },
+      { status: 413 },
+    );
+  }
+
   const response = NextResponse.json({ saved: true });
-  response.cookies.set(COOKIE_NAME, JSON.stringify(preferences), cookieOptions());
+  if (preferences.countries.length === 0) {
+    response.cookies.set(COOKIE_NAME, "", { ...cookieOptions(), maxAge: 0 });
+  } else {
+    response.cookies.set(COOKIE_NAME, serialized, cookieOptions());
+  }
   return response;
 }
 
@@ -84,4 +101,8 @@ export async function DELETE() {
   const response = new NextResponse(null, { status: 204 });
   response.cookies.set(COOKIE_NAME, "", { ...cookieOptions(), maxAge: 0 });
   return response;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

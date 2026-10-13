@@ -1,5 +1,8 @@
 // Central BoardingEdu DRF API client — single source of truth
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api").replace(/\/$/, "");
+export const API_BASE = (
+  process.env.NEXT_PUBLIC_API_BASE ??
+  "https://boardingedu-6ng7.onrender.com/api"
+).replace(/\/+$/, "");
 const API_ORIGIN = new URL(API_BASE).origin;
 
 const defaultHeaders = { "Content-Type": "application/json" };
@@ -278,6 +281,7 @@ export type SchoolFilters = {
   state?: string;
   city?: string;
   location?: string;
+  location_group?: string[];
   school_type?: string | string[];
   board?: string | string[];
   min_fee?: number;

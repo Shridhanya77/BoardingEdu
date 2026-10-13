@@ -468,6 +468,17 @@ select:focus-visible {
   gap: 10px;
 }
 
+.finder-group__fields--regional {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.finder-location-hint {
+  margin: -4px 0 10px;
+  color: #596b7d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .finder-field {
   min-width: 0;
   position: relative;
@@ -577,73 +588,8 @@ select:focus-visible {
   background: #eaf5f1;
 }
 
-.finder-check input,
-.finder-remember input {
+.finder-check input {
   accent-color: #17765f;
-}
-
-.finder-preference {
-  margin-top: 14px;
-  padding: 11px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  background: #f2f8f6;
-  border: 1px solid #d7e9e3;
-  border-radius: 8px;
-}
-
-.finder-remember {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  color: #263b4f;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.finder-remember input {
-  margin: 2px 0 0;
-}
-
-.finder-remember span {
-  display: grid;
-  gap: 3px;
-}
-
-.finder-remember strong {
-  font-size: 12px;
-}
-
-.finder-remember small {
-  color: #596b7d;
-  font-size: 11px;
-}
-
-.finder-saved-location {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  color: #17634f;
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.finder-saved-location button {
-  padding: 6px 9px;
-  color: #145b4a;
-  background: #fff;
-  border: 1px solid #b7d6ca;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 11px;
-}
-
-.finder-saved-location button:hover {
-  background: #e5f2ed;
 }
 
 .finder-message,
@@ -1255,11 +1201,6 @@ select:focus-visible {
 
   .finder-group__fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .finder-preference {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .hero-search__submit {

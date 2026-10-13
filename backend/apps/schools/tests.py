@@ -138,6 +138,104 @@ class SchoolClassificationTests(TestCase):
             {'BOTH', 'IBBOARD'},
         )
 
+    def test_location_groups_match_selected_countries_and_states(self):
+        maharashtra = State.objects.create(
+            country=self.country,
+            state_code='MH',
+            state_name='Maharashtra',
+            slug='maharashtra',
+        )
+        mumbai = City.objects.create(
+            state=maharashtra,
+            city_code='MUM',
+            city_name='Mumbai',
+            slug='mumbai',
+        )
+        maharashtra_school = School.objects.create(
+            school_code='MH-SCHOOL',
+            school_name='Maharashtra School',
+            slug='maharashtra-school',
+            country=self.country,
+            state=maharashtra,
+            city=mumbai,
+            address='Mumbai',
+        )
+        maharashtra_school.school_types.add(self.boarding)
+        karnataka_school = self.create_school('KA-SCHOOL')
+        karnataka_school.school_types.add(self.day)
+
+        other_country = Country.objects.create(
+            country_code='US',
+            country_name='United States',
+            slug='united-states',
+        )
+        california = State.objects.create(
+            country=other_country,
+            state_code='CA',
+            state_name='California',
+            slug='california',
+        )
+        los_angeles = City.objects.create(
+            state=california,
+            city_code='LA',
+            city_name='Los Angeles',
+            slug='los-angeles',
+        )
+        other_country_school = School.objects.create(
+            school_code='US-SCHOOL',
+            school_name='United States School',
+            slug='united-states-school',
+            country=other_country,
+            state=california,
+            city=los_angeles,
+            address='Los Angeles',
+        )
+        other_country_school.school_types.add(self.day)
+
+        params = QueryDict('', mutable=True)
+        params.setlist(
+            'location_group',
+            [
+                f'{self.country.pk}|{self.state.pk},{maharashtra.pk}',
+                str(other_country.pk),
+            ],
+        )
+        result = SchoolFilter(params, queryset=School.objects.all())
+
+        self.assertTrue(result.is_valid(), result.errors)
+        self.assertSetEqual(
+            set(result.qs.values_list('school_code', flat=True)),
+            {'KA-SCHOOL', 'MH-SCHOOL', 'US-SCHOOL'},
+        )
+
+        params.setlist('location_group', [str(self.country.pk)])
+        country_only = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(country_only.is_valid(), country_only.errors)
+        self.assertSetEqual(
+            set(country_only.qs.values_list('school_code', flat=True)),
+            {'KA-SCHOOL', 'MH-SCHOOL'},
+        )
+
+        params.setlist('location_group', [f'{self.country.pk}|{maharashtra.pk}'])
+        params.setlist('school_type', [str(self.boarding.pk)])
+        boarding_in_selected_state = SchoolFilter(
+            params,
+            queryset=School.objects.all(),
+        )
+        self.assertTrue(
+            boarding_in_selected_state.is_valid(),
+            boarding_in_selected_state.errors,
+        )
+        self.assertSetEqual(
+            set(boarding_in_selected_state.qs.values_list('school_code', flat=True)),
+            {'MH-SCHOOL'},
+        )
+
+        params.setlist('location_group', [f'{self.country.pk}|{california.pk}'])
+        invalid_group = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(invalid_group.is_valid(), invalid_group.errors)
+        self.assertFalse(invalid_group.qs.exists())
+
     def test_fee_range_filters_only_published_current_year_totals(self):
         current_year = AcademicYear.objects.create(
             year_code='2026-27',

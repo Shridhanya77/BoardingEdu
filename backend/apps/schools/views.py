@@ -1,11 +1,13 @@
+import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.db.models import DecimalField, OuterRef, Subquery, Sum
+from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 from apps.fees.models import FeeItem
+from apps.geography.models import State
 from .models import Board, SchoolType, Grade, Facility, School, SchoolFacility,SchoolGrade
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
@@ -28,6 +30,7 @@ class ReadWriteModelViewSet(viewsets.ModelViewSet):
 
 
 class SchoolFilter(django_filters.FilterSet):
+    location_group = django_filters.CharFilter(method='filter_location_group')
     board = django_filters.ModelMultipleChoiceFilter(
         field_name='boards',
         queryset=Board.objects.all(),
@@ -45,6 +48,33 @@ class SchoolFilter(django_filters.FilterSet):
             'country', 'state', 'city', 'location',
             'gender', 'status', 'verification_status', 'boarding_required',
         ]
+
+    def filter_location_group(self, queryset, name, value):
+        raw_groups = self.data.getlist(name) if hasattr(self.data, 'getlist') else [value]
+        location_query = Q(pk__in=[])
+        for raw_group in raw_groups:
+            country_value, separator, raw_states = raw_group.partition('|')
+            try:
+                country_id = uuid.UUID(country_value)
+            except (ValueError, AttributeError):
+                return queryset.none()
+
+            if not separator:
+                location_query |= Q(country_id=country_id)
+                continue
+
+            try:
+                state_ids = [uuid.UUID(state_id) for state_id in raw_states.split(',')]
+            except (ValueError, AttributeError):
+                return queryset.none()
+            if not state_ids or State.objects.filter(
+                state_id__in=state_ids,
+                country_id=country_id,
+            ).count() != len(set(state_ids)):
+                return queryset.none()
+            location_query |= Q(country_id=country_id, state_id__in=state_ids)
+
+        return queryset.filter(location_query)
 
     @staticmethod
     def annual_fee_subquery():

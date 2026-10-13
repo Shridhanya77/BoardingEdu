@@ -34,9 +34,10 @@ import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import {
+  createLocationPreferences,
+  isBoardingOnlySelection,
   normalizeLocationPreferences,
   type LocationPreferences,
-  type SavedLocationPreference,
 } from "@/lib/location-preferences";
 import {
   exploreItems,
@@ -78,49 +79,30 @@ function formatRupees(value: number) {
   }).format(value)}`;
 }
 
-async function savedLocationIsCurrent(
-  location: SavedLocationPreference,
-): Promise<boolean> {
-  const countries = await fetchAllPages(await geography.countries());
-  if (!countries.some((row) => row.country_id === location.country_id && row.status)) {
-    return false;
-  }
-  if (!location.state_id) return true;
-
-  const states = await fetchAllPages(await geography.statesOf(location.country_id));
-  if (!states.some((row) => row.state_id === location.state_id && row.status)) {
-    return false;
-  }
-  if (!location.city_id) return true;
-
-  const cities = await fetchAllPages(await geography.citiesOf(location.state_id));
-  if (!cities.some((row) => row.city_id === location.city_id && row.status)) {
-    return false;
-  }
-  if (!location.location_id) return true;
-
-  const localities = await fetchAllPages(await geography.locationsOf(location.city_id));
-  return localities.some(
-    (row) => row.location_id === location.location_id && row.status,
-  );
-}
-
-function commonSavedLocation(
-  typeIds: string[],
+async function currentLocationPreferences(
   preferences: LocationPreferences,
-): SavedLocationPreference | null {
-  const selected = typeIds.map((id) => preferences.preferences[id]);
-  if (selected.length === 0 || selected.some((item) => !item)) return null;
-
-  const same = (field: keyof SavedLocationPreference) =>
-    selected.every((item) => item[field] === selected[0][field]);
-  const country_id = same("country_id") ? selected[0].country_id : "";
-  const state_id = country_id && same("state_id") ? selected[0].state_id : null;
-  const city_id = state_id && same("city_id") ? selected[0].city_id : null;
-  const location_id = city_id && same("location_id") ? selected[0].location_id : null;
-
-  if (!country_id) return null;
-  return { country_id, state_id, city_id, location_id };
+): Promise<LocationPreferences> {
+  const countries = await fetchAllPages(await geography.countries());
+  const activeCountryIds = new Set(
+    countries.filter((country) => country.status).map((country) => country.country_id),
+  );
+  const validatedCountries = await Promise.all(
+    preferences.countries
+      .filter((item) => activeCountryIds.has(item.country_id))
+      .map(async (item) => {
+        const states = await fetchAllPages(await geography.statesOf(item.country_id));
+        const activeStateIds = new Set(
+          states
+            .filter((state) => state.status && state.country_id === item.country_id)
+            .map((state) => state.state_id),
+        );
+        return {
+          country_id: item.country_id,
+          state_ids: item.state_ids.filter((id) => activeStateIds.has(id)),
+        };
+      }),
+  );
+  return createLocationPreferences(validatedCountries);
 }
 
 function SchoolCard({ school }: { school: SchoolListItem }) {
@@ -280,7 +262,6 @@ export default function SchoolDiscovery() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [schoolTypesLoaded, setSchoolTypesLoaded] = useState(false);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
@@ -291,18 +272,16 @@ export default function SchoolDiscovery() {
   const [locationPreferences, setLocationPreferences] =
     useState<LocationPreferences | null>(null);
   const [locationPreferencesLoaded, setLocationPreferencesLoaded] = useState(false);
-  const [rememberLocation, setRememberLocation] = useState(false);
+  const [locationGroups, setLocationGroups] = useState<string[]>([]);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const locationRestoreApplied = useRef(false);
-  const locationFromPreference = useRef(false);
   const initialLocationWasInUrl = useRef(false);
-  const initialSchoolTypesWereInUrl = useRef(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
 
   const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
   const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
-  const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${schoolType.join(",")}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
+  const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
@@ -341,10 +320,11 @@ export default function SchoolDiscovery() {
 
     const filters: SchoolFilters = {
       search: search || undefined,
-      country: geoCountry || undefined,
-      state: geoState || undefined,
-      city: geoCity || undefined,
-      location: geoLocation || undefined,
+      country: locationGroups.length ? undefined : geoCountry || undefined,
+      state: locationGroups.length ? undefined : geoState || undefined,
+      city: locationGroups.length ? undefined : geoCity || undefined,
+      location: locationGroups.length ? undefined : geoLocation || undefined,
+      location_group: locationGroups,
       school_type: schoolType,
       board,
       min_fee: feeMin,
@@ -385,7 +365,7 @@ export default function SchoolDiscovery() {
     return () => {
       cancelled = true;
     };
-  }, [queryRestored, search, geoCountry, geoState, geoCity, geoLocation, schoolType, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
+  }, [queryRestored, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -394,8 +374,8 @@ export default function SchoolDiscovery() {
       "state",
       "city",
       "location",
+      "location_group",
     ].some((key) => params.has(key));
-    initialSchoolTypesWereInUrl.current = params.getAll("school_type").length > 0;
     const initialSearch = params.get("search") ?? "";
     setSearch(initialSearch);
     setSearchInput(initialSearch);
@@ -405,6 +385,7 @@ export default function SchoolDiscovery() {
     setGeoState(params.get("state") ?? "");
     setGeoCity(params.get("city") ?? "");
     setGeoLocation(params.get("location") ?? "");
+    setLocationGroups(params.getAll("location_group"));
     setGender(
       (params.get("gender") as SchoolFilters["gender"]) || undefined
     );
@@ -448,7 +429,6 @@ export default function SchoolDiscovery() {
         }
         if (!cancelled) {
           setLocationPreferences(preferences);
-          setRememberLocation(Object.keys(preferences.preferences).length > 0);
         }
       })
       .catch((reason: unknown) => {
@@ -473,10 +453,13 @@ export default function SchoolDiscovery() {
     if (!queryRestored) return;
     const params = new URLSearchParams();
     if (search) params.set("search", search);
-    if (geoCountry) params.set("country", geoCountry);
-    if (geoState) params.set("state", geoState);
-    if (geoCity) params.set("city", geoCity);
-    if (geoLocation) params.set("location", geoLocation);
+    locationGroups.forEach((group) => params.append("location_group", group));
+    if (locationGroups.length === 0) {
+      if (geoCountry) params.set("country", geoCountry);
+      if (geoState) params.set("state", geoState);
+      if (geoCity) params.set("city", geoCity);
+      if (geoLocation) params.set("location", geoLocation);
+    }
     board.forEach((id) => params.append("board", id));
     schoolType.forEach((id) => params.append("school_type", id));
     if (feeMin !== undefined) params.set("min_fee", String(feeMin));
@@ -491,7 +474,7 @@ export default function SchoolDiscovery() {
       "",
       `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`
     );
-  }, [queryRestored, search, geoCountry, geoState, geoCity, geoLocation, board, schoolType, feeMin, feeMax, gender, ordering]);
+  }, [queryRestored, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, board, schoolType, feeMin, feeMax, gender, ordering]);
 
   useEffect(() => {
     const normalized = searchInput.trim();
@@ -570,7 +553,6 @@ export default function SchoolDiscovery() {
         }
       })
       .finally(() => {
-        if (!cancelled) setSchoolTypesLoaded(true);
       });
 
     schools
@@ -599,119 +581,59 @@ export default function SchoolDiscovery() {
 
   useEffect(() => {
     if (
-    !queryRestored ||
-    !locationPreferencesLoaded ||
-    !schoolTypesLoaded ||
-    !locationPreferences ||
-    locationRestoreApplied.current
+      !queryRestored ||
+      !locationPreferencesLoaded ||
+      !locationPreferences ||
+      locationRestoreApplied.current
     ) {
-    return;
+      return;
     }
 
     locationRestoreApplied.current = true;
-    if (initialLocationWasInUrl.current) return;
-
-    const liveTypeIds = new Set(schoolTypes.map((item) => item.school_type_id));
-    const requestedTypeIds = initialSchoolTypesWereInUrl.current
-    ? schoolType
-    : locationPreferences.active_school_type_ids;
-    const candidateTypeIds = requestedTypeIds.filter(
-    (id) => liveTypeIds.has(id) && locationPreferences.preferences[id],
-    );
-
-    if (candidateTypeIds.length === 0) return;
-
     let cancelled = false;
-    Promise.all(
-    candidateTypeIds.map(async (typeId) => ({
-      typeId,
-      current: await savedLocationIsCurrent(
-        locationPreferences.preferences[typeId],
-      ),
-    })),
-    )
-    .then(async (validated) => {
-      if (cancelled) return;
-      const validTypeIds = validated
-        .filter((item) => item.current)
-        .map((item) => item.typeId);
-      const nextPreferences: LocationPreferences = {
-        version: 1,
-        active_school_type_ids: [],
-        preferences: Object.fromEntries(
-          Object.entries(locationPreferences.preferences).filter(([id]) =>
-            liveTypeIds.has(id),
-          ),
-        ),
-      };
-
-      for (const item of validated) {
-        if (!item.current) delete nextPreferences.preferences[item.typeId];
-      }
-
-      if (validTypeIds.length === 0) {
-        if (!initialSchoolTypesWereInUrl.current) {
-          setLocationMessage(
-            "Your saved location is no longer available. Choose a new location to save it.",
+    currentLocationPreferences(locationPreferences)
+      .then(async (validated) => {
+        if (cancelled) return;
+        const changed =
+          JSON.stringify(validated.countries) !==
+          JSON.stringify(locationPreferences.countries);
+        if (changed) {
+          const response = await fetch("/api/location-preferences", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(validated),
+          });
+          if (!response.ok) {
+            throw new Error("Could not update outdated saved locations.");
+          }
+        }
+        setLocationPreferences(validated);
+        if (!initialLocationWasInUrl.current && validated.countries.length > 0) {
+          const savedLocation = validated.countries[0];
+          setLocationGroups([]);
+          setGeoCountry(savedLocation.country_id);
+          setGeoState(savedLocation.state_ids[0] ?? "");
+          setGeoCity("");
+          setGeoLocation("");
+          setLocationMessage("Your saved location preference was restored.");
+        } else if (changed) {
+          setLocationMessage("Unavailable saved locations were removed.");
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setLocationError(
+            reason instanceof Error
+              ? reason.message
+              : "Saved locations could not be validated.",
           );
         }
-        return;
-      }
-
-      const saved = commonSavedLocation(validTypeIds, nextPreferences);
-      if (!saved) return;
-
-      if (!initialSchoolTypesWereInUrl.current) {
-        setSchoolType(validTypeIds);
-      }
-      setGeoCountry(saved.country_id);
-      setGeoState(saved.state_id ?? "");
-      setGeoCity(saved.city_id ?? "");
-      setGeoLocation(saved.location_id ?? "");
-      locationFromPreference.current = true;
-      setLocationMessage("Your saved location has been restored.");
-
-      const activeTypeIds = initialSchoolTypesWereInUrl.current
-        ? locationPreferences.active_school_type_ids.filter(
-            (id) => nextPreferences.preferences[id],
-          )
-        : validTypeIds;
-      nextPreferences.active_school_type_ids =
-        activeTypeIds.length > 0 ? activeTypeIds : validTypeIds;
-
-      if (JSON.stringify(nextPreferences) !== JSON.stringify(locationPreferences)) {
-        const response = await fetch("/api/location-preferences", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(nextPreferences),
-        });
-        if (!response.ok) {
-          throw new Error("Could not update outdated saved locations.");
-        }
-        setLocationPreferences(nextPreferences);
-      }
-    })
-    .catch((reason: unknown) => {
-      if (!cancelled) {
-        setLocationError(
-          reason instanceof Error
-            ? reason.message
-            : "Saved locations could not be validated.",
-        );
-      }
-    });
+      });
 
     return () => {
-    cancelled = true;
+      cancelled = true;
     };
-  }, [
-    locationPreferences,
-    locationPreferencesLoaded,
-    queryRestored,
-    schoolType,
-    schoolTypes,
-    schoolTypesLoaded,
-  ]);
+  }, [locationPreferences, locationPreferencesLoaded, queryRestored]);
 
   useEffect(() => {
     let cancelled = false;
@@ -832,7 +754,7 @@ export default function SchoolDiscovery() {
   }
 
   const hasFilters = Boolean(
-    search || geoCountry || geoState || geoCity || geoLocation || schoolType.length > 0 || board.length > 0 || gender || ordering !== "school_name"
+    search || geoCountry || geoState || geoCity || geoLocation || locationGroups.length > 0 || schoolType.length > 0 || board.length > 0 || gender || ordering !== "school_name"
       || feeMin !== undefined || feeMax !== undefined
   );
 
@@ -867,6 +789,14 @@ export default function SchoolDiscovery() {
     setBoard([]);
     setFeeRange([0, 3_000_000]);
     setGender(undefined);
+    if (
+      isBoardingOnlySelection([selectedType.school_type_id], schoolTypes) &&
+      (geoCity || geoLocation)
+    ) {
+      setGeoCity("");
+      setGeoLocation("");
+      setLocationGroups([]);
+    }
   }
 
   function finderValue(): HeroFinderValue {
@@ -880,88 +810,34 @@ export default function SchoolDiscovery() {
     };
   }
 
-  function applySavedLocationForTypes(typeIds: string[]): boolean {
-    if (!locationPreferences) return false;
-    const saved = commonSavedLocation(typeIds, locationPreferences);
-    if (!saved) return false;
-    setGeoCountry(saved.country_id);
-    setGeoState(saved.state_id ?? "");
-    setGeoCity(saved.city_id ?? "");
-    setGeoLocation(saved.location_id ?? "");
-    locationFromPreference.current = true;
-    return true;
-  }
-
   function handleFinderChange(next: HeroFinderValue) {
-    const typeSelectionChanged =
-      next.schoolType.length !== schoolType.length ||
-      next.schoolType.some((id) => !schoolType.includes(id));
     setBoard(next.board);
-
-    if (typeSelectionChanged && locationFromPreference.current) {
-      setSchoolType(next.schoolType);
-      if (!applySavedLocationForTypes(next.schoolType)) {
-        setGeoCountry("");
-        setGeoState("");
-        setGeoCity("");
-        setGeoLocation("");
-        locationFromPreference.current = false;
-      }
-      return;
-    }
-
-    if (
+    const locationChanged =
       next.country !== geoCountry ||
       next.state !== geoState ||
       next.city !== geoCity ||
-      next.location !== geoLocation
-    ) {
-      locationFromPreference.current = false;
-    }
+      next.location !== geoLocation;
+    const boardingOnly = isBoardingOnlySelection(next.schoolType, schoolTypes);
     setSchoolType(next.schoolType);
     setGeoCountry(next.country);
     setGeoState(next.state);
-    setGeoCity(next.city);
-    setGeoLocation(next.location);
+    setGeoCity(boardingOnly ? "" : next.city);
+    setGeoLocation(boardingOnly ? "" : next.location);
+    if (locationChanged) setLocationGroups([]);
   }
 
-  async function saveConfirmedLocation() {
+  async function saveCurrentLocationPreference() {
+    if (!geoCountry) return;
+
     setLocationMessage(null);
     setLocationError(null);
-    if (!rememberLocation) return;
-    if (!geoCountry || schoolType.length === 0) {
-      setLocationMessage(
-        "Select a location and at least one school type before saving it.",
-      );
-      return;
-    }
-
-    const liveTypeIds = schoolType.filter((id) =>
-      schoolTypes.some((type) => type.school_type_id === id),
-    );
-    if (liveTypeIds.length === 0) {
-      setLocationError("Select a valid school type before saving your location.");
-      return;
-    }
-
-    const preferences = {
-      ...(locationPreferences?.preferences ?? {}),
-    };
-    for (const typeId of liveTypeIds) {
-      preferences[typeId] = {
-        country_id: geoCountry,
-        state_id: geoState || null,
-        city_id: geoCity || null,
-        location_id: geoLocation || null,
-      };
-    }
-    const payload: LocationPreferences = {
-      version: 1,
-      active_school_type_ids: liveTypeIds,
-      preferences,
-    };
-
     try {
+      const payload = createLocationPreferences([
+        {
+          country_id: geoCountry,
+          state_ids: geoState ? [geoState] : [],
+        },
+      ]);
       const response = await fetch("/api/location-preferences", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -972,9 +848,8 @@ export default function SchoolDiscovery() {
         throw new Error(body.error ?? "Could not save your location.");
       }
       setLocationPreferences(payload);
-      setRememberLocation(true);
-      setLocationMessage("Your location preference has been saved.");
-      locationFromPreference.current = true;
+      setLocationGroups([]);
+      setLocationMessage("Your country and state preference has been saved.");
     } catch (reason: unknown) {
       setLocationError(
         reason instanceof Error
@@ -984,34 +859,9 @@ export default function SchoolDiscovery() {
     }
   }
 
-  async function clearSavedLocations() {
-    setLocationMessage(null);
-    setLocationError(null);
-    try {
-      const response = await fetch("/api/location-preferences", {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Could not clear saved locations.");
-      setLocationPreferences({
-        version: 1,
-        active_school_type_ids: [],
-        preferences: {},
-      });
-      setRememberLocation(false);
-      locationFromPreference.current = false;
-      setLocationMessage("Saved locations have been cleared.");
-    } catch (reason: unknown) {
-      setLocationError(
-        reason instanceof Error
-          ? reason.message
-          : "Could not clear saved locations.",
-      );
-    }
-  }
-
   async function handleFinderSubmit() {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
-    await saveConfirmedLocation();
+    await saveCurrentLocationPreference();
     scrollToSchools();
   }
 
@@ -1096,18 +946,9 @@ export default function SchoolDiscovery() {
             value={finderValue()}
             boards={boards}
             schoolTypes={schoolTypes}
-            rememberLocation={rememberLocation}
-            hasSavedLocation={Boolean(
-              locationPreferences &&
-                Object.keys(locationPreferences.preferences).length > 0,
-            )}
             locationMessage={locationMessage}
             locationError={locationError}
-            onChange={(next) => {
-              handleFinderChange(next);
-            }}
-            onRememberLocationChange={setRememberLocation}
-            onClearSavedLocation={() => void clearSavedLocations()}
+            onChange={handleFinderChange}
             onSubmit={() => void handleFinderSubmit()}
           />
 
@@ -1213,7 +1054,7 @@ export default function SchoolDiscovery() {
                 setSearchInput("");
                 setBoard([]);
                 setSchoolType([]);
-                locationFromPreference.current = false;
+                setLocationGroups([]);
                 setGeoCountry(school.country_id);
                 setGeoState(school.state_id);
                 setGeoCity(school.city_id);
