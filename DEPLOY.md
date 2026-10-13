@@ -1,78 +1,77 @@
-# Deploy BoardingEdu (Vercel frontend + Render API/database)
+# Deploy BoardingEdu (Railway API/database + Vercel frontend)
 
-Deploy **Render first** (database + API), then **Vercel** (Next.js), then copy the Vercel URL back into Render CORS settings.
+Deploy the Railway PostgreSQL database and Django API first, then the Vercel
+frontend. Set the Vercel API URL and the matching CORS origin before deploying
+the frontend.
 
-## 1. Render — database + backend
+## 1. Railway — PostgreSQL and Django API
 
-1. Push this repo to GitHub.
-2. In [Render](https://dashboard.render.com), click **New + → Blueprint**.
-3. Select the repo. Render reads `render.yaml`.
-4. Apply the blueprint. That creates:
-   - PostgreSQL (`boardingedu-db`)
-   - Web service `boardingedu-api` from the `backend/` folder
-5. After the web service exists, open it → **Environment** and set:
+1. Create a Railway project and add a PostgreSQL service.
+2. Add a service from this GitHub repository. Set its **Root Directory** to
+   `backend`.
+3. Configure the service commands:
+
+   | Setting | Value |
+   |---|---|
+   | Build | `bash ./build.sh` |
+   | Start | `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120` |
+
+4. In the Django service's variables, set:
 
    | Key | Value |
    |---|---|
-   | `ALLOWED_HOSTS` | `boardingedu-api.onrender.com` (use the real hostname Render shows) |
-   | `CORS_ALLOWED_ORIGINS` | `https://YOUR-PROJECT.vercel.app` (add after step 2) |
-   | `CSRF_TRUSTED_ORIGINS` | same as CORS, plus `https://YOUR-API.onrender.com` |
+   | `SECRET_KEY` | A generated, private Django secret |
    | `DEBUG` | `False` |
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (replace `Postgres` if your service has a different name) |
+   | `DATABASE_SSL_REQUIRE` | `false` when using Railway's private database URL |
+   | `ALLOWED_HOSTS` | The Railway API hostname, without `https://` |
+   | `CORS_ALLOWED_ORIGINS` | The Vercel production origin, e.g. `https://your-project.vercel.app` |
+   | `CSRF_TRUSTED_ORIGINS` | The Vercel origin; include the API origin if using Django admin |
 
-   `SECRET_KEY` and `DATABASE_URL` are filled by the blueprint.
+   Keep `DATABASE_URL` private. Use Railway's private Postgres URL when the
+   services are in the same project/environment. If using a public database
+   URL, set `DATABASE_SSL_REQUIRE` according to that URL's TLS requirements.
 
-6. Wait until the deploy is **Live**. Open `https://YOUR-API.onrender.com/api/` — you should see the JSON API root.
-
-### Manual setup (if you skip the blueprint)
-
-- **New → PostgreSQL** (Starter). Copy the **Internal Database URL**.
-- **New → Web Service**, connect the same repo:
-  - Root directory: `backend`
-  - Runtime: Python 3.12
-  - Build: `chmod +x ./build.sh && ./build.sh`
-  - Start: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120`
-- Add env vars as in the table above, plus `DATABASE_URL` = the Postgres URL and `DATABASE_SSL_REQUIRE=true`.
-
-Free Render web services spin down after idle time. The first request after sleep can take 30–60s.
-
-Create a Django superuser from the Render shell:
-
-```bash
-python manage.py createsuperuser
-```
-
-Admin: `https://YOUR-API.onrender.com/admin/`
+5. Generate a public domain for the Django service. Wait for the deployment to
+   finish, then open `https://YOUR-API-DOMAIN/api/`. It should return the API
+   root response.
+6. Create an administrator from the Railway service's shell with
+   `python manage.py createsuperuser` if you need Django admin access.
 
 ## 2. Vercel — frontend
 
-1. In [Vercel](https://vercel.com), **Add New → Project** and import the same GitHub repo.
-2. Set:
-   - **Root Directory:** `frontend`
-   - **Framework:** Next.js
-   - **Install:** `npm install`
-   - **Build:** `npm run build`
-3. Environment variable (Production and Preview):
+1. Import the repository into Vercel.
+2. Set **Root Directory** to `frontend` and framework to Next.js.
+3. Add this environment variable for Production (and Preview if those builds
+   should call the API):
 
    | Key | Value |
    |---|---|
-   | `NEXT_PUBLIC_API_BASE` | `https://YOUR-API.onrender.com/api` |
+   | `NEXT_PUBLIC_API_BASE` | `https://YOUR-API-DOMAIN/api` |
 
-   No trailing slash. Include `/api`.
+   Include `/api` and do not add a trailing slash. Set the exact frontend
+   production origin in Railway's `CORS_ALLOWED_ORIGINS`. Preview deployments
+   can be allowed with `CORS_ALLOWED_ORIGIN_REGEXES` if needed.
 
-4. Deploy. Copy the production URL (for example `https://boardingedu.vercel.app`).
-5. Go back to Render → `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`, add that Vercel origin, **Save**, and redeploy the API if env changes do not auto-redeploy.
+4. Redeploy Vercel after setting the variable. `NEXT_PUBLIC_API_BASE` is
+   embedded in the frontend build, so changing it without redeploying will not
+   update an existing deployment.
 
-Preview deployments (`*.vercel.app`) are already allowed by `CORS_ALLOWED_ORIGIN_REGEXES`.
+## 3. Verify the deployment
 
-## 3. Confirm it works
+1. `https://YOUR-API-DOMAIN/api/` responds successfully.
+2. The Railway service has a successful database connection and completed
+   migrations.
+3. The Vercel site loads data. In browser DevTools → Network, API calls should
+   target `YOUR-API-DOMAIN`, return successful responses, and include
+   `Access-Control-Allow-Origin` for the Vercel site.
 
-1. `https://YOUR-API.onrender.com/api/` returns JSON.
-2. Vercel site loads the school directory (wait through a cold start if needed).
-3. Browser DevTools → Network: school list calls go to Render, status 200, no CORS errors.
+If the browser reports CORS but the API URL returns an error such as HTTP 503,
+fix the API service/domain first. A suspended or unavailable server cannot
+return CORS headers.
 
-## Local vs production
+## Local development
 
-| | Frontend | API |
-|---|---|---|
-| Local | `frontend/.env.local` → `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api` | `backend/.env` → `DEBUG=True`, local `DATABASE_URL` |
-| Production | Vercel env | Render env |
+| Frontend | Backend |
+|---|---|
+| `frontend/.env.local`: `NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api` | `backend/.env`: `DEBUG=True`, local `DATABASE_URL` |

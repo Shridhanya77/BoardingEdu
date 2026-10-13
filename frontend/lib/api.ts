@@ -1,7 +1,11 @@
 // Central BoardingEdu DRF API client — single source of truth
+const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE;
+if (!configuredApiBase && process.env.NODE_ENV === "production") {
+  throw new Error("NEXT_PUBLIC_API_BASE must be set to the deployed API URL.");
+}
+
 export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_BASE ??
-  "https://boardingedu-6ng7.onrender.com/api"
+  configuredApiBase ?? "http://127.0.0.1:8000/api"
 ).replace(/\/+$/, "");
 const API_ORIGIN = new URL(API_BASE).origin;
 
