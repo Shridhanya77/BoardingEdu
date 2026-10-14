@@ -5,7 +5,7 @@ if (!configuredApiBase && process.env.NODE_ENV === "production") {
 }
 
 export const API_BASE = (
-  configuredApiBase ?? "https://boardingedu-mtjnrv7eo-shridhanya77s-projects.vercel.app"
+  configuredApiBase ?? "https://boardingedu-production-ac84.up.railway.app/api"
 ).replace(/\/+$/, "");
 const API_ORIGIN = new URL(API_BASE).origin;
 
