@@ -131,7 +131,7 @@ if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
 
 # Allowed frontend origins
 CORS_ALLOWED_ORIGINS = [
-    "https://boardingedu-p4wr4xxpb-shridhanaya77s-projects.vercel.app",
+    "https://boardingedu-ewj8l6i4h-shridhanya77s-projects.vercel.app",
     # keep any other existing origins
 ]
 
