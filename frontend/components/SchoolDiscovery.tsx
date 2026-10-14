@@ -449,32 +449,6 @@ export default function SchoolDiscovery() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!queryRestored) return;
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    locationGroups.forEach((group) => params.append("location_group", group));
-    if (locationGroups.length === 0) {
-      if (geoCountry) params.set("country", geoCountry);
-      if (geoState) params.set("state", geoState);
-      if (geoCity) params.set("city", geoCity);
-      if (geoLocation) params.set("location", geoLocation);
-    }
-    board.forEach((id) => params.append("board", id));
-    schoolType.forEach((id) => params.append("school_type", id));
-    if (feeMin !== undefined) params.set("min_fee", String(feeMin));
-    if (feeMax !== undefined) params.set("max_fee", String(feeMax));
-    if (gender) params.set("gender", gender);
-    if (ordering && ordering !== "school_name") {
-      params.set("ordering", ordering);
-    }
-    const query = params.toString();
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`
-    );
-  }, [queryRestored, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, board, schoolType, feeMin, feeMax, gender, ordering]);
 
   useEffect(() => {
     const normalized = searchInput.trim();
