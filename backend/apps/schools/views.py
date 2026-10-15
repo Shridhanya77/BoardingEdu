@@ -1,3 +1,4 @@
+import re
 import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
@@ -52,6 +53,38 @@ class SchoolFilter(django_filters.FilterSet):
             'country', 'state', 'city', 'location',
             'gender', 'status', 'verification_status', 'boarding_required',
         ]
+
+    def __init__(self, data=None, *args, **kwargs):
+        if data is not None:
+            if hasattr(data, 'getlist'):
+                requested_type_ids = data.getlist('school_type')
+            else:
+                raw_type_ids = data.get('school_type', [])
+                requested_type_ids = raw_type_ids if isinstance(raw_type_ids, (list, tuple)) else [raw_type_ids]
+
+            try:
+                unique_type_ids = {uuid.UUID(str(type_id)) for type_id in requested_type_ids}
+            except (AttributeError, TypeError, ValueError):
+                unique_type_ids = set()
+            selected_types = list(SchoolType.objects.filter(pk__in=unique_type_ids))
+            if (
+                unique_type_ids
+                and len(selected_types) == len(unique_type_ids)
+                and all(self._is_residential_type(school_type) for school_type in selected_types)
+            ):
+                data = data.copy()
+                data.pop('city', None)
+                data.pop('location', None)
+
+        super().__init__(data, *args, **kwargs)
+
+    @staticmethod
+    def _is_residential_type(school_type):
+        value = f'{school_type.type_code} {school_type.slug} {school_type.type_name}'.lower().replace('_', '-')
+        return bool(
+            re.search(r'full[- ]?boarding', value)
+            or re.search(r'^(boarding|residential)(\s|$)|\bboarding-school\b|\bresidential-school\b', value)
+        )
 
     def filter_country(self, queryset, name, country):
         # Keep the denormalized school geography FKs consistent with the hierarchy.

@@ -287,6 +287,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
   const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
+  const initialCountry = initialFilter?.country;
+  const initialState = initialFilter?.state;
+  const initialCity = initialFilter?.city;
+  const initialLocation = initialFilter?.location;
+  const initialSchoolTypeKey = initialFilter?.schoolTypes?.join(",") ?? "";
   const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
@@ -376,20 +381,16 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (initialFilter) {
-      initialLocationWasInUrl.current = Boolean(initialFilter.country || initialFilter.state || initialFilter.city || initialFilter.location);
+    if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey) {
+      initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation);
       setSearch("");
       setSearchInput("");
       setBoard([]);
-      setSchoolType(initialFilter.schoolTypes ?? []);
-      setGeoCountry(initialFilter.country ?? "");
-      setGeoState(initialFilter.state ?? "");
-      const residential = (initialFilter.schoolTypes ?? []).some((id) => {
-        const type = schoolTypes.find((item) => item.school_type_id === id);
-        return Boolean(type && /full[- ]?boarding|boarding|residential/i.test(`${type.type_code} ${type.type_name} ${type.slug}`));
-      });
-      setGeoCity(residential ? "" : initialFilter.city ?? "");
-      setGeoLocation(residential ? "" : initialFilter.location ?? "");
+      setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
+      setGeoCountry(initialCountry ?? "");
+      setGeoState(initialState ?? "");
+      setGeoCity(initialCity ?? "");
+      setGeoLocation(initialLocation ?? "");
       setLocationGroups([]);
       setQueryRestored(true);
       return;
@@ -443,7 +444,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       setRecentSearches([]);
     }
     setQueryRestored(true);
-  }, [initialFilter?.country, initialFilter?.state, initialFilter?.city, initialFilter?.location, initialFilter?.schoolTypes?.join(",")]);
+  }, [initialCountry, initialState, initialCity, initialLocation, initialSchoolTypeKey]);
 
   useEffect(() => {
     if (!pendingTypeSlug || !schoolTypesLoaded) return;
@@ -845,14 +846,13 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     setGeoCity(boardingOnly ? "" : next.city);
     setGeoLocation(boardingOnly ? "" : next.location);
     if (locationChanged) setLocationGroups([]);
-    // Keep the user on the finder while they choose the remaining location.
-    // Navigation happens when they submit the search.
-    void path;
+    if (`${window.location.pathname}${window.location.search}` !== path) {
+      router.push(path);
+    }
   }
 
-  async function handleFinderSubmit(path: string) {
+  function handleFinderSubmit() {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
-    router.push(path);
   }
 
   function handleExplore(query: (typeof exploreItems)[number]["query"]) {
@@ -938,7 +938,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             locationMessage={locationMessage}
             locationError={locationError}
             onChange={handleFinderChange}
-            onSubmit={(path) => void handleFinderSubmit(path)}
+            onSubmit={() => handleFinderSubmit()}
           />
 
           <div className="hero-search__shortcuts">

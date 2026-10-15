@@ -51,6 +51,11 @@ class SchoolClassificationTests(TestCase):
             type_name='Boarding School',
             slug='boarding-school',
         )
+        cls.full_boarding = SchoolType.objects.create(
+            type_code='FULL-BOARDING',
+            type_name='Full Boarding',
+            slug='full-boarding',
+        )
 
     def create_school(self, code):
         return School.objects.create(
@@ -293,9 +298,12 @@ class SchoolClassificationTests(TestCase):
         self.assertSetEqual(set(state_scope.qs.values_list('school_code', flat=True)), {'DAY-WHITEFIELD'})
 
         params['state'] = str(mumbai_state.pk)
-        invalid_state_scope = SchoolFilter(params, queryset=School.objects.all())
-        self.assertTrue(invalid_state_scope.is_valid(), invalid_state_scope.errors)
-        self.assertFalse(invalid_state_scope.qs.exists())
+        other_state_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(other_state_scope.is_valid(), other_state_scope.errors)
+        self.assertSetEqual(
+            set(other_state_scope.qs.values_list('school_code', flat=True)),
+            {'DAY-MUMBAI'},
+        )
         params['state'] = str(self.state.pk)
 
         params['city'] = str(self.city.pk)
@@ -323,6 +331,74 @@ class SchoolClassificationTests(TestCase):
             set(residential_city_scope.qs.values_list('school_code', flat=True)),
             {'BOARDING-WHITEFIELD'},
         )
+
+    def test_residential_type_ignores_stale_city_and_locality_filters(self):
+        whitefield = Location.objects.create(
+            city=self.city,
+            location_code='WHF',
+            location_name='Whitefield',
+            slug='whitefield',
+        )
+        residential = self.create_school('STALE-LOCATION-BOARDING')
+        residential.location = whitefield
+        residential.save()
+        residential.school_types.add(self.boarding)
+
+        other_state = State.objects.create(
+            country=self.country,
+            state_code='MH',
+            state_name='Maharashtra',
+            slug='maharashtra',
+        )
+        stale_city = City.objects.create(
+            state=other_state,
+            city_code='MUM',
+            city_name='Mumbai',
+            slug='mumbai',
+        )
+
+        params = QueryDict('', mutable=True)
+        params.update({
+            'country': str(self.country.pk),
+            'state': str(self.state.pk),
+            'city': str(stale_city.pk),
+            'location': str(whitefield.pk),
+            'school_type': str(self.boarding.pk),
+        })
+        result = SchoolFilter(params, queryset=School.objects.all())
+
+        self.assertTrue(result.is_valid(), result.errors)
+        self.assertSetEqual(
+            set(result.qs.values_list('school_code', flat=True)),
+            {'STALE-LOCATION-BOARDING'},
+        )
+
+        params['school_type'] = str(self.day.pk)
+        day_school_result = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(day_school_result.is_valid(), day_school_result.errors)
+        self.assertFalse(day_school_result.qs.exists())
+
+    def test_school_type_filters_distinguish_day_boarding_and_full_boarding(self):
+        day_school = self.create_school('TYPE-DAY')
+        day_school.school_types.add(self.day)
+        boarding_school = self.create_school('TYPE-BOARDING')
+        boarding_school.school_types.add(self.boarding)
+        full_boarding_school = self.create_school('TYPE-FULL-BOARDING')
+        full_boarding_school.school_types.add(self.full_boarding)
+
+        for school_type, expected in (
+            (self.day, 'TYPE-DAY'),
+            (self.boarding, 'TYPE-BOARDING'),
+            (self.full_boarding, 'TYPE-FULL-BOARDING'),
+        ):
+            params = QueryDict('', mutable=True)
+            params['school_type'] = str(school_type.pk)
+            result = SchoolFilter(params, queryset=School.objects.all())
+            self.assertTrue(result.is_valid(), result.errors)
+            self.assertSetEqual(
+                set(result.qs.values_list('school_code', flat=True)),
+                {expected},
+            )
 
     def test_fee_range_filters_only_published_current_year_totals(self):
         current_year = AcademicYear.objects.create(

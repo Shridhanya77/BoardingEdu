@@ -61,7 +61,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     const label = schoolTypeLabel(types[0].type_code, types[0].slug, types[0].type_name);
     const location = [place.location?.location_name, place.city?.city_name, place.state?.state_name, place.country.country_name].filter(Boolean).join(", ");
     const prefix = isLegacyTypePrefix ? `/${segments[0]}/` : isHomePrefix && slugs.length === 1 ? "/home/" : "/";
-    const canonical = `${prefix}${placePath(place)}${isLegacyTypePrefix ? "" : `?type=${schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name)}`}`;
+    const category = schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name);
+    const typeQuery = !isLegacyTypePrefix && category !== "day-school" ? `?type=${category}` : "";
+    const canonical = `${prefix}${placePath(place)}${typeQuery}`;
     return { title: `${label} in ${location} | BoardingEdu`, description: `Explore ${label.toLowerCase()} in ${location}. Compare verified school information on BoardingEdu.`, alternates: { canonical } };
   } catch {
     return { title: "School discovery | BoardingEdu", robots: { index: false, follow: true } };
@@ -70,7 +72,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
-  if (segments[0] === "home" && segments.length === 1) return <SchoolDiscovery />;
+  if (segments[0] === "home" && segments.length === 1) {
+    if (!searchParams?.type) return <SchoolDiscovery />;
+    const types = await resolveTypes(searchParams.type);
+    return <SchoolDiscovery initialFilter={{ schoolTypes: types.map((type) => type.school_type_id) }} />;
+  }
 
   if (segments[0] === "schools" && segments.length === 2) {
     try {
@@ -124,10 +130,11 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
       return category === "boarding-school" || category === "full-boarding-school";
     }) && (place.city || place.location)) notFound();
-    const path = slugs.length === 1 ? `/home/${place.country.slug}` : `/${placePath(place)}`;
-    const canonicalPath = `${path}?type=${schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name)}`;
+    const path = slugs.length === 1 ? `/home/${toSeoSlug(place.country.slug)}` : `/${placePath(place)}`;
+    const category = schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name);
+    const canonicalPath = `${path}${category === "day-school" ? "" : `?type=${category}`}`;
     const requestedPath = `/${segments.join("/")}${searchParams?.type ? `?type=${searchParams.type}` : ""}`;
-    if (requestedPath.toLowerCase() !== canonicalPath.toLowerCase()) redirect(canonicalPath);
+    if (requestedPath !== canonicalPath) redirect(canonicalPath);
     return <SchoolDiscovery initialFilter={{
       country: place.country.country_id,
       state: place.state?.state_id,
@@ -137,4 +144,4 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     }} />;
   }
   notFound();
-}\n
+}

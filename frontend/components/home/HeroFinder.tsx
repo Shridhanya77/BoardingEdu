@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography } from "@/lib/api";
 import type { CityListItem, CountryListItem, LocationListItem, SchoolTypeListItem, StateListItem } from "@/lib/api";
-import { schoolTypeCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
+import { schoolTypeCategory, toSeoSlug, type SchoolTypeCategory } from "@/lib/seo-slugs";
 
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; onChange: (next: HeroFinderValue, path: string) => void; onSubmit: (path: string) => void };
@@ -38,12 +38,13 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     setCountrySearch(country?.country_name ?? "");
   }, [country?.country_name, value.country]);
   const path = useMemo(() => {
-    const parts = country ? [country.slug] : [];
-    if (state) parts.push(state.slug);
-    if (!residential && city) parts.push(city.slug);
-    if (!residential && city && locality) parts.push(locality.slug);
+    const parts = country ? [toSeoSlug(country.slug)] : [];
+    if (state) parts.push(toSeoSlug(state.slug));
+    if (!residential && city) parts.push(toSeoSlug(city.slug));
+    if (!residential && city && locality) parts.push(toSeoSlug(locality.slug));
     const pathname = !country ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
-    return `${pathname}${activeCategory ? `?type=${activeCategory}` : ""}`;
+    const typeQuery = activeCategory && activeCategory !== "day-school" ? `?type=${activeCategory}` : "";
+    return `${pathname}${typeQuery}`;
   }, [country, state, city, locality, residential, activeCategory]);
 
   useEffect(() => {
@@ -98,12 +99,13 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     const nextState = states.find((item) => item.state_id === next.state);
     const nextCity = cities.find((item) => item.city_id === next.city);
     const nextLocality = locations.find((item) => item.location_id === next.location);
-    const parts = nextCountry ? [nextCountry.slug] : [];
-    if (nextState) parts.push(nextState.slug);
-    if (!isResidential && nextCity) parts.push(nextCity.slug);
-    if (!isResidential && nextCity && nextLocality) parts.push(nextLocality.slug);
+    const parts = nextCountry ? [toSeoSlug(nextCountry.slug)] : [];
+    if (nextState) parts.push(toSeoSlug(nextState.slug));
+    if (!isResidential && nextCity) parts.push(toSeoSlug(nextCity.slug));
+    if (!isResidential && nextCity && nextLocality) parts.push(toSeoSlug(nextLocality.slug));
     const pathname = !nextCountry ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
-    return `${pathname}${selectedType ? `?type=${selectedType}` : ""}`;
+    const typeQuery = selectedType && selectedType !== "day-school" ? `?type=${selectedType}` : "";
+    return `${pathname}${typeQuery}`;
   }
   function submit(event: FormEvent) {
     event.preventDefault();
