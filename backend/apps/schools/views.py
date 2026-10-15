@@ -32,6 +32,7 @@ class ReadWriteModelViewSet(viewsets.ModelViewSet):
 
 class SchoolFilter(django_filters.FilterSet):
     location_group = django_filters.CharFilter(method='filter_location_group')
+    home_category = django_filters.CharFilter(method='filter_home_category')
     country = django_filters.ModelChoiceFilter(queryset=Country.objects.all(), method='filter_country')
     state = django_filters.ModelChoiceFilter(queryset=State.objects.all(), method='filter_state')
     city = django_filters.ModelChoiceFilter(queryset=City.objects.all(), method='filter_city')
@@ -55,13 +56,14 @@ class SchoolFilter(django_filters.FilterSet):
         ]
 
     def __init__(self, data=None, *args, **kwargs):
+        home_category = data.get('home_category') if data is not None else None
         if data is not None:
+            ignore_city = home_category == 'residential-school'
             if hasattr(data, 'getlist'):
                 requested_type_ids = data.getlist('school_type')
             else:
                 raw_type_ids = data.get('school_type', [])
                 requested_type_ids = raw_type_ids if isinstance(raw_type_ids, (list, tuple)) else [raw_type_ids]
-
             try:
                 unique_type_ids = {uuid.UUID(str(type_id)) for type_id in requested_type_ids}
             except (AttributeError, TypeError, ValueError):
@@ -72,10 +74,11 @@ class SchoolFilter(django_filters.FilterSet):
                 and len(selected_types) == len(unique_type_ids)
                 and all(self._is_residential_type(school_type) for school_type in selected_types)
             ):
+                ignore_city = True
+            if ignore_city:
                 data = data.copy()
                 data.pop('city', None)
                 data.pop('location', None)
-
         super().__init__(data, *args, **kwargs)
 
     @staticmethod
@@ -85,6 +88,28 @@ class SchoolFilter(django_filters.FilterSet):
             re.search(r'full[- ]?boarding', value)
             or re.search(r'^(boarding|residential)(\s|$)|\bboarding-school\b|\bresidential-school\b', value)
         )
+
+
+    @staticmethod
+    def _home_school_category(school_type):
+        value = f'{school_type.type_code} {school_type.slug} {school_type.type_name}'.lower().replace('_', '-')
+        if 'boarding' in value:
+            return 'residential-school'
+        if re.search(r'\bday\b|day-school', value):
+            return 'day-school'
+        return None
+
+    def filter_home_category(self, queryset, name, value):
+        if value not in ('day-school', 'residential-school'):
+            return queryset.none()
+        matching_type_ids = [
+            school_type.pk
+            for school_type in SchoolType.objects.filter(status=True)
+            if self._home_school_category(school_type) == value
+        ]
+        if not matching_type_ids:
+            return queryset.none()
+        return queryset.filter(school_types__in=matching_type_ids).distinct()
 
     def filter_country(self, queryset, name, country):
         # Keep the denormalized school geography FKs consistent with the hierarchy.

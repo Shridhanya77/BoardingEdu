@@ -46,6 +46,11 @@ class SchoolClassificationTests(TestCase):
             type_name='Day School',
             slug='day-school',
         )
+        cls.day_boarding = SchoolType.objects.create(
+            type_code='DAY-BOARDING',
+            type_name='Day Boarding',
+            slug='day-boarding',
+        )
         cls.boarding = SchoolType.objects.create(
             type_code='BOARDING',
             type_name='Boarding School',
@@ -332,7 +337,7 @@ class SchoolClassificationTests(TestCase):
             {'BOARDING-WHITEFIELD'},
         )
 
-    def test_residential_type_ignores_stale_city_and_locality_filters(self):
+    def test_home_residential_category_ignores_stale_locations_and_combines_boarding_types(self):
         whitefield = Location.objects.create(
             city=self.city,
             location_code='WHF',
@@ -342,7 +347,19 @@ class SchoolClassificationTests(TestCase):
         residential = self.create_school('STALE-LOCATION-BOARDING')
         residential.location = whitefield
         residential.save()
-        residential.school_types.add(self.boarding)
+        residential.school_types.add(self.day_boarding)
+        full_boarding = self.create_school('STALE-LOCATION-FULL-BOARDING')
+        full_boarding.location = whitefield
+        full_boarding.save()
+        full_boarding.school_types.add(self.full_boarding)
+        day_school = self.create_school('NOT-RESIDENTIAL-DAY')
+        day_school.location = whitefield
+        day_school.save()
+        day_school.school_types.add(self.day)
+        legacy_school = self.create_school('LEGACY-CITY-BOARDING')
+        legacy_school.location = whitefield
+        legacy_school.save()
+        legacy_school.school_types.add(self.boarding)
 
         other_state = State.objects.create(
             country=self.country,
@@ -356,6 +373,16 @@ class SchoolClassificationTests(TestCase):
             city_name='Mumbai',
             slug='mumbai',
         )
+        other_state_residential = School.objects.create(
+            school_code='OTHER-STATE-BOARDING',
+            school_name='Other State Boarding School',
+            slug='other-state-boarding-school',
+            country=self.country,
+            state=other_state,
+            city=stale_city,
+            address='Mumbai',
+        )
+        other_state_residential.school_types.add(self.day_boarding)
 
         params = QueryDict('', mutable=True)
         params.update({
@@ -363,20 +390,59 @@ class SchoolClassificationTests(TestCase):
             'state': str(self.state.pk),
             'city': str(stale_city.pk),
             'location': str(whitefield.pk),
-            'school_type': str(self.boarding.pk),
+            'home_category': 'residential-school',
         })
         result = SchoolFilter(params, queryset=School.objects.all())
 
         self.assertTrue(result.is_valid(), result.errors)
         self.assertSetEqual(
             set(result.qs.values_list('school_code', flat=True)),
-            {'STALE-LOCATION-BOARDING'},
+            {'STALE-LOCATION-BOARDING', 'STALE-LOCATION-FULL-BOARDING', 'LEGACY-CITY-BOARDING'},
         )
 
-        params['school_type'] = str(self.day.pk)
+        params.pop('state')
+        country_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(country_scope.is_valid(), country_scope.errors)
+        self.assertSetEqual(
+            set(country_scope.qs.values_list('school_code', flat=True)),
+            {
+                'STALE-LOCATION-BOARDING',
+                'STALE-LOCATION-FULL-BOARDING',
+                'OTHER-STATE-BOARDING',
+                'LEGACY-CITY-BOARDING',
+            },
+        )
+
+        params['state'] = str(self.state.pk)
+        params['home_category'] = 'day-school'
+        params['city'] = str(self.city.pk)
+        params['location'] = str(whitefield.pk)
         day_school_result = SchoolFilter(params, queryset=School.objects.all())
         self.assertTrue(day_school_result.is_valid(), day_school_result.errors)
-        self.assertFalse(day_school_result.qs.exists())
+        self.assertSetEqual(
+            set(day_school_result.qs.values_list('school_code', flat=True)),
+            {'NOT-RESIDENTIAL-DAY'},
+        )
+
+        params.pop('home_category')
+        params['city'] = str(stale_city.pk)
+        params['school_type'] = str(self.full_boarding.pk)
+        legacy_residential_result = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(legacy_residential_result.is_valid(), legacy_residential_result.errors)
+        self.assertSetEqual(
+            set(legacy_residential_result.qs.values_list('school_code', flat=True)),
+            {'STALE-LOCATION-FULL-BOARDING'},
+        )
+
+        # Existing school-type queries continue to respect location filters.
+        params['city'] = str(self.city.pk)
+        params['school_type'] = str(self.boarding.pk)
+        legacy_filter_result = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(legacy_filter_result.is_valid(), legacy_filter_result.errors)
+        self.assertSetEqual(
+            set(legacy_filter_result.qs.values_list('school_code', flat=True)),
+            {'LEGACY-CITY-BOARDING'},
+        )
 
     def test_school_type_filters_distinguish_day_boarding_and_full_boarding(self):
         day_school = self.create_school('TYPE-DAY')

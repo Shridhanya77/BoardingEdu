@@ -312,6 +312,7 @@ export type SchoolFilters = {
   location?: string;
   location_group?: string[];
   school_type?: string | string[];
+  home_category?: "day-school" | "residential-school";
   board?: string | string[];
   min_fee?: number;
   max_fee?: number;

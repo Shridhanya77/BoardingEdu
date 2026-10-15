@@ -46,7 +46,7 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { schoolTypePath, isDiscoverableSchoolType, schoolTypeLabel } from "@/lib/seo-slugs";
+import { homeSchoolCategoryForIds, schoolTypePath, isDiscoverableSchoolType, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
   const type = school.school_types_detail.find((item) => isDiscoverableSchoolType(item.type_code, item.slug, item.type_name));
@@ -228,7 +228,7 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
   );
 }
 
-type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; schoolTypes?: string[] };
+type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; schoolTypes?: string[]; homeCategory?: HomeSchoolCategory };
 
 export default function SchoolDiscovery({ initialFilter }: { initialFilter?: InitialDiscoveryFilter } = {}) {
   const router = useRouter();
@@ -275,6 +275,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const [geoState, setGeoState] = useState("");
   const [geoCity, setGeoCity] = useState("");
   const [geoLocation, setGeoLocation] = useState("");
+  const [homeCategory, setHomeCategory] = useState<HomeSchoolCategory | null>(initialFilter?.homeCategory ?? null);
   const [locationPreferences, setLocationPreferences] =
     useState<LocationPreferences | null>(null);
   const [locationPreferencesLoaded, setLocationPreferencesLoaded] = useState(false);
@@ -292,7 +293,9 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const initialCity = initialFilter?.city;
   const initialLocation = initialFilter?.location;
   const initialSchoolTypeKey = initialFilter?.schoolTypes?.join(",") ?? "";
-  const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
+  const initialHomeCategory = initialFilter?.homeCategory;
+  const homeSearchEnabled = !initialFilter || Boolean(initialHomeCategory);
+  const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
@@ -328,7 +331,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
     let cancelled = false;
-    const residentialOnly = (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes);
+    const residentialOnly = homeCategory === "residential-school" || (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes);
 
     const filters: SchoolFilters = {
       search: search || undefined,
@@ -338,6 +341,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       location: !residentialOnly && !locationGroups.length ? geoLocation || undefined : undefined,
       location_group: locationGroups,
       school_type: schoolType,
+      home_category: homeCategory ?? undefined,
       board,
       min_fee: feeMin,
       max_fee: feeMax,
@@ -377,16 +381,17 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     return () => {
       cancelled = true;
     };
-  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
+  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey) {
+    if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey || initialHomeCategory) {
       initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation);
       setSearch("");
       setSearchInput("");
       setBoard([]);
       setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
+      setHomeCategory(initialHomeCategory ?? null);
       setGeoCountry(initialCountry ?? "");
       setGeoState(initialState ?? "");
       setGeoCity(initialCity ?? "");
@@ -408,6 +413,8 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     setBoard(params.getAll("board"));
     const initialTypes = params.getAll("school_type");
     const typeSlug = params.get("type");
+    const requestedHomeCategory = params.get("home_category");
+    setHomeCategory(requestedHomeCategory === "day-school" || requestedHomeCategory === "residential-school" ? requestedHomeCategory : null);
     if (initialTypes.length) setSchoolType(initialTypes);
     else if (typeSlug) {
       // Resolved to API ids after the school type list loads.
@@ -444,7 +451,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       setRecentSearches([]);
     }
     setQueryRestored(true);
-  }, [initialCountry, initialState, initialCity, initialLocation, initialSchoolTypeKey]);
+  }, [initialCountry, initialState, initialCity, initialLocation, initialSchoolTypeKey, initialHomeCategory]);
 
   useEffect(() => {
     if (!pendingTypeSlug || !schoolTypesLoaded) return;
@@ -839,7 +846,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       next.state !== geoState ||
       next.city !== geoCity ||
       next.location !== geoLocation;
-    const boardingOnly = isBoardingOnlySelection(next.schoolType, schoolTypes);
+    const nextHomeCategory = homeSearchEnabled ? homeSchoolCategoryForIds(next.schoolType, schoolTypes) : null;
+    const boardingOnly = homeSearchEnabled
+      ? nextHomeCategory === "residential-school"
+      : isBoardingOnlySelection(next.schoolType, schoolTypes);
+    setHomeCategory(nextHomeCategory);
     setSchoolType(next.schoolType);
     setGeoCountry(next.country);
     setGeoState(next.state);
@@ -937,6 +948,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             schoolTypes={schoolTypes}
             locationMessage={locationMessage}
             locationError={locationError}
+            homeSearch={homeSearchEnabled}
             onChange={handleFinderChange}
             onSubmit={() => handleFinderSubmit()}
           />

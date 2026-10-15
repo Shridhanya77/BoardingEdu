@@ -5,18 +5,23 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography } from "@/lib/api";
 import type { CityListItem, CountryListItem, LocationListItem, SchoolTypeListItem, StateListItem } from "@/lib/api";
-import { schoolTypeCategory, toSeoSlug, type SchoolTypeCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolTypeIds, schoolTypeCategory, toSeoSlug, type HomeSchoolCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
 
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
-type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; onChange: (next: HeroFinderValue, path: string) => void; onSubmit: (path: string) => void };
+type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
+type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; onChange: (next: HeroFinderValue, path: string) => void; onSubmit: (path: string) => void };
 
-const categories: { id: SchoolTypeCategory; label: string }[] = [
+const homeCategories: { id: HomeSchoolCategory; label: string }[] = [
+  { id: "day-school", label: "Day School" },
+  { id: "residential-school", label: "Residential School" },
+];
+const schoolTypeCategories: { id: SchoolTypeCategory; label: string }[] = [
   { id: "day-school", label: "Day School" },
   { id: "boarding-school", label: "Boarding School" },
   { id: "full-boarding-school", label: "Full Boarding School" },
 ];
 
-export default function HeroFinder({ value, schoolTypes, locationMessage, locationError, onChange, onSubmit }: Props) {
+export default function HeroFinder({ value, schoolTypes, locationMessage, locationError, homeSearch = true, onChange, onSubmit }: Props) {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [states, setStates] = useState<StateListItem[]>([]);
   const [cities, setCities] = useState<CityListItem[]>([]);
@@ -26,10 +31,17 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const [retryCount, setRetryCount] = useState(0);
   const [countrySearch, setCountrySearch] = useState("");
 
-  const options = schoolTypes.filter((type) => type.status && schoolTypeCategory(type.type_code, type.slug, type.type_name));
-  const selectedCategory = schoolTypes.find((type) => value.schoolType.includes(type.school_type_id));
-  const activeCategory = selectedCategory ? schoolTypeCategory(selectedCategory.type_code, selectedCategory.slug, selectedCategory.type_name) : null;
-  const residential = activeCategory === "boarding-school" || activeCategory === "full-boarding-school";
+  const options = schoolTypes.filter((type) => type.status && (homeSearch
+    ? homeSchoolCategory(type.type_code, type.slug, type.type_name)
+    : schoolTypeCategory(type.type_code, type.slug, type.type_name)));
+  const categories: { id: FinderCategory; label: string }[] = homeSearch ? homeCategories : schoolTypeCategories;
+  const selectedType = schoolTypes.find((type) => value.schoolType.includes(type.school_type_id));
+  const activeCategory: FinderCategory | null = homeSearch
+    ? homeSchoolCategoryForIds(value.schoolType, options)
+    : selectedType ? schoolTypeCategory(selectedType.type_code, selectedType.slug, selectedType.type_name) : null;
+  const residential = homeSearch
+    ? activeCategory === "residential-school"
+    : activeCategory === "boarding-school" || activeCategory === "full-boarding-school";
   const country = countries.find((item) => item.country_id === value.country);
   const state = states.find((item) => item.state_id === value.state);
   const city = cities.find((item) => item.city_id === value.city);
@@ -42,10 +54,15 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     if (state) parts.push(toSeoSlug(state.slug));
     if (!residential && city) parts.push(toSeoSlug(city.slug));
     if (!residential && city && locality) parts.push(toSeoSlug(locality.slug));
-    const pathname = !country ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
-    const typeQuery = activeCategory && activeCategory !== "day-school" ? `?type=${activeCategory}` : "";
-    return `${pathname}${typeQuery}`;
-  }, [country, state, city, locality, residential, activeCategory]);
+    if (!homeSearch) {
+      const pathname = !country ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
+      const typeQuery = activeCategory && activeCategory !== "day-school" ? `?type=${activeCategory}` : "";
+      return `${pathname}${typeQuery}`;
+    }
+    return activeCategory
+      ? country ? `/${parts.join("/")}/${activeCategory}` : `/home?home_category=${activeCategory}`
+      : "/home";
+  }, [country, state, city, locality, residential, activeCategory, homeSearch]);
 
   useEffect(() => {
     let active = true;
@@ -81,20 +98,25 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
 
   function patch(partial: Partial<HeroFinderValue>) {
     const next = { ...value, ...partial };
-    if (partial.schoolType && partial.schoolType.some((id) => {
-      const type = schoolTypes.find((item) => item.school_type_id === id);
-      const category = type && schoolTypeCategory(type.type_code, type.slug, type.type_name);
-      return category === "boarding-school" || category === "full-boarding-school";
-    })) {
+    const selectedCategory = categoryForIds(partial.schoolType ?? next.schoolType);
+    if (partial.schoolType && (homeSearch
+      ? selectedCategory === "residential-school"
+      : selectedCategory === "boarding-school" || selectedCategory === "full-boarding-school")) {
       next.city = "";
       next.location = "";
     }
     onChange(next, pathFor(next));
   }
+  function categoryForIds(ids: string[]): FinderCategory | null {
+    if (homeSearch) return homeSchoolCategoryForIds(ids, options);
+    const selected = schoolTypes.find((type) => ids.includes(type.school_type_id));
+    return selected ? schoolTypeCategory(selected.type_code, selected.slug, selected.type_name) : null;
+  }
   function pathFor(next: HeroFinderValue) {
-    const selected = schoolTypes.find((type) => next.schoolType.includes(type.school_type_id));
-    const selectedType = selected ? schoolTypeCategory(selected.type_code, selected.slug, selected.type_name) : null;
-    const isResidential = selectedType === "boarding-school" || selectedType === "full-boarding-school";
+    const selectedType = categoryForIds(next.schoolType);
+    const isResidential = homeSearch
+      ? selectedType === "residential-school"
+      : selectedType === "boarding-school" || selectedType === "full-boarding-school";
     const nextCountry = countries.find((item) => item.country_id === next.country);
     const nextState = states.find((item) => item.state_id === next.state);
     const nextCity = cities.find((item) => item.city_id === next.city);
@@ -103,9 +125,14 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     if (nextState) parts.push(toSeoSlug(nextState.slug));
     if (!isResidential && nextCity) parts.push(toSeoSlug(nextCity.slug));
     if (!isResidential && nextCity && nextLocality) parts.push(toSeoSlug(nextLocality.slug));
-    const pathname = !nextCountry ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
-    const typeQuery = selectedType && selectedType !== "day-school" ? `?type=${selectedType}` : "";
-    return `${pathname}${typeQuery}`;
+    if (!homeSearch) {
+      const pathname = !nextCountry ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
+      const typeQuery = selectedType && selectedType !== "day-school" ? `?type=${selectedType}` : "";
+      return `${pathname}${typeQuery}`;
+    }
+    return selectedType
+      ? nextCountry ? `/${parts.join("/")}/${selectedType}` : `/home?home_category=${selectedType}`
+      : "/home";
   }
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -118,7 +145,9 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       <legend><span>01</span> Select a school type</legend>
       <div className="school-type-choices" role="group" aria-label="School type">
         {categories.map(({ id, label }) => {
-          const ids = options.filter((type) => schoolTypeCategory(type.type_code, type.slug, type.type_name) === id).map((type) => type.school_type_id);
+          const ids = homeSearch
+            ? homeSchoolTypeIds(options, id as HomeSchoolCategory)
+            : options.filter((type) => schoolTypeCategory(type.type_code, type.slug, type.type_name) === id).map((type) => type.school_type_id);
           const selected = activeCategory === id;
           return <button key={id} type="button" aria-pressed={selected} disabled={!ids.length} className={selected ? "is-selected" : ""} onClick={() => patch({ schoolType: ids, city: "", location: "" })}>{label}</button>;
         })}
