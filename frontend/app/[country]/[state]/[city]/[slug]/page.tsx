@@ -1,3 +1,21 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+export default function HomePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // If on homepage and there are query params, strip them
+    if (searchParams.toString()) {
+      router.replace("/", { scroll: false });
+    }
+  }, [router, searchParams]);
+
+
+
 import { notFound, redirect } from "next/navigation";
 import { ApiError, schools } from "@/lib/api";
 import type { SchoolDetail } from "@/lib/api";
@@ -26,4 +44,5 @@ export default async function SchoolLocationPage({ params }: { params: SchoolRou
   if (requestedPath !== canonicalPath) redirect(canonicalPath);
 
   return <SchoolProfile school={school} />;
+}
 }
