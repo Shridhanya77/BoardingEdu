@@ -10,9 +10,6 @@ export function toSeoSlug(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export const schoolTypePath = (typeCode: string) =>
-  typeCode.toUpperCase() === "DAY" ? "day-school" : "residential-school";
-
 export type SchoolTypeCategory = "day-school" | "boarding-school" | "full-boarding-school";
 
 export function schoolTypeCategory(typeCode: string, slug = "", name = ""): SchoolTypeCategory | null {
@@ -30,6 +27,9 @@ export function schoolTypeLabel(typeCode: string, slug = "", name = "") {
     : category === "boarding-school" ? "Boarding School"
       : category === "full-boarding-school" ? "Full Boarding School" : name;
 }
+
+export const schoolTypePath = (typeCode: string, slug = "", name = "") =>
+  schoolTypeCategory(typeCode, slug, name) === "day-school" ? "day-school" : "residential-school";
 
 export function isDiscoverableSchoolType(typeCode: string, slug = "", name = "") {
   return schoolTypeCategory(typeCode, slug, name) !== null;

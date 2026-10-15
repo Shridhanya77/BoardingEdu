@@ -107,7 +107,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   }
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!activeCategory || !country) return;
+    if (!activeCategory || !country || (value.state && !state) || (!residential && value.city && !city) || (!residential && value.location && !locality)) return;
     onSubmit(path);
   }
 
@@ -134,7 +134,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
           const match = countries.find((row) => row.country_name.toLowerCase() === countrySearch.trim().toLowerCase());
           if (!match) setCountrySearch(country?.country_name ?? "");
         }} /><datalist id="hero-country-options">{countries.map((row) => <option value={row.country_name} key={row.country_id} />)}</datalist></label>
-        <label className="finder-field"><span>State</span><select value={value.state} disabled={!value.country} onChange={(event) => patch({ state: event.target.value, city: "", location: "" })}><option value="">All states</option>{states.map((row) => <option value={row.state_id} key={row.state_id}>{row.state_name}</option>)}</select></label>
+        <label className="finder-field"><span>State</span><select value={value.state} disabled={!value.country || loading} onChange={(event) => patch({ state: event.target.value, city: "", location: "" })}><option value="">All states</option>{states.map((row) => <option value={row.state_id} key={row.state_id}>{row.state_name}</option>)}</select></label>
         {!residential && <>
           <label className="finder-field"><span>City (optional)</span><select value={value.city} disabled={!value.state} onChange={(event) => patch({ city: event.target.value, location: "" })}><option value="">All cities</option>{cities.map((row) => <option value={row.city_id} key={row.city_id}>{row.city_name}</option>)}</select></label>
           <label className="finder-field"><span>Locality (optional)</span><select value={value.location} disabled={!value.city || locations.length === 0} onChange={(event) => patch({ location: event.target.value })}><option value="">Any locality</option>{locations.map((row) => <option value={row.location_id} key={row.location_id}>{row.location_name}</option>)}</select></label>
@@ -143,6 +143,6 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       {locationMessage && <p role="status">{locationMessage}</p>}{locationError && <p role="alert">{locationError}</p>}{error && <p role="alert">{error} <button type="button" onClick={() => setRetryCount((count) => count + 1)}>Retry</button></p>}{loading && <p role="status">Loading locations…</p>}
       {activeCategory && <p className="finder-location-summary">{[country?.country_name, state?.state_name, !residential && city?.city_name, !residential && locality?.location_name].filter(Boolean).join(" · ")}</p>}
     </fieldset>
-    <div className="finder-actions"><button className="hero-finder__submit" type="submit" disabled={!activeCategory || !country}><Search size={16} /> Search Schools</button></div>
+    <div className="finder-actions"><button className="hero-finder__submit" type="submit" disabled={!activeCategory || !country || Boolean(value.state && !state) || Boolean(!residential && value.city && !city) || Boolean(!residential && value.location && !locality)}><Search size={16} /> Search Schools</button></div>
   </form>;
 }
