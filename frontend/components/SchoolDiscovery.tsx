@@ -20,7 +20,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography, schools } from "@/lib/api";
 import type {
@@ -229,9 +229,20 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
 }
 
 type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; schoolTypes?: string[]; homeCategory?: HomeSchoolCategory };
+const finderScrollStorageKey = "boardingeu:finder-scroll-path";
 
 export default function SchoolDiscovery({ initialFilter }: { initialFilter?: InitialDiscoveryFilter } = {}) {
   const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    const destinationPath = window.sessionStorage.getItem(finderScrollStorageKey);
+    if (!destinationPath) return;
+    window.sessionStorage.removeItem(finderScrollStorageKey);
+    if (destinationPath !== pathname) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById("schools")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [pathname]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [schoolType, setSchoolType] = useState<string[]>([]);
@@ -839,7 +850,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     };
   }
 
-  function handleFinderChange(next: HeroFinderValue, path: string) {
+  function handleFinderChange(next: HeroFinderValue) {
     setBoard(next.board);
     const locationChanged =
       next.country !== geoCountry ||
@@ -857,13 +868,21 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     setGeoCity(boardingOnly ? "" : next.city);
     setGeoLocation(boardingOnly ? "" : next.location);
     if (locationChanged) setLocationGroups([]);
-    if (`${window.location.pathname}${window.location.search}` !== path) {
-      router.push(path);
-    }
   }
 
-  function handleFinderSubmit() {
+  function handleFinderSubmit(path: string) {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
+    const destinationPath = new URL(path, window.location.origin).pathname;
+    const currentPath = `${window.location.pathname}${window.location.search}`;
+    if (currentPath === path) {
+      scrollToSchools();
+      return;
+    }
+    if (window.location.pathname !== destinationPath) {
+      window.sessionStorage.setItem(finderScrollStorageKey, destinationPath);
+    }
+    router.push(path, { scroll: false });
+    if (window.location.pathname === destinationPath) scrollToSchools();
   }
 
   function handleExplore(query: (typeof exploreItems)[number]["query"]) {
@@ -950,7 +969,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             locationError={locationError}
             homeSearch={homeSearchEnabled}
             onChange={handleFinderChange}
-            onSubmit={() => handleFinderSubmit()}
+            onSubmit={handleFinderSubmit}
           />
 
           <div className="hero-search__shortcuts">

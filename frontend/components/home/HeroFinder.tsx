@@ -9,7 +9,7 @@ import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolTypeIds, school
 
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
-type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; onChange: (next: HeroFinderValue, path: string) => void; onSubmit: (path: string) => void };
+type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
 
 const homeCategories: { id: HomeSchoolCategory; label: string }[] = [
   { id: "day-school", label: "Day School" },
@@ -105,34 +105,12 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       next.city = "";
       next.location = "";
     }
-    onChange(next, pathFor(next));
+    onChange(next);
   }
   function categoryForIds(ids: string[]): FinderCategory | null {
     if (homeSearch) return homeSchoolCategoryForIds(ids, options);
     const selected = schoolTypes.find((type) => ids.includes(type.school_type_id));
     return selected ? schoolTypeCategory(selected.type_code, selected.slug, selected.type_name) : null;
-  }
-  function pathFor(next: HeroFinderValue) {
-    const selectedType = categoryForIds(next.schoolType);
-    const isResidential = homeSearch
-      ? selectedType === "residential-school"
-      : selectedType === "boarding-school" || selectedType === "full-boarding-school";
-    const nextCountry = countries.find((item) => item.country_id === next.country);
-    const nextState = states.find((item) => item.state_id === next.state);
-    const nextCity = cities.find((item) => item.city_id === next.city);
-    const nextLocality = locations.find((item) => item.location_id === next.location);
-    const parts = nextCountry ? [toSeoSlug(nextCountry.slug)] : [];
-    if (nextState) parts.push(toSeoSlug(nextState.slug));
-    if (!isResidential && nextCity) parts.push(toSeoSlug(nextCity.slug));
-    if (!isResidential && nextCity && nextLocality) parts.push(toSeoSlug(nextLocality.slug));
-    if (!homeSearch) {
-      const pathname = !nextCountry ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
-      const typeQuery = selectedType && selectedType !== "day-school" ? `?type=${selectedType}` : "";
-      return `${pathname}${typeQuery}`;
-    }
-    return selectedType
-      ? nextCountry ? `/${parts.join("/")}/${selectedType}` : `/home?home_category=${selectedType}`
-      : "/home";
   }
   function submit(event: FormEvent) {
     event.preventDefault();
