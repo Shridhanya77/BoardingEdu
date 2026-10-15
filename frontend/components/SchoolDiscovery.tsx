@@ -845,13 +845,14 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     setGeoCity(boardingOnly ? "" : next.city);
     setGeoLocation(boardingOnly ? "" : next.location);
     if (locationChanged) setLocationGroups([]);
-    router.push(path, { scroll: false });
+    // Keep the user on the finder while they choose the remaining location.
+    // Navigation happens when they submit the search.
+    void path;
   }
 
   async function handleFinderSubmit(path: string) {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
-    void path;
-    scrollToSchools();
+    router.push(path);
   }
 
   function handleExplore(query: (typeof exploreItems)[number]["query"]) {
