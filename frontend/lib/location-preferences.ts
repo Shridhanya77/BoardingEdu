@@ -1,4 +1,5 @@
 import type { SchoolTypeListItem } from "@/lib/api";
+import { schoolTypeCategory } from "@/lib/seo-slugs";
 
 export type SavedCountryPreference = {
   country_id: string;
@@ -22,12 +23,9 @@ export function isBoardingOnlySelection(
     typeIds.length > 0 &&
     typeIds.every((id) => {
       const type = schoolTypes.find((item) => item.school_type_id === id);
-      return Boolean(
-        type &&
-          `${type.type_code} ${type.type_name} ${type.slug}`
-            .toLowerCase()
-            .includes("boarding"),
-      );
+      if (!type) return false;
+      const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
+      return category === "boarding-school" || category === "full-boarding-school";
     })
   );
 }

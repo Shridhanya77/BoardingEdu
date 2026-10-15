@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Search, X } from "lucide-react";
 import type { BoardListItem, SchoolTypeListItem } from "@/lib/api";
+import { schoolTypeLabel } from "@/lib/seo-slugs";
 import { trackSearchEvent } from "@/lib/search-analytics";
 
 type SearchCommandPaletteProps = {
@@ -176,7 +177,7 @@ export default function SearchCommandPalette({
                 }}
               >
                 <span className="command-palette__kind">Type</span>
-                {type.type_name}
+                {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
                 <ArrowRight size={15} />
               </button>
             ))}

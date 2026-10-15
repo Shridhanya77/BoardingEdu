@@ -46,7 +46,7 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { schoolTypePath, isDiscoverableSchoolType } from "@/lib/seo-slugs";
+import { schoolTypePath, isDiscoverableSchoolType, schoolTypeLabel } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
   const type = school.school_types_detail.find((item) => isDiscoverableSchoolType(item.type_code, item.slug, item.type_name));
@@ -160,7 +160,7 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
       <div className="school-card__tags">
         {school.school_types_detail.map((type) => (
           <span className="school-tag" key={type.school_type_id}>
-            {type.type_name}
+            {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
           </span>
         ))}
 
@@ -228,12 +228,15 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
   );
 }
 
-export default function SchoolDiscovery() {
+type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; schoolTypes?: string[] };
+
+export default function SchoolDiscovery({ initialFilter }: { initialFilter?: InitialDiscoveryFilter } = {}) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [schoolType, setSchoolType] = useState<string[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
+  const [schoolTypesLoaded, setSchoolTypesLoaded] = useState(false);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
   const [schoolTypesError, setSchoolTypesError] = useState<string | null>(
     null
@@ -253,6 +256,7 @@ export default function SchoolDiscovery() {
   void activeSuggestion;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [queryRestored, setQueryRestored] = useState(false);
+  const [pendingTypeSlug, setPendingTypeSlug] = useState<string | null>(null);
   const filterTriggerRef = useRef<HTMLButtonElement>(null);
   const filtersPanelRef = useRef<HTMLElement>(null);
   const [gender, setGender] = useState<SchoolFilters["gender"]>();
@@ -317,15 +321,16 @@ export default function SchoolDiscovery() {
   ];
 
   useEffect(() => {
-    if (!queryRestored) return;
+    if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
     let cancelled = false;
+    const residentialOnly = (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes);
 
     const filters: SchoolFilters = {
       search: search || undefined,
       country: locationGroups.length ? undefined : geoCountry || undefined,
       state: locationGroups.length ? undefined : geoState || undefined,
-      city: locationGroups.length ? undefined : geoCity || undefined,
-      location: locationGroups.length ? undefined : geoLocation || undefined,
+      city: !residentialOnly && !locationGroups.length ? geoCity || undefined : undefined,
+      location: !residentialOnly && !locationGroups.length ? geoLocation || undefined : undefined,
       location_group: locationGroups,
       school_type: schoolType,
       board,
@@ -367,10 +372,28 @@ export default function SchoolDiscovery() {
     return () => {
       cancelled = true;
     };
-  }, [queryRestored, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
+  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (initialFilter) {
+      initialLocationWasInUrl.current = Boolean(initialFilter.country || initialFilter.state || initialFilter.city || initialFilter.location);
+      setSearch("");
+      setSearchInput("");
+      setBoard([]);
+      setSchoolType(initialFilter.schoolTypes ?? []);
+      setGeoCountry(initialFilter.country ?? "");
+      setGeoState(initialFilter.state ?? "");
+      const residential = (initialFilter.schoolTypes ?? []).some((id) => {
+        const type = schoolTypes.find((item) => item.school_type_id === id);
+        return Boolean(type && /full[- ]?boarding|boarding|residential/i.test(`${type.type_code} ${type.type_name} ${type.slug}`));
+      });
+      setGeoCity(residential ? "" : initialFilter.city ?? "");
+      setGeoLocation(residential ? "" : initialFilter.location ?? "");
+      setLocationGroups([]);
+      setQueryRestored(true);
+      return;
+    }
     initialLocationWasInUrl.current = [
       "country",
       "state",
@@ -382,12 +405,19 @@ export default function SchoolDiscovery() {
     setSearch(initialSearch);
     setSearchInput(initialSearch);
     setBoard(params.getAll("board"));
-    setSchoolType(params.getAll("school_type"));
+    const initialTypes = params.getAll("school_type");
+    const typeSlug = params.get("type");
+    if (initialTypes.length) setSchoolType(initialTypes);
+    else if (typeSlug) {
+      // Resolved to API ids after the school type list loads.
+      setPendingTypeSlug(typeSlug);
+    }
     setGeoCountry(params.get("country") ?? "");
     setGeoState(params.get("state") ?? "");
-    setGeoCity(params.get("city") ?? "");
-    setGeoLocation(params.get("location") ?? "");
-    setLocationGroups(params.getAll("location_group"));
+    const initialBoardingSearch = typeSlug === "boarding-school" || typeSlug === "full-boarding-school";
+    setGeoCity(initialBoardingSearch ? "" : params.get("city") ?? "");
+    setGeoLocation(initialBoardingSearch ? "" : params.get("location") ?? "");
+    setLocationGroups(initialBoardingSearch ? [] : params.getAll("location_group"));
     setGender(
       (params.get("gender") as SchoolFilters["gender"]) || undefined
     );
@@ -413,7 +443,17 @@ export default function SchoolDiscovery() {
       setRecentSearches([]);
     }
     setQueryRestored(true);
-  }, []);
+  }, [initialFilter?.country, initialFilter?.state, initialFilter?.city, initialFilter?.location, initialFilter?.schoolTypes?.join(",")]);
+
+  useEffect(() => {
+    if (!pendingTypeSlug || !schoolTypesLoaded) return;
+    const matchingTypes = schoolTypes.filter((type) => {
+      const category = schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase().replaceAll(" ", "-");
+      return category === pendingTypeSlug;
+    });
+    if (matchingTypes.length) setSchoolType(matchingTypes.map((type) => type.school_type_id));
+    setPendingTypeSlug(null);
+  }, [pendingTypeSlug, schoolTypes, schoolTypesLoaded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -527,6 +567,7 @@ export default function SchoolDiscovery() {
         }
       })
       .finally(() => {
+        if (!cancelled) setSchoolTypesLoaded(true);
       });
 
     schools
@@ -552,6 +593,13 @@ export default function SchoolDiscovery() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isBoardingOnlySelection(schoolType, schoolTypes)) return;
+    if (geoCity) setGeoCity("");
+    if (geoLocation) setGeoLocation("");
+    if (locationGroups.length) setLocationGroups([]);
+  }, [schoolType, schoolTypes, geoCity, geoLocation, locationGroups.length]);
 
   useEffect(() => {
     if (
@@ -783,7 +831,7 @@ export default function SchoolDiscovery() {
     };
   }
 
-  function handleFinderChange(next: HeroFinderValue) {
+  function handleFinderChange(next: HeroFinderValue, path: string) {
     setBoard(next.board);
     const locationChanged =
       next.country !== geoCountry ||
@@ -797,11 +845,13 @@ export default function SchoolDiscovery() {
     setGeoCity(boardingOnly ? "" : next.city);
     setGeoLocation(boardingOnly ? "" : next.location);
     if (locationChanged) setLocationGroups([]);
+    router.push(path, { scroll: false });
   }
 
   async function handleFinderSubmit(path: string) {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
-    router.push(path);
+    void path;
+    scrollToSchools();
   }
 
   function handleExplore(query: (typeof exploreItems)[number]["query"]) {
@@ -1390,27 +1440,22 @@ export default function SchoolDiscovery() {
             <fieldset className="filter-group">
               <legend>School type</legend>
               <div className="filter-checklist" id="school-type-filter">
-                {schoolTypes.map((type) => (
-                  <label className="filter-check" key={type.school_type_id}>
-                    <input
-                      type="checkbox"
-                      checked={schoolType.includes(type.school_type_id)}
-                      onChange={() => {
-                        const selected = !schoolType.includes(type.school_type_id);
-                        setSchoolType((current) =>
-                          selected
-                            ? [...current, type.school_type_id]
-                            : current.filter((id) => id !== type.school_type_id)
-                        );
-                        trackSearchEvent("filter_applied", {
-                          filter_type: "school_type",
-                          selected,
-                        });
-                      }}
-                    />
-                    <span>{type.type_name}</span>
-                  </label>
-                ))}
+                {(["Day School", "Boarding School", "Full Boarding School"] as const).map((label) => {
+                  const ids = schoolTypes
+                    .filter((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name) === label)
+                    .map((type) => type.school_type_id);
+                  if (!ids.length) return null;
+                  const selected = ids.some((id) => schoolType.includes(id));
+                  return <label className="filter-check" key={label}>
+                    <input type="checkbox" checked={selected} onChange={() => {
+                      setSchoolType((current) => selected
+                        ? current.filter((id) => !ids.includes(id))
+                        : [...new Set([...current, ...ids])]);
+                      trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
+                    }} />
+                    <span>{label}</span>
+                  </label>;
+                })}
               </div>
 
               {schoolTypesError && (

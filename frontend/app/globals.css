@@ -659,6 +659,7 @@ select:focus-visible {
 
 .school-type-choices button:focus-visible,
 .finder-field select:focus-visible,
+.finder-field input:focus-visible,
 .hero-finder__submit:focus-visible {
   outline: 3px solid #e2ad34;
   outline-offset: 2px;
@@ -675,7 +676,19 @@ select:focus-visible {
   font-size: 12px;
 }
 
+.finder-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 8px;
+  color: #243447;
+  background: #f8fafc;
+  border: 1px solid #cbd5df;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
 .finder-field select:disabled,
+.finder-field input:disabled,
 .hero-finder__submit:disabled {
   cursor: not-allowed;
   opacity: .58;

@@ -5,7 +5,7 @@ from django.http import QueryDict
 from django.test import TestCase
 
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
-from apps.geography.models import City, Country, State
+from apps.geography.models import City, Country, Location, State
 from .models import Board, School, SchoolType
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .views import SchoolFilter, SchoolViewSet
@@ -235,6 +235,94 @@ class SchoolClassificationTests(TestCase):
         invalid_group = SchoolFilter(params, queryset=School.objects.all())
         self.assertTrue(invalid_group.is_valid(), invalid_group.errors)
         self.assertFalse(invalid_group.qs.exists())
+
+    def test_location_filters_follow_the_country_state_city_locality_hierarchy(self):
+        whitefield = Location.objects.create(
+            city=self.city,
+            location_code='WHF',
+            location_name='Whitefield',
+            slug='whitefield',
+        )
+        day_school = self.create_school('DAY-WHITEFIELD')
+        day_school.location = whitefield
+        day_school.save()
+        day_school.school_types.add(self.day)
+
+        boarding_school = self.create_school('BOARDING-WHITEFIELD')
+        boarding_school.location = whitefield
+        boarding_school.save()
+        boarding_school.school_types.add(self.boarding)
+
+        mumbai_state = State.objects.create(
+            country=self.country,
+            state_code='MH',
+            state_name='Maharashtra',
+            slug='maharashtra',
+        )
+        mumbai = City.objects.create(
+            state=mumbai_state,
+            city_code='MUM',
+            city_name='Mumbai',
+            slug='mumbai',
+        )
+        other_city_school = School.objects.create(
+            school_code='DAY-MUMBAI',
+            school_name='Mumbai School',
+            slug='mumbai-school',
+            country=self.country,
+            state=mumbai_state,
+            city=mumbai,
+            address='Mumbai',
+        )
+        other_city_school.school_types.add(self.day)
+
+        base = {
+            'country': str(self.country.pk),
+            'school_type': str(self.day.pk),
+        }
+        params = QueryDict('', mutable=True)
+        for key, value in base.items():
+            params[key] = value
+        country_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(country_scope.is_valid(), country_scope.errors)
+        self.assertSetEqual(set(country_scope.qs.values_list('school_code', flat=True)), {'DAY-WHITEFIELD', 'DAY-MUMBAI'})
+
+        params['state'] = str(self.state.pk)
+        state_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(state_scope.is_valid(), state_scope.errors)
+        self.assertSetEqual(set(state_scope.qs.values_list('school_code', flat=True)), {'DAY-WHITEFIELD'})
+
+        params['state'] = str(mumbai_state.pk)
+        invalid_state_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(invalid_state_scope.is_valid(), invalid_state_scope.errors)
+        self.assertFalse(invalid_state_scope.qs.exists())
+        params['state'] = str(self.state.pk)
+
+        params['city'] = str(self.city.pk)
+        city_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(city_scope.is_valid(), city_scope.errors)
+        self.assertSetEqual(set(city_scope.qs.values_list('school_code', flat=True)), {'DAY-WHITEFIELD'})
+
+        params['city'] = str(mumbai.pk)
+        invalid_city_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(invalid_city_scope.is_valid(), invalid_city_scope.errors)
+        self.assertFalse(invalid_city_scope.qs.exists())
+        params['city'] = str(self.city.pk)
+
+        params['location'] = str(whitefield.pk)
+        locality_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(locality_scope.is_valid(), locality_scope.errors)
+        self.assertSetEqual(set(locality_scope.qs.values_list('school_code', flat=True)), {'DAY-WHITEFIELD'})
+
+        params.setlist('school_type', [str(self.boarding.pk)])
+        params.pop('city')
+        params.pop('location')
+        residential_city_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(residential_city_scope.is_valid(), residential_city_scope.errors)
+        self.assertSetEqual(
+            set(residential_city_scope.qs.values_list('school_code', flat=True)),
+            {'BOARDING-WHITEFIELD'},
+        )
 
     def test_fee_range_filters_only_published_current_year_totals(self):
         current_year = AcademicYear.objects.create(

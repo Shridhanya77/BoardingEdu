@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import type { SchoolDetail } from "@/lib/api";
+import { schoolTypeCategory, schoolTypeLabel } from "@/lib/seo-slugs";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
 
 const genderLabels = {
@@ -29,9 +30,10 @@ const verificationLabels = {
 } as const;
 
 export function schoolProfilePath(school: SchoolDetail) {
-  const residential = school.school_types_detail.some((type) =>
-    /^(FULL-BOARDING|BOARDING)$/i.test(type.type_code) || /residential|boarding/i.test(type.type_name),
-  );
+  const residential = school.school_types_detail.some((type) => {
+    const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
+    return category === "boarding-school" || category === "full-boarding-school";
+  });
   return `/${residential ? "residential-school" : "day-school"}/${school.country_detail.slug}/${school.state_detail.slug}/${school.city_detail.slug}/${school.slug}`;
 }
 
@@ -80,7 +82,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
       icon: Landmark,
     })),
     ...school.school_types_detail.map((type) => ({
-      label: type.type_name,
+      label: schoolTypeLabel(type.type_code, type.slug, type.type_name),
       icon: BedDouble,
     })),
     { label: genderLabels[school.gender], icon: Users },
@@ -139,7 +141,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
               </div>
               <dl className="school-facts">
                 <div><dt>Education board</dt><dd>{school.boards_detail.map((board) => board.board_name).join(", ") || "Not provided"}</dd></div>
-                <div><dt>School type</dt><dd>{school.school_types_detail.map((type) => type.type_name).join(", ") || "Not provided"}</dd></div>
+                <div><dt>School type</dt><dd>{school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not provided"}</dd></div>
                 <div><dt>Student community</dt><dd>{genderLabels[school.gender]}</dd></div>
                 <div><dt>Established</dt><dd>{school.established_year ?? "Not provided"}</dd></div>
                 <div><dt>Principal</dt><dd>{school.principal_name || "Not provided"}</dd></div>

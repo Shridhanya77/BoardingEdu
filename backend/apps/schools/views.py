@@ -3,11 +3,11 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum
+from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 from apps.fees.models import FeeItem
-from apps.geography.models import State
+from apps.geography.models import City, Country, Location, State
 from .models import Board, SchoolType, Grade, Facility, School, SchoolFacility,SchoolGrade
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
@@ -31,6 +31,10 @@ class ReadWriteModelViewSet(viewsets.ModelViewSet):
 
 class SchoolFilter(django_filters.FilterSet):
     location_group = django_filters.CharFilter(method='filter_location_group')
+    country = django_filters.ModelChoiceFilter(queryset=Country.objects.all(), method='filter_country')
+    state = django_filters.ModelChoiceFilter(queryset=State.objects.all(), method='filter_state')
+    city = django_filters.ModelChoiceFilter(queryset=City.objects.all(), method='filter_city')
+    location = django_filters.ModelChoiceFilter(queryset=Location.objects.all(), method='filter_location')
     board = django_filters.ModelMultipleChoiceFilter(
         field_name='boards',
         queryset=Board.objects.all(),
@@ -48,6 +52,48 @@ class SchoolFilter(django_filters.FilterSet):
             'country', 'state', 'city', 'location',
             'gender', 'status', 'verification_status', 'boarding_required',
         ]
+
+    def filter_country(self, queryset, name, country):
+        # Keep the denormalized school geography FKs consistent with the hierarchy.
+        return queryset.filter(
+            country=country,
+            state__country=country,
+            city__state__country=country,
+        ).filter(state_id=F('city__state_id'))
+
+    def filter_state(self, queryset, name, state):
+        country = self.form.cleaned_data.get('country')
+        if country and state.country_id != country.pk:
+            return queryset.none()
+        return queryset.filter(
+            state=state,
+            country=state.country,
+            city__state=state,
+        )
+
+    def filter_city(self, queryset, name, city):
+        state = self.form.cleaned_data.get('state')
+        country = self.form.cleaned_data.get('country')
+        if (state and city.state_id != state.pk) or (country and city.state.country_id != country.pk):
+            return queryset.none()
+        return queryset.filter(
+            city=city,
+            state=city.state,
+            country=city.state.country,
+        )
+
+    def filter_location(self, queryset, name, location):
+        city = self.form.cleaned_data.get('city')
+        state = self.form.cleaned_data.get('state')
+        country = self.form.cleaned_data.get('country')
+        if (city and location.city_id != city.pk) or (state and location.city.state_id != state.pk) or (country and location.city.state.country_id != country.pk):
+            return queryset.none()
+        return queryset.filter(
+            location=location,
+            city=location.city,
+            state=location.city.state,
+            country=location.city.state.country,
+        )
 
     def filter_location_group(self, queryset, name, value):
         raw_groups = self.data.getlist(name) if hasattr(self.data, 'getlist') else [value]

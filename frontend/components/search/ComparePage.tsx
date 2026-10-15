@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, X } from "lucide-react";
 import { useSearchExperience } from "@/lib/search-experience";
+import { schoolTypeLabel } from "@/lib/seo-slugs";
 
 export default function ComparePage() {
   const {
@@ -31,7 +32,7 @@ export default function ComparePage() {
     {
       label: "School types",
       value: (school: (typeof comparedSchools)[number]) =>
-        school.school_types_detail.map((type) => type.type_name).join(", ") || "Not listed",
+        school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not listed",
     },
     {
       label: "Student community",
