@@ -10,6 +10,7 @@ export const API_BASE = (
 const API_ORIGIN = new URL(API_BASE).origin;
 
 const defaultHeaders = { "Content-Type": "application/json" };
+const browserGetCache = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
 
 export class ApiError extends Error {
   constructor(
@@ -38,21 +39,45 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error("The API returned a pagination URL outside the configured API host.");
   }
 
-  const res = await fetch(url, {
-    ...init,
-    headers: { ...defaultHeaders, ...init.headers },
-    next: { revalidate: 60 }, // ISR: revalidate every 60s for school listing
-  });
-  if (!res.ok) {
-    const parsed = await parseBody(res);
-    const detail = typeof parsed === "string"
-      ? parsed
-      : (parsed && typeof parsed === "object" && "detail" in parsed
-        ? String((parsed as { detail: unknown }).detail)
-        : JSON.stringify(parsed));
-    throw new ApiError(res.status, `API ${res.status} on ${path}: ${detail}`, parsed);
+  const cacheKey = (init.method ?? "GET").toUpperCase() === "GET" && typeof window !== "undefined"
+    ? url.href
+    : null;
+  if (cacheKey) {
+    const cached = browserGetCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.promise as Promise<T>;
+    if (cached) browserGetCache.delete(cacheKey);
   }
-  return (await res.json()) as Promise<T>;
+
+  const operation = (async () => {
+    const res = await fetch(url, {
+      ...init,
+      headers: { ...defaultHeaders, ...init.headers },
+      next: { revalidate: 60 }, // ISR: revalidate every 60s for school listing
+    });
+    if (!res.ok) {
+      const parsed = await parseBody(res);
+      const detail = typeof parsed === "string"
+        ? parsed
+        : (parsed && typeof parsed === "object" && "detail" in parsed
+          ? String((parsed as { detail: unknown }).detail)
+          : JSON.stringify(parsed));
+      throw new ApiError(res.status, `API ${res.status} on ${path}: ${detail}`, parsed);
+    }
+    return await res.json();
+  })();
+
+  if (cacheKey) {
+    const entry = { expiresAt: Date.now() + 60_000, promise: operation };
+    browserGetCache.set(cacheKey, entry);
+    if (browserGetCache.size > 100) {
+      const oldestKey = browserGetCache.keys().next().value;
+      if (oldestKey) browserGetCache.delete(oldestKey);
+    }
+    operation.catch(() => {
+      if (browserGetCache.get(cacheKey) === entry) browserGetCache.delete(cacheKey);
+    });
+  }
+  return operation as Promise<T>;
 }
 
 /**

@@ -633,6 +633,77 @@ select:focus-visible {
   background: #125d4b;
 }
 
+.school-type-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.school-type-choices button {
+  min-height: 48px;
+  padding: 10px 14px;
+  color: #243447;
+  background: #f8fafc;
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.school-type-choices button:hover,
+.school-type-choices button.is-selected {
+  color: #145b4a;
+  background: #eaf5f1;
+  border-color: #17765f;
+}
+
+.school-type-choices button:focus-visible,
+.finder-field select:focus-visible,
+.hero-finder__submit:focus-visible {
+  outline: 3px solid #e2ad34;
+  outline-offset: 2px;
+}
+
+.finder-field select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 8px;
+  color: #243447;
+  background: #f8fafc;
+  border: 1px solid #cbd5df;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.finder-field select:disabled,
+.hero-finder__submit:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.finder-location-summary {
+  margin: 10px 0 0;
+  color: #46596b;
+  font-size: 12px;
+}
+
+.location-results {
+  width: min(1120px, calc(100% - 32px));
+  margin: 36px auto 64px;
+}
+
+.location-results > nav { margin-bottom: 20px; color: #596b7d; font-size: 14px; }
+.location-results h1 { color: #10283f; font-size: clamp(26px, 4vw, 40px); }
+.location-results .school-list { margin-top: 24px; }
+
+@media (max-width: 640px) {
+  .school-type-choices { grid-template-columns: 1fr; }
+  .hero-finder { padding: 15px; }
+  .finder-group__fields { grid-template-columns: minmax(0, 1fr); }
+  .finder-actions { justify-content: stretch; }
+  .hero-finder__submit { width: 100%; min-height: 48px; }
+}
+
 .hero-search {
   width: min(445px, 100%);
   height: 53px;

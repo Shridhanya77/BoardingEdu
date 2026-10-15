@@ -22,7 +22,7 @@ export default function RootLayout({
         {/*
           AuthProvider wraps the whole site because:
           1. NavBar reads useAuth() to show Login/Signup vs. user menu.
-          2. /login, /signup, and /[country]/[state]/[city]/[slug] all use useAuth().
+          2. /login, /signup, and school detail pages all use useAuth().
         */}
         <AuthProvider>
           <SearchExperienceProvider>

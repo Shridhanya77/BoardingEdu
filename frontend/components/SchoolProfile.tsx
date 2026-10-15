@@ -29,7 +29,10 @@ const verificationLabels = {
 } as const;
 
 export function schoolProfilePath(school: SchoolDetail) {
-  return `/${school.country_detail.slug}/${school.state_detail.slug}/${school.city_detail.slug}/${school.slug}`;
+  const residential = school.school_types_detail.some((type) =>
+    /^(FULL-BOARDING|BOARDING)$/i.test(type.type_code) || /residential|boarding/i.test(type.type_name),
+  );
+  return `/${residential ? "residential-school" : "day-school"}/${school.country_detail.slug}/${school.state_detail.slug}/${school.city_detail.slug}/${school.slug}`;
 }
 
 function gradeBadge(gradeName: string, seats: number | null, entryAge: [number | null, number | null]) {

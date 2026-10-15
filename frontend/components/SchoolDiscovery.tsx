@@ -46,9 +46,11 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
+import { schoolTypePath, isDiscoverableSchoolType } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
-  return `/${school.country_slug}/${school.state_slug}/${school.city_slug}/${school.slug}`;
+  const type = school.school_types_detail.find((item) => isDiscoverableSchoolType(item.type_code, item.slug, item.type_name));
+  return `/${schoolTypePath(type?.type_code ?? "DAY")}/${school.country_slug}/${school.state_slug}/${school.city_slug}/${school.slug}`;
 }
 
 const genderOptions: {
@@ -512,9 +514,7 @@ export default function SchoolDiscovery() {
       .types()
       .then((response) => {
         if (!cancelled) {
-          setSchoolTypes(
-            response.results.filter((type) => type.status)
-          );
+          setSchoolTypes(response.results.filter((type) => type.status && isDiscoverableSchoolType(type.type_code, type.slug, type.type_name)));
         }
       })
       .catch((reason: unknown) => {
@@ -589,7 +589,6 @@ export default function SchoolDiscovery() {
           setGeoState(savedLocation.state_ids[0] ?? "");
           setGeoCity("");
           setGeoLocation("");
-          setLocationMessage("Your saved location preference was restored.");
         } else if (changed) {
           setLocationMessage("Unavailable saved locations were removed.");
         }
@@ -800,43 +799,9 @@ export default function SchoolDiscovery() {
     if (locationChanged) setLocationGroups([]);
   }
 
-  async function saveCurrentLocationPreference() {
-    if (!geoCountry) return;
-
-    setLocationMessage(null);
-    setLocationError(null);
-    try {
-      const payload = createLocationPreferences([
-        {
-          country_id: geoCountry,
-          state_ids: geoState ? [geoState] : [],
-        },
-      ]);
-      const response = await fetch("/api/location-preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        const body = (await response.json()) as { error?: string };
-        throw new Error(body.error ?? "Could not save your location.");
-      }
-      setLocationPreferences(payload);
-      setLocationGroups([]);
-      setLocationMessage("Your country and state preference has been saved.");
-    } catch (reason: unknown) {
-      setLocationError(
-        reason instanceof Error
-          ? reason.message
-          : "Could not save your location preference.",
-      );
-    }
-  }
-
-  async function handleFinderSubmit() {
+  async function handleFinderSubmit(path: string) {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
-    await saveCurrentLocationPreference();
-    scrollToSchools();
+    router.push(path);
   }
 
   function handleExplore(query: (typeof exploreItems)[number]["query"]) {
@@ -918,12 +883,11 @@ export default function SchoolDiscovery() {
 
           <HeroFinder
             value={finderValue()}
-            boards={boards}
             schoolTypes={schoolTypes}
             locationMessage={locationMessage}
             locationError={locationError}
             onChange={handleFinderChange}
-            onSubmit={() => void handleFinderSubmit()}
+            onSubmit={(path) => void handleFinderSubmit(path)}
           />
 
           <div className="hero-search__shortcuts">
