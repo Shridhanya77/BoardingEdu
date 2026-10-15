@@ -52,6 +52,12 @@ function schoolHref(school: SchoolListItem) {
   const type = school.school_types_detail.find((item) => isDiscoverableSchoolType(item.type_code, item.slug, item.type_name));
   return `/${schoolTypePath(type?.type_code ?? "DAY")}/${school.country_slug}/${school.state_slug}/${school.city_slug}/${school.slug}`;
 }
+function homeFilterSchoolTypeLabel(type: SchoolTypeListItem) {
+  const value = `${type.type_code} ${type.slug} ${type.type_name}`.toLowerCase().replace(/_/g, "-");
+  if (/day[- ]boarding/.test(value)) return "Boarding School";
+  return schoolTypeLabel(type.type_code, type.slug, type.type_name);
+}
+const homeSchoolTypeFilterLabels = ["Day School", "Boarding School", "Full Boarding School"] as const;
 
 const genderOptions: {
   label: string;
@@ -306,6 +312,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const initialSchoolTypeKey = initialFilter?.schoolTypes?.join(",") ?? "";
   const initialHomeCategory = initialFilter?.homeCategory;
   const homeSearchEnabled = !initialFilter || Boolean(initialHomeCategory);
+  const isHomePage = !initialFilter;
   const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
@@ -1411,7 +1418,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         </span>
       </section>
 
-      <section className="discovery-content" id="schools">
+      <section className={`discovery-content${isHomePage ? " discovery-content--home" : ""}`} id="schools">
         <div className="section-heading">
           <div>
             <div className="section-eyebrow">EXPLORE THE DIRECTORY</div>
@@ -1472,14 +1479,17 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <fieldset className="filter-group">
               <legend>School type</legend>
               <div className="filter-checklist" id="school-type-filter">
-                {(["Day School", "Boarding School", "Full Boarding School"] as const).map((label) => {
+                {homeSchoolTypeFilterLabels.map((label) => {
                   const ids = schoolTypes
-                    .filter((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name) === label)
+                    .filter((type) => (isHomePage
+                      ? homeFilterSchoolTypeLabel(type)
+                      : schoolTypeLabel(type.type_code, type.slug, type.type_name)) === label)
                     .map((type) => type.school_type_id);
-                  if (!ids.length) return null;
+                  if (!ids.length && !isHomePage) return null;
                   const selected = ids.some((id) => schoolType.includes(id));
-                  return <label className="filter-check" key={label}>
-                    <input type="checkbox" checked={selected} onChange={() => {
+                  return <label className={`filter-check${ids.length ? "" : " filter-check--disabled"}`} key={label}>
+                    <input type="checkbox" checked={selected} disabled={!ids.length} onChange={() => {
+                      if (!ids.length) return;
                       setSchoolType((current) => selected
                         ? current.filter((id) => !ids.includes(id))
                         : [...new Set([...current, ...ids])]);

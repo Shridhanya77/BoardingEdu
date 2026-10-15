@@ -1901,6 +1901,40 @@ select:focus-visible {
 
 .filter-check input { accent-color: var(--search-blue-600); }
 
+.discovery-content--home .filters-panel__heading h3 {
+  font-size: 15px;
+}
+
+.discovery-content--home .filter-group legend {
+  font-size: 13px;
+}
+
+.discovery-content--home .filter-checklist {
+  gap: 10px;
+}
+
+.discovery-content--home .filter-check {
+  min-height: 32px;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.discovery-content--home .filter-check input {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.filter-check--disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.filter-check--disabled input {
+  cursor: not-allowed;
+}
+
 .fee-range {
   display: grid;
   gap: 11px;
@@ -2141,6 +2175,11 @@ select:focus-visible {
   gap: 10px;
 }
 
+.school-list:not(.school-list--skeleton) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+
 .school-card {
   position: relative;
   padding: 17px 19px 13px;
@@ -2202,7 +2241,7 @@ select:focus-visible {
   flex-wrap: wrap;
   gap: 9px;
   color: #9aa39d;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .verified-tag {
@@ -2218,7 +2257,7 @@ select:focus-visible {
   overflow-wrap: anywhere;
   color: #172b43;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 550;
   line-height: 1.25;
 }
@@ -2229,7 +2268,7 @@ select:focus-visible {
   align-items: center;
   gap: 4px;
   color: #85918a;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .school-card__tags {
@@ -2240,15 +2279,15 @@ select:focus-visible {
 }
 
 .school-tag {
-  min-height: 23px;
-  padding: 5px 8px;
+  min-height: 26px;
+  padding: 6px 9px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: #557760;
   background: #f0f5ed;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .school-tag--blue {
@@ -2282,7 +2321,7 @@ select:focus-visible {
   margin: 0;
   overflow: hidden;
   color: #98a19b;
-  font-size: 9px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2299,7 +2338,7 @@ select:focus-visible {
   align-items: center;
   gap: 5px;
   color: #3e7b64;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
