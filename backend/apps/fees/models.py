@@ -294,6 +294,17 @@ class FeeItem(models.Model):
         ("MISCELLANEOUS", "Miscellaneous"),
     ]
 
+    PAYMENT_FREQUENCY_CHOICES = [
+        ("ONE_TIME", "One-time"),
+        ("ANNUAL", "Annually"),
+        ("QUARTERLY", "Quarterly"),
+        ("HALF_YEARLY", "Half-yearly"),
+        ("TERM", "Term-wise"),
+        ("MONTHLY", "Monthly"),
+        ("BY_DISTANCE", "By distance"),
+        ("DYNAMIC", "Dynamic"),
+    ]
+
     fee_item_id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -323,6 +334,12 @@ class FeeItem(models.Model):
         choices=CATEGORY_CHOICES,
         default="TUITION",
         null=False,
+    )
+
+    payment_frequency = models.CharField(
+        max_length=20,
+        choices=PAYMENT_FREQUENCY_CHOICES,
+        default="ANNUAL",
     )
 
     # Scope (NULL = applies to all for the structure)

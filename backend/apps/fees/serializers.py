@@ -200,6 +200,10 @@ class FeeItemListSerializer(serializers.ModelSerializer):
     school_type_name = serializers.CharField(source='school_type.type_name', read_only=True, allow_null=True)
     tax = serializers.DecimalField(source='tax_rate_pct', max_digits=5, decimal_places=2, read_only=True)
     category = serializers.CharField(source='item_category', read_only=True)
+    payment_frequency_display = serializers.CharField(
+        source='get_payment_frequency_display',
+        read_only=True,
+    )
 
     class Meta:
         model = FeeItem
@@ -209,7 +213,7 @@ class FeeItemListSerializer(serializers.ModelSerializer):
             'item_code', 'item_name', 'category',
             'grade_id', 'grade_name',
             'school_type_id', 'school_type_name',
-            'amount', 'tax',
+            'amount', 'payment_frequency', 'payment_frequency_display', 'tax',
             'is_refundable',
             'sort_order',
         ]
@@ -222,6 +226,10 @@ class FeeItemSerializer(serializers.ModelSerializer):
     school_type_detail = serializers.SerializerMethodField(read_only=True)
     tax = serializers.DecimalField(source='tax_rate_pct', max_digits=5, decimal_places=2, read_only=True)
     category = serializers.CharField(source='item_category', read_only=True)
+    payment_frequency_display = serializers.CharField(
+        source='get_payment_frequency_display',
+        read_only=True,
+    )
 
     class Meta:
         model = FeeItem
@@ -231,7 +239,8 @@ class FeeItemSerializer(serializers.ModelSerializer):
             'item_code', 'item_name', 'category',
             'grade', 'grade_detail',
             'school_type', 'school_type_detail',
-            'amount', 'tax', 'tax_rate_pct',
+            'amount', 'payment_frequency', 'payment_frequency_display',
+            'tax', 'tax_rate_pct',
             'is_refundable',
             'description',
             'sort_order',

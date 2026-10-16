@@ -140,6 +140,15 @@ class School(models.Model):
 
 
 class SchoolPhoto(models.Model):
+    CATEGORY_CHOICES = [
+        ("CAMPUS", "Campus"),
+        ("CLASSROOM", "Classroom"),
+        ("SPORTS", "Sports"),
+        ("LIBRARY", "Library"),
+        ("HOSTEL", "Hostel"),
+        ("OTHER", "Other"),
+    ]
+
     photo_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(
         School,
@@ -147,9 +156,17 @@ class SchoolPhoto(models.Model):
         related_name="photos",
         db_column="school_id",
     )
-    photo_url = models.URLField(max_length=500)
+    photo_url = models.URLField(
+        max_length=500,
+        help_text="Paste a publicly accessible image URL.",
+    )
     caption = models.CharField(max_length=200, blank=True)
     alt_text = models.CharField(max_length=250, blank=True)
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default="CAMPUS",
+    )
     sort_order = models.PositiveSmallIntegerField(default=0)
     status = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -161,6 +178,51 @@ class SchoolPhoto(models.Model):
 
     def __str__(self):
         return self.caption or f"Photo for {self.school.school_name}"
+
+
+class SchoolVideo(models.Model):
+    CATEGORY_CHOICES = [
+        ("CAMPUS", "Campus"),
+        ("CLASSROOM", "Classroom"),
+        ("SPORTS", "Sports"),
+        ("LIBRARY", "Library"),
+        ("HOSTEL", "Hostel"),
+        ("OTHER", "Other"),
+    ]
+
+    video_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="videos",
+        db_column="school_id",
+    )
+    video_url = models.URLField(
+        max_length=500,
+        help_text="Paste a public YouTube link or direct MP4/WebM/OGG URL.",
+    )
+    thumbnail_url = models.URLField(
+        max_length=500,
+        blank=True,
+        help_text="Optional publicly accessible video thumbnail image URL.",
+    )
+    caption = models.CharField(max_length=200, blank=True)
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default="CAMPUS",
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "school_videos"
+        ordering = ["sort_order", "created_at"]
+        indexes = [models.Index(fields=["school", "status", "sort_order"])]
+
+    def __str__(self):
+        return self.caption or f"Video for {self.school.school_name}"
 
 
 # ---------- M2M JUNCTION: SCHOOL ↔ FACILITIES (matches ER diagram 1 SCHOOL_FACILITIES) ----------

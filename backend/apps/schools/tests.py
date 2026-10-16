@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, Location, State
-from .models import Board, Grade, School, SchoolGrade, SchoolPhoto, SchoolType
+from .models import Board, Grade, School, SchoolGrade, SchoolPhoto, SchoolType, SchoolVideo
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .views import SchoolFilter, SchoolViewSet
 
@@ -154,6 +154,42 @@ class SchoolClassificationTests(TestCase):
             [str(first.photo_id), str(second.photo_id)],
         )
         self.assertEqual(photos[0]['caption'], 'Campus')
+
+    def test_school_detail_and_listing_include_school_media(self):
+        school = self.create_school('WITH-MEDIA')
+        photo = SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/campus.jpg',
+            caption='Campus',
+        )
+        SchoolVideo.objects.create(
+            school=school,
+            video_url='https://youtu.be/example',
+            caption='Campus tour',
+        )
+        SchoolVideo.objects.create(
+            school=school,
+            video_url='https://youtu.be/hidden',
+            status=False,
+        )
+
+        detail_response = self.client.get(
+            f'/api/schools/schools/by-slug/{school.slug}/'
+        )
+        list_response = self.client.get('/api/schools/schools/')
+
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(
+            detail_response.data['photos_detail'][0]['photo_id'],
+            str(photo.photo_id),
+        )
+        self.assertEqual(len(detail_response.data['videos_detail']), 1)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.data['results'][0]['videos_count'], 1)
+        self.assertEqual(
+            list_response.data['results'][0]['school_photos'][0]['photo_id'],
+            str(photo.photo_id),
+        )
 
     def test_grade_filter_matches_active_school_grade_offerings(self):
         grade = Grade.objects.create(

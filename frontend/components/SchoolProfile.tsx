@@ -16,6 +16,8 @@ import {
 import type { SchoolDetail } from "@/lib/api";
 import { schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
+import SchoolVideoGallery from "./SchoolVideoGallery";
+import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
 
@@ -173,30 +175,42 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
           </div>
         </section>
 
-        {(school.school_image_url || school.photos_detail?.length) && (
-          <SchoolPhotoGallery
-            photos={[
-              ...(school.school_image_url
-                ? [{
-                    photo_id: "school-cover",
-                    photo_url: school.school_image_url,
-                    caption: "",
-                    alt_text: `${school.school_name} campus`,
-                    sort_order: 0,
-                  }]
-                : []),
-              ...(school.photos_detail ?? []).filter(
-                (photo) => photo.photo_url !== school.school_image_url,
-              ),
-            ]}
-            schoolName={school.school_name}
-          />
-        )}
+        <SchoolProfileNavigation />
+
+        <section className="detail-panel school-detail__media-panel" id="media">
+          <div className="detail-panel__heading">
+            <span className="detail-panel__icon"><BookOpen size={18} /></span>
+            <div><h2>Photos &amp; videos</h2><p>Explore the campus and school life.</p></div>
+          </div>
+          {(school.school_image_url || school.photos_detail?.length) ? (
+            <SchoolPhotoGallery
+              photos={[
+                ...(school.school_image_url
+                  ? [{
+                      photo_id: "school-cover",
+                      photo_url: school.school_image_url,
+                      caption: "",
+                      alt_text: `${school.school_name} campus`,
+                      category: "CAMPUS",
+                      sort_order: 0,
+                    }]
+                  : []),
+                ...(school.photos_detail ?? []).filter(
+                  (photo) => photo.photo_url !== school.school_image_url,
+                ),
+              ]}
+              schoolName={school.school_name}
+            />
+          ) : (
+            <p className="empty-state">School photos have not been published yet.</p>
+          )}
+          <SchoolVideoGallery videos={school.videos_detail ?? []} schoolName={school.school_name} />
+        </section>
 
         <div className="school-detail__grid">
           <section className="school-detail__main">
             {/* ===== SECTION 1: ABOUT ===== */}
-            <article className="detail-panel">
+            <article className="detail-panel" id="overview">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Landmark size={18} /></span>
                 <div><h2>About this school</h2><p>Key information to help your family explore.</p></div>
@@ -212,7 +226,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
             </article>
 
             {/* ===== SECTION 2: GRADES OFFERED (NEW) ===== */}
-            <article className="detail-panel">
+            <article className="detail-panel" id="admissions">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><GraduationCap size={18} /></span>
                 <div>
@@ -236,7 +250,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
             </article>
 
             {/* ===== SECTION 3: FACILITIES (NEW) ===== */}
-            <article className="detail-panel">
+            <article className="detail-panel" id="facilities">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Star size={18} /></span>
                 <div>
@@ -248,6 +262,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                   </p>
                 </div>
               </div>
+              <span id="infrastructure" className="school-detail__section-anchor" />
 
               {school.facilities_detail.length === 0 ? (
                 <p className="empty-state"><Star size={16} /> Facilities info coming soon.</p>
@@ -278,7 +293,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
             </article>
 
             {/* ===== SECTION 4: FEE SUMMARY (NEW) ===== */}
-            <article className="detail-panel">
+            <article className="detail-panel" id="fees">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Landmark size={18} /></span>
                 <div>
@@ -287,11 +302,22 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                 </div>
               </div>
 
-              <SchoolFeeSummary schoolId={school.school_id} />
+              <SchoolFeeSummary
+                schoolId={school.school_id}
+                grades={school.grades_offered_detail.map(({ grade_id, grade_name }) => ({ grade_id, grade_name }))}
+              />
+            </article>
+
+            <article className="detail-panel" id="reviews">
+              <div className="detail-panel__heading">
+                <span className="detail-panel__icon"><Star size={18} /></span>
+                <div><h2>Reviews</h2><p>Parent experiences and school feedback.</p></div>
+              </div>
+              <p className="empty-state">Reviews have not been published for this school yet.</p>
             </article>
 
             {/* ===== SECTION 5: LOCATION / ADDRESS ===== */}
-            <article className="detail-panel">
+            <article className="detail-panel" id="location">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><MapPin size={18} /></span>
                 <div><h2>Location &amp; address</h2><p>Contact the school to confirm visiting details.</p></div>

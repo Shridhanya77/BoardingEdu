@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { CSSProperties, FormEvent } from "react";
@@ -126,6 +127,7 @@ async function currentLocationPreferences(
 }
 
 function SchoolCard({ school }: { school: SchoolListItem }) {
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(() => new Set());
   const {
     comparedSchools,
     limitReached,
@@ -139,6 +141,15 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
     .join(", ");
 
   const href = schoolHref(school);
+  const photos = school.school_photos ?? [];
+  const mainPhoto = school.school_image_url || photos[0]?.photo_url;
+  const supportingPhotos = photos
+    .filter((photo) => photo.photo_url !== mainPhoto)
+    .slice(0, 2);
+  const coverPhotos = [
+    ...(mainPhoto ? [{ photo_id: "cover", photo_url: mainPhoto, alt_text: `${school.school_name} campus` }] : []),
+    ...supportingPhotos,
+  ];
 
   return (
     <article className="school-card">
@@ -147,9 +158,40 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
         href={href}
         aria-label={`View details for ${school.school_name}`}
       />
+      <div className={`school-card__media${coverPhotos.length > 1 ? " school-card__media--collage" : ""}`}>
+        {coverPhotos.length ? coverPhotos.map((photo, index) => (
+          <div className={`school-card__media-tile school-card__media-tile--${index + 1}`} key={photo.photo_id}>
+            {failedPhotos.has(photo.photo_id) ? (
+              <span className="school-card__media-fallback" aria-hidden />
+            ) : (
+              <Image
+                src={photo.photo_url}
+                alt={photo.alt_text || `${school.school_name} campus`}
+                fill
+                sizes="(max-width: 640px) 100vw, 360px"
+                unoptimized
+                onError={() => setFailedPhotos((current) => new Set(current).add(photo.photo_id))}
+              />
+            )}
+          </div>
+        )) : (
+          <div className="school-card__media-fallback school-card__media-fallback--empty">
+            <Building2 size={30} aria-hidden />
+            <span>School campus</span>
+          </div>
+        )}
+        {(school.videos_count ?? 0) > 0 && (
+          <span className="school-card__video-count">{school.videos_count} video{school.videos_count === 1 ? "" : "s"}</span>
+        )}
+      </div>
+
       <div className="school-card__top">
         <div className="school-card__avatar" aria-hidden="true">
-          <Building2 size={23} strokeWidth={1.7} />
+          {school.school_logo_url ? (
+            <Image src={school.school_logo_url} alt="" width={42} height={42} unoptimized />
+          ) : (
+            <Building2 size={23} strokeWidth={1.7} />
+          )}
         </div>
 
         <div className="school-card__title">

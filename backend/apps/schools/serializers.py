@@ -14,6 +14,7 @@ from .models import (
     Facility,
     School,
     SchoolPhoto,
+    SchoolVideo,
     SchoolFacility,
     SchoolGrade,
 )
@@ -247,6 +248,8 @@ class SchoolListSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     annual_fee = serializers.SerializerMethodField()
+    school_photos = serializers.SerializerMethodField()
+    videos_count = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -257,6 +260,8 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'short_name',
             'school_logo_url',
             'school_image_url',
+            'school_photos',
+            'videos_count',
             'slug',
 
             'country_id',
@@ -330,11 +335,46 @@ class SchoolListSerializer(serializers.ModelSerializer):
     def get_annual_fee(self, obj):
         return getattr(obj, 'annual_fee', None)
 
+    def get_school_photos(self, obj):
+        photos = getattr(obj, 'active_photos', None)
+        if photos is None:
+            photos = obj.photos.filter(status=True).order_by(
+                'sort_order',
+                'created_at',
+            )
+        return SchoolPhotoListSerializer(photos[:3], many=True).data
+
+    def get_videos_count(self, obj):
+        videos = getattr(obj, 'active_videos', None)
+        if videos is not None:
+            return len(videos)
+        return obj.videos.filter(status=True).count()
+
 
 class SchoolPhotoListSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolPhoto
-        fields = ['photo_id', 'photo_url', 'caption', 'alt_text', 'sort_order']
+        fields = [
+            'photo_id',
+            'photo_url',
+            'caption',
+            'alt_text',
+            'category',
+            'sort_order',
+        ]
+
+
+class SchoolVideoListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolVideo
+        fields = [
+            'video_id',
+            'video_url',
+            'thumbnail_url',
+            'caption',
+            'category',
+            'sort_order',
+        ]
 
 
 # ======================================================================
@@ -385,6 +425,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
     grades_offered_detail = serializers.SerializerMethodField()
     facilities_detail = serializers.SerializerMethodField()
     photos_detail = serializers.SerializerMethodField()
+    videos_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -434,6 +475,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'grades_offered_detail',
             'facilities_detail',
             'photos_detail',
+            'videos_detail',
         ]
 
         read_only_fields = [
@@ -576,6 +618,15 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
                 'created_at',
             )
         return SchoolPhotoListSerializer(photos, many=True).data
+
+    def get_videos_detail(self, obj):
+        videos = getattr(obj, 'active_videos', None)
+        if videos is None:
+            videos = obj.videos.filter(status=True).order_by(
+                'sort_order',
+                'created_at',
+            )
+        return SchoolVideoListSerializer(videos, many=True).data
 
 
 # ======================================================================

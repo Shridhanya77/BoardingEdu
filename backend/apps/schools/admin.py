@@ -7,6 +7,7 @@ from .models import (
     Facility,
     School,
     SchoolPhoto,
+    SchoolVideo,
     SchoolFacility,
     SchoolGrade,
 )
@@ -99,8 +100,12 @@ class SchoolGradeInline(admin.TabularInline):
 class SchoolPhotoInline(admin.TabularInline):
     model = SchoolPhoto
     extra = 1
-    fields = ("photo_url", "caption", "alt_text", "sort_order", "status")
+    fields = ("photo_url", "caption", "alt_text", "category", "sort_order", "status")
 
+class SchoolVideoInline(admin.TabularInline):
+    model = SchoolVideo
+    extra = 0
+    fields = ("video_url", "thumbnail_url", "caption", "category", "sort_order", "status")
 
 
 @admin.register(School)
@@ -232,6 +237,7 @@ class SchoolAdmin(admin.ModelAdmin):
 
     inlines = [
         SchoolPhotoInline,
+        SchoolVideoInline,
         SchoolFacilityInline,
         SchoolGradeInline,
     ]

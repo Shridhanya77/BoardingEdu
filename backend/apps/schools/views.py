@@ -9,7 +9,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
-from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolFacility,SchoolGrade
+from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility,SchoolGrade
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -288,6 +288,14 @@ class SchoolViewSet(ReadWriteModelViewSet):
                     'created_at',
                 ),
                 to_attr='active_photos',
+            ),
+            Prefetch(
+                'videos',
+                queryset=SchoolVideo.objects.filter(status=True).order_by(
+                    'sort_order',
+                    'created_at',
+                ),
+                to_attr='active_videos',
             ),
         )
         .annotate(

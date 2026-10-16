@@ -1,8 +1,9 @@
 # Deploy BoardingEdu (Railway API/database + Vercel frontend)
 
 Deploy the Railway PostgreSQL database and Django API first, then the Vercel
-frontend. Set the Vercel API URL and the matching CORS origin before deploying
-the frontend.
+frontend. Set the Vercel API URL before building the frontend. The Next.js
+frontend proxies browser API requests through its own origin, so Django CORS
+allow-list entries are not needed for the frontend.
 
 ## 1. Railway — PostgreSQL and Django API
 
@@ -62,13 +63,23 @@ the frontend.
 1. `https://YOUR-API-DOMAIN/api/` responds successfully.
 2. The Railway service has a successful database connection and completed
    migrations.
-3. The Vercel site loads data. In browser DevTools → Network, API calls should
-   target `YOUR-API-DOMAIN`, return successful responses, and include
-   `Access-Control-Allow-Origin` for the Vercel site.
+3. The Vercel site loads data. In browser DevTools → Network, frontend API
+   requests should target the Vercel site's `/backend-api/` path and return
+   successful responses. Next.js forwards those requests to Django server-side.
 
-If the browser reports CORS but the API URL returns an error such as HTTP 503,
-fix the API service/domain first. A suspended or unavailable server cannot
-return CORS headers.
+If browser API requests go directly to `YOUR-API-DOMAIN` and fail with CORS,
+the loaded frontend is an older build that does not use the same-origin proxy.
+Deploy the current frontend source and redeploy Vercel; `NEXT_PUBLIC_API_BASE`
+is embedded at build time.
+
+If a Vercel deployment URL returns `410 GONE` with a message that the
+deployment was removed, that deployment cannot be restored by changing API
+settings. Deploy a new Vercel build and use its active URL (or the configured
+production domain).
+
+If `/backend-api/` requests fail with a server error, check the Railway API
+service and its logs. An unavailable or suspended API cannot serve data even
+when the browser-to-frontend proxy is working.
 
 If the Vercel directory reports `API 500 on /schools/schools/` while
 geography and board endpoints still respond, inspect the Railway Django logs
@@ -81,10 +92,22 @@ Railway build command (`bash ./build.sh`) also runs migrations; confirm that
 the latest backend build completed successfully before redeploying Vercel.
 The school image fields require `schools.0004_add_school_logo_url` and
 `schools.0005_add_school_image_url`. School detail galleries require
-`schools.0006_schoolphoto`; add gallery photos from a school's Django admin
-page. Counselling submissions require `admissions.0003_counsellingrequest`.
+`schools.0006_schoolphoto` and `schools.0007_schoolphoto_category_schoolvideo`;
+add photo and video URLs from a school's Django admin page. Per-item fee
+frequencies require `fees.0002_feeitem_payment_frequency`; configure them on
+each fee line item before publishing its fee structure. Counselling submissions
+require `admissions.0003_counsellingrequest`.
 
 ## Local development
+
+After configuring `backend/.env`, apply pending database migrations before
+starting the Django server. This is required whenever a backend update adds
+tables or columns used by the school directory:
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe manage.py migrate
+```
 
 | Frontend | Backend |
 |---|---|

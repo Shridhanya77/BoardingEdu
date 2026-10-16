@@ -236,6 +236,8 @@ export type SchoolListItem = {
   short_name: string;
   school_logo_url?: string;
   school_image_url?: string;
+  school_photos?: SchoolPhotoListItem[];
+  videos_count?: number;
   slug: string;
   country_id: string; country_name: string;
   state_id: string;   state_name: string;
@@ -357,6 +359,24 @@ export type GradeListItem = {
   status: boolean;
 };
 
+export type SchoolPhotoListItem = {
+  photo_id: string;
+  photo_url: string;
+  caption: string;
+  alt_text: string;
+  category: string;
+  sort_order: number;
+};
+
+export type SchoolVideoListItem = {
+  video_id: string;
+  video_url: string;
+  thumbnail_url: string;
+  caption: string;
+  category: string;
+  sort_order: number;
+};
+
 export async function fetchAllPages<T>(firstPage: PaginatedResponse<T>, maxPages = 20): Promise<T[]> {
   const items = [...firstPage.results];
   let next = firstPage.next;
@@ -422,8 +442,10 @@ export type SchoolDetail = Omit<
     photo_url: string;
     caption: string;
     alt_text: string;
+    category: string;
     sort_order: number;
   }[];
+  videos_detail: SchoolVideoListItem[];
 };
 
 export const schools = {
@@ -568,6 +590,8 @@ export type FeeItemListItem = {
   school_type_id: string | null;
   school_type_name: string | null;
   amount: string;
+  payment_frequency: "ONE_TIME" | "ANNUAL" | "QUARTERLY" | "HALF_YEARLY" | "TERM" | "MONTHLY" | "BY_DISTANCE" | "DYNAMIC";
+  payment_frequency_display: string;
   tax: string;
   is_refundable: boolean;
   sort_order: number;
@@ -578,9 +602,9 @@ export const fees = {
     request<PaginatedResponse<FeeStructureListItem>>(
       `/fees/fee-structures/?school=${encodeURIComponent(schoolId)}&status=true&published=true`,
     ),
-  itemsForStructure: (structureId: string) =>
+  itemsForStructure: (structureId: string, gradeId?: string) =>
     request<PaginatedResponse<FeeItemListItem>>(
-      `/fees/fee-items/?fee_structure=${encodeURIComponent(structureId)}`,
+      `/fees/fee-items/?fee_structure=${encodeURIComponent(structureId)}${gradeId ? `&grade=${encodeURIComponent(gradeId)}` : ""}`,
     ),
 };
 
@@ -616,6 +640,8 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     short_name: school.short_name,
     school_logo_url: school.school_logo_url,
     school_image_url: school.school_image_url,
+    school_photos: school.photos_detail.slice(0, 3),
+    videos_count: school.videos_detail.length,
     slug: school.slug,
     country_id: school.country_detail.country_id,
     country_name: school.country_detail.country_name,

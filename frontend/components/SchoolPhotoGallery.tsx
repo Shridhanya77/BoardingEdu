@@ -9,7 +9,17 @@ type SchoolPhoto = {
   photo_url: string;
   caption: string;
   alt_text: string;
+  category: string;
   sort_order: number;
+};
+
+const categoryLabels: Record<string, string> = {
+  CAMPUS: "Campus",
+  CLASSROOM: "Classroom",
+  SPORTS: "Sports",
+  LIBRARY: "Library",
+  HOSTEL: "Hostel",
+  OTHER: "Other",
 };
 
 export default function SchoolPhotoGallery({
@@ -19,12 +29,17 @@ export default function SchoolPhotoGallery({
   photos: SchoolPhoto[];
   schoolName: string;
 }) {
+  const [activeCategory, setActiveCategory] = useState("ALL");
   const [activeIndex, setActiveIndex] = useState(0);
   const [failedPhotoIds, setFailedPhotoIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const selectedIndex = activeIndex % photos.length;
-  const activePhoto = photos[selectedIndex];
+  const categories = [...new Set(photos.map((photo) => photo.category))];
+  const visiblePhotos = activeCategory === "ALL"
+    ? photos
+    : photos.filter((photo) => photo.category === activeCategory);
+  const selectedIndex = activeIndex % visiblePhotos.length;
+  const activePhoto = visiblePhotos[selectedIndex];
   const imageFailed = failedPhotoIds.has(activePhoto.photo_id);
 
   function markImageFailed(photoId: string) {
@@ -36,11 +51,43 @@ export default function SchoolPhotoGallery({
   }
 
   function showNext() {
-    setActiveIndex((index) => (index + 1) % photos.length);
+    setActiveIndex((index) => (index + 1) % visiblePhotos.length);
   }
 
   return (
     <section className="school-detail__gallery" aria-label={`${schoolName} photos`}>
+      {categories.length > 1 && (
+        <div className="school-detail__gallery-categories" aria-label="Filter school photos">
+          <button
+            className={activeCategory === "ALL" ? "is-active" : ""}
+            type="button"
+            aria-pressed={activeCategory === "ALL"}
+            onClick={() => {
+              setActiveCategory("ALL");
+              setActiveIndex(0);
+            }}
+          >
+            All <span>{photos.length}</span>
+          </button>
+          {categories.map((category) => {
+            const count = photos.filter((photo) => photo.category === category).length;
+            return (
+              <button
+                className={activeCategory === category ? "is-active" : ""}
+                key={category}
+                type="button"
+                aria-pressed={activeCategory === category}
+                onClick={() => {
+                  setActiveCategory(category);
+                  setActiveIndex(0);
+                }}
+              >
+                {categoryLabels[category] ?? category} <span>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="school-detail__gallery-stage">
         {imageFailed ? (
           <p className="school-detail__gallery-fallback">
@@ -59,7 +106,7 @@ export default function SchoolPhotoGallery({
           />
         )}
 
-        {photos.length > 1 && (
+        {visiblePhotos.length > 1 && (
           <>
             <button
               className="school-detail__gallery-arrow school-detail__gallery-arrow--previous"
@@ -78,7 +125,7 @@ export default function SchoolPhotoGallery({
               <ChevronRight size={22} aria-hidden />
             </button>
             <span className="school-detail__gallery-count" aria-live="polite">
-              {selectedIndex + 1} / {photos.length}
+              {selectedIndex + 1} / {visiblePhotos.length}
             </span>
           </>
         )}
@@ -88,9 +135,9 @@ export default function SchoolPhotoGallery({
         <p className="school-detail__gallery-caption">{activePhoto.caption}</p>
       )}
 
-      {photos.length > 1 && (
+      {visiblePhotos.length > 1 && (
         <div className="school-detail__gallery-thumbnails" aria-label="Choose a school photo">
-          {photos.map((photo, index) => (
+          {visiblePhotos.map((photo, index) => (
             <button
               className={`school-detail__gallery-thumbnail${index === selectedIndex ? " is-active" : ""}`}
               key={photo.photo_id}
