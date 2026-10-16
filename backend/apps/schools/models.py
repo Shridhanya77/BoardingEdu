@@ -87,6 +87,7 @@ class School(models.Model):
     school_name = models.CharField(max_length=255, null=False)
     short_name = models.CharField(max_length=50, blank=True)
     school_logo_url = models.URLField(max_length=500, blank=True)
+    school_image_url = models.URLField(max_length=500, blank=True)
     slug = models.SlugField(max_length=300, unique=True, null=False)
 
     # YOUR 4-LEVEL GEOGRAPHY FK CHAIN (matches ER diagram arrows)

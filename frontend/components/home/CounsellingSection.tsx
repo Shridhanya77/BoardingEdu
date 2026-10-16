@@ -166,7 +166,7 @@ export default function CounsellingSection() {
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. Priya Sharma"
+            placeholder="e.g. Ananya Kamath"
             autoComplete="name"
           />
         </label>

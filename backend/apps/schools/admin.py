@@ -127,6 +127,7 @@ class SchoolAdmin(admin.ModelAdmin):
         "school_name",
         "short_name",
         "school_logo_url",
+        "school_image_url",
         "slug",
         "address",
         "pincode",

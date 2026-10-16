@@ -69,11 +69,11 @@ const genderOptions: {
   label: string;
   value: SchoolFilters["gender"];
 }[] = [
-  { label: "Any", value: undefined },
-  { label: "Co-ed", value: "COED" },
-  { label: "Boys", value: "BOYS" },
-  { label: "Girls", value: "GIRLS" },
-];
+    { label: "Any", value: undefined },
+    { label: "Co-ed", value: "COED" },
+    { label: "Boys", value: "BOYS" },
+    { label: "Girls", value: "GIRLS" },
+  ];
 
 const orderingOptions: Record<
   string,
@@ -814,7 +814,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   const hasFilters = Boolean(
     search || geoCountry || geoState || geoCity || geoLocation || locationGroups.length > 0 || schoolType.length > 0 || board.length > 0 || gender || ordering !== "school_name"
-      || feeMin !== undefined || feeMax !== undefined
+    || feeMin !== undefined || feeMax !== undefined
   );
 
   function scrollToSchools() {
@@ -978,739 +978,738 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   return (
     <main className={`discovery-page${isHomePage ? " discovery-page--home" : " discovery-page--listing"}`}>
       {isHomePage && (
-      <>
-      <section className="hero">
-        <div className="hero__copy">
-          <div className="hero__kicker">
-            <span className="hero__pulse" />
-            MADE FOR YOUR SCHOOL SEARCH
-          </div>
-
-          <h1>
-            Find the Right School <span>for Your Child</span>
-          </h1>
-
-          <p>
-            Discover schools, compare fees and facilities, shortlist
-            favourites, and connect with schools—all in one place.
-          </p>
-
-          <HeroFinder
-            value={finderValue()}
-            schoolTypes={schoolTypes}
-            locationMessage={locationMessage}
-            locationError={locationError}
-            homeSearch={homeSearchEnabled}
-            onChange={handleFinderChange}
-            onSubmit={handleFinderSubmit}
-          />
-
-          <div className="hero-search__shortcuts">
-            <button
-              type="button"
-              onClick={() => {
-                document.dispatchEvent(
-                  new KeyboardEvent("keydown", {
-                    key: "k",
-                    ctrlKey: true,
-                    bubbles: true,
-                  })
-                );
-              }}
-              aria-label="Open search commands"
-            >
-              <kbd>Ctrl</kbd> + <kbd>K</kbd> Search commands
-            </button>
-          </div>
-        </div>
-
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-art__sun" />
-          <div className="hero-art__orbit hero-art__orbit--one" />
-          <div className="hero-art__orbit hero-art__orbit--two" />
-
-          <div className="hero-art__card">
-            <div className="hero-art__building">
-              <div className="building-roof" />
-              <div className="building-body">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-                <div className="building-door" />
-              </div>
-            </div>
-
-            <span className="hero-art__label">
-              A brighter future, together
-            </span>
-          </div>
-
-          <span className="hero-art__spark hero-art__spark--one">✳</span>
-          <span className="hero-art__spark hero-art__spark--two">✳</span>
-          <span className="hero-art__dot" />
-        </div>
-
-        <a className="hero-scroll" href="/schools">
-          <span /> Explore schools
-        </a>
-      </section>
-
-      <section className="home-section home-section--steps" id="how-it-works">
-        <div className="home-section__heading home-section__heading--centered">
-          <div>
-            <div className="section-eyebrow">HOW IT WORKS</div>
-            <h2>Simple steps to your ideal school</h2>
-          </div>
-        </div>
-
-        <div className="how-it-works-grid">
-          {howItWorksSteps.map((step, index) => (
-            <article className="how-step" key={step.title}>
-              <div className="how-step__number">0{index + 1}</div>
-
-              <div className="how-step__icon">
-                {index === 0 && <Search size={18} />}
-                {index === 1 && <SlidersHorizontal size={18} />}
-                {index === 2 && <CheckCircle2 size={18} />}
-                {index === 3 && <ArrowRight size={18} />}
+        <>
+          <section className="hero">
+            <div className="hero__copy">
+              <div className="hero__kicker">
+                <span className="hero__pulse" />
+                MADE FOR YOUR SCHOOL SEARCH
               </div>
 
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+              <h1>
+                Find the Right School <span>for Your Child</span>
+              </h1>
 
-      <section className="home-section home-section--cities" id="cities">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">SCHOOL LOCATIONS</div>
-            <h2>Popular cities</h2>
-          </div>
+              <p>
+                Discover schools, compare fees and facilities, shortlist
+                favourites, and connect with schools—all in one place.
+              </p>
 
-          <button type="button" onClick={() => setShowAllCities((show) => !show)}>
-            {showAllCities ? "Show fewer cities" : "Explore all cities"} <ArrowRight size={15} />
-          </button>
-        </div>
+              <HeroFinder
+                value={finderValue()}
+                schoolTypes={schoolTypes}
+                locationMessage={locationMessage}
+                locationError={locationError}
+                homeSearch={homeSearchEnabled}
+                onChange={handleFinderChange}
+                onSubmit={handleFinderSubmit}
+              />
 
-        <div className="city-grid">
-          {cityCards.map((city, index) => (
-            <button
-              className={`city-card city-card--${index + 1}`}
-              key={city.city_id}
-              onClick={() => {
-                router.push(`/schools?country=${encodeURIComponent(city.country_id)}&state=${encodeURIComponent(city.state_id)}&city=${encodeURIComponent(city.city_id)}`);
-              }}
-            >
-              <span className="city-card__number">0{index + 1}</span>
-              <span className="city-card__name">{city.city_name}</span>
-              <span className="city-card__state">{city.state_name}, {city.country_name}</span>
-              <span className="city-card__count">{city.schools_count ?? 0} {(city.schools_count ?? 0) === 1 ? "school" : "schools"} listed</span>
-              <span className="city-card__action">
-                Explore schools <ArrowRight size={14} />
-              </span>
-            </button>
-          ))}
-          {citiesError && <p className="section-error" role="alert">Cities unavailable: {citiesError}</p>}
-          {!citiesError && cityCards.length === 0 && (
-            <p className="section-empty">
-              {cities.length === 0 ? "Loading cities…" : "No active cities are available."}
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="home-section home-section--boards" id="boards">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">EXPLORE CURRICULA</div>
-            <h2>Browse by board</h2>
-          </div>
-
-          {boardsError && (
-            <p className="section-error" role="status">
-              Board options unavailable: {boardsError}
-            </p>
-          )}
-        </div>
-
-        <div className="board-grid">
-          {boards.map((boardItem, index) => (
-            <button
-              className={`board-card board-card--${index + 1}`}
-              key={boardItem.board_id}
-              style={{ "--board-color": boardColorByCode[boardItem.board_code.toUpperCase()] ?? boardPalette[index % boardPalette.length] } as CSSProperties}
-              onClick={() => selectBoard(boardItem)}
-            >
-              <span className="board-card__mark">{boardItem.board_code}</span>
-              <span className="board-card__name">{boardItem.board_name}</span>
-
-              <span className="board-card__action">
-                Browse schools{" "}
-                <ArrowRight size={14} />
-              </span>
-            </button>
-          ))}
-          {!boardsError && boards.length === 0 && <p className="section-empty">No active education boards are available.</p>}
-        </div>
-      </section>
-
-      <section className="home-section home-section--featured" id="featured">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">A FEW PLACES TO BEGIN</div>
-            <h2>Featured schools</h2>
-          </div>
-
-          <a href="/schools">
-            Browse the directory <ArrowRight size={15} />
-          </a>
-        </div>
-
-        {featuredLoading ? (
-          <div className="featured-state" role="status">
-            <LoaderCircle className="spin" size={20} />
-            Loading schools…
-          </div>
-        ) : featuredError ? (
-          <div className="featured-state featured-state--error" role="alert">
-            {featuredError}
-          </div>
-        ) : featuredSchools.length > 0 ? (
-          <FeaturedSchoolCards schools={featuredSchools} />
-        ) : (
-          <p className="section-empty">
-            Featured schools will appear here when the directory has published
-            listings.
-          </p>
-        )}
-      </section>
-
-      <section
-        className="home-section home-section--testimonials"
-        id="parent-stories"
-      >
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">TRUST, EARNED</div>
-            <h2>Parent testimonials</h2>
-          </div>
-
-          <span className="coming-soon-label">
-            <Heart size={14} /> Coming soon
-          </span>
-        </div>
-
-        <p className="parent-stories-note">
-          We only publish verified family feedback. While parent stories are being collected,
-          explore these helpful ways to begin your search.
-        </p>
-        <div
-          className="coming-soon-grid"
-          aria-label="Ways to begin your school search"
-        >
-          {[
-            { title: "Compare school options", text: "Shortlist schools and compare their boards, fees, and facilities.", href: "/schools" },
-            { title: "Explore education boards", text: "Browse active curricula and find schools that offer each board.", href: "#boards" },
-            { title: "Talk to a counsellor", text: "Get free, personalised help with your school search.", href: "#counselling" },
-          ].map((item) => (
-            <Link className="coming-soon-card" href={item.href} key={item.title}>
-              <div className="coming-soon-card__icon">
-                <ArrowRight size={19} />
-              </div>
-              <span>{item.title}</span>
-              <p>{item.text}</p>
-              <div className="coming-soon-card__rule" />
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-section home-section--blog" id="blog">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">FROM THE BLOG</div>
-            <h2>Latest school guides</h2>
-          </div>
-
-          <span className="coming-soon-label"><Newspaper size={14} /> Practical guidance</span>
-        </div>
-
-        <div
-          className="coming-soon-grid coming-soon-grid--blog"
-          aria-label="School guide topics"
-        >
-          {[
-            {
-              title: "Boarding school admissions",
-              text: "Get ready to compare boarding options.",
-              detail: "Start by confirming the school type, location, curriculum, annual fees, age requirements, and application dates. Review each school's profile and contact the school to verify current admission details.",
-            },
-            {
-              title: "Choosing an education board",
-              text: "Understand the curriculum before shortlisting.",
-              detail: "Compare curriculum structure, assessment style, subject choices, and any plans for a transfer or higher education. The right fit depends on your child's needs and plans; ask each school how the curriculum is delivered.",
-            },
-            {
-              title: "Planning a school visit",
-              text: "Make the most of your campus visit.",
-              detail: "Prepare questions about class size, student support, facilities, transport or boarding, fee components, and the admission timeline. Take notes and follow up directly with the school when details need confirmation.",
-            },
-          ].map((guide) => {
-            const isOpen = activeGuide === guide.title;
-            return (
-            <article className={`blog-placeholder${isOpen ? " blog-placeholder--open" : ""}`} key={guide.title}>
-              <span className="blog-placeholder__icon">
-                <Newspaper size={19} />
-              </span>
-              <span className="blog-placeholder__tag">SCHOOL GUIDE</span>
-              <h3>{guide.title}</h3>
-              <p>{guide.text}</p>
-              {isOpen && <p className="blog-placeholder__detail">{guide.detail}</p>}
-              <button type="button" aria-expanded={isOpen} onClick={() => setActiveGuide(isOpen ? null : guide.title)}>
-                {isOpen ? "Show less" : "Read guide"} <ArrowRight size={14} />
-              </button>
-            </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <CounsellingSection />
-
-      <section className="home-section home-section--benefits" id="about">
-        <div className="home-section__heading home-section__heading--centered">
-          <div>
-            <div className="section-eyebrow">WHY BOARDINGEDU</div>
-            <h2>Everything parents need to choose with confidence</h2>
-          </div>
-        </div>
-
-        <div className="benefit-grid">
-          {whyBoardingEdu.map((benefit, index) => (
-            <article className="benefit-card" key={benefit}>
-              <span className="benefit-card__icon">
-                {index === 0 && <Building2 size={18} />}
-                {index === 1 && <ShieldCheck size={18} />}
-                {index === 2 && <SearchCheck size={18} />}
-                {index === 3 && <CheckCircle2 size={18} />}
-                {index === 4 && <ArrowRight size={18} />}
-                {index === 5 && <Users size={18} />}
-              </span>
-
-              <h3>{benefit}</h3>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section
-        className="home-section home-section--school-cta"
-        id="for-schools"
-      >
-        <div className="school-cta">
-          <div>
-            <div className="section-eyebrow section-eyebrow--light">
-              FOR SCHOOLS
-            </div>
-            <h2>Are You a School?</h2>
-            <p>
-              Showcase your school, connect with parents, and manage admission
-              enquiries through BoardingEdu.
-            </p>
-          </div>
-
-          <div className="school-cta__actions">
-            <Link href="/signup" className="primary-button">
-              List Your School
-            </Link>
-            <Link href="/schools" className="secondary-button">
-              Learn More
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="home-section home-section--final-cta">
-        <div className="final-cta">
-          <div>
-            <div className="section-eyebrow">START YOUR SEARCH</div>
-            <h2>Ready to Find the Right School?</h2>
-          </div>
-
-          <div className="final-cta__actions">
-            <Link href="/schools" className="primary-button">
-              Find Schools
-            </Link>
-            <Link
-              href="/signup"
-              className="secondary-button secondary-button--light"
-            >
-              Create Parent Account
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="home-section home-section--faq" id="faq">
-        <div className="home-section__heading home-section__heading--centered">
-          <div>
-            <div className="section-eyebrow">FAQ</div>
-            <h2>Common questions</h2>
-          </div>
-        </div>
-
-        <div className="faq-list">
-          {faqItems.map((item, index) => {
-            const open = activeFaq === index;
-
-            return (
-              <div
-                className={`faq-item ${open ? "faq-item--open" : ""}`}
-                key={item.question}
-              >
+              <div className="hero-search__shortcuts">
                 <button
                   type="button"
-                  className="faq-question"
-                  onClick={() => setActiveFaq(open ? null : index)}
+                  onClick={() => {
+                    document.dispatchEvent(
+                      new KeyboardEvent("keydown", {
+                        key: "k",
+                        ctrlKey: true,
+                        bubbles: true,
+                      })
+                    );
+                  }}
+                  aria-label="Open search commands"
                 >
-                  <span>{item.question}</span>
-                  <span className="faq-toggle">{open ? "−" : "+"}</span>
+                  <kbd>Ctrl</kbd> + <kbd>K</kbd> Search commands
                 </button>
-
-                {open && <p className="faq-answer">{item.answer}</p>}
               </div>
-            );
-          })}
-        </div>
-      </section>
+            </div>
 
-      <SiteFooterSeo cities={cities} boards={boards} />
+            <div className="hero-art" aria-hidden="true">
+              <div className="hero-art__sun" />
+              <div className="hero-art__orbit hero-art__orbit--one" />
+              <div className="hero-art__orbit hero-art__orbit--two" />
 
-      </>
+              <div className="hero-art__card">
+                <div className="hero-art__building">
+                  <div className="building-roof" />
+                  <div className="building-body">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <div className="building-door" />
+                  </div>
+                </div>
+
+                <span className="hero-art__label">
+                  A brighter future, together
+                </span>
+              </div>
+
+              <span className="hero-art__spark hero-art__spark--one">✳</span>
+              <span className="hero-art__spark hero-art__spark--two">✳</span>
+              <span className="hero-art__dot" />
+            </div>
+
+            <a className="hero-scroll" href="/schools">
+              <span /> Explore schools
+            </a>
+          </section>
+
+          <section className="home-section home-section--steps" id="how-it-works">
+            <div className="home-section__heading home-section__heading--centered">
+              <div>
+                <div className="section-eyebrow">HOW IT WORKS</div>
+                <h2>Simple steps to your ideal school</h2>
+              </div>
+            </div>
+
+            <div className="how-it-works-grid">
+              {howItWorksSteps.map((step, index) => (
+                <article className="how-step" key={step.title}>
+                  <div className="how-step__number">0{index + 1}</div>
+
+                  <div className="how-step__icon">
+                    {index === 0 && <Search size={18} />}
+                    {index === 1 && <SlidersHorizontal size={18} />}
+                    {index === 2 && <CheckCircle2 size={18} />}
+                    {index === 3 && <ArrowRight size={18} />}
+                  </div>
+
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-section home-section--cities" id="cities">
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">SCHOOL LOCATIONS</div>
+                <h2>Popular cities</h2>
+              </div>
+
+              <button type="button" onClick={() => setShowAllCities((show) => !show)}>
+                {showAllCities ? "Show fewer cities" : "Explore all cities"} <ArrowRight size={15} />
+              </button>
+            </div>
+
+            <div className="city-grid">
+              {cityCards.map((city, index) => (
+                <button
+                  className={`city-card city-card--${index + 1}`}
+                  key={city.city_id}
+                  onClick={() => {
+                    router.push(`/schools?country=${encodeURIComponent(city.country_id)}&state=${encodeURIComponent(city.state_id)}&city=${encodeURIComponent(city.city_id)}`);
+                  }}
+                >
+                  <span className="city-card__number">0{index + 1}</span>
+                  <span className="city-card__name">{city.city_name}</span>
+                  <span className="city-card__state">{city.state_name}, {city.country_name}</span>
+                  <span className="city-card__count">{city.schools_count ?? 0} {(city.schools_count ?? 0) === 1 ? "school" : "schools"} listed</span>
+                  <span className="city-card__action">
+                    Explore schools <ArrowRight size={14} />
+                  </span>
+                </button>
+              ))}
+              {citiesError && <p className="section-error" role="alert">Cities unavailable: {citiesError}</p>}
+              {!citiesError && cityCards.length === 0 && (
+                <p className="section-empty">
+                  {cities.length === 0 ? "Loading cities…" : "No active cities are available."}
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="home-section home-section--boards" id="boards">
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">EXPLORE CURRICULA</div>
+                <h2>Browse by board</h2>
+              </div>
+
+              {boardsError && (
+                <p className="section-error" role="status">
+                  Board options unavailable: {boardsError}
+                </p>
+              )}
+            </div>
+
+            <div className="board-grid">
+              {boards.map((boardItem, index) => (
+                <button
+                  className={`board-card board-card--${index + 1}`}
+                  key={boardItem.board_id}
+                  style={{ "--board-color": boardColorByCode[boardItem.board_code.toUpperCase()] ?? boardPalette[index % boardPalette.length] } as CSSProperties}
+                  onClick={() => selectBoard(boardItem)}
+                >
+                  <span className="board-card__mark">{boardItem.board_code}</span>
+                  <span className="board-card__name">{boardItem.board_name}</span>
+
+                  <span className="board-card__action">
+                    Browse schools{" "}
+                    <ArrowRight size={14} />
+                  </span>
+                </button>
+              ))}
+              {!boardsError && boards.length === 0 && <p className="section-empty">No active education boards are available.</p>}
+            </div>
+          </section>
+
+          <section className="home-section home-section--featured" id="featured">
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">A FEW PLACES TO BEGIN</div>
+                <h2>Featured schools</h2>
+              </div>
+
+              <a href="/schools">
+                Browse the directory <ArrowRight size={15} />
+              </a>
+            </div>
+
+            {featuredLoading ? (
+              <div className="featured-state" role="status">
+                <LoaderCircle className="spin" size={20} />
+                Loading schools…
+              </div>
+            ) : featuredError ? (
+              <div className="featured-state featured-state--error" role="alert">
+                {featuredError}
+              </div>
+            ) : featuredSchools.length > 0 ? (
+              <FeaturedSchoolCards schools={featuredSchools} />
+            ) : (
+              <p className="section-empty">
+                Featured schools will appear here when the directory has published
+                listings.
+              </p>
+            )}
+          </section>
+
+          <section
+            className="home-section home-section--testimonials"
+            id="parent-stories"
+          >
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">TRUST, EARNED</div>
+                <h2>Parent testimonials</h2>
+              </div>
+
+              <span className="coming-soon-label">
+                <Heart size={14} /> Coming soon
+              </span>
+            </div>
+
+            <p className="parent-stories-note">
+              We only publish verified family feedback. While parent stories are being collected,
+              explore these helpful ways to begin your search.
+            </p>
+            <div
+              className="coming-soon-grid"
+              aria-label="Ways to begin your school search"
+            >
+              {[
+                { title: "Compare school options", text: "Shortlist schools and compare their boards, fees, and facilities.", href: "/schools" },
+                { title: "Explore education boards", text: "Browse active curricula and find schools that offer each board.", href: "#boards" },
+                { title: "Talk to a counsellor", text: "Get free, personalised help with your school search.", href: "#counselling" },
+              ].map((item) => (
+                <Link className="coming-soon-card" href={item.href} key={item.title}>
+                  <div className="coming-soon-card__icon">
+                    <ArrowRight size={19} />
+                  </div>
+                  <span>{item.title}</span>
+                  <p>{item.text}</p>
+                  <div className="coming-soon-card__rule" />
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="home-section home-section--blog" id="blog">
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">FROM THE BLOG</div>
+                <h2>Latest school guides</h2>
+              </div>
+
+              <span className="coming-soon-label"><Newspaper size={14} /> Practical guidance</span>
+            </div>
+
+            <div
+              className="coming-soon-grid coming-soon-grid--blog"
+              aria-label="School guide topics"
+            >
+              {[
+                {
+                  title: "Boarding school admissions",
+                  text: "Get ready to compare boarding options.",
+                  detail: "Start by confirming the school type, location, curriculum, annual fees, age requirements, and application dates. Review each school's profile and contact the school to verify current admission details.",
+                },
+                {
+                  title: "Choosing an education board",
+                  text: "Understand the curriculum before shortlisting.",
+                  detail: "Compare curriculum structure, assessment style, subject choices, and any plans for a transfer or higher education. The right fit depends on your child's needs and plans; ask each school how the curriculum is delivered.",
+                },
+                {
+                  title: "Planning a school visit",
+                  text: "Make the most of your campus visit.",
+                  detail: "Prepare questions about class size, student support, facilities, transport or boarding, fee components, and the admission timeline. Take notes and follow up directly with the school when details need confirmation.",
+                },
+              ].map((guide) => {
+                const isOpen = activeGuide === guide.title;
+                return (
+                  <article className={`blog-placeholder${isOpen ? " blog-placeholder--open" : ""}`} key={guide.title}>
+                    <span className="blog-placeholder__icon">
+                      <Newspaper size={19} />
+                    </span>
+                    <span className="blog-placeholder__tag">SCHOOL GUIDE</span>
+                    <h3>{guide.title}</h3>
+                    <p>{guide.text}</p>
+                    {isOpen && <p className="blog-placeholder__detail">{guide.detail}</p>}
+                    <button type="button" aria-expanded={isOpen} onClick={() => setActiveGuide(isOpen ? null : guide.title)}>
+                      {isOpen ? "Show less" : "Read guide"} <ArrowRight size={14} />
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          <CounsellingSection />
+
+          <section className="home-section home-section--benefits" id="about">
+            <div className="home-section__heading home-section__heading--centered">
+              <div>
+                <div className="section-eyebrow">WHY BOARDINGEDU</div>
+                <h2>Everything parents need to choose with confidence</h2>
+              </div>
+            </div>
+
+            <div className="benefit-grid">
+              {whyBoardingEdu.map((benefit, index) => (
+                <article className="benefit-card" key={benefit}>
+                  <span className="benefit-card__icon">
+                    {index === 0 && <Building2 size={18} />}
+                    {index === 1 && <ShieldCheck size={18} />}
+                    {index === 2 && <SearchCheck size={18} />}
+                    {index === 3 && <CheckCircle2 size={18} />}
+                    {index === 4 && <ArrowRight size={18} />}
+                    {index === 5 && <Users size={18} />}
+                  </span>
+
+                  <h3>{benefit}</h3>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section
+            className="home-section home-section--school-cta"
+            id="for-schools"
+          >
+            <div className="school-cta">
+              <div>
+                <div className="section-eyebrow section-eyebrow--light">
+                  FOR SCHOOLS
+                </div>
+                <h2>Are You a School?</h2>
+                <p>
+                  Showcase your school, connect with parents, and manage admission
+                  enquiries through BoardingEdu.
+                </p>
+              </div>
+
+              <div className="school-cta__actions">
+                <Link href="/signup" className="primary-button">
+                  List Your School
+                </Link>
+                <Link href="/schools" className="secondary-button">
+                  Learn More
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="home-section home-section--final-cta">
+            <div className="final-cta">
+              <div>
+                <div className="section-eyebrow">START YOUR SEARCH</div>
+                <h2>Ready to Find the Right School?</h2>
+              </div>
+
+              <div className="final-cta__actions">
+                <Link href="/schools" className="primary-button">
+                  Find Schools
+                </Link>
+                <Link
+                  href="/signup"
+                  className="secondary-button secondary-button--light"
+                >
+                  Create Parent Account
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section className="home-section home-section--faq" id="faq">
+            <div className="home-section__heading home-section__heading--centered">
+              <div>
+                <div className="section-eyebrow">FAQ</div>
+                <h2>Common questions</h2>
+              </div>
+            </div>
+
+            <div className="faq-list">
+              {faqItems.map((item, index) => {
+                const open = activeFaq === index;
+
+                return (
+                  <div
+                    className={`faq-item ${open ? "faq-item--open" : ""}`}
+                    key={item.question}
+                  >
+                    <button
+                      type="button"
+                      className="faq-question"
+                      onClick={() => setActiveFaq(open ? null : index)}
+                    >
+                      <span>{item.question}</span>
+                      <span className="faq-toggle">{open ? "−" : "+"}</span>
+                    </button>
+
+                    {open && <p className="faq-answer">{item.answer}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <SiteFooterSeo cities={cities} boards={boards} />
+
+        </>
       )}
 
       {!isHomePage && (
-      <>
-      <section className="directory-page-heading">
-        <Link href="/">Home</Link>
-        <div>
-          <div className="section-eyebrow">SCHOOL DIRECTORY</div>
-          <h1>Explore schools across India</h1>
-          <p>Filter the latest school listings by location, board, school type, and annual fees.</p>
-        </div>
-      </section>
+        <>
+          <section className="directory-page-heading">
+            <Link href="/">Home</Link>
+            <div>
+              <div className="section-eyebrow">SCHOOL DIRECTORY</div>
+              <h1>Explore schools across India</h1>
+              <p>Filter the latest school listings by location, board, school type, and annual fees.</p>
+            </div>
+          </section>
 
-      <section className="discovery-content" id="schools">
-        <div className="section-heading">
-          <div>
-            <div className="section-eyebrow">EXPLORE THE DIRECTORY</div>
-            <h2>Schools to start your search</h2>
-            <p>
-              Search, filter, and compare the school details that matter to
-              your family.
-            </p>
-          </div>
-
-          <div className="results-count" aria-live="polite">
-            {loading
-              ? "Finding schools…"
-              : `${results.length} ${
-                  results.length === 1 ? "school" : "schools"
-                } shown`}
-          </div>
-        </div>
-
-        <div className="results-layout">
-          {filtersOpen && (
-            <button
-              className="filters-backdrop"
-              type="button"
-              aria-label="Close filters"
-              onClick={closeFilters}
-            />
-          )}
-          <aside
-            ref={filtersPanelRef}
-            className={`filters-panel${filtersOpen ? " filters-panel--open" : ""}`}
-            aria-label="School filters"
-            aria-modal={filtersOpen || undefined}
-            role={filtersOpen ? "dialog" : undefined}
-            tabIndex={filtersOpen ? -1 : undefined}
-          >
-            <div className="filters-panel__heading">
+          <section className="discovery-content" id="schools">
+            <div className="section-heading">
               <div>
-                <SlidersHorizontal size={17} />
-                <h3>Refine your search</h3>
-              </div>
-
-              {hasFilters && (
-                <button type="button" onClick={clearFilters}>
-                  Clear all
-                </button>
-              )}
-              <button
-                className="filters-panel__close"
-                type="button"
-                onClick={closeFilters}
-                aria-label="Close filters"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <fieldset className="filter-group">
-              <legend>School type</legend>
-              <div className="filter-checklist" id="school-type-filter">
-                {schoolTypes.map((type) => {
-                  const selected = schoolType.includes(type.school_type_id);
-                  return <label className="filter-check" key={type.school_type_id}>
-                    <input type="checkbox" checked={selected} onChange={() => {
-                      setSchoolType((current) => selected
-                        ? current.filter((id) => id !== type.school_type_id)
-                        : [...current, type.school_type_id]);
-                      trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
-                    }} />
-                    <span>{type.type_name}</span>
-                  </label>;
-                })}
-              </div>
-
-              {schoolTypesError && (
-                <p className="filter-error" role="alert">
-                  School type filters unavailable: {schoolTypesError}
-                </p>
-              )}
-            </fieldset>
-
-            <fieldset className="filter-group">
-              <legend>Education board</legend>
-              <div className="filter-checklist" id="board-filter">
-                {boards.map((item) => (
-                  <label className="filter-check" key={item.board_id}>
-                    <input
-                      type="checkbox"
-                      checked={board.includes(item.board_id)}
-                      onChange={() => {
-                        const selected = !board.includes(item.board_id);
-                        setBoard((current) =>
-                          selected
-                            ? [...current, item.board_id]
-                            : current.filter((id) => id !== item.board_id)
-                        );
-                        trackSearchEvent("filter_applied", {
-                          filter_type: "board",
-                          selected,
-                        });
-                      }}
-                    />
-                    <span>{item.board_name}</span>
-                  </label>
-                ))}
-              </div>
-              {boardsError && (
-                <p className="filter-error" role="alert">
-                  Education board filters unavailable: {boardsError}
-                </p>
-              )}
-            </fieldset>
-
-            <fieldset className="filter-group">
-              <legend>Annual fee</legend>
-              <p className="filter-select-label">
-                Published fee details for the current academic year
-              </p>
-              <FeeRangeSlider
-                value={feeRange}
-                onValueCommit={(next) => {
-                  setFeeRange(next);
-                  trackSearchEvent("filter_applied", {
-                    filter_type: "fees",
-                    values: [`${next[0]}-${next[1]}`],
-                  });
-                }}
-              />
-            </fieldset>
-
-            <fieldset className="filter-group">
-              <legend>Student community</legend>
-
-              <div className="gender-options">
-                {genderOptions.map((option) => (
-                  <button
-                    key={option.label}
-                    type="button"
-                    className={
-                      gender === option.value
-                        ? "gender-option gender-option--active"
-                        : "gender-option"
-                    }
-                    aria-pressed={gender === option.value}
-                    onClick={() => {
-                      setGender(option.value);
-                      trackSearchEvent("filter_applied", {
-                        filter_type: "gender",
-                        selected: option.value ?? "all",
-                      });
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className="filter-note">
-              <span className="filter-note__icon">
-                <CheckCircle2 size={16} />
-              </span>
-            </div>
-            <div className="filters-panel__apply">
-              <button type="button" onClick={closeFilters}>
-                Show {results.length} {results.length === 1 ? "school" : "schools"}
-              </button>
-            </div>
-          </aside>
-
-          <div className="school-results">
-            <div className="school-results__toolbar">
-              <button
-                ref={filterTriggerRef}
-                className="mobile-filter-trigger"
-                type="button"
-                onClick={() => setFiltersOpen(true)}
-                aria-haspopup="dialog"
-              >
-                <SlidersHorizontal size={15} />
-                Filters
-                {(board.length + schoolType.length + (gender ? 1 : 0) +
-                  (feeMin !== undefined || feeMax !== undefined ? 1 : 0)) > 0 && (
-                  <span className="mobile-filter-trigger__count">
-                    {board.length + schoolType.length + (gender ? 1 : 0) +
-                      (feeMin !== undefined || feeMax !== undefined ? 1 : 0)}
-                  </span>
-                )}
-              </button>
-              <div className="school-results__label">
-                <span className="school-results__icon">
-                  <Building2 size={16} />
-                </span>
-                <span>Schools</span>
-              </div>
-
-              <label className="sort-control">
-                <ArrowDownUp size={14} />
-                <span className="sr-only">Sort schools</span>
-
-                <select
-                  value={ordering}
-                  onChange={(event) => {
-                    const selected = orderingOptions[event.target.value];
-                    if (selected) setOrdering(selected);
-                  }}
-                  aria-label="Sort schools"
-                >
-                  <option value="school_name">Name: A to Z</option>
-                  <option value="-school_name">Name: Z to A</option>
-                  <option value="-established_year">
-                    Newest established
-                  </option>
-                  <option value="established_year">
-                    Oldest established
-                  </option>
-                  <option value="annual_fee">Annual fees: low to high</option>
-                  <option value="-annual_fee">Annual fees: high to low</option>
-                </select>
-              </label>
-            </div>
-
-            {error && (
-              <div
-                className="state-panel state-panel--error"
-                role="alert"
-              >
-                <h3>We couldn’t load schools</h3>
-                <p>{error}</p>
-                <button
-                  type="button"
-                  onClick={() => setRetryCount((count) => count + 1)}
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-
-            {loading && (
-              <div className="school-list school-list--skeleton" role="status">
-                <span className="sr-only">Finding schools for you…</span>
-                {Array.from({ length: 4 }, (_, index) => (
-                  <article className="school-skeleton" key={index}>
-                    <span />
-                    <div>
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            {!loading && !error && results.length === 0 && (
-              <div className="state-panel state-panel--empty">
-                <Search size={25} />
-                <h3>No schools found</h3>
+                <div className="section-eyebrow">EXPLORE THE DIRECTORY</div>
+                <h2>Schools to start your search</h2>
                 <p>
-                  {search
-                    ? `No schools matched “${search}”. Try a city or shorter search.`
-                    : "Your selected filters do not match any schools. Remove a filter to broaden the results."}
+                  Search, filter, and compare the school details that matter to
+                  your family.
                 </p>
-                <button type="button" onClick={clearFilters}>
-                  {search ? "Clear search and filters" : "Clear filters"}
-                </button>
               </div>
-            )}
 
-            {!loading && !error && results.length > 0 && (
-              <>
-                <div className="school-list">
-                  {results.map((school) => (
-                    <SchoolCard
-                      key={school.school_id}
-                      school={school}
-                    />
-                  ))}
+              <div className="results-count" aria-live="polite">
+                {loading
+                  ? "Finding schools…"
+                  : `${results.length} ${results.length === 1 ? "school" : "schools"
+                  } shown`}
+              </div>
+            </div>
+
+            <div className="results-layout">
+              {filtersOpen && (
+                <button
+                  className="filters-backdrop"
+                  type="button"
+                  aria-label="Close filters"
+                  onClick={closeFilters}
+                />
+              )}
+              <aside
+                ref={filtersPanelRef}
+                className={`filters-panel${filtersOpen ? " filters-panel--open" : ""}`}
+                aria-label="School filters"
+                aria-modal={filtersOpen || undefined}
+                role={filtersOpen ? "dialog" : undefined}
+                tabIndex={filtersOpen ? -1 : undefined}
+              >
+                <div className="filters-panel__heading">
+                  <div>
+                    <SlidersHorizontal size={17} />
+                    <h3>Refine your search</h3>
+                  </div>
+
+                  {hasFilters && (
+                    <button type="button" onClick={clearFilters}>
+                      Clear all
+                    </button>
+                  )}
+                  <button
+                    className="filters-panel__close"
+                    type="button"
+                    onClick={closeFilters}
+                    aria-label="Close filters"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
 
-                {nextPage && (
-                  <button
-                    className="load-more"
-                    type="button"
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? (
-                      <>
-                        <LoaderCircle className="spin" size={17} />
-                        Loading…
-                      </>
-                    ) : (
-                      <>
-                        Load more schools <ArrowRight size={16} />
-                      </>
-                    )}
+                <fieldset className="filter-group">
+                  <legend>School type</legend>
+                  <div className="filter-checklist" id="school-type-filter">
+                    {schoolTypes.map((type) => {
+                      const selected = schoolType.includes(type.school_type_id);
+                      return <label className="filter-check" key={type.school_type_id}>
+                        <input type="checkbox" checked={selected} onChange={() => {
+                          setSchoolType((current) => selected
+                            ? current.filter((id) => id !== type.school_type_id)
+                            : [...current, type.school_type_id]);
+                          trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
+                        }} />
+                        <span>{type.type_name}</span>
+                      </label>;
+                    })}
+                  </div>
+
+                  {schoolTypesError && (
+                    <p className="filter-error" role="alert">
+                      School type filters unavailable: {schoolTypesError}
+                    </p>
+                  )}
+                </fieldset>
+
+                <fieldset className="filter-group">
+                  <legend>Education board</legend>
+                  <div className="filter-checklist" id="board-filter">
+                    {boards.map((item) => (
+                      <label className="filter-check" key={item.board_id}>
+                        <input
+                          type="checkbox"
+                          checked={board.includes(item.board_id)}
+                          onChange={() => {
+                            const selected = !board.includes(item.board_id);
+                            setBoard((current) =>
+                              selected
+                                ? [...current, item.board_id]
+                                : current.filter((id) => id !== item.board_id)
+                            );
+                            trackSearchEvent("filter_applied", {
+                              filter_type: "board",
+                              selected,
+                            });
+                          }}
+                        />
+                        <span>{item.board_name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {boardsError && (
+                    <p className="filter-error" role="alert">
+                      Education board filters unavailable: {boardsError}
+                    </p>
+                  )}
+                </fieldset>
+
+                <fieldset className="filter-group">
+                  <legend>Annual fee</legend>
+                  <p className="filter-select-label">
+                    Published fee details for the current academic year
+                  </p>
+                  <FeeRangeSlider
+                    value={feeRange}
+                    onValueCommit={(next) => {
+                      setFeeRange(next);
+                      trackSearchEvent("filter_applied", {
+                        filter_type: "fees",
+                        values: [`${next[0]}-${next[1]}`],
+                      });
+                    }}
+                  />
+                </fieldset>
+
+                <fieldset className="filter-group">
+                  <legend>Student community</legend>
+
+                  <div className="gender-options">
+                    {genderOptions.map((option) => (
+                      <button
+                        key={option.label}
+                        type="button"
+                        className={
+                          gender === option.value
+                            ? "gender-option gender-option--active"
+                            : "gender-option"
+                        }
+                        aria-pressed={gender === option.value}
+                        onClick={() => {
+                          setGender(option.value);
+                          trackSearchEvent("filter_applied", {
+                            filter_type: "gender",
+                            selected: option.value ?? "all",
+                          });
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <div className="filter-note">
+                  <span className="filter-note__icon">
+                    <CheckCircle2 size={16} />
+                  </span>
+                </div>
+                <div className="filters-panel__apply">
+                  <button type="button" onClick={closeFilters}>
+                    Show {results.length} {results.length === 1 ? "school" : "schools"}
                   </button>
+                </div>
+              </aside>
+
+              <div className="school-results">
+                <div className="school-results__toolbar">
+                  <button
+                    ref={filterTriggerRef}
+                    className="mobile-filter-trigger"
+                    type="button"
+                    onClick={() => setFiltersOpen(true)}
+                    aria-haspopup="dialog"
+                  >
+                    <SlidersHorizontal size={15} />
+                    Filters
+                    {(board.length + schoolType.length + (gender ? 1 : 0) +
+                      (feeMin !== undefined || feeMax !== undefined ? 1 : 0)) > 0 && (
+                        <span className="mobile-filter-trigger__count">
+                          {board.length + schoolType.length + (gender ? 1 : 0) +
+                            (feeMin !== undefined || feeMax !== undefined ? 1 : 0)}
+                        </span>
+                      )}
+                  </button>
+                  <div className="school-results__label">
+                    <span className="school-results__icon">
+                      <Building2 size={16} />
+                    </span>
+                    <span>Schools</span>
+                  </div>
+
+                  <label className="sort-control">
+                    <ArrowDownUp size={14} />
+                    <span className="sr-only">Sort schools</span>
+
+                    <select
+                      value={ordering}
+                      onChange={(event) => {
+                        const selected = orderingOptions[event.target.value];
+                        if (selected) setOrdering(selected);
+                      }}
+                      aria-label="Sort schools"
+                    >
+                      <option value="school_name">Name: A to Z</option>
+                      <option value="-school_name">Name: Z to A</option>
+                      <option value="-established_year">
+                        Newest established
+                      </option>
+                      <option value="established_year">
+                        Oldest established
+                      </option>
+                      <option value="annual_fee">Annual fees: low to high</option>
+                      <option value="-annual_fee">Annual fees: high to low</option>
+                    </select>
+                  </label>
+                </div>
+
+                {error && (
+                  <div
+                    className="state-panel state-panel--error"
+                    role="alert"
+                  >
+                    <h3>We couldn’t load schools</h3>
+                    <p>{error}</p>
+                    <button
+                      type="button"
+                      onClick={() => setRetryCount((count) => count + 1)}
+                    >
+                      Try again
+                    </button>
+                  </div>
                 )}
-              </>
-            )}
-          </div>
-        </div>
-      </section>
-      </>
+
+                {loading && (
+                  <div className="school-list school-list--skeleton" role="status">
+                    <span className="sr-only">Finding schools for you…</span>
+                    {Array.from({ length: 4 }, (_, index) => (
+                      <article className="school-skeleton" key={index}>
+                        <span />
+                        <div>
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+
+                {!loading && !error && results.length === 0 && (
+                  <div className="state-panel state-panel--empty">
+                    <Search size={25} />
+                    <h3>No schools found</h3>
+                    <p>
+                      {search
+                        ? `No schools matched “${search}”. Try a city or shorter search.`
+                        : "Your selected filters do not match any schools. Remove a filter to broaden the results."}
+                    </p>
+                    <button type="button" onClick={clearFilters}>
+                      {search ? "Clear search and filters" : "Clear filters"}
+                    </button>
+                  </div>
+                )}
+
+                {!loading && !error && results.length > 0 && (
+                  <>
+                    <div className="school-list">
+                      {results.map((school) => (
+                        <SchoolCard
+                          key={school.school_id}
+                          school={school}
+                        />
+                      ))}
+                    </div>
+
+                    {nextPage && (
+                      <button
+                        className="load-more"
+                        type="button"
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? (
+                          <>
+                            <LoaderCircle className="spin" size={17} />
+                            Loading…
+                          </>
+                        ) : (
+                          <>
+                            Load more schools <ArrowRight size={16} />
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+        </>
       )}
 
       <SearchCommandPalette
@@ -1724,111 +1723,111 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       {!filtersOpen && <CompareBar />}
 
       {isHomePage && <>
-      {/* A second how-it-works section; renamed its ID to avoid duplicate IDs. */}
-      <section className="how-it-works" id="how-it-works-steps">
-        <div className="how-it-works__intro">
-          <div className="section-eyebrow">A LITTLE LESS OVERWHELMING</div>
-          <h2>Three steps to a more confident choice.</h2>
-        </div>
+        {/* A second how-it-works section; renamed its ID to avoid duplicate IDs. */}
+        <section className="how-it-works" id="how-it-works-steps">
+          <div className="how-it-works__intro">
+            <div className="section-eyebrow">A LITTLE LESS OVERWHELMING</div>
+            <h2>Three steps to a more confident choice.</h2>
+          </div>
 
-        <div className="how-it-works__steps">
-          <article>
-            <span>01</span>
-            <h3>Explore</h3>
-            <p>Search the directory by school, city, or education board.</p>
-          </article>
+          <div className="how-it-works__steps">
+            <article>
+              <span>01</span>
+              <h3>Explore</h3>
+              <p>Search the directory by school, city, or education board.</p>
+            </article>
 
-          <article>
-            <span>02</span>
-            <h3>Find your fit</h3>
+            <article>
+              <span>02</span>
+              <h3>Find your fit</h3>
+              <p>
+                Filter by school type and student community to narrow your
+                options.
+              </p>
+            </article>
+
+            <article>
+              <span>03</span>
+              <h3>Reach out</h3>
+              <p>
+                Review the school details and contact the school directly.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section className="why-boardingedu" id="why-boardingedu">
+          <div className="why-boardingedu__heading">
+            <div className="section-eyebrow">A CLEARER WAY TO CHOOSE</div>
+            <h2>Everything you need to make a confident start.</h2>
             <p>
-              Filter by school type and student community to narrow your
-              options.
+              Useful school information and practical tools, without making the
+              search feel overwhelming.
             </p>
-          </article>
+          </div>
 
-          <article>
-            <span>03</span>
-            <h3>Reach out</h3>
-            <p>
-              Review the school details and contact the school directly.
-            </p>
-          </article>
-        </div>
-      </section>
+          <div className="why-boardingedu__grid">
+            <article>
+              <span>
+                <ShieldCheck size={20} />
+              </span>
+              <h3>School profiles</h3>
+              <p>
+                See school type, board, location, and verification details
+                together in one profile.
+              </p>
+            </article>
 
-      <section className="why-boardingedu" id="why-boardingedu">
-        <div className="why-boardingedu__heading">
-          <div className="section-eyebrow">A CLEARER WAY TO CHOOSE</div>
-          <h2>Everything you need to make a confident start.</h2>
-          <p>
-            Useful school information and practical tools, without making the
-            search feel overwhelming.
-          </p>
-        </div>
+            <article>
+              <span>
+                <SlidersHorizontal size={20} />
+              </span>
+              <h3>Search your way</h3>
+              <p>
+                Narrow the directory by school type and student community, then
+                sort to explore.
+              </p>
+            </article>
 
-        <div className="why-boardingedu__grid">
-          <article>
-            <span>
-              <ShieldCheck size={20} />
-            </span>
-            <h3>School profiles</h3>
-            <p>
-              See school type, board, location, and verification details
-              together in one profile.
-            </p>
-          </article>
+            <article>
+              <span>
+                <GraduationCap size={20} />
+              </span>
+              <h3>Connect directly</h3>
+              <p>
+                Use the listed phone number or email to ask the school about
+                current admissions.
+              </p>
+            </article>
+          </div>
+        </section>
 
-          <article>
-            <span>
-              <SlidersHorizontal size={20} />
-            </span>
-            <h3>Search your way</h3>
-            <p>
-              Narrow the directory by school type and student community, then
-              sort to explore.
-            </p>
-          </article>
+        {/* Kept the second footer's existing content. */}
+        <footer className="site-footer site-footer--compact">
+          <Link className="brand brand--footer" href="/" aria-label="BoardingEdu home">
+            <Image
+              className="brand__image"
+              src="/BoardingEdu_LOGO.jpeg"
+              alt="BoardingEdu"
+              width={1024}
+              height={1024}
+            />
+          </Link>
 
-          <article>
-            <span>
-              <GraduationCap size={20} />
-            </span>
-            <h3>Connect directly</h3>
-            <p>
-              Use the listed phone number or email to ask the school about
-              current admissions.
-            </p>
-          </article>
-        </div>
-      </section>
+          <div className="site-footer__links">
+            <Link href="#cities">Cities</Link>
+            <Link href="#boards">Boards</Link>
+            <Link href="/schools">Schools</Link>
+            <Link href="#parent-stories">Parent stories</Link>
+            <Link href="#blog">Blog</Link>
+          </div>
 
-      {/* Kept the second footer's existing content. */}
-      <footer className="site-footer site-footer--compact">
-        <Link className="brand brand--footer" href="/" aria-label="BoardingEdu home">
-          <Image
-            className="brand__image"
-            src="/BoardingEdu_LOGO.jpeg"
-            alt="BoardingEdu"
-            width={1024}
-            height={1024}
-          />
-        </Link>
+          <span className="site-footer__meta">
+            Social and legal links coming soon
+          </span>
 
-        <div className="site-footer__links">
-          <Link href="#cities">Cities</Link>
-          <Link href="#boards">Boards</Link>
-          <Link href="/schools">Schools</Link>
-          <Link href="#parent-stories">Parent stories</Link>
-          <Link href="#blog">Blog</Link>
-        </div>
-
-        <span className="site-footer__meta">
-          Social and legal links coming soon
-        </span>
-
-        <p>Helping every family find a place to belong.</p>
-      </footer>
+          <p>Helping every family find a place to belong.</p>
+        </footer>
       </>}
     </main>
   );

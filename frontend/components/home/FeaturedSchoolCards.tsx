@@ -48,19 +48,32 @@ export default function FeaturedSchoolCards({
         return (
           <article className="featured-card" key={school.school_id}>
             <div className="featured-card__cover">
-              {school.school_logo_url ? (
+              {school.school_image_url && (
                 <Image
-                  src={school.school_logo_url}
-                  alt={`${school.school_name} logo`}
-                  width={88}
-                  height={88}
+                  className="featured-card__cover-image"
+                  src={school.school_image_url}
+                  alt=""
+                  fill
+                  sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw"
                   unoptimized
+                  aria-hidden="true"
                 />
-              ) : (
-                <span aria-label={`${school.school_name} logo unavailable`}>
-                  {school.short_name || school.school_name.slice(0, 2)}
-                </span>
               )}
+              <div className="featured-card__logo">
+                {school.school_logo_url ? (
+                  <Image
+                    src={school.school_logo_url}
+                    alt={`${school.school_name} logo`}
+                    width={88}
+                    height={88}
+                    unoptimized
+                  />
+                ) : (
+                  <span aria-label={`${school.school_name} logo unavailable`}>
+                    {school.short_name || school.school_name.slice(0, 2)}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="featured-card__badges">
               <span>{boards}</span>

@@ -225,6 +225,7 @@ export type SchoolListItem = {
   school_name: string;
   short_name: string;
   school_logo_url?: string;
+  school_image_url?: string;
   slug: string;
   country_id: string; country_name: string;
   state_id: string;   state_name: string;
@@ -524,6 +525,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     school_name: school.school_name,
     short_name: school.short_name,
     school_logo_url: school.school_logo_url,
+    school_image_url: school.school_image_url,
     slug: school.slug,
     country_id: school.country_detail.country_id,
     country_name: school.country_detail.country_name,
