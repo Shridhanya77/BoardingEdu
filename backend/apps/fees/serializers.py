@@ -214,6 +214,7 @@ class FeeItemListSerializer(serializers.ModelSerializer):
             'grade_id', 'grade_name',
             'school_type_id', 'school_type_name',
             'amount', 'payment_frequency', 'payment_frequency_display', 'tax',
+            'description',
             'is_refundable',
             'sort_order',
         ]
@@ -247,6 +248,19 @@ class FeeItemSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['fee_item_id', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        amount = attrs.get('amount', getattr(self.instance, 'amount', None))
+        payment_frequency = attrs.get(
+            'payment_frequency',
+            getattr(self.instance, 'payment_frequency', 'ANNUAL'),
+        )
+        if amount is None and payment_frequency not in {'DYNAMIC', 'BY_DISTANCE'}:
+            raise serializers.ValidationError({
+                'amount': 'Enter an amount unless the payment frequency is Dynamic or By distance.',
+            })
+        return attrs
 
     def get_fee_structure_detail(self, obj):
         if getattr(obj, 'fee_structure_id', None) is None:

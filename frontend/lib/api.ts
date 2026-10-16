@@ -589,9 +589,10 @@ export type FeeItemListItem = {
   grade_name: string | null;
   school_type_id: string | null;
   school_type_name: string | null;
-  amount: string;
+  amount: string | null;
   payment_frequency: "ONE_TIME" | "ANNUAL" | "QUARTERLY" | "HALF_YEARLY" | "TERM" | "MONTHLY" | "BY_DISTANCE" | "DYNAMIC";
   payment_frequency_display: string;
+  description: string;
   tax: string;
   is_refundable: boolean;
   sort_order: number;

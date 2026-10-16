@@ -94,9 +94,14 @@ The school image fields require `schools.0004_add_school_logo_url` and
 `schools.0005_add_school_image_url`. School detail galleries require
 `schools.0006_schoolphoto` and `schools.0007_schoolphoto_category_schoolvideo`;
 add photo and video URLs from a school's Django admin page. Per-item fee
-frequencies require `fees.0002_feeitem_payment_frequency`; configure them on
-each fee line item before publishing its fee structure. Counselling submissions
-require `admissions.0003_counsellingrequest`.
+frequencies require `fees.0002_feeitem_payment_frequency` and `fees.0003_alter_feeitem_amount`.
+The latter allows variable fees to have no fixed amount. In Django Admin,
+open a school and use its Fees panel to create an academic-year structure.
+Add fee components in the structure's inline, choose the grade and payment
+frequency for each, then set the structure to active and published. Variable
+or distance-based items can leave the amount blank; the profile presents these
+as Dynamic. Only active, published structures appear on school profiles.
+Counselling submissions require `admissions.0003_counsellingrequest`.
 
 ## Local development
 

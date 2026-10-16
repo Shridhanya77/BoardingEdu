@@ -1,8 +1,10 @@
 from datetime import date
 
+from django.contrib.admin.sites import AdminSite
 from django.test import TestCase
 
 from apps.geography.models import City, Country, State
+from apps.schools.admin import SchoolAdmin
 from apps.schools.models import School
 from .models import AcademicYear, FeeItem, FeeStructure
 
@@ -58,6 +60,19 @@ class FeeItemPaymentFrequencyTests(TestCase):
             amount='83000.00',
             payment_frequency='ONE_TIME',
         )
+        dynamic_item = FeeItem.objects.create(
+            fee_structure=structure,
+            item_code='TRANSPORT',
+            item_name='Transport Fee',
+            item_category='TRANSPORT',
+            amount=None,
+            payment_frequency='BY_DISTANCE',
+            description='Charged according to the student’s pickup distance.',
+        )
+        panel = str(SchoolAdmin(School, AdminSite()).fee_structures_panel(school))
+        self.assertIn('Published fees', panel)
+        self.assertIn('Published', panel)
+        self.assertIn('2 fee items', panel)
 
         response = self.client.get('/api/fees/fee-items/')
 
@@ -65,5 +80,14 @@ class FeeItemPaymentFrequencyTests(TestCase):
         result = next(row for row in response.data['results'] if row['id'] == str(item.pk))
         self.assertEqual(result['payment_frequency'], 'ONE_TIME')
         self.assertEqual(result['payment_frequency_display'], 'One-time')
+        dynamic_result = next(
+            row for row in response.data['results'] if row['id'] == str(dynamic_item.pk)
+        )
+        self.assertIsNone(dynamic_result['amount'])
+        self.assertEqual(dynamic_result['payment_frequency'], 'BY_DISTANCE')
+        self.assertEqual(
+            dynamic_result['description'],
+            'Charged according to the student’s pickup distance.',
+        )
 
 # Create your tests here.

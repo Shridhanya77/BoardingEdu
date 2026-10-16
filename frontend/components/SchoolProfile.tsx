@@ -221,7 +221,6 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                 <div><dt>Student community</dt><dd>{genderLabel(school.gender)}</dd></div>
                 <div><dt>Established</dt><dd>{school.established_year ?? "Not provided"}</dd></div>
                 <div><dt>Principal</dt><dd>{school.principal_name || "Not provided"}</dd></div>
-                <div><dt>School code</dt><dd>{school.school_code}</dd></div>
               </dl>
             </article>
 

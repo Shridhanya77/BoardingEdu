@@ -47,7 +47,7 @@ export default function SchoolPhotoGallery({
   }
 
   function showPrevious() {
-    setActiveIndex((index) => (index - 1 + photos.length) % photos.length);
+    setActiveIndex((index) => (index - 1 + visiblePhotos.length) % visiblePhotos.length);
   }
 
   function showNext() {
@@ -143,6 +143,8 @@ export default function SchoolPhotoGallery({
               key={photo.photo_id}
               type="button"
               onClick={() => setActiveIndex(index)}
+              onMouseEnter={() => setActiveIndex(index)}
+              onFocus={() => setActiveIndex(index)}
               aria-label={`Show photo ${index + 1}${photo.caption ? `: ${photo.caption}` : ""}`}
               aria-current={index === selectedIndex ? "true" : undefined}
             >

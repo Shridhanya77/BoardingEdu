@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
@@ -367,8 +368,10 @@ class FeeItem(models.Model):
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        null=False,
+        null=True,
+        blank=True,
         validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Leave blank for variable fees charged dynamically or by distance.",
     )
 
     is_refundable = models.BooleanField(
@@ -429,3 +432,10 @@ class FeeItem(models.Model):
             except Exception:
                 structure_code = "unavailable"
         return f"{self.item_name} | {self.amount} [{structure_code}]"
+
+    def clean(self):
+        super().clean()
+        if self.amount is None and self.payment_frequency not in {"DYNAMIC", "BY_DISTANCE"}:
+            raise ValidationError({
+                "amount": "Enter an amount unless the payment frequency is Dynamic or By distance.",
+            })

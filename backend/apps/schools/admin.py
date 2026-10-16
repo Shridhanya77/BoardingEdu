@@ -1,4 +1,7 @@
 from django.contrib import admin
+from django.db.models import Count
+from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 
 from .models import (
     Board,
@@ -11,6 +14,46 @@ from .models import (
     SchoolFacility,
     SchoolGrade,
 )
+
+
+def render_fee_structures_panel(obj):
+    if obj is None or obj.pk is None:
+        return "Save the school before adding its fee structures."
+
+    add_url = f"{reverse('admin:fees_feestructure_add')}?school={obj.pk}"
+    structures = (
+        obj.fee_structures.select_related("academic_year")
+        .annotate(item_count=Count("fee_items"))
+        .order_by("-academic_year__start_date")
+    )
+    if not structures:
+        return format_html(
+            '<p>No fee structures yet. '
+            '<a class="button" href="{}">Add fee structure</a></p>'
+            '<p>Create the academic-year structure, add fee components, then publish it '
+            'to display it on the school profile.</p>',
+            add_url,
+        )
+
+    rows = format_html_join(
+        "",
+        '<li><a href="{}">{}</a> — {} · {} fee item{}</li>',
+        (
+            (
+                reverse("admin:fees_feestructure_change", args=(structure.pk,)),
+                f"{structure.academic_year.year_code}: {structure.structure_name}",
+                "Published" if structure.status and structure.published else "Draft",
+                structure.item_count,
+                "" if structure.item_count == 1 else "s",
+            )
+            for structure in structures
+        ),
+    )
+    return format_html(
+        '<ul>{}</ul><p><a class="button" href="{}">Add fee structure</a></p>',
+        rows,
+        add_url,
+    )
 
 
 # ============================================================
@@ -158,9 +201,14 @@ class SchoolAdmin(admin.ModelAdmin):
         "slug": ("school_name",),
     }
 
+    @admin.display(description="Fee structures")
+    def fee_structures_panel(self, obj):
+        return render_fee_structures_panel(obj)
+
     readonly_fields = (
         "created_at",
         "updated_at",
+        "fee_structures_panel",
     )
 
     fieldsets = (
@@ -222,6 +270,16 @@ class SchoolAdmin(admin.ModelAdmin):
                     "verification_status",
                     "published_at",
                 )
+            },
+        ),
+        (
+            "Fees",
+            {
+                "fields": ("fee_structures_panel",),
+                "description": (
+                    "Manage academic-year fee schedules and their fee items here. "
+                    "Only active, published schedules appear on the public school profile."
+                ),
             },
         ),
         (

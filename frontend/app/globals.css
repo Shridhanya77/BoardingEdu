@@ -15,10 +15,12 @@
 
 .school-detail__gallery-stage {
   position: relative;
-  height: clamp(210px, 34vw, 390px);
+  width: min(100%, 900px);
+  height: clamp(190px, 26vw, 300px);
+  margin-inline: auto;
   overflow: hidden;
   background: #e7edf4;
-  border-radius: 22px;
+  border-radius: 16px;
 }
 
 .school-detail__gallery-stage > img {
@@ -92,8 +94,8 @@
 
 .school-detail__gallery-thumbnail {
   position: relative;
-  flex: 0 0 96px;
-  height: 62px;
+  flex: 0 0 84px;
+  height: 54px;
   overflow: hidden;
   padding: 0;
   background: #e7edf4;
@@ -5541,7 +5543,8 @@ select:focus-visible {
 
 .school-video-gallery__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 400px));
+  justify-content: start;
   gap: 16px;
 }
 
@@ -5960,7 +5963,7 @@ select:focus-visible {
   }
 
   .school-detail__gallery-stage {
-    height: clamp(210px, 58vw, 340px);
+    height: clamp(190px, 48vw, 280px);
   }
 
   .school-card__media {

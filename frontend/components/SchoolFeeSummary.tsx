@@ -23,7 +23,8 @@ const frequencyLabels: Record<FeeItemListItem["payment_frequency"], string> = {
   DYNAMIC: "Dynamic",
 };
 
-function formatAmount(value: string) {
+function formatAmount(value: string | null) {
+  if (value === null) return "Dynamic";
   const amount = Number(value);
   return Number.isFinite(amount)
     ? `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(amount)}`
@@ -117,7 +118,7 @@ export default function SchoolFeeSummary({
     return <p className="empty-state" role="alert"><AlertCircle size={16} />{error}</p>;
   }
   if (!details.length) {
-    return <p className="empty-state"><CheckCircle2 size={16} />No published fee details are currently available. Please send an enquiry to request the latest fee schedule.</p>;
+    return <p className="empty-state"><CheckCircle2 size={16} />No published fee schedule is available yet. Fee details appear here after the school activates and publishes its schedule.</p>;
   }
 
   const selectedGradeName = grades.find((grade) => grade.grade_id === selectedGradeId)?.grade_name;
@@ -175,6 +176,9 @@ export default function SchoolFeeSummary({
                     <td>
                       <span className="fee-summary__component">{item.item_name}</span>
                       {item.school_type_name && <small>{item.school_type_name}</small>}
+                      {expanded && item.description && (
+                        <p className="fee-summary__details">{item.description}</p>
+                      )}
                       {expanded && (
                         <p className="fee-summary__details">
                           {item.is_refundable ? "Refundable" : "Non-refundable"}
@@ -183,7 +187,11 @@ export default function SchoolFeeSummary({
                         </p>
                       )}
                     </td>
-                    <td className="fee-summary__amount">{formatAmount(item.amount)}</td>
+                    <td className="fee-summary__amount">
+                      {item.payment_frequency === "DYNAMIC" || item.payment_frequency === "BY_DISTANCE"
+                        ? "Dynamic"
+                        : formatAmount(item.amount)}
+                    </td>
                     <td><span className="fee-summary__frequency">{item.payment_frequency_display || frequencyLabels[item.payment_frequency] || "As published"}</span></td>
                     <td>
                       <button
