@@ -3,9 +3,10 @@
 import { ArrowRight, MapPin, Star } from "lucide-react";
 import Link from "next/link";
 import type { SchoolListItem } from "@/lib/api";
+import { schoolProfileTypeSegment } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
-  return `/${school.country_slug}/${school.state_slug}/${school.city_slug}/${school.slug}`;
+  return `/${school.country_slug}/${school.state_slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
 }
 
 function formatFee(value: string | null) {

@@ -139,7 +139,7 @@ export default function HomeLanding({
             <div className="section-eyebrow">FIND YOUR PLACE</div>
             <h2>Explore top cities and top states</h2>
           </div>
-          <Link href="/#schools">
+          <Link href="/schools">
             View all schools <ArrowRight size={15} />
           </Link>
         </div>
@@ -152,7 +152,7 @@ export default function HomeLanding({
             <div className="section-eyebrow">FEATURED SCHOOLS</div>
             <h2>Featured Schools</h2>
           </div>
-          <Link href="/#schools">
+          <Link href="/schools">
             View All Schools <ArrowRight size={15} />
           </Link>
         </div>
@@ -238,7 +238,7 @@ export default function HomeLanding({
             <Link href="/signup" className="primary-button">
               List Your School
             </Link>
-            <Link href="#schools" className="secondary-button">
+            <Link href="/schools" className="secondary-button">
               Learn More
             </Link>
           </div>

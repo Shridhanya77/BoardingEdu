@@ -52,7 +52,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const res = await fetch(url, {
       ...init,
       headers: { ...defaultHeaders, ...init.headers },
-      next: { revalidate: 60 }, // ISR: revalidate every 60s for school listing
+      cache: "no-store",
     });
     if (!res.ok) {
       const parsed = await parseBody(res);
@@ -434,6 +434,7 @@ export const schools = {
 // ---------- Geography (cascading dropdowns) ----------
 export const geography = {
   countries: () => request<PaginatedResponse<CountryListItem>>("/geography/countries/"),
+  cities: () => request<PaginatedResponse<CityListItem>>("/geography/cities/"),
   statesOf: (countryId: string) =>
     request<PaginatedResponse<StateListItem>>(`/geography/countries/${countryId}/states/`),
   citiesOf: (stateId: string) =>

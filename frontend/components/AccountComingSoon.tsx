@@ -11,7 +11,7 @@ export default function AccountComingSoon({ action }: { action: "log in" | "sign
           ? "Parent registration is not available yet. We’re preparing account access for families."
           : "Parent login is not available yet. Please continue exploring the school directory."}
       </p>
-      <Link className="header-action" href="/#schools">Explore schools</Link>
+      <Link className="header-action" href="/schools">Explore schools</Link>
     </main>
   );
 }

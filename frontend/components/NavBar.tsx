@@ -73,7 +73,7 @@ export default function NavBar() {
       </Link>
 
       <nav className="site-header__nav" aria-label="Primary">
-        <Link className="site-header__link" href={homeHref("#schools")}>Find Schools</Link>
+        <Link className="site-header__link" href="/schools">Find Schools</Link>
         <Link className="site-header__link" href={homeHref("#how-it-works")}>How It Works</Link>
         <Link className="site-header__link" href={homeHref("#for-schools")}>For Schools</Link>
         <Link className="site-header__link" href={homeHref("#about")}>About Us</Link>
@@ -110,7 +110,7 @@ export default function NavBar() {
                   </div>
                 </div>
                 <div className="user-menu__links">
-                  <Link href="/#schools" role="menuitem">
+                  <Link href="/schools" role="menuitem">
                     <Search size={14} /> Browse schools
                   </Link>
                   <div role="separator" className="sep" />
@@ -139,7 +139,7 @@ export default function NavBar() {
             </Link>
           </>
         )}
-        <Link href={homeHref("#schools")} className="header-action header-action--find">
+        <Link href="/schools" className="header-action header-action--find">
           <Search size={15} /> Find a School
         </Link>
       </div>

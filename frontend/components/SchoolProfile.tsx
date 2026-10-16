@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import type { SchoolDetail } from "@/lib/api";
-import { schoolTypeCategory, schoolTypeLabel } from "@/lib/seo-slugs";
+import { schoolProfileTypeSegment, schoolTypeLabel } from "@/lib/seo-slugs";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
 
 const genderLabels = {
@@ -30,11 +30,7 @@ const verificationLabels = {
 } as const;
 
 export function schoolProfilePath(school: SchoolDetail) {
-  const residential = school.school_types_detail.some((type) => {
-    const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
-    return category === "boarding-school" || category === "full-boarding-school";
-  });
-  return `/${residential ? "residential-school" : "day-school"}/${school.country_detail.slug}/${school.state_detail.slug}/${school.city_detail.slug}/${school.slug}`;
+  return `/${school.country_detail.slug}/${school.state_detail.slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
 }
 
 function gradeBadge(gradeName: string, seats: number | null, entryAge: [number | null, number | null]) {
@@ -95,7 +91,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
   return (
     <main className="school-detail-page">
       <div className="school-detail">
-        <Link className="school-detail__back" href="/#schools"><ArrowLeft size={15} /> Back to schools</Link>
+        <Link className="school-detail__back" href="/schools"><ArrowLeft size={15} /> Back to schools</Link>
 
         <nav className="school-breadcrumbs" aria-label="Breadcrumb">
           <Link href="/">Home</Link><span>/</span>

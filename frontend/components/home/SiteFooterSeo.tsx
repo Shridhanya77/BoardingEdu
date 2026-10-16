@@ -10,7 +10,7 @@ export default function SiteFooterSeo() {
           <p>Join 1M+ parents who found the perfect school through BoardingEdu.</p>
         </div>
         <div>
-          <Link href="/#schools">Find Schools</Link>
+          <Link href="/schools">Find Schools</Link>
           <Link href="/#counselling">Free Counselling</Link>
         </div>
       </div>
@@ -37,8 +37,8 @@ export default function SiteFooterSeo() {
 
         <div>
           <h3>Discover</h3>
-          <Link href="/#schools">Find Boarding Schools</Link>
-          <Link href="/#schools">Find Day Schools</Link>
+          <Link href="/schools">Find Boarding Schools</Link>
+          <Link href="/schools">Find Day Schools</Link>
           <Link href="/compare">Compare Schools</Link>
           <Link href="/#featured">School Profiles</Link>
           <Link href="/#how-it-works">Admission Guides</Link>
@@ -47,9 +47,9 @@ export default function SiteFooterSeo() {
         <div>
           <h3>Counselling</h3>
           <Link href="/#counselling">Free Counselling</Link>
-          <Link href="/#schools">CBSE Board Guide</Link>
-          <Link href="/#schools">IB Board Guide</Link>
-          <Link href="/#schools">ICSE Board Guide</Link>
+          <Link href="/schools">CBSE Board Guide</Link>
+          <Link href="/schools">IB Board Guide</Link>
+          <Link href="/schools">ICSE Board Guide</Link>
           <Link href="/#how-it-works">Admission Timeline</Link>
           <Link href="/#counselling">Scholarship Guide</Link>
         </div>

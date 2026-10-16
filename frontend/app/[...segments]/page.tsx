@@ -60,6 +60,25 @@ function placePath(place: Place) {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const segments = params.segments ?? [];
+  if (segments[0] === "schools" && segments.length === 1) {
+    return {
+      title: "School directory | BoardingEdu",
+      description: "Explore and compare schools by location, education board, school type, and annual fees.",
+      alternates: { canonical: "/schools" },
+    };
+  }
+  if (segments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(segments[2])) {
+    try {
+      const school = await schools.bySlug(segments[3]);
+      return {
+        title: `${school.school_name} | BoardingEdu`,
+        description: `Explore ${school.school_name} in ${school.city_detail.city_name}, ${school.state_detail.state_name}.`,
+        alternates: { canonical: schoolProfilePath(school) },
+      };
+    } catch {
+      return { title: "School profile | BoardingEdu", robots: { index: false, follow: true } };
+    }
+  }
   if (
     segments.length === 1 &&
     segments[0] === "home" &&
@@ -105,6 +124,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
+  if (segments[0] === "schools" && segments.length === 1) {
+    return <SchoolDiscovery initialFilter={{}} />;
+  }
   if (segments[0] === "home" && segments.length === 1) {
     const homeCategory = searchParams?.home_category;
     if (homeCategory === "day-school" || homeCategory === "residential-school") {
@@ -120,6 +142,18 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     try {
       const school = await schools.bySlug(segments[1]);
       redirect(schoolProfilePath(school));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) notFound();
+      throw error;
+    }
+  }
+
+  if (segments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(segments[2])) {
+    try {
+      const school = await schools.bySlug(segments[3]);
+      const path = schoolProfilePath(school);
+      if (`/${segments.join("/")}` !== path) redirect(path);
+      return <SchoolProfile school={school} />;
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) notFound();
       throw error;

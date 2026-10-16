@@ -19,12 +19,13 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography, schools } from "@/lib/api";
 import type {
   BoardListItem,
+  CityListItem,
   SchoolFilters,
   SchoolListItem,
   SchoolTypeListItem,
@@ -32,6 +33,7 @@ import type {
 import FeeRangeSlider from "@/components/search/FeeRangeSlider";
 import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import CompareBar from "@/components/search/CompareBar";
+import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import {
   createLocationPreferences,
@@ -46,18 +48,11 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { homeSchoolCategoryForIds, schoolTypePath, isDiscoverableSchoolType, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategoryForIds, schoolProfileTypeSegment, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
-  const type = school.school_types_detail.find((item) => isDiscoverableSchoolType(item.type_code, item.slug, item.type_name));
-  return `/${schoolTypePath(type?.type_code ?? "DAY")}/${school.country_slug}/${school.state_slug}/${school.city_slug}/${school.slug}`;
+  return `/${school.country_slug}/${school.state_slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
 }
-function homeFilterSchoolTypeLabel(type: SchoolTypeListItem) {
-  const value = `${type.type_code} ${type.slug} ${type.type_name}`.toLowerCase().replace(/_/g, "-");
-  if (/day[- ]boarding/.test(value)) return "Boarding School";
-  return schoolTypeLabel(type.type_code, type.slug, type.type_name);
-}
-const homeSchoolTypeFilterLabels = ["Day School", "Boarding School", "Full Boarding School"] as const;
 
 const genderOptions: {
   label: string;
@@ -255,6 +250,9 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [schoolTypesLoaded, setSchoolTypesLoaded] = useState(false);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
+  const [cities, setCities] = useState<CityListItem[]>([]);
+  const [citiesError, setCitiesError] = useState<string | null>(null);
+  const [showAllCities, setShowAllCities] = useState(false);
   const [schoolTypesError, setSchoolTypesError] = useState<string | null>(
     null
   );
@@ -318,24 +316,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
 
-  const boardCards = [
-    "CBSE",
-    "ICSE",
-    "IB",
-    "IGCSE",
-  ].map((code) => ({
-    code,
-    board: boards.find((item) => item.board_code.toUpperCase() === code),
-  }));
-  const cityCards = useMemo(() => {
-    const uniqueCities = new Map<string, SchoolListItem>();
-    for (const school of [...featuredSchools, ...results]) {
-      if (school.city_id && !uniqueCities.has(school.city_id)) {
-        uniqueCities.set(school.city_id, school);
-      }
-    }
-    return [...uniqueCities.values()].slice(0, 6);
-  }, [featuredSchools, results]);
+  const cityCards = showAllCities ? cities : cities.slice(0, 6);
 
   const whyBoardingEdu = [
     "Verified school profiles",
@@ -348,6 +329,12 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
+    if (isHomePage) {
+      setResults([]);
+      setNextPage(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     const residentialOnly = homeCategory === "residential-school" || (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes);
 
@@ -399,7 +386,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     return () => {
       cancelled = true;
     };
-  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
+  }, [isHomePage, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -576,11 +563,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   useEffect(() => {
     let cancelled = false;
 
-    schools
-      .types()
-      .then((response) => {
+    schools.types()
+      .then((response) => fetchAllPages(response))
+      .then((rows) => {
         if (!cancelled) {
-          setSchoolTypes(response.results.filter((type) => type.status && isDiscoverableSchoolType(type.type_code, type.slug, type.type_name)));
+          setSchoolTypes(rows.filter((type) => type.status));
         }
       })
       .catch((reason: unknown) => {
@@ -596,13 +583,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         if (!cancelled) setSchoolTypesLoaded(true);
       });
 
-    schools
-      .boards()
-      .then((response) => {
+    schools.boards()
+      .then((response) => fetchAllPages(response))
+      .then((rows) => {
         if (!cancelled) {
-          setBoards(
-            response.results.filter((item) => item.status)
-          );
+          setBoards(rows.filter((item) => item.status));
         }
       })
       .catch((reason: unknown) => {
@@ -612,6 +597,17 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
               ? reason.message
               : "Could not load education boards."
           );
+        }
+      });
+
+    geography.cities()
+      .then((response) => fetchAllPages(response, 1000))
+      .then((rows) => {
+        if (!cancelled) setCities(rows.filter((city) => city.status));
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setCitiesError(reason instanceof Error ? reason.message : "Could not load cities.");
         }
       });
 
@@ -810,6 +806,10 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   }
 
   function searchFor(query: string) {
+    if (isHomePage) {
+      router.push(`/schools?search=${encodeURIComponent(query.trim())}`);
+      return;
+    }
     setSearchInput(query);
     setSearch(query);
     rememberSearch(query);
@@ -821,6 +821,10 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   }
 
   function selectBoard(selectedBoard: BoardListItem) {
+    if (isHomePage) {
+      router.push(`/schools?board=${encodeURIComponent(selectedBoard.board_id)}`);
+      return;
+    }
     setBoard([selectedBoard.board_id]);
     setSearchInput("");
     setSearch("");
@@ -830,6 +834,10 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   }
 
   function selectSchoolType(selectedType: SchoolTypeListItem) {
+    if (isHomePage) {
+      router.push(`/schools?school_type=${encodeURIComponent(selectedType.school_type_id)}`);
+      return;
+    }
     setSchoolType([selectedType.school_type_id]);
     setSearchInput("");
     setSearch("");
@@ -952,7 +960,9 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   void handleExplore;
 
   return (
-    <main className="discovery-page">
+    <main className={`discovery-page${isHomePage ? " discovery-page--home" : " discovery-page--listing"}`}>
+      {isHomePage && (
+      <>
       <section className="hero">
         <div className="hero__copy">
           <div className="hero__kicker">
@@ -1027,8 +1037,8 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           <span className="hero-art__dot" />
         </div>
 
-        <a className="hero-scroll" href="#schools">
-          <span /> Scroll to explore
+        <a className="hero-scroll" href="/schools">
+          <span /> Explore schools
         </a>
       </section>
 
@@ -1066,40 +1076,32 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <h2>Cities in the directory</h2>
           </div>
 
-          <a href="#schools">
-            Explore all cities <ArrowRight size={15} />
-          </a>
+          <button type="button" onClick={() => setShowAllCities((show) => !show)}>
+            {showAllCities ? "Show fewer cities" : "Explore all cities"} <ArrowRight size={15} />
+          </button>
         </div>
 
         <div className="city-grid">
-          {cityCards.map((school, index) => (
+          {cityCards.map((city, index) => (
             <button
               className={`city-card city-card--${index + 1}`}
-              key={school.city_id}
+              key={city.city_id}
               onClick={() => {
-                setSearch("");
-                setSearchInput("");
-                setBoard([]);
-                setSchoolType([]);
-                setLocationGroups([]);
-                setGeoCountry(school.country_id);
-                setGeoState(school.state_id);
-                setGeoCity(school.city_id);
-                setGeoLocation("");
-                scrollToSchools();
+                router.push(`/schools?country=${encodeURIComponent(city.country_id)}&state=${encodeURIComponent(city.state_id)}&city=${encodeURIComponent(city.city_id)}`);
               }}
             >
               <span className="city-card__number">0{index + 1}</span>
-              <span className="city-card__name">{school.city_name}</span>
-              <span className="city-card__state">{school.state_name}</span>
+              <span className="city-card__name">{city.city_name}</span>
+              <span className="city-card__state">{city.state_name}, {city.country_name}</span>
               <span className="city-card__action">
                 Explore schools <ArrowRight size={14} />
               </span>
             </button>
           ))}
-          {cityCards.length === 0 && (
+          {citiesError && <p className="section-error" role="alert">Cities unavailable: {citiesError}</p>}
+          {!citiesError && cityCards.length === 0 && (
             <p className="section-empty">
-              School locations will appear here when listings are available.
+              {cities.length === 0 ? "Loading cities…" : "No active cities are available."}
             </p>
           )}
         </div>
@@ -1120,29 +1122,22 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         </div>
 
         <div className="board-grid">
-          {boardCards.map(({ code, board: boardItem }, index) => (
+          {boards.map((boardItem, index) => (
             <button
               className={`board-card board-card--${index + 1}`}
-              key={code}
-              onClick={() =>
-                boardItem ? selectBoard(boardItem) : searchFor(code)
-              }
+              key={boardItem.board_id}
+              onClick={() => selectBoard(boardItem)}
             >
-              <span className="board-card__mark">{code}</span>
-
-              <span className="board-card__name">
-                {boardItem?.board_name ??
-                  (code === "IGCSE"
-                    ? "International General Certificate of Secondary Education"
-                    : `${code} curriculum`)}
-              </span>
+              <span className="board-card__mark">{boardItem.board_code}</span>
+              <span className="board-card__name">{boardItem.board_name}</span>
 
               <span className="board-card__action">
-                {boardItem ? "Browse schools" : "Search directory"}{" "}
+                Browse schools{" "}
                 <ArrowRight size={14} />
               </span>
             </button>
           ))}
+          {!boardsError && boards.length === 0 && <p className="section-empty">No active education boards are available.</p>}
         </div>
       </section>
 
@@ -1153,7 +1148,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <h2>Featured schools</h2>
           </div>
 
-          <a href="#schools">
+          <a href="/schools">
             Browse the directory <ArrowRight size={15} />
           </a>
         </div>
@@ -1168,15 +1163,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             {featuredError}
           </div>
         ) : featuredSchools.length > 0 ? (
-          <div
-            className="featured-school-row"
-            role="region"
-            aria-label="Featured schools"
-          >
-            {featuredSchools.map((school) => (
-              <SchoolCard key={school.school_id} school={school} />
-            ))}
-          </div>
+          <FeaturedSchoolCards schools={featuredSchools} />
         ) : (
           <p className="section-empty">
             Featured schools will appear here when the directory has published
@@ -1299,7 +1286,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <Link href="/signup" className="primary-button">
               List Your School
             </Link>
-            <Link href="#schools" className="secondary-button">
+            <Link href="/schools" className="secondary-button">
               Learn More
             </Link>
           </div>
@@ -1314,7 +1301,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           </div>
 
           <div className="final-cta__actions">
-            <Link href="#schools" className="primary-button">
+            <Link href="/schools" className="primary-button">
               Find Schools
             </Link>
             <Link
@@ -1378,9 +1365,9 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           <div className="site-footer__links">
             <div>
               <h3>Explore</h3>
-              <Link href="#schools">Find Schools</Link>
-              <Link href="#schools">Compare Schools</Link>
-              <Link href="#schools">Shortlist</Link>
+              <Link href="/schools">Find Schools</Link>
+              <Link href="/schools">Compare Schools</Link>
+              <Link href="/schools">Shortlist</Link>
             </div>
 
             <div>
@@ -1418,7 +1405,21 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         </span>
       </section>
 
-      <section className={`discovery-content${isHomePage ? " discovery-content--home" : ""}`} id="schools">
+      </>
+      )}
+
+      {!isHomePage && (
+      <>
+      <section className="directory-page-heading">
+        <Link href="/">Home</Link>
+        <div>
+          <div className="section-eyebrow">SCHOOL DIRECTORY</div>
+          <h1>Explore schools across India</h1>
+          <p>Filter the latest school listings by location, board, school type, and annual fees.</p>
+        </div>
+      </section>
+
+      <section className="discovery-content" id="schools">
         <div className="section-heading">
           <div>
             <div className="section-eyebrow">EXPLORE THE DIRECTORY</div>
@@ -1479,23 +1480,16 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <fieldset className="filter-group">
               <legend>School type</legend>
               <div className="filter-checklist" id="school-type-filter">
-                {homeSchoolTypeFilterLabels.map((label) => {
-                  const ids = schoolTypes
-                    .filter((type) => (isHomePage
-                      ? homeFilterSchoolTypeLabel(type)
-                      : schoolTypeLabel(type.type_code, type.slug, type.type_name)) === label)
-                    .map((type) => type.school_type_id);
-                  if (!ids.length && !isHomePage) return null;
-                  const selected = ids.some((id) => schoolType.includes(id));
-                  return <label className={`filter-check${ids.length ? "" : " filter-check--disabled"}`} key={label}>
-                    <input type="checkbox" checked={selected} disabled={!ids.length} onChange={() => {
-                      if (!ids.length) return;
+                {schoolTypes.map((type) => {
+                  const selected = schoolType.includes(type.school_type_id);
+                  return <label className="filter-check" key={type.school_type_id}>
+                    <input type="checkbox" checked={selected} onChange={() => {
                       setSchoolType((current) => selected
-                        ? current.filter((id) => !ids.includes(id))
-                        : [...new Set([...current, ...ids])]);
+                        ? current.filter((id) => id !== type.school_type_id)
+                        : [...current, type.school_type_id]);
                       trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
                     }} />
-                    <span>{label}</span>
+                    <span>{type.type_name}</span>
                   </label>;
                 })}
               </div>
@@ -1734,6 +1728,8 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           </div>
         </div>
       </section>
+      </>
+      )}
 
       <SearchCommandPalette
         boards={boards}
@@ -1745,6 +1741,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       />
       {!filtersOpen && <CompareBar />}
 
+      {isHomePage && <>
       {/* A second how-it-works section; renamed its ID to avoid duplicate IDs. */}
       <section className="how-it-works" id="how-it-works-steps">
         <div className="how-it-works__intro">
@@ -1839,7 +1836,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         <div className="site-footer__links">
           <Link href="#cities">Cities</Link>
           <Link href="#boards">Boards</Link>
-          <Link href="#schools">Schools</Link>
+          <Link href="/schools">Schools</Link>
           <Link href="#parent-stories">Parent stories</Link>
           <Link href="#blog">Blog</Link>
         </div>
@@ -1850,6 +1847,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
         <p>Helping every family find a place to belong.</p>
       </footer>
+      </>}
     </main>
   );
 }

@@ -54,7 +54,7 @@ export default function ComparePage() {
 
   return (
     <main className="compare-page">
-      <Link className="school-detail__back" href="/#schools">
+      <Link className="school-detail__back" href="/schools">
         <ArrowLeft size={15} /> Back to school search
       </Link>
       <div className="compare-page__heading">
@@ -75,7 +75,7 @@ export default function ComparePage() {
         <section className="compare-empty">
           <h2>No schools selected yet</h2>
           <p>Select up to three schools from the directory to compare them.</p>
-          <Link href="/#schools">Browse schools</Link>
+          <Link href="/schools">Browse schools</Link>
         </section>
       ) : (
         <div className="compare-table-wrap">

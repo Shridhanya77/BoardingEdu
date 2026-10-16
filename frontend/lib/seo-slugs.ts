@@ -60,6 +60,13 @@ export function schoolTypeLabel(typeCode: string, slug = "", name = "") {
 export const schoolTypePath = (typeCode: string, slug = "", name = "") =>
   schoolTypeCategory(typeCode, slug, name) === "day-school" ? "day-school" : "residential-school";
 
+export function schoolProfileTypeSegment(types: { type_code: string; slug: string; type_name: string }[]) {
+  const categories = types.map((type) => schoolTypeCategory(type.type_code, type.slug, type.type_name));
+  if (categories.includes("full-boarding-school")) return "fullboarding";
+  if (categories.includes("boarding-school")) return "boarding";
+  return "dayschool";
+}
+
 export function isDiscoverableSchoolType(typeCode: string, slug = "", name = "") {
   return schoolTypeCategory(typeCode, slug, name) !== null;
 }
