@@ -6,6 +6,7 @@ from .models import (
     Grade,
     Facility,
     School,
+    SchoolPhoto,
     SchoolFacility,
     SchoolGrade,
 )
@@ -95,6 +96,11 @@ class SchoolGradeInline(admin.TabularInline):
     autocomplete_fields = ("grade",)
     list_display_links = ("grade",)
 
+class SchoolPhotoInline(admin.TabularInline):
+    model = SchoolPhoto
+    extra = 1
+    fields = ("photo_url", "caption", "alt_text", "sort_order", "status")
+
 
 
 @admin.register(School)
@@ -161,6 +167,8 @@ class SchoolAdmin(admin.ModelAdmin):
                     "school_name",
                     "short_name",
                     "slug",
+                    "school_logo_url",
+                    "school_image_url",
                 )
             },
         ),
@@ -223,6 +231,7 @@ class SchoolAdmin(admin.ModelAdmin):
     )
 
     inlines = [
+        SchoolPhotoInline,
         SchoolFacilityInline,
         SchoolGradeInline,
     ]

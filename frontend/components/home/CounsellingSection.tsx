@@ -2,33 +2,58 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { fetchAllPages, geography, schools, type CityListItem, type GradeListItem } from "@/lib/api";
-
-const LEAD_KEY = "boardingeu:counselling-leads";
+import {
+  admissions,
+  ApiError,
+  fetchAllPages,
+  geography,
+  schools,
+  type BoardListItem,
+  type CityListItem,
+  type GradeListItem,
+  type SchoolTypeListItem,
+} from "@/lib/api";
+import GradeMultiSelect from "./GradeMultiSelect";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [grade, setGrade] = useState("");
+  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [homeCity, setHomeCity] = useState("");
   const [cityQuery, setCityQuery] = useState("");
+  const [message, setMessage] = useState("");
   const [cityHits, setCityHits] = useState<CityListItem[]>([]);
   const [preferred, setPreferred] = useState<CityListItem[]>([]);
   const [grades, setGrades] = useState<GradeListItem[]>([]);
+  const [boards, setBoards] = useState<BoardListItem[]>([]);
+  const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
+  const [selectedBoards, setSelectedBoards] = useState<string[]>([]);
+  const [selectedSchoolTypes, setSelectedSchoolTypes] = useState<string[]>([]);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
+  const [cityError, setCityError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    schools
-      .grades()
-      .then((page) => fetchAllPages(page))
-      .then((rows) => {
-        if (!cancelled) setGrades(rows.filter((row) => row.status));
+    Promise.all([
+      schools.grades().then((page) => fetchAllPages(page)),
+      schools.boards().then((page) => fetchAllPages(page)),
+      schools.types().then((page) => fetchAllPages(page)),
+    ])
+      .then(([gradeRows, boardRows, typeRows]) => {
+        if (!cancelled) {
+          setGrades(gradeRows.filter((row) => row.status));
+          setBoards(boardRows.filter((row) => row.status));
+          setSchoolTypes(typeRows.filter((row) => row.status));
+        }
       })
-      .catch(() => {
-        if (!cancelled) setGrades([]);
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setOptionsError(reason instanceof Error ? reason.message : "Could not load counselling options.");
+        }
       });
     return () => {
       cancelled = true;
@@ -47,6 +72,7 @@ export default function CounsellingSection() {
         .searchCities(query)
         .then((page) => {
           if (!cancelled) {
+            setCityError(null);
             setCityHits(
               page.results.filter(
                 (city) =>
@@ -55,8 +81,11 @@ export default function CounsellingSection() {
             );
           }
         })
-        .catch(() => {
-          if (!cancelled) setCityHits([]);
+        .catch((reason: unknown) => {
+          if (!cancelled) {
+            setCityHits([]);
+            setCityError(reason instanceof Error ? reason.message : "Could not search cities.");
+          }
         });
     }, 220);
     return () => {
@@ -73,7 +102,7 @@ export default function CounsellingSection() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    setSuccess(false);
+    setSuccess(null);
     if (!name.trim()) {
       setError("Please enter your name.");
       return;
@@ -83,8 +112,12 @@ export default function CounsellingSection() {
       setError("Please enter a valid WhatsApp number.");
       return;
     }
-    if (!grade) {
-      setError("Please select your child's grade.");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!selectedGrades.length) {
+      setError("Please select at least one grade/class.");
       return;
     }
     if (preferred.length === 0) {
@@ -93,26 +126,40 @@ export default function CounsellingSection() {
     }
     setSubmitting(true);
     try {
-      const lead = {
-        name: name.trim(),
+      const allSameCountry = preferred.every((city) => city.country_id === preferred[0]!.country_id);
+      const allSameState = preferred.every((city) => city.state_id === preferred[0]!.state_id);
+      const result = await admissions.submitCounselling({
+        parent_name: name.trim(),
+        email: email.trim(),
         phone: digits,
-        grade,
-        homeCity: homeCity.trim(),
-        preferredCities: preferred.map((city) => city.city_name),
-        createdAt: new Date().toISOString(),
-      };
-      const existing = JSON.parse(window.localStorage.getItem(LEAD_KEY) ?? "[]") as unknown;
-      const next = Array.isArray(existing) ? [...existing, lead] : [lead];
-      window.localStorage.setItem(LEAD_KEY, JSON.stringify(next));
-      setSuccess(true);
+        home_city: homeCity.trim(),
+        preferred_country: allSameCountry ? preferred[0]!.country_id : undefined,
+        preferred_state: allSameState ? preferred[0]!.state_id : undefined,
+        preferred_cities: preferred.map((city) => city.city_id),
+        grades: selectedGrades,
+        boards: selectedBoards,
+        school_types: selectedSchoolTypes,
+        message: message.trim(),
+      });
+      setSuccess(result.reference);
       setName("");
+      setEmail("");
       setPhone("");
-      setGrade("");
+      setSelectedGrades([]);
       setHomeCity("");
       setPreferred([]);
       setCityQuery("");
-    } catch {
-      setError("We could not save your request on this device. Please try again.");
+      setSelectedBoards([]);
+      setSelectedSchoolTypes([]);
+      setMessage("");
+    } catch (reason: unknown) {
+      setError(
+        reason instanceof ApiError
+          ? reason.message
+          : reason instanceof Error
+            ? reason.message
+            : "We could not submit your request. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -168,6 +215,18 @@ export default function CounsellingSection() {
             onChange={(event) => setName(event.target.value)}
             placeholder="e.g. Ananya Kamath"
             autoComplete="name"
+            required
+          />
+        </label>
+        <label>
+          Email Address
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
           />
         </label>
         <label>
@@ -178,19 +237,16 @@ export default function CounsellingSection() {
             placeholder="98765 43210"
             inputMode="tel"
             autoComplete="tel"
+            required
           />
         </label>
-        <label>
-          Child&apos;s Grade
-          <select value={grade} onChange={(event) => setGrade(event.target.value)}>
-            <option value="">Select grade</option>
-            {grades.map((item) => (
-              <option key={item.grade_id} value={item.grade_name}>
-                {item.grade_name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <GradeMultiSelect
+          grades={grades}
+          selectedIds={selectedGrades}
+          onChange={setSelectedGrades}
+          disabled={submitting}
+        />
+        {optionsError && <p className="counselling__error" role="alert">{optionsError}</p>}
         <label>
           Home City
           <input
@@ -241,13 +297,68 @@ export default function CounsellingSection() {
               ))}
             </div>
           )}
+          {cityError && <p className="counselling__error" role="alert">{cityError}</p>}
           {selectedNames && <p className="sr-only">Selected: {selectedNames}</p>}
         </div>
+        {boards.length > 0 && (
+          <fieldset className="counselling__preferences">
+            <legend>Preferred education boards</legend>
+            {boards.map((board) => (
+              <label key={board.board_id}>
+                <input
+                  type="checkbox"
+                  checked={selectedBoards.includes(board.board_id)}
+                  disabled={submitting}
+                  onChange={(event) =>
+                    setSelectedBoards((current) =>
+                      event.target.checked
+                        ? [...current, board.board_id]
+                        : current.filter((id) => id !== board.board_id)
+                    )
+                  }
+                />
+                {board.board_name}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        {schoolTypes.length > 0 && (
+          <fieldset className="counselling__preferences">
+            <legend>Preferred school types</legend>
+            {schoolTypes.map((type) => (
+              <label key={type.school_type_id}>
+                <input
+                  type="checkbox"
+                  checked={selectedSchoolTypes.includes(type.school_type_id)}
+                  disabled={submitting}
+                  onChange={(event) =>
+                    setSelectedSchoolTypes((current) =>
+                      event.target.checked
+                        ? [...current, type.school_type_id]
+                        : current.filter((id) => id !== type.school_type_id)
+                    )
+                  }
+                />
+                {type.type_name}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <label>
+          Additional requirements
+          <textarea
+            rows={3}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            disabled={submitting}
+            placeholder="Optional details that will help our counsellor prepare."
+          />
+        </label>
 
         {error && <p className="counselling__error" role="alert">{error}</p>}
         {success && (
           <p className="counselling__ok" role="status">
-            Thank you. A counsellor will reach you on WhatsApp shortly.
+            Request confirmed. Your counselling reference is <strong>{success}</strong>.
           </p>
         )}
         <button type="submit" disabled={submitting}>

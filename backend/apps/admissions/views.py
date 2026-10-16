@@ -1,8 +1,9 @@
-from rest_framework import viewsets
+from rest_framework import generics, viewsets
 from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
 )
+from rest_framework.throttling import ScopedRateThrottle
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -17,7 +18,7 @@ from apps.users.permissions import (
 from apps.users.models import User
 
 from .models import Child, AdmissionEnquiry
-from .serializers import ChildSerializer, AdmissionEnquirySerializer
+from .serializers import ChildSerializer, AdmissionEnquirySerializer, CounsellingRequestSerializer
 
 
 # ============================================================
@@ -257,3 +258,9 @@ class AdmissionEnquiryViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
+
+class CounsellingRequestCreateView(generics.CreateAPIView):
+    serializer_class = CounsellingRequestSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "counselling"

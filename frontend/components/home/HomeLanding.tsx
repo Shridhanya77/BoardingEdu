@@ -12,7 +12,6 @@ import {
 import SeoPlaceMarquee, { type SeoPlace } from "@/components/home/SeoPlaceMarquee";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import CounsellingSection from "@/components/home/CounsellingSection";
-import SiteFooterSeo from "@/components/home/SiteFooterSeo";
 import { useMemo, useState } from "react";
 
 type Props = {
@@ -245,7 +244,6 @@ export default function HomeLanding({
         </div>
       </section>
 
-      <SiteFooterSeo />
     </>
   );
 }

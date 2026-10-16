@@ -9,6 +9,7 @@ import { toSeoSlug } from "@/lib/seo-slugs";
 type Props = {
   cities?: CityListItem[];
   boards?: BoardListItem[];
+  dataError?: string | null;
 };
 
 const schoolSearchTypes = [
@@ -17,7 +18,7 @@ const schoolSearchTypes = [
   { label: "Full Boarding", slug: "full-boarding-school" },
 ];
 
-export default function SiteFooterSeo({ cities = [], boards = [] }: Props) {
+export default function SiteFooterSeo({ cities = [], boards = [], dataError }: Props) {
   const [activeType, setActiveType] = useState(schoolSearchTypes[0]!.slug);
   const popularCities = cities.slice(0, 16);
   const stateSearches = useMemo(() => {
@@ -60,6 +61,7 @@ export default function SiteFooterSeo({ cities = [], boards = [] }: Props) {
           </div>
         </div>
         <div className="seo-footer__search-groups">
+          {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
           <section>
             <h3>By city</h3>
             {popularCities.map((city) => (
@@ -82,7 +84,7 @@ export default function SiteFooterSeo({ cities = [], boards = [] }: Props) {
           <section>
             <h3>By education board</h3>
             {boards.slice(0, 16).map((board) => (
-              <Link key={board.board_id} href={`/schools?board=${encodeURIComponent(board.board_id)}`}>
+              <Link key={board.board_id} href={`/board=${toSeoSlug(board.slug)}`}>
                 {`${board.board_name} schools in India`}
               </Link>
             ))}

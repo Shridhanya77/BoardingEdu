@@ -3,11 +3,19 @@
 import { ArrowRight, MapPin, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
-import { schoolProfileTypeSegment } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
-  return `/${school.country_slug}/${school.state_slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
+  return `/${[
+    school.country_slug,
+    school.state_slug,
+    school.city_slug,
+    school.location_slug,
+    school.slug,
+  ]
+    .filter(Boolean)
+    .join("/")}`;
 }
 
 function formatFee(value: string | null) {
@@ -18,6 +26,43 @@ function formatFee(value: string | null) {
     return `₹${(amount / 100000).toFixed(1)}L / yr`;
   }
   return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)} / yr`;
+}
+
+function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const initials = school.short_name || school.school_name.slice(0, 2);
+
+  return (
+    <div className="featured-card__cover">
+      {school.school_image_url && !imageFailed && (
+        <Image
+          className="featured-card__cover-image"
+          src={school.school_image_url}
+          alt=""
+          fill
+          sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw"
+          unoptimized
+          aria-hidden="true"
+          onError={() => setImageFailed(true)}
+        />
+      )}
+      <div className="featured-card__logo">
+        {school.school_logo_url && !logoFailed ? (
+          <Image
+            src={school.school_logo_url}
+            alt={`${school.school_name} logo`}
+            width={88}
+            height={88}
+            unoptimized
+            onError={() => setLogoFailed(true)}
+          />
+        ) : (
+          <span aria-label={`${school.school_name} logo unavailable`}>{initials}</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function FeaturedSchoolCards({
@@ -47,34 +92,7 @@ export default function FeaturedSchoolCards({
 
         return (
           <article className="featured-card" key={school.school_id}>
-            <div className="featured-card__cover">
-              {school.school_image_url && (
-                <Image
-                  className="featured-card__cover-image"
-                  src={school.school_image_url}
-                  alt=""
-                  fill
-                  sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw"
-                  unoptimized
-                  aria-hidden="true"
-                />
-              )}
-              <div className="featured-card__logo">
-                {school.school_logo_url ? (
-                  <Image
-                    src={school.school_logo_url}
-                    alt={`${school.school_name} logo`}
-                    width={88}
-                    height={88}
-                    unoptimized
-                  />
-                ) : (
-                  <span aria-label={`${school.school_name} logo unavailable`}>
-                    {school.short_name || school.school_name.slice(0, 2)}
-                  </span>
-                )}
-              </div>
-            </div>
+            <FeaturedSchoolCover school={school} />
             <div className="featured-card__badges">
               <span>{boards}</span>
               <span>{type}</span>

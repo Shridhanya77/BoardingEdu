@@ -25,7 +25,7 @@ the frontend.
    | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (replace `Postgres` if your service has a different name) |
    | `DATABASE_SSL_REQUIRE` | `false` when using Railway's private database URL |
    | `ALLOWED_HOSTS` | The Railway API hostname, without `https://` |
-   | `CORS_ALLOWED_ORIGINS` | The Vercel production origin, e.g. `https://your-project.vercel.app` |
+   | `CORS_ALLOWED_ORIGINS` | Optional origins for other browser clients. The Next.js frontend uses a same-origin backend proxy and does not require CORS access to Django. |
    | `CSRF_TRUSTED_ORIGINS` | The Vercel origin; include the API origin if using Django admin |
 
    Keep `DATABASE_URL` private. Use Railway's private Postgres URL when the
@@ -49,9 +49,9 @@ the frontend.
    |---|---|
    | `NEXT_PUBLIC_API_BASE` | `https://YOUR-API-DOMAIN/api` |
 
-   Include `/api` and do not add a trailing slash. Set the exact frontend
-   production origin in Railway's `CORS_ALLOWED_ORIGINS`. Preview deployments
-   can be allowed with `CORS_ALLOWED_ORIGIN_REGEXES` if needed.
+   Include `/api` and do not add a trailing slash. The frontend calls Django
+   through its same-origin `/backend-api/` rewrite, avoiding browser CORS
+   failures for production and preview deployments.
 
 4. Redeploy Vercel after setting the variable. `NEXT_PUBLIC_API_BASE` is
    embedded in the frontend build, so changing it without redeploying will not
@@ -69,6 +69,20 @@ the frontend.
 If the browser reports CORS but the API URL returns an error such as HTTP 503,
 fix the API service/domain first. A suspended or unavailable server cannot
 return CORS headers.
+
+If the Vercel directory reports `API 500 on /schools/schools/` while
+geography and board endpoints still respond, inspect the Railway Django logs
+for the failing request and verify the deployed backend is from the same code
+revision as the frontend. School model changes require the migrations shipped
+with that backend revision. From the Railway service shell, check
+`python manage.py showmigrations schools admissions` and run
+`python manage.py migrate --noinput` if migrations are pending. The configured
+Railway build command (`bash ./build.sh`) also runs migrations; confirm that
+the latest backend build completed successfully before redeploying Vercel.
+The school image fields require `schools.0004_add_school_logo_url` and
+`schools.0005_add_school_image_url`. School detail galleries require
+`schools.0006_schoolphoto`; add gallery photos from a school's Django admin
+page. Counselling submissions require `admissions.0003_counsellingrequest`.
 
 ## Local development
 

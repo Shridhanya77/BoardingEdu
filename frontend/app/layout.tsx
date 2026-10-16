@@ -4,6 +4,7 @@ import NavBar from "@/components/NavBar";
 import { AuthProvider } from "@/lib/auth";
 import { SearchExperienceProvider } from "@/lib/search-experience";
 import SearchAnalyticsConsent from "@/components/SearchAnalyticsConsent";
+import PublicSiteFooter from "@/components/home/PublicSiteFooter";
 import { homeSeoKeywords } from "@/lib/home-content";
 
 export const metadata: Metadata = {
@@ -31,6 +32,7 @@ export default function RootLayout({
             <NavBar />
             {children}
             <SearchAnalyticsConsent />
+            <PublicSiteFooter />
           </SearchExperienceProvider>
         </AuthProvider>
       </body>

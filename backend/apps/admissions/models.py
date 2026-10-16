@@ -1,5 +1,7 @@
 import uuid
 from django.db import models
+from apps.geography.models import City, Country, State
+from apps.schools.models import Board, Grade, School, SchoolType
 
 
 class Child(models.Model):
@@ -261,3 +263,43 @@ class AdmissionEnquiry(models.Model):
             except Exception:
                 school_code = "school unavailable"
         return f"{self.enquiry_code} → {school_code} [{self.status}]"
+
+
+class CounsellingRequest(models.Model):
+    STATUS_CHOICES = [
+        ("NEW", "New"),
+        ("CONTACTED", "Contacted"),
+        ("CLOSED", "Closed"),
+    ]
+
+    request_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    reference = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    parent_name = models.CharField(max_length=150)
+    email = models.EmailField()
+    phone = models.CharField(max_length=30)
+    home_city = models.CharField(max_length=100, blank=True)
+    preferred_country = models.ForeignKey(
+        Country, on_delete=models.SET_NULL, null=True, blank=True, related_name="counselling_requests"
+    )
+    preferred_state = models.ForeignKey(
+        State, on_delete=models.SET_NULL, null=True, blank=True, related_name="counselling_requests"
+    )
+    preferred_cities = models.ManyToManyField(City, related_name="counselling_requests")
+    grades = models.ManyToManyField(Grade, related_name="counselling_requests")
+    school_types = models.ManyToManyField(SchoolType, blank=True, related_name="counselling_requests")
+    boards = models.ManyToManyField(Board, blank=True, related_name="counselling_requests")
+    preferred_school = models.ForeignKey(
+        School, on_delete=models.SET_NULL, null=True, blank=True, related_name="counselling_requests"
+    )
+    message = models.TextField(blank=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="NEW", db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "counselling_requests"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status", "created_at"])]
+
+    def __str__(self):
+        return f"{self.reference} — {self.parent_name}"

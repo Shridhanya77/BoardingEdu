@@ -7,30 +7,44 @@ import {
   CheckCircle2,
   GraduationCap,
   Landmark,
-  Mail,
+  MessageSquare,
   MapPin,
   Phone,
   Star,
   Users,
 } from "lucide-react";
 import type { SchoolDetail } from "@/lib/api";
-import { schoolProfileTypeSegment, schoolTypeLabel } from "@/lib/seo-slugs";
+import { schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
+import SchoolPhotoGallery from "./SchoolPhotoGallery";
+import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
 
-const genderLabels = {
-  COED: "Co-Ed",
-  BOYS: "Boys Only",
-  GIRLS: "Girls Only",
-} as const;
+function genderLabel(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized === "coed" || normalized === "co-ed") return "Co-Ed";
+  if (normalized === "boys" || normalized === "boys only") return "Boys Only";
+  if (normalized === "girls" || normalized === "girls only") return "Girls Only";
+  return value || "Not provided";
+}
 
-const verificationLabels = {
-  UNVERIFIED: "Not yet verified",
-  PENDING: "Verification in progress",
-  VERIFIED: "Verified school",
-} as const;
+function verificationLabel(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized === "verified") return "Verified school";
+  if (normalized.includes("pending")) return "Verification in progress";
+  return "Not yet verified";
+}
 
 export function schoolProfilePath(school: SchoolDetail) {
-  return `/${school.country_detail.slug}/${school.state_detail.slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
+  return `/${[
+    school.country_detail.slug,
+    school.state_detail.slug,
+    school.city_detail.slug,
+    school.location_detail?.slug,
+    school.slug,
+  ]
+    .filter((slug): slug is string => Boolean(slug))
+    .map((slug) => toSeoSlug(slug))
+    .join("/")}`;
 }
 
 function gradeBadge(gradeName: string, seats: number | null, entryAge: [number | null, number | null]) {
@@ -81,32 +95,64 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
       label: schoolTypeLabel(type.type_code, type.slug, type.type_name),
       icon: BedDouble,
     })),
-    { label: genderLabels[school.gender], icon: Users },
+    { label: genderLabel(school.gender), icon: Users },
     {
       label: school.established_year ? `Est. ${school.established_year}` : "Year unknown",
       icon: Star,
     },
   ];
+  const structuredData = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "School",
+    name: school.school_name,
+    description: `${school.school_name} in ${location}.`,
+    image: school.school_image_url || undefined,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: school.address,
+      addressLocality: school.city_detail.city_name,
+      addressRegion: school.state_detail.state_name,
+      postalCode: school.pincode || undefined,
+      addressCountry: school.country_detail.country_name,
+    },
+    telephone: school.phone || undefined,
+    email: school.email || undefined,
+  }).replace(/</g, "\\u003c");
 
   return (
     <main className="school-detail-page">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <div className="school-detail">
         <Link className="school-detail__back" href="/schools"><ArrowLeft size={15} /> Back to schools</Link>
 
         <nav className="school-breadcrumbs" aria-label="Breadcrumb">
           <Link href="/">Home</Link><span>/</span>
-          <span>{school.country_detail.country_name}</span><span>/</span>
-          <span>{school.state_detail.state_name}</span><span>/</span>
-          <span>{school.city_detail.city_name}</span>
+          <Link href={`/${school.country_detail.slug}`}>{school.country_detail.country_name}</Link><span>/</span>
+          <Link href={`/${school.country_detail.slug}/${school.state_detail.slug}`}>{school.state_detail.state_name}</Link><span>/</span>
+          <Link href={`/${school.country_detail.slug}/${school.state_detail.slug}/${school.city_detail.slug}`}>{school.city_detail.city_name}</Link>
+          {school.location_detail && <><span>/</span><span>{school.location_detail.location_name}</span></>}
+          <span>/</span><span aria-current="page">{school.school_name}</span>
         </nav>
 
         <section className="school-detail__hero">
-          <div className="school-detail__crest" aria-hidden="true">{(school.short_name || school.school_name).slice(0, 2).toUpperCase()}</div>
+          {school.school_logo_url ? (
+            <Image
+              className="school-detail__crest"
+              src={school.school_logo_url}
+              alt={`${school.school_name} logo`}
+              width={80}
+              height={80}
+              unoptimized
+            />
+          ) : (
+            <div className="school-detail__crest" aria-hidden="true">{(school.short_name || school.school_name).slice(0, 2).toUpperCase()}</div>
+          )}
           <div className="school-detail__intro">
             <div className="school-detail__eyebrow">
-              {school.verification_status === "VERIFIED" && (
+              {school.verification_status.toLowerCase() === "verified" && (
                 <span className="verified-tag"><CheckCircle2 size={14} /> Verified school</span>
               )}
+              {school.verification_status.toLowerCase() !== "verified" && <span>{verificationLabel(school.verification_status)}</span>}
               {school.established_year && <span>Established {school.established_year}</span>}
             </div>
             <h1>{school.school_name}</h1>
@@ -122,10 +168,30 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
             </div>
           </div>
           <div className="school-detail__actions">
-            {school.phone && <a className="detail-button detail-button--primary" href={`tel:${school.phone}`}><Phone size={16} /> Call school</a>}
-            {school.email && <a className="detail-button" href={`mailto:${school.email}`}><Mail size={16} /> Email school</a>}
+            <a className="detail-button detail-button--primary" href="tel:9999999999"><Phone size={16} /> Call: 9999999999</a>
+            <a className="detail-button" href="#school-enquiry"><MessageSquare size={16} /> Send an Enquiry</a>
           </div>
         </section>
+
+        {(school.school_image_url || school.photos_detail?.length) && (
+          <SchoolPhotoGallery
+            photos={[
+              ...(school.school_image_url
+                ? [{
+                    photo_id: "school-cover",
+                    photo_url: school.school_image_url,
+                    caption: "",
+                    alt_text: `${school.school_name} campus`,
+                    sort_order: 0,
+                  }]
+                : []),
+              ...(school.photos_detail ?? []).filter(
+                (photo) => photo.photo_url !== school.school_image_url,
+              ),
+            ]}
+            schoolName={school.school_name}
+          />
+        )}
 
         <div className="school-detail__grid">
           <section className="school-detail__main">
@@ -138,7 +204,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
               <dl className="school-facts">
                 <div><dt>Education board</dt><dd>{school.boards_detail.map((board) => board.board_name).join(", ") || "Not provided"}</dd></div>
                 <div><dt>School type</dt><dd>{school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not provided"}</dd></div>
-                <div><dt>Student community</dt><dd>{genderLabels[school.gender]}</dd></div>
+                <div><dt>Student community</dt><dd>{genderLabel(school.gender)}</dd></div>
                 <div><dt>Established</dt><dd>{school.established_year ?? "Not provided"}</dd></div>
                 <div><dt>Principal</dt><dd>{school.principal_name || "Not provided"}</dd></div>
                 <div><dt>School code</dt><dd>{school.school_code}</dd></div>
@@ -221,19 +287,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                 </div>
               </div>
 
-              <div className="fee-summary">
-                <p className="empty-state">
-                  <CheckCircle2 size={16} />
-                  Fee structures are being verified by the school.
-                  Submit an enquiry on this page and they will share the latest fee schedule
-                  along with available scholarships and sibling discounts.
-                </p>
-                <small className="fee-summary__note">
-                  Tip: in a full production deployment this panel pulls published
-                  <code> FeeStructure </code> rows from the BoardingEdu API and shows a
-                  grade-by-grade breakdown with tuition, accommodation, and transport.
-                </small>
-              </div>
+              <SchoolFeeSummary schoolId={school.school_id} />
             </article>
 
             {/* ===== SECTION 5: LOCATION / ADDRESS ===== */}
@@ -262,29 +316,12 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
 
           {/* ===== ASIDE ===== */}
           <aside className="school-detail__aside">
-            <section className="detail-panel contact-panel">
-              <div className="section-eyebrow">TAKE THE NEXT STEP</div>
-              <h2>Talk to the school</h2>
-              <p>School information may change. Reach out directly to confirm current details, availability, and admissions.</p>
-              {school.phone && <a className="detail-button detail-button--primary" href={`tel:${school.phone}`}><Phone size={16} /> {school.phone}</a>}
-              {school.email && <a className="detail-button" href={`mailto:${school.email}`}><Mail size={16} /> Send an email</a>}
-              <div className="contact-panel__status"><CheckCircle2 size={15} />{verificationLabels[school.verification_status]}</div>
-            </section>
-
-            {/* ===== ENQUIRY FORM ===== */}
-            <SchoolEnquiryForm school={school} />
+            <div id="school-enquiry"><SchoolEnquiryForm school={school} /></div>
 
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>
           </aside>
         </div>
       </div>
-
-      <footer className="site-footer">
-        <Link className="brand brand--footer" href="/" aria-label="BoardingEdu home">
-          <Image className="brand__image" src="/BoardingEdu_LOGO.jpeg" alt="BoardingEdu" width={1024} height={1024} />
-        </Link>
-        <p>Helping every family find a place to belong.</p>
-      </footer>
     </main>
   );
 }

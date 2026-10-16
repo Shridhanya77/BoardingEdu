@@ -17,7 +17,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -36,7 +35,6 @@ import CompareBar from "@/components/search/CompareBar";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
-import SiteFooterSeo from "@/components/home/SiteFooterSeo";
 import {
   createLocationPreferences,
   isBoardingOnlySelection,
@@ -50,7 +48,7 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { homeSchoolCategoryForIds, schoolProfileTypeSegment, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategoryForIds, schoolTypeLabel, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 const boardPalette = ["#2142ad", "#7c2d12", "#581c87", "#854d0e", "#075341", "#7f1d45"];
 const boardColorByCode: Record<string, string> = {
@@ -62,7 +60,15 @@ const boardColorByCode: Record<string, string> = {
 };
 
 function schoolHref(school: SchoolListItem) {
-  return `/${school.country_slug}/${school.state_slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
+  return `/${[
+    school.country_slug,
+    school.state_slug,
+    school.city_slug,
+    school.location_slug,
+    school.slug,
+  ]
+    .filter(Boolean)
+    .join("/")}`;
 }
 
 const genderOptions: {
@@ -240,7 +246,7 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
   );
 }
 
-type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; schoolTypes?: string[]; homeCategory?: HomeSchoolCategory };
+type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; schoolTypes?: string[]; boardIds?: string[]; homeCategory?: HomeSchoolCategory };
 const finderScrollStorageKey = "boardingeu:finder-scroll-path";
 
 export default function SchoolDiscovery({ initialFilter }: { initialFilter?: InitialDiscoveryFilter } = {}) {
@@ -320,6 +326,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const initialCity = initialFilter?.city;
   const initialLocation = initialFilter?.location;
   const initialSchoolTypeKey = initialFilter?.schoolTypes?.join(",") ?? "";
+  const initialBoardKey = initialFilter?.boardIds?.join(",") ?? "";
   const initialHomeCategory = initialFilter?.homeCategory;
   const homeSearchEnabled = !initialFilter || Boolean(initialHomeCategory);
   const isHomePage = !initialFilter;
@@ -402,11 +409,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey || initialHomeCategory) {
+    if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey || initialBoardKey || initialHomeCategory) {
       initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation);
       setSearch("");
       setSearchInput("");
-      setBoard([]);
+      setBoard(initialBoardKey ? initialBoardKey.split(",") : []);
       setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
       setHomeCategory(initialHomeCategory ?? null);
       setGeoCountry(initialCountry ?? "");
@@ -468,7 +475,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       setRecentSearches([]);
     }
     setQueryRestored(true);
-  }, [initialCountry, initialState, initialCity, initialLocation, initialSchoolTypeKey, initialHomeCategory]);
+  }, [initialCountry, initialState, initialCity, initialLocation, initialSchoolTypeKey, initialBoardKey, initialHomeCategory]);
 
   useEffect(() => {
     if (!pendingTypeSlug || !schoolTypesLoaded) return;
@@ -838,7 +845,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   function selectBoard(selectedBoard: BoardListItem) {
     if (isHomePage) {
-      router.push(`/schools?board=${encodeURIComponent(selectedBoard.board_id)}`);
+      router.push(`/board=${encodeURIComponent(toSeoSlug(selectedBoard.slug))}`);
       return;
     }
     setBoard([selectedBoard.board_id]);
@@ -1103,7 +1110,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                   className={`city-card city-card--${index + 1}`}
                   key={city.city_id}
                   onClick={() => {
-                    router.push(`/schools?country=${encodeURIComponent(city.country_id)}&state=${encodeURIComponent(city.state_id)}&city=${encodeURIComponent(city.city_id)}`);
+                    router.push(`/${city.country_slug ?? toSeoSlug(city.country_name)}/${city.state_slug ?? toSeoSlug(city.state_name)}/${toSeoSlug(city.slug)}`);
                   }}
                 >
                   <span className="city-card__number">0{index + 1}</span>
@@ -1389,8 +1396,6 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             </div>
           </section>
 
-          <SiteFooterSeo cities={cities} boards={boards} />
-
         </>
       )}
 
@@ -1400,7 +1405,13 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <Link href="/">Home</Link>
             <div>
               <div className="section-eyebrow">SCHOOL DIRECTORY</div>
-              <h1>Explore schools across India</h1>
+              <h1>
+                {board.length
+                  ? `Explore ${boards.filter((item) => board.includes(item.board_id)).map((item) => item.board_name).join(" & ")} schools`
+                  : initialFilter?.placeName
+                    ? `Schools in ${initialFilter.placeName}`
+                    : "Explore schools across India"}
+              </h1>
               <p>Filter the latest school listings by location, board, school type, and annual fees.</p>
             </div>
           </section>
@@ -1634,6 +1645,12 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                   >
                     <h3>We couldn’t load schools</h3>
                     <p>{error}</p>
+                    {/API 5\d\d/.test(error) && (
+                      <p>
+                        The directory API returned a server error. Check the Django service logs
+                        and confirm its database migrations completed successfully.
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() => setRetryCount((count) => count + 1)}
@@ -1666,7 +1683,9 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                     <p>
                       {search
                         ? `No schools matched “${search}”. Try a city or shorter search.`
-                        : "Your selected filters do not match any schools. Remove a filter to broaden the results."}
+                        : hasFilters
+                          ? "Your selected filters do not match any schools. Remove a filter to broaden the results."
+                          : "No schools are currently listed in the Django directory. Published schools will appear here when they are added in the backend."}
                     </p>
                     <button type="button" onClick={clearFilters}>
                       {search ? "Clear search and filters" : "Clear filters"}
@@ -1802,32 +1821,6 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           </div>
         </section>
 
-        {/* Kept the second footer's existing content. */}
-        <footer className="site-footer site-footer--compact">
-          <Link className="brand brand--footer" href="/" aria-label="BoardingEdu home">
-            <Image
-              className="brand__image"
-              src="/BoardingEdu_LOGO.jpeg"
-              alt="BoardingEdu"
-              width={1024}
-              height={1024}
-            />
-          </Link>
-
-          <div className="site-footer__links">
-            <Link href="#cities">Cities</Link>
-            <Link href="#boards">Boards</Link>
-            <Link href="/schools">Schools</Link>
-            <Link href="#parent-stories">Parent stories</Link>
-            <Link href="#blog">Blog</Link>
-          </div>
-
-          <span className="site-footer__meta">
-            Social and legal links coming soon
-          </span>
-
-          <p>Helping every family find a place to belong.</p>
-        </footer>
       </>}
     </main>
   );

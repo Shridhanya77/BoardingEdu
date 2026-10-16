@@ -138,6 +138,31 @@ class School(models.Model):
     def __str__(self):
         return f"{self.school_code} - {self.school_name}"
 
+
+class SchoolPhoto(models.Model):
+    photo_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="photos",
+        db_column="school_id",
+    )
+    photo_url = models.URLField(max_length=500)
+    caption = models.CharField(max_length=200, blank=True)
+    alt_text = models.CharField(max_length=250, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "school_photos"
+        ordering = ["sort_order", "created_at"]
+        indexes = [models.Index(fields=["school", "status", "sort_order"])]
+
+    def __str__(self):
+        return self.caption or f"Photo for {self.school.school_name}"
+
+
 # ---------- M2M JUNCTION: SCHOOL ↔ FACILITIES (matches ER diagram 1 SCHOOL_FACILITIES) ----------
 class SchoolFacility(models.Model):
     school_facility_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

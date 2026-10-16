@@ -8,6 +8,22 @@ export const API_BASE = (
   configuredApiBase ?? "https://boardingedu-production-ac84.up.railway.app/api"
 ).replace(/\/+$/, "");
 const API_ORIGIN = new URL(API_BASE).origin;
+const API_PATH = new URL(API_BASE).pathname.replace(/\/+$/, "");
+
+export function apiRequestUrl(path: string): URL {
+  const url = path.startsWith("http") ? new URL(path) : new URL(`${API_BASE}${path}`);
+  if (url.origin !== API_ORIGIN || !url.pathname.startsWith(`${API_PATH}/`)) {
+    throw new Error("The API returned a URL outside the configured API base.");
+  }
+  if (typeof window === "undefined") return url;
+
+  const endpointPath = url.pathname
+    .slice(API_PATH.length)
+    .replace(/^\/+|\/+$/g, "");
+  const browserUrl = new URL(`/backend-api/${endpointPath}`, window.location.origin);
+  browserUrl.search = url.search;
+  return browserUrl;
+}
 
 const defaultHeaders = { "Content-Type": "application/json" };
 const browserGetCache = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
@@ -34,10 +50,7 @@ async function parseBody(res: Response) {
  * auth.token/register methods that do not need a bearer token.
  */
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const url = path.startsWith("http") ? new URL(path) : new URL(`${API_BASE}${path}`);
-  if (url.origin !== API_ORIGIN) {
-    throw new Error("The API returned a pagination URL outside the configured API host.");
-  }
+  const url = apiRequestUrl(path);
 
   const cacheKey = (init.method ?? "GET").toUpperCase() === "GET" && typeof window !== "undefined"
     ? url.href
@@ -107,10 +120,7 @@ export async function authRequest<T>(path: string, init: RequestInit = {}): Prom
     throw new ApiError(500, "Auth tokens provider not configured — call configureAuthTokens() once at app boot.");
   }
 
-  const url = path.startsWith("http") ? new URL(path) : new URL(`${API_BASE}${path}`);
-  if (url.origin !== API_ORIGIN) {
-    throw new Error("The API returned a pagination URL outside the configured API host.");
-  }
+  const url = apiRequestUrl(path);
 
   const buildInit = (access: string): RequestInit => ({
     ...init,
@@ -233,7 +243,7 @@ export type SchoolListItem = {
   country_slug: string;
   state_slug: string;
   city_slug: string;
-  location_id: string | null; location_name: string | null;
+  location_id: string | null; location_name: string | null; location_slug?: string | null;
   boards_detail: BoardListItem[];
   school_types_detail: SchoolTypeListItem[];
   board_id: string | null; board_name: string | null;
@@ -319,6 +329,7 @@ export type SchoolFilters = {
   school_type?: string | string[];
   home_category?: "day-school" | "residential-school";
   board?: string | string[];
+  grade?: string | string[];
   min_fee?: number;
   max_fee?: number;
   gender?: "COED" | "BOYS" | "GIRLS";
@@ -382,8 +393,8 @@ export type SchoolDetail = Omit<
   board_detail: BoardListItem | null;
   school_type: string | null;
   school_type_detail: SchoolTypeListItem | null;
-  gender: "COED" | "BOYS" | "GIRLS";
-  verification_status: "UNVERIFIED" | "PENDING" | "VERIFIED";
+  gender: string;
+  verification_status: string;
   created_at: string;
   updated_at: string;
   grades_offered_detail: {
@@ -405,6 +416,13 @@ export type SchoolDetail = Omit<
     icon_url: string | null;
     quantity_or_capacity: number | null;
     description: string | null;
+  }[];
+  photos_detail: {
+    photo_id: string;
+    photo_url: string;
+    caption: string;
+    alt_text: string;
+    sort_order: number;
   }[];
 };
 
@@ -499,6 +517,73 @@ export type EnquiryListItem = {
   guest_phone: string;
 };
 
+export type CounsellingRequestInput = {
+  parent_name: string;
+  email: string;
+  phone: string;
+  home_city?: string;
+  preferred_country?: string;
+  preferred_state?: string;
+  preferred_cities: string[];
+  grades: string[];
+  school_types?: string[];
+  boards?: string[];
+  preferred_school?: string;
+  message?: string;
+};
+
+export type CounsellingRequestResult = {
+  request_id: string;
+  reference: string;
+  status: "NEW" | "CONTACTED" | "CLOSED";
+  created_at: string;
+};
+
+export type FeeStructureListItem = {
+  id: string;
+  structure_code: string;
+  structure_name: string;
+  school_id: string;
+  school_code: string;
+  school_name: string;
+  academic_year_id: string;
+  academic_year_code: string;
+  effective_from: string;
+  effective_to: string | null;
+  payment_terms_id: string | null;
+  payment_terms_name: string | null;
+  status: boolean;
+  published: boolean;
+};
+
+export type FeeItemListItem = {
+  id: string;
+  fee_structure_id: string;
+  fee_structure_code: string;
+  item_code: string;
+  item_name: string;
+  category: string;
+  grade_id: string | null;
+  grade_name: string | null;
+  school_type_id: string | null;
+  school_type_name: string | null;
+  amount: string;
+  tax: string;
+  is_refundable: boolean;
+  sort_order: number;
+};
+
+export const fees = {
+  structuresForSchool: (schoolId: string) =>
+    request<PaginatedResponse<FeeStructureListItem>>(
+      `/fees/fee-structures/?school=${encodeURIComponent(schoolId)}&status=true&published=true`,
+    ),
+  itemsForStructure: (structureId: string) =>
+    request<PaginatedResponse<FeeItemListItem>>(
+      `/fees/fee-items/?fee_structure=${encodeURIComponent(structureId)}`,
+    ),
+};
+
 export const admissions = {
   /**
    * Submit a new admission enquiry. Auth NOT required (guest enquiries allowed).
@@ -515,6 +600,11 @@ export const admissions = {
     }
     return request<EnquiryListItem>("/admissions/enquiries/", init);
   },
+  submitCounselling: (payload: CounsellingRequestInput) =>
+    request<CounsellingRequestResult>("/admissions/counselling-requests/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   list: () => authRequest<PaginatedResponse<EnquiryListItem>>("/admissions/enquiries/"),
 };
 
@@ -538,6 +628,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     city_slug: school.city_detail.slug,
     location_id: school.location_detail?.location_id ?? null,
     location_name: school.location_detail?.location_name ?? null,
+    location_slug: school.location_detail?.slug ?? null,
     boards_detail: school.boards_detail,
     school_types_detail: school.school_types_detail,
     board_id: school.board_detail?.board_id ?? null,

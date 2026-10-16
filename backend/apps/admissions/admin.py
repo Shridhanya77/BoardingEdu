@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Child, AdmissionEnquiry
+from .models import Child, AdmissionEnquiry, CounsellingRequest
 
 
 @admin.register(Child)
@@ -91,3 +91,13 @@ class AdmissionEnquiryAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(CounsellingRequest)
+class CounsellingRequestAdmin(admin.ModelAdmin):
+    list_display = ("reference", "parent_name", "email", "phone", "status", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("reference", "parent_name", "email", "phone", "home_city", "message")
+    autocomplete_fields = ("preferred_country", "preferred_state", "preferred_school")
+    filter_horizontal = ("preferred_cities", "grades", "school_types", "boards")
+    readonly_fields = ("request_id", "reference", "created_at", "updated_at")

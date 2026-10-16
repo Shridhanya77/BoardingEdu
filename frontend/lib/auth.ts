@@ -11,12 +11,12 @@ import {
   type ReactNode,
 } from "react";
 import {
-  API_BASE,
   ApiError,
   Tokens,
   TokensProvider,
   UserDetail,
   auth,
+  apiRequestUrl,
   configureAuthTokens,
   users,
   type RegisterInput,
@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const tokens = readTokens();
       if (tokens?.refresh) {
-        await fetch(`${API_BASE}/auth/jwt/blacklist/`, {
+        await fetch(apiRequestUrl("/auth/jwt/blacklist/"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh: tokens.refresh }),

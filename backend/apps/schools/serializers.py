@@ -13,6 +13,7 @@ from .models import (
     Grade,
     Facility,
     School,
+    SchoolPhoto,
     SchoolFacility,
     SchoolGrade,
 )
@@ -220,6 +221,11 @@ class SchoolListSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    location_slug = serializers.SlugField(
+        source='location.slug',
+        read_only=True,
+        allow_null=True,
+    )
 
     boards_detail = BoardListSerializer(source='boards', many=True, read_only=True)
     school_types_detail = SchoolTypeListSerializer(
@@ -267,6 +273,7 @@ class SchoolListSerializer(serializers.ModelSerializer):
 
             'location_id',
             'location_name',
+            'location_slug',
 
             'boards_detail',
             'school_types_detail',
@@ -324,6 +331,12 @@ class SchoolListSerializer(serializers.ModelSerializer):
         return getattr(obj, 'annual_fee', None)
 
 
+class SchoolPhotoListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolPhoto
+        fields = ['photo_id', 'photo_url', 'caption', 'alt_text', 'sort_order']
+
+
 # ======================================================================
 # SCHOOL — DETAIL
 # ======================================================================
@@ -371,6 +384,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
 
     grades_offered_detail = serializers.SerializerMethodField()
     facilities_detail = serializers.SerializerMethodField()
+    photos_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -419,6 +433,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
 
             'grades_offered_detail',
             'facilities_detail',
+            'photos_detail',
         ]
 
         read_only_fields = [
@@ -552,6 +567,15 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             })
 
         return result
+
+    def get_photos_detail(self, obj):
+        photos = getattr(obj, 'active_photos', None)
+        if photos is None:
+            photos = obj.photos.filter(status=True).order_by(
+                'sort_order',
+                'created_at',
+            )
+        return SchoolPhotoListSerializer(photos, many=True).data
 
 
 # ======================================================================

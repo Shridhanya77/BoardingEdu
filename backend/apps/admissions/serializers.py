@@ -1,9 +1,10 @@
 from rest_framework import serializers
 
 from apps.fees.models import AcademicYear
-from apps.schools.models import Grade
+from apps.geography.models import City, Country, State
+from apps.schools.models import Board, Grade, School, SchoolType
 
-from .models import Child, AdmissionEnquiry
+from .models import Child, AdmissionEnquiry, CounsellingRequest
 from .utils import normalize_child_gender
 
 
@@ -167,3 +168,88 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
         validated_data['guest_child_gender'] = child_gender or ''
 
         return AdmissionEnquiry.objects.create(**validated_data)
+
+
+class CounsellingRequestSerializer(serializers.ModelSerializer):
+    preferred_country = serializers.PrimaryKeyRelatedField(
+        queryset=Country.objects.filter(status=True),
+        required=False,
+        allow_null=True,
+    )
+    preferred_state = serializers.PrimaryKeyRelatedField(
+        queryset=State.objects.filter(status=True),
+        required=False,
+        allow_null=True,
+    )
+    preferred_cities = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=City.objects.filter(status=True),
+        allow_empty=False,
+    )
+    grades = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Grade.objects.filter(status=True),
+        allow_empty=False,
+    )
+    school_types = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=SchoolType.objects.filter(status=True),
+        required=False,
+    )
+    boards = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Board.objects.filter(status=True),
+        required=False,
+    )
+    preferred_school = serializers.PrimaryKeyRelatedField(
+        queryset=School.objects.filter(status=True),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = CounsellingRequest
+        fields = [
+            "request_id",
+            "reference",
+            "parent_name",
+            "email",
+            "phone",
+            "home_city",
+            "preferred_country",
+            "preferred_state",
+            "preferred_cities",
+            "grades",
+            "school_types",
+            "boards",
+            "preferred_school",
+            "message",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["request_id", "reference", "status", "created_at"]
+
+    def validate_phone(self, value):
+        digits = "".join(character for character in value if character.isdigit())
+        if len(digits) < 10 or len(digits) > 15:
+            raise serializers.ValidationError("Enter a valid phone number with 10 to 15 digits.")
+        return digits
+
+    def validate(self, attrs):
+        country = attrs.get("preferred_country")
+        state = attrs.get("preferred_state")
+        cities = attrs.get("preferred_cities", [])
+        if state and country and state.country_id != country.pk:
+            raise serializers.ValidationError({
+                "preferred_state": "The selected state does not belong to the selected country."
+            })
+        for city in cities:
+            if state and city.state_id != state.pk:
+                raise serializers.ValidationError({
+                    "preferred_cities": "Each selected city must belong to the selected state."
+                })
+            if country and city.state.country_id != country.pk:
+                raise serializers.ValidationError({
+                    "preferred_cities": "Each selected city must belong to the selected country."
+                })
+        return attrs

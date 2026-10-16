@@ -96,7 +96,15 @@ export default function ComparePage() {
                       </button>
                     </div>
                     <Link
-                      href={`/${school.country_slug}/${school.state_slug}/${school.city_slug}/${school.slug}`}
+                      href={`/${[
+                        school.country_slug,
+                        school.state_slug,
+                        school.city_slug,
+                        school.location_slug,
+                        school.slug,
+                      ]
+                        .filter(Boolean)
+                        .join("/")}`}
                     >
                       View profile
                     </Link>

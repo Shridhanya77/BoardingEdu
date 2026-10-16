@@ -4,12 +4,12 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum
+from django.db.models import DecimalField, F, OuterRef, Prefetch, Q, Subquery, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
-from .models import Board, SchoolType, Grade, Facility, School, SchoolFacility,SchoolGrade
+from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolFacility,SchoolGrade
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -40,6 +40,10 @@ class SchoolFilter(django_filters.FilterSet):
     board = django_filters.ModelMultipleChoiceFilter(
         field_name='boards',
         queryset=Board.objects.all(),
+    )
+    grade = django_filters.ModelMultipleChoiceFilter(
+        method='filter_grades',
+        queryset=Grade.objects.filter(status=True),
     )
     school_type = django_filters.ModelMultipleChoiceFilter(
         field_name='school_types',
@@ -180,6 +184,14 @@ class SchoolFilter(django_filters.FilterSet):
 
         return queryset.filter(location_query)
 
+    def filter_grades(self, queryset, name, grades):
+        if not grades:
+            return queryset
+        return queryset.filter(
+            school_grades__grade__in=grades,
+            school_grades__is_active=True,
+        ).distinct()
+
     @staticmethod
     def annual_fee_subquery():
         return (
@@ -269,6 +281,14 @@ class SchoolViewSet(ReadWriteModelViewSet):
             'school_types',
             'school_grades__grade',
             'school_facilities__facility',
+            Prefetch(
+                'photos',
+                queryset=SchoolPhoto.objects.filter(status=True).order_by(
+                    'sort_order',
+                    'created_at',
+                ),
+                to_attr='active_photos',
+            ),
         )
         .annotate(
             annual_fee=Subquery(

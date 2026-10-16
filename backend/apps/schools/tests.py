@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, Location, State
-from .models import Board, School, SchoolType
+from .models import Board, Grade, School, SchoolGrade, SchoolPhoto, SchoolType
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .views import SchoolFilter, SchoolViewSet
 
@@ -99,6 +99,7 @@ class SchoolClassificationTests(TestCase):
         listing = SchoolListSerializer(school).data
         self.assertEqual(len(listing['boards_detail']), 2)
         self.assertEqual(len(listing['school_types_detail']), 2)
+        self.assertIsNone(listing['location_slug'])
 
     def test_school_accepts_legacy_single_classification_input(self):
         school = self.create_school('LEGACY')
@@ -126,6 +127,60 @@ class SchoolClassificationTests(TestCase):
         self.assertEqual(SchoolListSerializer(school).data['school_image_url'], school.school_image_url)
         self.assertEqual(SchoolDetailSerializer(school).data['school_logo_url'], school.school_logo_url)
         self.assertEqual(SchoolDetailSerializer(school).data['school_image_url'], school.school_image_url)
+
+    def test_school_detail_includes_only_active_photos_in_display_order(self):
+        school = self.create_school('WITH-PHOTOS')
+        second = SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/second.jpg',
+            caption='Library',
+            sort_order=2,
+        )
+        first = SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/first.jpg',
+            caption='Campus',
+            sort_order=1,
+        )
+        SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/hidden.jpg',
+            status=False,
+        )
+
+        photos = SchoolDetailSerializer(school).data['photos_detail']
+        self.assertEqual(
+            [photo['photo_id'] for photo in photos],
+            [str(first.photo_id), str(second.photo_id)],
+        )
+        self.assertEqual(photos[0]['caption'], 'Campus')
+
+    def test_grade_filter_matches_active_school_grade_offerings(self):
+        grade = Grade.objects.create(
+            grade_code='G6',
+            grade_name='Grade 6',
+            sort_order=6,
+        )
+        offered = self.create_school('GRADE-A')
+        not_offered = self.create_school('GRADE-B')
+        SchoolGrade.objects.create(school=offered, grade=grade, is_active=True)
+        SchoolGrade.objects.create(school=not_offered, grade=grade, is_active=False)
+
+        params = QueryDict("", mutable=True)
+        params.setlist("grade", [str(grade.pk)])
+        school_filter = SchoolFilter(params, queryset=School.objects.all())
+
+        self.assertTrue(school_filter.is_valid(), school_filter.errors)
+        self.assertSetEqual(set(school_filter.qs), {offered})
+
+    def test_school_list_without_grade_filter_returns_school_records(self):
+        self.create_school('LIST-A')
+        self.create_school('LIST-B')
+
+        response = self.client.get('/api/schools/schools/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 2)
 
     def test_repeated_board_and_type_filters_match_any_within_each_group(self):
         both = self.create_school('BOTH')
