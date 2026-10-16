@@ -1,6 +1,3 @@
-export const dynamic = 'force-dynamic'
-
-
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, fetchAllPages, geography, schools } from "@/lib/api";
