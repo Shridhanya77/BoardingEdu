@@ -51,12 +51,15 @@ class StateListSerializer(serializers.ModelSerializer):
 
 
 class CityListSerializer(serializers.ModelSerializer):
+    schools_count = serializers.SerializerMethodField()
     state_id = serializers.CharField(source='state.state_id', read_only=True)
     state_code = serializers.CharField(source='state.state_code', read_only=True)
     state_name = serializers.CharField(source='state.state_name', read_only=True)
     country_id = serializers.CharField(source='state.country.country_id', read_only=True)
     country_code = serializers.CharField(source='state.country.country_code', read_only=True)
     country_name = serializers.CharField(source='state.country.country_name', read_only=True)
+    country_slug = serializers.SlugField(source='state.country.slug', read_only=True)
+    state_slug = serializers.SlugField(source='state.slug', read_only=True)
 
     class Meta:
         model = City
@@ -68,8 +71,11 @@ class CityListSerializer(serializers.ModelSerializer):
             'country_id',
             'country_code',
             'country_name',
+            'country_slug',
+            'state_slug',
             'city_code',
             'city_name',
+            'schools_count',
             'slug',
             'status',
             'created_at',
@@ -81,6 +87,11 @@ class CityListSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def get_schools_count(self, obj):
+        if hasattr(obj, 'schools_count'):
+            return obj.schools_count
+        return obj.schools.filter(status=True).count()
 
 
 class LocationListSerializer(serializers.ModelSerializer):

@@ -95,6 +95,17 @@ export const faqItems = [
   },
 ];
 
+export const homeSeoKeywords = [
+  "schools in India",
+  "boarding schools in India",
+  "day schools in India",
+  "school admissions",
+  "CBSE schools",
+  "ICSE schools",
+  "IB schools",
+  "school admission counselling",
+];
+
 export const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [

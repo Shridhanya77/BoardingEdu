@@ -249,6 +249,7 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'school_code',
             'school_name',
             'short_name',
+            'school_logo_url',
             'slug',
 
             'country_id',
@@ -377,6 +378,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'school_code',
             'school_name',
             'short_name',
+            'school_logo_url',
             'slug',
 
             'country',

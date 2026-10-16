@@ -116,6 +116,14 @@ class SchoolClassificationTests(TestCase):
         self.assertEqual(list(updated_school.boards.all()), [self.cbse])
         self.assertEqual(list(updated_school.school_types.all()), [self.day])
 
+    def test_school_logo_url_is_returned_in_list_and_detail_payloads(self):
+        school = self.create_school('WITH-LOGO')
+        school.school_logo_url = 'https://example.com/school-logo.png'
+        school.save(update_fields=['school_logo_url'])
+
+        self.assertEqual(SchoolListSerializer(school).data['school_logo_url'], school.school_logo_url)
+        self.assertEqual(SchoolDetailSerializer(school).data['school_logo_url'], school.school_logo_url)
+
     def test_repeated_board_and_type_filters_match_any_within_each_group(self):
         both = self.create_school('BOTH')
         both.boards.add(self.cbse, self.ib)

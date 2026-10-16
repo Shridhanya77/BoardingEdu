@@ -4,11 +4,13 @@ import NavBar from "@/components/NavBar";
 import { AuthProvider } from "@/lib/auth";
 import { SearchExperienceProvider } from "@/lib/search-experience";
 import SearchAnalyticsConsent from "@/components/SearchAnalyticsConsent";
+import { homeSeoKeywords } from "@/lib/home-content";
 
 export const metadata: Metadata = {
   title: "BoardingEdu",
   description:
     "Discover trusted schools, compare what matters, and find the right fit for your family.",
+  keywords: homeSeoKeywords,
 };
 
 export default function RootLayout({

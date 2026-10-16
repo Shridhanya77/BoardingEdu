@@ -224,6 +224,7 @@ export type SchoolListItem = {
   school_code: string;
   school_name: string;
   short_name: string;
+  school_logo_url?: string;
   slug: string;
   country_id: string; country_name: string;
   state_id: string;   state_name: string;
@@ -279,8 +280,11 @@ export type CityListItem = {
   country_id: string;
   country_code: string;
   country_name: string;
+  country_slug?: string;
+  state_slug?: string;
   city_code: string;
   city_name: string;
+  schools_count?: number;
   slug: string;
   status: boolean;
   created_at: string;
@@ -519,6 +523,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     school_code: school.school_code,
     school_name: school.school_name,
     short_name: school.short_name,
+    school_logo_url: school.school_logo_url,
     slug: school.slug,
     country_id: school.country_detail.country_id,
     country_name: school.country_detail.country_name,

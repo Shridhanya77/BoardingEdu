@@ -21,7 +21,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { fetchAllPages, geography, schools } from "@/lib/api";
 import type {
   BoardListItem,
@@ -35,6 +35,8 @@ import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import CompareBar from "@/components/search/CompareBar";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
+import CounsellingSection from "@/components/home/CounsellingSection";
+import SiteFooterSeo from "@/components/home/SiteFooterSeo";
 import {
   createLocationPreferences,
   isBoardingOnlySelection,
@@ -49,6 +51,15 @@ import {
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
 import { homeSchoolCategoryForIds, schoolProfileTypeSegment, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
+
+const boardPalette = ["#2142ad", "#7c2d12", "#581c87", "#854d0e", "#075341", "#7f1d45"];
+const boardColorByCode: Record<string, string> = {
+  CBSE: "#2142ad",
+  ICSE: "#7c2d12",
+  IB: "#581c87",
+  IGCSE: "#854d0e",
+  STATE: "#075341",
+};
 
 function schoolHref(school: SchoolListItem) {
   return `/${school.country_slug}/${school.state_slug}/${schoolProfileTypeSegment(school.school_types_detail)}/${school.slug}`;
@@ -253,6 +264,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [citiesError, setCitiesError] = useState<string | null>(null);
   const [showAllCities, setShowAllCities] = useState(false);
+  const [activeGuide, setActiveGuide] = useState<string | null>(null);
   const [schoolTypesError, setSchoolTypesError] = useState<string | null>(
     null
   );
@@ -316,7 +328,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
 
-  const cityCards = showAllCities ? cities : cities.slice(0, 6);
+  const cityCards = showAllCities ? cities : cities.slice(0, 3);
 
   const whyBoardingEdu = [
     "Verified school profiles",
@@ -603,7 +615,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     geography.cities()
       .then((response) => fetchAllPages(response, 1000))
       .then((rows) => {
-        if (!cancelled) setCities(rows.filter((city) => city.status));
+        if (!cancelled) {
+          setCities(rows.filter((city) => city.status).sort((a, b) =>
+            (b.schools_count ?? 0) - (a.schools_count ?? 0) || a.city_name.localeCompare(b.city_name)
+          ));
+        }
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
@@ -1073,7 +1089,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         <div className="home-section__heading">
           <div>
             <div className="section-eyebrow">SCHOOL LOCATIONS</div>
-            <h2>Cities in the directory</h2>
+            <h2>Popular cities</h2>
           </div>
 
           <button type="button" onClick={() => setShowAllCities((show) => !show)}>
@@ -1093,6 +1109,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
               <span className="city-card__number">0{index + 1}</span>
               <span className="city-card__name">{city.city_name}</span>
               <span className="city-card__state">{city.state_name}, {city.country_name}</span>
+              <span className="city-card__count">{city.schools_count ?? 0} {(city.schools_count ?? 0) === 1 ? "school" : "schools"} listed</span>
               <span className="city-card__action">
                 Explore schools <ArrowRight size={14} />
               </span>
@@ -1126,6 +1143,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <button
               className={`board-card board-card--${index + 1}`}
               key={boardItem.board_id}
+              style={{ "--board-color": boardColorByCode[boardItem.board_code.toUpperCase()] ?? boardPalette[index % boardPalette.length] } as CSSProperties}
               onClick={() => selectBoard(boardItem)}
             >
               <span className="board-card__mark">{boardItem.board_code}</span>
@@ -1187,22 +1205,27 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           </span>
         </div>
 
+        <p className="parent-stories-note">
+          We only publish verified family feedback. While parent stories are being collected,
+          explore these helpful ways to begin your search.
+        </p>
         <div
           className="coming-soon-grid"
-          aria-label="Parent testimonials are coming soon"
+          aria-label="Ways to begin your school search"
         >
-          {[1, 2, 3].map((item) => (
-            <article className="coming-soon-card" key={item}>
+          {[
+            { title: "Compare school options", text: "Shortlist schools and compare their boards, fees, and facilities.", href: "/schools" },
+            { title: "Explore education boards", text: "Browse active curricula and find schools that offer each board.", href: "#boards" },
+            { title: "Talk to a counsellor", text: "Get free, personalised help with your school search.", href: "#counselling" },
+          ].map((item) => (
+            <Link className="coming-soon-card" href={item.href} key={item.title}>
               <div className="coming-soon-card__icon">
-                <Users size={19} />
+                <ArrowRight size={19} />
               </div>
-              <span>Parent stories</span>
-              <p>
-                We’ll share verified experiences from families once reviews are
-                available.
-              </p>
+              <span>{item.title}</span>
+              <p>{item.text}</p>
               <div className="coming-soon-card__rule" />
-            </article>
+            </Link>
           ))}
         </div>
       </section>
@@ -1214,31 +1237,50 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <h2>Latest school guides</h2>
           </div>
 
-          <span className="coming-soon-label">
-            <Newspaper size={14} /> Coming soon
-          </span>
+          <span className="coming-soon-label"><Newspaper size={14} /> Practical guidance</span>
         </div>
 
         <div
           className="coming-soon-grid coming-soon-grid--blog"
-          aria-label="Blog articles are coming soon"
+          aria-label="School guide topics"
         >
           {[
-            "Boarding school admissions",
-            "Choosing an education board",
-            "Planning a school visit",
-          ].map((title) => (
-            <article className="blog-placeholder" key={title}>
+            {
+              title: "Boarding school admissions",
+              text: "Get ready to compare boarding options.",
+              detail: "Start by confirming the school type, location, curriculum, annual fees, age requirements, and application dates. Review each school's profile and contact the school to verify current admission details.",
+            },
+            {
+              title: "Choosing an education board",
+              text: "Understand the curriculum before shortlisting.",
+              detail: "Compare curriculum structure, assessment style, subject choices, and any plans for a transfer or higher education. The right fit depends on your child's needs and plans; ask each school how the curriculum is delivered.",
+            },
+            {
+              title: "Planning a school visit",
+              text: "Make the most of your campus visit.",
+              detail: "Prepare questions about class size, student support, facilities, transport or boarding, fee components, and the admission timeline. Take notes and follow up directly with the school when details need confirmation.",
+            },
+          ].map((guide) => {
+            const isOpen = activeGuide === guide.title;
+            return (
+            <article className={`blog-placeholder${isOpen ? " blog-placeholder--open" : ""}`} key={guide.title}>
               <span className="blog-placeholder__icon">
                 <Newspaper size={19} />
               </span>
               <span className="blog-placeholder__tag">SCHOOL GUIDE</span>
-              <h3>{title}</h3>
-              <p>Practical guides from BoardingEdu are on the way.</p>
+              <h3>{guide.title}</h3>
+              <p>{guide.text}</p>
+              {isOpen && <p className="blog-placeholder__detail">{guide.detail}</p>}
+              <button type="button" aria-expanded={isOpen} onClick={() => setActiveGuide(isOpen ? null : guide.title)}>
+                {isOpen ? "Show less" : "Read guide"} <ArrowRight size={14} />
+              </button>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
+
+      <CounsellingSection />
 
       <section className="home-section home-section--benefits" id="about">
         <div className="home-section__heading home-section__heading--centered">
@@ -1347,63 +1389,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
         </div>
       </section>
 
-      <footer className="site-footer">
-        <div className="site-footer__inner">
-          <div className="site-footer__brand">
-            <div className="brand brand--footer">
-              <Image
-                className="brand__image"
-                src="/BoardingEdu_LOGO.jpeg"
-                alt="BoardingEdu"
-                width={56}
-                height={56}
-              />
-            </div>
-            <div className="site-footer__title">BoardingEdu</div>
-          </div>
-
-          <div className="site-footer__links">
-            <div>
-              <h3>Explore</h3>
-              <Link href="/schools">Find Schools</Link>
-              <Link href="/schools">Compare Schools</Link>
-              <Link href="/schools">Shortlist</Link>
-            </div>
-
-            <div>
-              <h3>Company</h3>
-              <Link href="#for-schools">For Schools</Link>
-              <Link href="#about">About Us</Link>
-              <Link href="#faq">FAQs</Link>
-            </div>
-
-            <div>
-              <h3>Legal</h3>
-              <Link href="#">Privacy Policy</Link>
-              <Link href="#">Terms & Conditions</Link>
-              <Link href="#">Contact</Link>
-            </div>
-          </div>
-
-          <div className="site-footer__socials" aria-label="Social media links">
-            <span>f</span>
-            <span>in</span>
-            <span>◎</span>
-          </div>
-        </div>
-      </footer>
-
-      <section className="newsletter" id="newsletter">
-        <div className="newsletter__copy">
-          <div className="section-eyebrow">STAY IN THE LOOP</div>
-          <h2>School search, made a little easier.</h2>
-          <p>Newsletter subscriptions will be available here soon.</p>
-        </div>
-
-        <span className="newsletter__status">
-          <CheckCircle2 size={17} /> Newsletter signup coming soon
-        </span>
-      </section>
+      <SiteFooterSeo cities={cities} boards={boards} />
 
       </>
       )}
@@ -1582,10 +1568,6 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
               <span className="filter-note__icon">
                 <CheckCircle2 size={16} />
               </span>
-              <p>
-                School information is provided by the school directory.
-                Contact schools directly to confirm current details.
-              </p>
             </div>
             <div className="filters-panel__apply">
               <button type="button" onClick={closeFilters}>
