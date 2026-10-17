@@ -8,10 +8,22 @@ import PublicSiteFooter from "@/components/home/PublicSiteFooter";
 import { homeSeoKeywords } from "@/lib/home-content";
 
 export const metadata: Metadata = {
-  title: "BoardingEdu",
+  metadataBase: new URL("https://boardingedu.com"),
+  title: "Find Schools in India | BoardingEdu",
   description:
-    "Discover trusted schools, compare what matters, and find the right fit for your family.",
+    "Explore day and boarding schools in India. Compare school locations, boards, fees, and facilities, then contact schools or request free counselling.",
   keywords: homeSeoKeywords,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "BoardingEdu",
+    title: "Find Schools in India | BoardingEdu",
+    description:
+      "Explore day and boarding schools in India. Compare locations, education boards, fees, and facilities.",
+    url: "https://boardingedu.com/",
+  },
 };
 
 export default function RootLayout({

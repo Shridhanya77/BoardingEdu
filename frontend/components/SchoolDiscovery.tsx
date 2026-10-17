@@ -181,12 +181,6 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
             <span>School campus</span>
           </div>
         )}
-        {(school.videos_count ?? 0) > 0 && (
-          <span className="school-card__video-count">{school.videos_count} video{school.videos_count === 1 ? "" : "s"}</span>
-        )}
-      </div>
-
-      <div className="school-card__top">
         <div className="school-card__avatar" aria-hidden="true">
           {school.school_logo_url ? (
             <Image src={school.school_logo_url} alt="" width={42} height={42} unoptimized />
@@ -194,7 +188,12 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
             <Building2 size={23} strokeWidth={1.7} />
           )}
         </div>
+        {(school.videos_count ?? 0) > 0 && (
+          <span className="school-card__video-count">{school.videos_count} video{school.videos_count === 1 ? "" : "s"}</span>
+        )}
+      </div>
 
+      <div className="school-card__top">
         <div className="school-card__title">
           <div className="school-card__eyebrow">
             {school.verification_status?.toLowerCase() === "verified" && (
@@ -1042,6 +1041,15 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                 favourites, and connect with schools—all in one place.
               </p>
 
+              <div className="hero__actions">
+                <Link href="/schools" className="primary-button">
+                  Browse schools <ArrowRight size={16} />
+                </Link>
+                <Link href="#counselling" className="hero__secondary-action">
+                  Talk to a counsellor
+                </Link>
+              </div>
+
               <HeroFinder
                 value={finderValue()}
                 schoolTypes={schoolTypes}
@@ -1051,6 +1059,20 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                 onChange={handleFinderChange}
                 onSubmit={handleFinderSubmit}
               />
+
+              <div className="hero-quick-searches" aria-label="Popular school searches">
+                <span>Popular searches</span>
+                {([
+                  ["boarding", "Boarding"],
+                  ["cbse", "CBSE"],
+                  ["girls", "Girls’ schools"],
+                  ["ib", "IB curriculum"],
+                ] as const).map(([query, label]) => (
+                  <button key={query} type="button" onClick={() => handleExplore(query)}>
+                    {label}<ArrowRight size={12} aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
 
               <div className="hero-search__shortcuts">
                 <button
@@ -1146,12 +1168,10 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
             <div className="city-grid">
               {cityCards.map((city, index) => (
-                <button
+                <Link
                   className={`city-card city-card--${index + 1}`}
                   key={city.city_id}
-                  onClick={() => {
-                    router.push(`/${city.country_slug ?? toSeoSlug(city.country_name)}/${city.state_slug ?? toSeoSlug(city.state_name)}/${toSeoSlug(city.slug)}`);
-                  }}
+                  href={`/${city.country_slug ?? toSeoSlug(city.country_name)}/${city.state_slug ?? toSeoSlug(city.state_name)}/${toSeoSlug(city.slug)}`}
                 >
                   <span className="city-card__number">0{index + 1}</span>
                   <span className="city-card__name">{city.city_name}</span>
@@ -1160,7 +1180,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                   <span className="city-card__action">
                     Explore schools <ArrowRight size={14} />
                   </span>
-                </button>
+                </Link>
               ))}
               {citiesError && <p className="section-error" role="alert">Cities unavailable: {citiesError}</p>}
               {!citiesError && cityCards.length === 0 && (
@@ -1187,11 +1207,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
             <div className="board-grid">
               {boards.map((boardItem, index) => (
-                <button
+                <Link
                   className={`board-card board-card--${index + 1}`}
                   key={boardItem.board_id}
+                  href={`/board=${encodeURIComponent(toSeoSlug(boardItem.slug))}`}
                   style={{ "--board-color": boardColorByCode[boardItem.board_code.toUpperCase()] ?? boardPalette[index % boardPalette.length] } as CSSProperties}
-                  onClick={() => selectBoard(boardItem)}
                 >
                   <span className="board-card__mark">{boardItem.board_code}</span>
                   <span className="board-card__name">{boardItem.board_name}</span>
@@ -1200,7 +1220,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                     Browse schools{" "}
                     <ArrowRight size={14} />
                   </span>
-                </button>
+                </Link>
               ))}
               {!boardsError && boards.length === 0 && <p className="section-empty">No active education boards are available.</p>}
             </div>
@@ -1228,7 +1248,17 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                 {featuredError}
               </div>
             ) : featuredSchools.length > 0 ? (
-              <FeaturedSchoolCards schools={featuredSchools} />
+              <>
+                <FeaturedSchoolCards schools={featuredSchools} />
+                <div className="home-section__actions">
+                  <Link href="/schools" className="primary-button">
+                    Browse all schools <ArrowRight size={16} />
+                  </Link>
+                  <Link href="#counselling" className="secondary-button">
+                    Get free counselling
+                  </Link>
+                </div>
+              </>
             ) : (
               <p className="section-empty">
                 Featured schools will appear here when the directory has published
@@ -1424,12 +1454,16 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                       type="button"
                       className="faq-question"
                       onClick={() => setActiveFaq(open ? null : index)}
+                      aria-expanded={open}
+                      aria-controls={`home-faq-answer-${index}`}
                     >
                       <span>{item.question}</span>
-                      <span className="faq-toggle">{open ? "−" : "+"}</span>
+                      <span className="faq-toggle" aria-hidden="true">{open ? "−" : "+"}</span>
                     </button>
 
-                    {open && <p className="faq-answer">{item.answer}</p>}
+                    <p className="faq-answer" id={`home-faq-answer-${index}`} hidden={!open}>
+                      {item.answer}
+                    </p>
                   </div>
                 );
               })}

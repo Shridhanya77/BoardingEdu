@@ -155,7 +155,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       </div>
     </fieldset>
     {!activeCategory ? (
-      <p className="finder-instruction" role="status">First, choose the type of school to see location options.</p>
+      <p className="finder-instruction" role="status">First, choose the type of school</p>
     ) : <fieldset className="finder-group">
       <legend><span>02</span> Select a location</legend>
       <div className={`finder-group__fields${residential ? " finder-group__fields--regional" : ""}`}>

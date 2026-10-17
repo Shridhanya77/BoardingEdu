@@ -45,19 +45,19 @@ function verificationLabel(value: string) {
   return "Not yet verified";
 }
 
-function facilityIcon(name: string, category: string) {
+function facilityAppearance(name: string, category: string) {
   const value = `${name} ${category}`.toLowerCase();
-  if (value.includes("librar") || value.includes("book")) return BookOpen;
-  if (value.includes("lab")) return FlaskConical;
-  if (value.includes("smart class") || value.includes("technology") || value.includes("computer")) return Monitor;
-  if (value.includes("sport") || value.includes("playground")) return Trophy;
-  if (value.includes("swim") || value.includes("pool")) return Waves;
-  if (value.includes("hostel") || value.includes("boarding")) return BedDouble;
-  if (value.includes("dining") || value.includes("food") || value.includes("cafeteria")) return Utensils;
-  if (value.includes("medical") || value.includes("health") || value.includes("clinic")) return HeartPulse;
-  if (value.includes("transport") || value.includes("bus")) return Bus;
-  if (value.includes("security") || value.includes("safety")) return ShieldCheck;
-  return CheckCircle2;
+  if (value.includes("librar") || value.includes("book")) return { Icon: BookOpen, tone: "library" };
+  if (value.includes("lab")) return { Icon: FlaskConical, tone: "laboratory" };
+  if (value.includes("smart class") || value.includes("technology") || value.includes("computer")) return { Icon: Monitor, tone: "technology" };
+  if (value.includes("sport") || value.includes("playground")) return { Icon: Trophy, tone: "sports" };
+  if (value.includes("swim") || value.includes("pool")) return { Icon: Waves, tone: "aquatic" };
+  if (value.includes("hostel") || value.includes("boarding")) return { Icon: BedDouble, tone: "residential" };
+  if (value.includes("dining") || value.includes("food") || value.includes("cafeteria")) return { Icon: Utensils, tone: "dining" };
+  if (value.includes("medical") || value.includes("health") || value.includes("clinic")) return { Icon: HeartPulse, tone: "medical" };
+  if (value.includes("transport") || value.includes("bus")) return { Icon: Bus, tone: "transport" };
+  if (value.includes("security") || value.includes("safety")) return { Icon: ShieldCheck, tone: "security" };
+  return { Icon: CheckCircle2, tone: "general" };
 }
 
 export function schoolProfilePath(school: SchoolDetail) {
@@ -274,23 +274,23 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                     <section key={category} className="facility-group">
                       <h3>{category}</h3>
                       <ul>
-                        {list.map((f) => (
-                          <li key={f.school_facility_id} className="facility">
-                            <span className="facility__name">
-                              {(() => {
-                                const Icon = facilityIcon(f.facility_name, f.category);
-                                return <Icon size={18} aria-hidden="true" />;
-                              })()}
-                              {f.facility_name}
-                            </span>
-                            {f.quantity_or_capacity != null && (
-                              <span className="facility__qty">Qty {f.quantity_or_capacity}</span>
-                            )}
-                            {f.description && (
-                              <p className="facility__desc">{f.description}</p>
-                            )}
-                          </li>
-                        ))}
+                        {list.map((f) => {
+                          const { Icon, tone } = facilityAppearance(f.facility_name, f.category);
+                          return (
+                            <li key={f.school_facility_id} className={`facility facility--${tone}`}>
+                              <span className="facility__name">
+                                <span className="facility__icon"><Icon size={18} aria-hidden="true" /></span>
+                                {f.facility_name}
+                              </span>
+                              {f.quantity_or_capacity != null && (
+                                <span className="facility__qty">Qty {f.quantity_or_capacity}</span>
+                              )}
+                              {f.description && (
+                                <p className="facility__desc">{f.description}</p>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </section>
                   ))}
