@@ -301,6 +301,7 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'principal_name',
             'established_year',
             'boarding_required',
+            'is_featured',
             'status',
             'published_at',
         ]
@@ -382,6 +383,8 @@ class SchoolVideoListSerializer(serializers.ModelSerializer):
 # ======================================================================
 
 class SchoolDetailSerializer(serializers.ModelSerializer):
+    is_featured = serializers.BooleanField(read_only=True)
+
     country_detail = CountryListSerializer(
         source='country',
         read_only=True,
@@ -466,6 +469,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'email',
             'principal_name',
             'boarding_required',
+            'is_featured',
             'status',
             'verification_status',
             'published_at',

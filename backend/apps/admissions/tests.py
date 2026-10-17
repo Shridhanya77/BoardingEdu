@@ -36,10 +36,8 @@ class CounsellingRequestApiTests(APITestCase):
             board_name="CBSE",
             slug="cbse",
         )
-        cls.school_type = SchoolType.objects.create(
+        cls.school_type = SchoolType.objects.get(
             type_code="DAY",
-            type_name="Day School",
-            slug="day-school",
         )
 
     def get_payload(self):

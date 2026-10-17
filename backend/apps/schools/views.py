@@ -49,6 +49,7 @@ class SchoolFilter(django_filters.FilterSet):
         field_name='school_types',
         queryset=SchoolType.objects.all(),
     )
+    is_featured = django_filters.BooleanFilter(field_name='is_featured')
     min_fee = django_filters.NumberFilter(method='filter_min_fee')
     max_fee = django_filters.NumberFilter(method='filter_max_fee')
 
@@ -56,43 +57,8 @@ class SchoolFilter(django_filters.FilterSet):
         model = School
         fields = [
             'country', 'state', 'city', 'location',
-            'gender', 'status', 'verification_status', 'boarding_required',
+            'gender', 'status', 'verification_status', 'boarding_required', 'is_featured',
         ]
-
-    def __init__(self, data=None, *args, **kwargs):
-        home_category = data.get('home_category') if data is not None else None
-        if data is not None:
-            ignore_city = home_category == 'residential-school'
-            if hasattr(data, 'getlist'):
-                requested_type_ids = data.getlist('school_type')
-            else:
-                raw_type_ids = data.get('school_type', [])
-                requested_type_ids = raw_type_ids if isinstance(raw_type_ids, (list, tuple)) else [raw_type_ids]
-            try:
-                unique_type_ids = {uuid.UUID(str(type_id)) for type_id in requested_type_ids}
-            except (AttributeError, TypeError, ValueError):
-                unique_type_ids = set()
-            selected_types = list(SchoolType.objects.filter(pk__in=unique_type_ids))
-            if (
-                unique_type_ids
-                and len(selected_types) == len(unique_type_ids)
-                and all(self._is_residential_type(school_type) for school_type in selected_types)
-            ):
-                ignore_city = True
-            if ignore_city:
-                data = data.copy()
-                data.pop('city', None)
-                data.pop('location', None)
-        super().__init__(data, *args, **kwargs)
-
-    @staticmethod
-    def _is_residential_type(school_type):
-        value = f'{school_type.type_code} {school_type.slug} {school_type.type_name}'.lower().replace('_', '-')
-        return bool(
-            re.search(r'full[- ]?boarding', value)
-            or re.search(r'^(boarding|residential)(\s|$)|\bboarding-school\b|\bresidential-school\b', value)
-        )
-
 
     @staticmethod
     def _home_school_category(school_type):
@@ -239,6 +205,7 @@ class BoardViewSet(ReadWriteModelViewSet):
 
 # ---------- SchoolType ----------
 class SchoolTypeViewSet(ReadWriteModelViewSet):
+    http_method_names = ['get', 'head', 'options']
     queryset = SchoolType.objects.all()
     serializer_class = SchoolTypeDetailSerializer
     list_serializer_class = SchoolTypeListSerializer
@@ -311,7 +278,7 @@ class SchoolViewSet(ReadWriteModelViewSet):
     filterset_class = SchoolFilter
     filterset_fields = [
         'country', 'state', 'city', 'location',
-        'gender', 'status', 'verification_status', 'boarding_required',
+        'gender', 'status', 'verification_status', 'boarding_required', 'is_featured',
     ]
     search_fields = [
         'school_code', 'school_name', 'short_name', 'slug',

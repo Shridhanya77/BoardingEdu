@@ -7,7 +7,9 @@ import {
   ArrowRight,
   ChevronDown,
   LogOut,
+  Menu,
   Search,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
@@ -24,6 +26,7 @@ export default function NavBar() {
   const { user, status, logout } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +40,24 @@ export default function NavBar() {
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
-  useEffect(() => setMenuOpen(false), [pathname]);
+  useEffect(() => {
+    setMenuOpen(false);
+    setMobileNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileNavOpen]);
 
   const displayName = user
     ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username
@@ -143,6 +163,53 @@ export default function NavBar() {
           <Search size={15} /> Find a School
         </Link>
       </div>
+      <button
+        className="mobile-menu-toggle"
+        type="button"
+        aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-controls="mobile-primary-navigation"
+        aria-expanded={mobileNavOpen}
+        onClick={() => setMobileNavOpen((open) => !open)}
+      >
+        {mobileNavOpen ? <X size={22} aria-hidden /> : <Menu size={22} aria-hidden />}
+      </button>
+      {mobileNavOpen && (
+        <>
+          <button
+            className="mobile-navigation__backdrop"
+            type="button"
+            aria-label="Close navigation menu"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <nav
+            className="mobile-navigation"
+            id="mobile-primary-navigation"
+            aria-label="Mobile primary"
+          >
+            <Link href="/schools" onClick={() => setMobileNavOpen(false)}>Find Schools</Link>
+            <Link href={homeHref("#how-it-works")} onClick={() => setMobileNavOpen(false)}>How It Works</Link>
+            <Link href={homeHref("#for-schools")} onClick={() => setMobileNavOpen(false)}>For Schools</Link>
+            <Link href={homeHref("#about")} onClick={() => setMobileNavOpen(false)}>About Us</Link>
+            <Link href={homeHref("#counselling")} onClick={() => setMobileNavOpen(false)}>Free Counselling</Link>
+            {user ? (
+              <button
+                className="mobile-navigation__logout"
+                type="button"
+                onClick={async () => {
+                  await logout();
+                  setMobileNavOpen(false);
+                  router.push("/");
+                }}
+              >
+                <LogOut size={16} aria-hidden /> Log out
+              </button>
+            ) : <>
+              <Link href="/login" onClick={() => setMobileNavOpen(false)}>Log in</Link>
+              <Link href="/signup" onClick={() => setMobileNavOpen(false)}>Register</Link>
+            </>}
+          </nav>
+        </>
+      )}
     </header>
   );
 }

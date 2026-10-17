@@ -4,14 +4,22 @@ import {
   ArrowLeft,
   BedDouble,
   BookOpen,
+  Bus,
   CheckCircle2,
+  FlaskConical,
   GraduationCap,
+  HeartPulse,
   Landmark,
   MessageSquare,
   MapPin,
+  Monitor,
   Phone,
+  ShieldCheck,
   Star,
+  Trophy,
+  Utensils,
   Users,
+  Waves,
 } from "lucide-react";
 import type { SchoolDetail } from "@/lib/api";
 import { schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
@@ -20,6 +28,7 @@ import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
+import SchoolCallbackForm from "./SchoolCallbackForm";
 
 function genderLabel(value: string) {
   const normalized = value.toLowerCase();
@@ -34,6 +43,21 @@ function verificationLabel(value: string) {
   if (normalized === "verified") return "Verified school";
   if (normalized.includes("pending")) return "Verification in progress";
   return "Not yet verified";
+}
+
+function facilityIcon(name: string, category: string) {
+  const value = `${name} ${category}`.toLowerCase();
+  if (value.includes("librar") || value.includes("book")) return BookOpen;
+  if (value.includes("lab")) return FlaskConical;
+  if (value.includes("smart class") || value.includes("technology") || value.includes("computer")) return Monitor;
+  if (value.includes("sport") || value.includes("playground")) return Trophy;
+  if (value.includes("swim") || value.includes("pool")) return Waves;
+  if (value.includes("hostel") || value.includes("boarding")) return BedDouble;
+  if (value.includes("dining") || value.includes("food") || value.includes("cafeteria")) return Utensils;
+  if (value.includes("medical") || value.includes("health") || value.includes("clinic")) return HeartPulse;
+  if (value.includes("transport") || value.includes("bus")) return Bus;
+  if (value.includes("security") || value.includes("safety")) return ShieldCheck;
+  return CheckCircle2;
 }
 
 export function schoolProfilePath(school: SchoolDetail) {
@@ -151,6 +175,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
           )}
           <div className="school-detail__intro">
             <div className="school-detail__eyebrow">
+              {school.is_featured && <span className="featured-badge">FEATURED</span>}
               {school.verification_status.toLowerCase() === "verified" && (
                 <span className="verified-tag"><CheckCircle2 size={14} /> Verified school</span>
               )}
@@ -170,42 +195,20 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
             </div>
           </div>
           <div className="school-detail__actions">
-            <a className="detail-button detail-button--primary" href="tel:9999999999"><Phone size={16} /> Call: 9999999999</a>
+            {school.phone && (
+              <a
+                className="detail-button detail-button--primary"
+                href={`tel:${school.phone}`}
+                aria-label={`Call ${school.school_name}`}
+              >
+                <Phone size={16} /> Call
+              </a>
+            )}
             <a className="detail-button" href="#school-enquiry"><MessageSquare size={16} /> Send an Enquiry</a>
           </div>
         </section>
 
         <SchoolProfileNavigation />
-
-        <section className="detail-panel school-detail__media-panel" id="media">
-          <div className="detail-panel__heading">
-            <span className="detail-panel__icon"><BookOpen size={18} /></span>
-            <div><h2>Photos &amp; videos</h2><p>Explore the campus and school life.</p></div>
-          </div>
-          {(school.school_image_url || school.photos_detail?.length) ? (
-            <SchoolPhotoGallery
-              photos={[
-                ...(school.school_image_url
-                  ? [{
-                      photo_id: "school-cover",
-                      photo_url: school.school_image_url,
-                      caption: "",
-                      alt_text: `${school.school_name} campus`,
-                      category: "CAMPUS",
-                      sort_order: 0,
-                    }]
-                  : []),
-                ...(school.photos_detail ?? []).filter(
-                  (photo) => photo.photo_url !== school.school_image_url,
-                ),
-              ]}
-              schoolName={school.school_name}
-            />
-          ) : (
-            <p className="empty-state">School photos have not been published yet.</p>
-          )}
-          <SchoolVideoGallery videos={school.videos_detail ?? []} schoolName={school.school_name} />
-        </section>
 
         <div className="school-detail__grid">
           <section className="school-detail__main">
@@ -274,7 +277,11 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                         {list.map((f) => (
                           <li key={f.school_facility_id} className="facility">
                             <span className="facility__name">
-                              <CheckCircle2 size={14} aria-hidden /> {f.facility_name}
+                              {(() => {
+                                const Icon = facilityIcon(f.facility_name, f.category);
+                                return <Icon size={18} aria-hidden="true" />;
+                              })()}
+                              {f.facility_name}
                             </span>
                             {f.quantity_or_capacity != null && (
                               <span className="facility__qty">Qty {f.quantity_or_capacity}</span>
@@ -306,6 +313,36 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                 grades={school.grades_offered_detail.map(({ grade_id, grade_name }) => ({ grade_id, grade_name }))}
               />
             </article>
+
+            <section className="detail-panel school-detail__media-panel" id="media">
+              <div className="detail-panel__heading">
+                <span className="detail-panel__icon"><BookOpen size={18} /></span>
+                <div><h2>Photos &amp; videos</h2><p>Explore the campus and school life.</p></div>
+              </div>
+              {(school.school_image_url || school.photos_detail?.length) ? (
+                <SchoolPhotoGallery
+                  photos={[
+                    ...(school.school_image_url
+                      ? [{
+                          photo_id: "school-cover",
+                          photo_url: school.school_image_url,
+                          caption: "",
+                          alt_text: `${school.school_name} campus`,
+                          category: "CAMPUS",
+                          sort_order: 0,
+                        }]
+                      : []),
+                    ...(school.photos_detail ?? []).filter(
+                      (photo) => photo.photo_url !== school.school_image_url,
+                    ),
+                  ]}
+                  schoolName={school.school_name}
+                />
+              ) : (
+                <p className="empty-state">School photos have not been published yet.</p>
+              )}
+              <SchoolVideoGallery videos={school.videos_detail ?? []} schoolName={school.school_name} />
+            </section>
 
             <article className="detail-panel" id="reviews">
               <div className="detail-panel__heading">
@@ -341,6 +378,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
 
           {/* ===== ASIDE ===== */}
           <aside className="school-detail__aside">
+            <SchoolCallbackForm school={school} />
             <div id="school-enquiry"><SchoolEnquiryForm school={school} /></div>
 
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>

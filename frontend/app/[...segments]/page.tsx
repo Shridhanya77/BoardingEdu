@@ -33,13 +33,13 @@ async function resolvePlace(slugs: string[]): Promise<Place> {
 
 async function resolveTypes(typeSlug?: string): Promise<SchoolTypeListItem[]> {
   const allTypes = (await fetchAllPages(await schools.types())).filter((row) => row.status);
-  const category = typeSlug ?? "day-school";
+  const category = typeSlug === "full-boarding-school" ? "boarding-school" : typeSlug ?? "day-school";
   const types = allTypes.filter((row) => schoolTypeCategory(row.type_code, row.slug, row.type_name) === category);
   if (types.length) return types;
   if (category === "residential-school") {
     const residential = allTypes.filter((row) => {
       const resolved = schoolTypeCategory(row.type_code, row.slug, row.type_name);
-      return resolved === "boarding-school" || resolved === "full-boarding-school";
+      return resolved === "boarding-school" || resolved === "day-boarding-school";
     });
     if (residential.length) return residential;
   }
@@ -241,7 +241,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   if (homeType === "day-school" || homeType === "residential-school") {
     const category = homeType as HomeSchoolCategory;
     const placeSlugs = segments.slice(0, -1);
-    if (!placeSlugs.length || (category === "residential-school" && placeSlugs.length > 2) || (category === "day-school" && placeSlugs.length > 4)) {
+    if (!placeSlugs.length || (category === "residential-school" && placeSlugs.length > 3) || (category === "day-school" && placeSlugs.length > 4)) {
       notFound();
     }
     // Historical /country/state/city/school-slug links retain priority over suffix routes.
@@ -284,7 +284,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     const types = await resolveTypes(searchParams?.type);
     if (types.some((type) => {
       const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
-      return category === "boarding-school" || category === "full-boarding-school";
+      return category === "boarding-school" || category === "day-boarding-school";
     }) && (place.city || place.location)) notFound();
     const path = slugs.length === 1 ? `/home/${toSeoSlug(place.country.slug)}` : `/${placePath(place)}`;
     const category = schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name);

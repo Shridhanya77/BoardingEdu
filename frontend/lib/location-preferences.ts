@@ -25,7 +25,7 @@ export function isBoardingOnlySelection(
       const type = schoolTypes.find((item) => item.school_type_id === id);
       if (!type) return false;
       const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
-      return category === "boarding-school" || category === "full-boarding-school";
+      return category === "day-boarding-school" || category === "boarding-school";
     })
   );
 }

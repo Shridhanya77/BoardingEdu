@@ -1,9 +1,14 @@
 from datetime import date
 from decimal import Decimal
+from importlib import import_module
+from types import SimpleNamespace
 
+from django.apps import apps
+from django.db import connection
 from django.http import QueryDict
 from django.test import TestCase
 
+from apps.admissions.models import CounsellingRequest
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, Location, State
 from .models import Board, Grade, School, SchoolGrade, SchoolPhoto, SchoolType, SchoolVideo
@@ -41,26 +46,106 @@ class SchoolClassificationTests(TestCase):
             board_name='International Baccalaureate',
             slug='ib',
         )
-        cls.day = SchoolType.objects.create(
+        cls.day = SchoolType.objects.get(
             type_code='DAY',
-            type_name='Day School',
-            slug='day-school',
         )
-        cls.day_boarding = SchoolType.objects.create(
+        cls.day_boarding = SchoolType.objects.get(
             type_code='DAY-BOARDING',
-            type_name='Day Boarding',
-            slug='day-boarding',
         )
-        cls.boarding = SchoolType.objects.create(
+        cls.boarding = SchoolType.objects.get(
             type_code='BOARDING',
-            type_name='Boarding School',
-            slug='boarding-school',
         )
         cls.full_boarding = SchoolType.objects.create(
             type_code='FULL-BOARDING',
             type_name='Full Boarding',
             slug='full-boarding',
         )
+
+    def test_canonical_school_types_include_day_boarding_as_its_own_type(self):
+        self.assertEqual(self.day.type_name, 'Day School')
+        self.assertEqual(self.day_boarding.type_name, 'Day Boarding School')
+        self.assertEqual(self.boarding.type_name, 'Boarding School')
+
+    def test_featured_school_is_returned_and_filterable(self):
+        featured = self.create_school('FEATURED')
+        featured.is_featured = True
+        featured.save(update_fields=['is_featured'])
+        regular = self.create_school('REGULAR')
+
+        featured_filter = SchoolFilter(
+            QueryDict('is_featured=true'),
+            queryset=School.objects.all(),
+        )
+        self.assertTrue(featured_filter.is_valid(), featured_filter.errors)
+        self.assertSetEqual(
+            set(featured_filter.qs.values_list('school_code', flat=True)),
+            {'FEATURED'},
+        )
+        response = self.client.get(
+            '/api/schools/schools/',
+            {'is_featured': 'true', 'status': 'true'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item['school_code'] for item in response.data['results']],
+            ['FEATURED'],
+        )
+        self.assertTrue(SchoolListSerializer(featured).data['is_featured'])
+        self.assertFalse(SchoolListSerializer(regular).data['is_featured'])
+        self.assertTrue(SchoolDetailSerializer(featured).data['is_featured'])
+        serializer = SchoolDetailSerializer(
+            featured,
+            data={'is_featured': False},
+            partial=True,
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        serializer.save()
+        featured.refresh_from_db()
+        self.assertTrue(featured.is_featured)
+
+    def test_type_migration_merges_legacy_full_boarding_school_assignments(self):
+        school = self.create_school('MIGRATE-FULL-BOARDING')
+        school.school_types.add(self.full_boarding)
+        counselling_request = CounsellingRequest.objects.create(
+            parent_name='Parent',
+            email='parent@example.com',
+            phone='1234567890',
+        )
+        counselling_request.school_types.add(self.full_boarding)
+        academic_year = AcademicYear.objects.create(
+            year_code='MIGRATION-2026',
+            year_name='Migration test year',
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+        )
+        fee_structure = FeeStructure.objects.create(
+            structure_code='MIGRATION-STRUCTURE',
+            structure_name='Migration test fees',
+            school=school,
+            academic_year=academic_year,
+            effective_from=date(2026, 1, 1),
+        )
+        fee_item = FeeItem.objects.create(
+            fee_structure=fee_structure,
+            item_code='HOSTEL',
+            item_name='Hostel fee',
+            school_type=self.full_boarding,
+        )
+
+        migration = import_module(
+            'apps.schools.migrations.0009_canonical_school_types_and_featured'
+        )
+        migration.canonicalize_school_types(
+            apps,
+            SimpleNamespace(connection=connection),
+        )
+
+        self.assertEqual(SchoolType.objects.count(), 3)
+        self.assertSetEqual(set(school.school_types.all()), {self.boarding})
+        self.assertSetEqual(set(counselling_request.school_types.all()), {self.boarding})
+        fee_item.refresh_from_db()
+        self.assertEqual(fee_item.school_type, self.boarding)
+        self.assertFalse(SchoolType.objects.filter(type_name='Full Boarding').exists())
 
     def create_school(self, code):
         return School.objects.create(
@@ -439,7 +524,7 @@ class SchoolClassificationTests(TestCase):
             {'BOARDING-WHITEFIELD'},
         )
 
-    def test_home_residential_category_ignores_stale_locations_and_combines_boarding_types(self):
+    def test_home_residential_category_respects_selected_locations_and_combines_boarding_types(self):
         whitefield = Location.objects.create(
             city=self.city,
             location_code='WHF',
@@ -490,7 +575,7 @@ class SchoolClassificationTests(TestCase):
         params.update({
             'country': str(self.country.pk),
             'state': str(self.state.pk),
-            'city': str(stale_city.pk),
+            'city': str(self.city.pk),
             'location': str(whitefield.pk),
             'home_category': 'residential-school',
         })
@@ -501,18 +586,25 @@ class SchoolClassificationTests(TestCase):
             set(result.qs.values_list('school_code', flat=True)),
             {'STALE-LOCATION-BOARDING', 'STALE-LOCATION-FULL-BOARDING', 'LEGACY-CITY-BOARDING'},
         )
+        response = self.client.get('/api/schools/schools/', params)
+        self.assertEqual(response.status_code, 200)
+        self.assertSetEqual(
+            {item['school_code'] for item in response.data['results']},
+            {'STALE-LOCATION-BOARDING', 'STALE-LOCATION-FULL-BOARDING', 'LEGACY-CITY-BOARDING'},
+        )
+
+        params['city'] = str(stale_city.pk)
+        mismatched_state_scope = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(mismatched_state_scope.is_valid(), mismatched_state_scope.errors)
+        self.assertFalse(mismatched_state_scope.qs.exists())
 
         params.pop('state')
+        params.pop('location')
         country_scope = SchoolFilter(params, queryset=School.objects.all())
         self.assertTrue(country_scope.is_valid(), country_scope.errors)
         self.assertSetEqual(
             set(country_scope.qs.values_list('school_code', flat=True)),
-            {
-                'STALE-LOCATION-BOARDING',
-                'STALE-LOCATION-FULL-BOARDING',
-                'OTHER-STATE-BOARDING',
-                'LEGACY-CITY-BOARDING',
-            },
+            {'OTHER-STATE-BOARDING'},
         )
 
         params['state'] = str(self.state.pk)
@@ -533,7 +625,7 @@ class SchoolClassificationTests(TestCase):
         self.assertTrue(legacy_residential_result.is_valid(), legacy_residential_result.errors)
         self.assertSetEqual(
             set(legacy_residential_result.qs.values_list('school_code', flat=True)),
-            {'STALE-LOCATION-FULL-BOARDING'},
+            set(),
         )
 
         # Existing school-type queries continue to respect location filters.

@@ -86,8 +86,21 @@ class SchoolTypeAdmin(admin.ModelAdmin):
     )
     list_filter = ("status",)
     search_fields = ("type_code", "type_name", "slug")
-    prepopulated_fields = {"slug": ("type_name",)}
     ordering = ("type_name",)
+    readonly_fields = (
+        "type_code",
+        "type_name",
+        "slug",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Grade)
@@ -162,12 +175,14 @@ class SchoolAdmin(admin.ModelAdmin):
         "school_type_names",
         "gender",
         "verification_status",
+        "is_featured",
         "status",
     )
 
     list_filter = (
         "status",
         "verification_status",
+        "is_featured",
         "gender",
         "school_types",
         "boards",
@@ -266,6 +281,7 @@ class SchoolAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "boarding_required",
+                    "is_featured",
                     "status",
                     "verification_status",
                     "published_at",

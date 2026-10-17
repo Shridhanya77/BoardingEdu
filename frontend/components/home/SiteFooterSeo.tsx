@@ -14,8 +14,8 @@ type Props = {
 
 const schoolSearchTypes = [
   { label: "Boarding Schools", slug: "boarding-school" },
+  { label: "Day Boarding Schools", slug: "day-boarding-school" },
   { label: "Day Schools", slug: "day-school" },
-  { label: "Full Boarding", slug: "full-boarding-school" },
 ];
 
 export default function SiteFooterSeo({ cities = [], boards = [], dataError }: Props) {

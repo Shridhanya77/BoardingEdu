@@ -10,10 +10,13 @@ import {
   schools,
   type BoardListItem,
   type CityListItem,
+  type CountryListItem,
   type GradeListItem,
   type SchoolTypeListItem,
+  type StateListItem,
 } from "@/lib/api";
 import GradeMultiSelect from "./GradeMultiSelect";
+import { schoolTypeLabel } from "@/lib/seo-slugs";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
@@ -21,9 +24,17 @@ export default function CounsellingSection() {
   const [phone, setPhone] = useState("");
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [homeCity, setHomeCity] = useState("");
-  const [cityQuery, setCityQuery] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+  const [preferredCountryId, setPreferredCountryId] = useState("");
+  const [preferredStateId, setPreferredStateId] = useState("");
+  const [preferredCityId, setPreferredCityId] = useState("");
+  const [countries, setCountries] = useState<CountryListItem[]>([]);
+  const [states, setStates] = useState<StateListItem[]>([]);
+  const [availableCities, setAvailableCities] = useState<CityListItem[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [citiesOpen, setCitiesOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [cityHits, setCityHits] = useState<CityListItem[]>([]);
   const [preferred, setPreferred] = useState<CityListItem[]>([]);
   const [grades, setGrades] = useState<GradeListItem[]>([]);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
@@ -42,12 +53,14 @@ export default function CounsellingSection() {
       schools.grades().then((page) => fetchAllPages(page)),
       schools.boards().then((page) => fetchAllPages(page)),
       schools.types().then((page) => fetchAllPages(page)),
+      geography.countries().then((page) => fetchAllPages(page)),
     ])
-      .then(([gradeRows, boardRows, typeRows]) => {
+      .then(([gradeRows, boardRows, typeRows, countryRows]) => {
         if (!cancelled) {
           setGrades(gradeRows.filter((row) => row.status));
           setBoards(boardRows.filter((row) => row.status));
           setSchoolTypes(typeRows.filter((row) => row.status));
+          setCountries(countryRows.filter((row) => row.status));
         }
       })
       .catch((reason: unknown) => {
@@ -61,43 +74,89 @@ export default function CounsellingSection() {
   }, []);
 
   useEffect(() => {
-    const query = cityQuery.trim();
-    if (query.length < 2) {
-      setCityHits([]);
+    if (!preferredCountryId) {
+      setStates([]);
+      setPreferredStateId("");
+      setPreferredCityId("");
+      setLoadingStates(false);
       return;
     }
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      geography
-        .searchCities(query)
-        .then((page) => {
-          if (!cancelled) {
-            setCityError(null);
-            setCityHits(
-              page.results.filter(
-                (city) =>
-                  city.status && !preferred.some((item) => item.city_id === city.city_id)
-              )
-            );
-          }
-        })
-        .catch((reason: unknown) => {
-          if (!cancelled) {
-            setCityHits([]);
-            setCityError(reason instanceof Error ? reason.message : "Could not search cities.");
-          }
-        });
-    }, 220);
+    setStates([]);
+    setPreferredStateId("");
+    setPreferredCityId("");
+    setLoadingStates(true);
+    geography
+      .statesOf(preferredCountryId)
+      .then((page) => fetchAllPages(page))
+      .then((rows) => {
+        if (!cancelled) {
+          setCityError(null);
+          setStates(rows.filter((state) => state.status && state.country_id === preferredCountryId));
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setStates([]);
+          setCityError(reason instanceof Error ? reason.message : "Could not load states.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingStates(false);
+      });
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
     };
-  }, [cityQuery, preferred]);
+  }, [preferredCountryId]);
+
+  useEffect(() => {
+    if (!preferredStateId) {
+      setAvailableCities([]);
+      setPreferredCityId("");
+      setLoadingCities(false);
+      return;
+    }
+    let cancelled = false;
+    setAvailableCities([]);
+    setPreferredCityId("");
+    setLoadingCities(true);
+    geography
+      .citiesOf(preferredStateId)
+      .then(fetchAllPages)
+      .then((rows) => {
+        if (!cancelled) {
+          setCityError(null);
+          setAvailableCities(rows.filter(
+            (city) => city.status && city.state_id === preferredStateId && city.country_id === preferredCountryId,
+          ));
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setAvailableCities([]);
+          setCityError(reason instanceof Error ? reason.message : "Could not load cities for this state.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCities(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [preferredStateId, preferredCountryId]);
 
   const selectedNames = useMemo(
     () => preferred.map((city) => city.city_name).join(", "),
     [preferred]
   );
+
+  function addPreferredCity() {
+    const city = availableCities.find((item) => item.city_id === preferredCityId);
+    if (!city || preferred.some((item) => item.city_id === city.city_id)) return;
+    setPreferred((current) => [...current, city]);
+    setPreferredCityId("");
+    setCitySearch("");
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -148,7 +207,10 @@ export default function CounsellingSection() {
       setSelectedGrades([]);
       setHomeCity("");
       setPreferred([]);
-      setCityQuery("");
+      setPreferredCountryId("");
+      setPreferredStateId("");
+      setPreferredCityId("");
+      setCitySearch("");
       setSelectedBoards([]);
       setSelectedSchoolTypes([]);
       setMessage("");
@@ -187,7 +249,7 @@ export default function CounsellingSection() {
             <span>🏫</span>
             <div>
               <strong>Personalised School Matching</strong>
-              <p>We narrow 12,000 schools down to your best-fit shortlist.</p>
+              <p>We help you narrow your options based on your family&apos;s needs.</p>
             </div>
           </li>
           <li>
@@ -198,10 +260,6 @@ export default function CounsellingSection() {
             </div>
           </li>
         </ul>
-        <div className="counselling__admin">
-          <strong>BoardingEdu Admin</strong>
-          <span>Contact: 91xxxxxxxx</span>
-        </div>
       </div>
 
       <form className="counselling__form" onSubmit={onSubmit}>
@@ -256,49 +314,107 @@ export default function CounsellingSection() {
           />
         </label>
         <div className="counselling__cities">
-          <span>Preferred Cities *</span>
-          <input
-            value={cityQuery}
-            onChange={(event) => setCityQuery(event.target.value)}
-            placeholder="Search and select multiple cities"
-          />
+          <span id="preferred-cities-label">Preferred Cities *</span>
+          <button
+            type="button"
+            className="counselling__cities-trigger"
+            aria-expanded={citiesOpen}
+            aria-controls="preferred-cities-picker"
+            aria-labelledby="preferred-cities-label"
+            onClick={() => setCitiesOpen((open) => !open)}
+          >
+            {citiesOpen ? "Hide state and city options" : "Choose states and cities"}
+          </button>
           {preferred.length > 0 && (
             <div className="counselling__picked">
               {preferred.map((city) => (
                 <button
                   type="button"
                   key={city.city_id}
+                  aria-label={`Remove ${city.city_name}`}
                   onClick={() =>
                     setPreferred((current) =>
                       current.filter((item) => item.city_id !== city.city_id)
                     )
                   }
                 >
-                  {city.city_name} ×
+                  {city.city_name} · {city.state_name}, {city.country_name} ×
                 </button>
               ))}
+              <button type="button" aria-label="Clear all preferred cities" onClick={() => setPreferred([])}>Clear all</button>
             </div>
           )}
-          {cityHits.length > 0 && (
-            <div className="finder-menu counselling__hits">
-              {cityHits.map((city) => (
-                <button
-                  type="button"
-                  key={city.city_id}
-                  onClick={() => {
-                    setPreferred((current) => [...current, city]);
-                    setCityQuery("");
-                    setCityHits([]);
+          {citiesOpen && (
+            <div className="counselling__city-picker" id="preferred-cities-picker">
+              <label>
+                Country
+                <select
+                  value={preferredCountryId}
+                  onChange={(event) => {
+                    setPreferredCountryId(event.target.value);
+                    setPreferredStateId("");
+                    setPreferredCityId("");
+                    setPreferred([]);
+                    setCitySearch("");
+                    setCityError(null);
                   }}
                 >
-                  {city.city_name}
-                  <small>{city.state_name}</small>
+                  <option value="">Choose a country</option>
+                  {countries.map((country) => (
+                    <option value={country.country_id} key={country.country_id}>{country.country_name}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="counselling__location-selects">
+                <label>
+                  State
+                  <select
+                    value={preferredStateId}
+                    disabled={!preferredCountryId || loadingStates || !states.length}
+                    onChange={(event) => {
+                      setPreferredStateId(event.target.value);
+                      setPreferredCityId("");
+                      setCityError(null);
+                    }}
+                  >
+                    <option value="">{loadingStates ? "Loading states…" : "Choose a state"}</option>
+                    {states.map((state) => <option value={state.state_id} key={state.state_id}>{state.state_name}</option>)}
+                  </select>
+                </label>
+                <label>
+                  City
+                  <select
+                    value={preferredCityId}
+                    disabled={!preferredStateId || loadingCities || !availableCities.length}
+                    onChange={(event) => setPreferredCityId(event.target.value)}
+                  >
+                    <option value="">{loadingCities ? "Loading cities…" : "Choose a city"}</option>
+                    {availableCities
+                      .filter((city) => !preferred.some((item) => item.city_id === city.city_id))
+                      .filter((city) => city.city_name.toLowerCase().includes(citySearch.trim().toLowerCase()))
+                      .map((city) => <option value={city.city_id} key={city.city_id}>{city.city_name}</option>)}
+                  </select>
+                </label>
+                <label className="counselling__city-search">
+                  Find a city
+                  <input value={citySearch} onChange={(event) => setCitySearch(event.target.value)} placeholder="Optional city search" disabled={!preferredStateId} />
+                </label>
+                <button
+                  type="button"
+                  className="counselling__add-city"
+                  disabled={!preferredCityId}
+                  onClick={addPreferredCity}
+                >
+                  Add city
                 </button>
-              ))}
+              </div>
+              {!preferredCountryId && <p className="counselling__city-empty">Choose a country to see its states.</p>}
+              {preferredCountryId && !loadingStates && !states.length && <p className="counselling__city-empty">No states are available for this country.</p>}
+              {preferredStateId && !loadingCities && !availableCities.length && <p className="counselling__city-empty">No cities are available for this state.</p>}
             </div>
           )}
           {cityError && <p className="counselling__error" role="alert">{cityError}</p>}
-          {selectedNames && <p className="sr-only">Selected: {selectedNames}</p>}
+          {selectedNames && <p className="sr-only" aria-live="polite">Selected: {selectedNames}</p>}
         </div>
         {boards.length > 0 && (
           <fieldset className="counselling__preferences">
@@ -339,7 +455,7 @@ export default function CounsellingSection() {
                     )
                   }
                 />
-                {type.type_name}
+                {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
               </label>
             ))}
           </fieldset>

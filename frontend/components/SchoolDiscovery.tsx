@@ -159,6 +159,7 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
         aria-label={`View details for ${school.school_name}`}
       />
       <div className={`school-card__media${coverPhotos.length > 1 ? " school-card__media--collage" : ""}`}>
+        {school.is_featured && <span className="featured-badge">FEATURED</span>}
         {coverPhotos.length ? coverPhotos.map((photo, index) => (
           <div className={`school-card__media-tile school-card__media-tile--${index + 1}`} key={photo.photo_id}>
             {failedPhotos.has(photo.photo_id) ? (
@@ -267,11 +268,8 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
             />
             Compare
           </label>
-          <Link href={href}>View school</Link>
-
-          {school.phone && (
-            <a href={`tel:${school.phone}`}>Call school</a>
-          )}
+          <Link href={href}>View School</Link>
+          <Link href={`${href}#school-enquiry`}>Send Enquiry</Link>
 
           {school.email && (
             <a
@@ -397,14 +395,12 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       return;
     }
     let cancelled = false;
-    const residentialOnly = homeCategory === "residential-school" || (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes);
-
     const filters: SchoolFilters = {
       search: search || undefined,
       country: locationGroups.length ? undefined : geoCountry || undefined,
       state: locationGroups.length ? undefined : geoState || undefined,
-      city: !residentialOnly && !locationGroups.length ? geoCity || undefined : undefined,
-      location: !residentialOnly && !locationGroups.length ? geoLocation || undefined : undefined,
+      city: !locationGroups.length ? geoCity || undefined : undefined,
+      location: !locationGroups.length ? geoLocation || undefined : undefined,
       location_group: locationGroups,
       school_type: schoolType,
       home_category: homeCategory ?? undefined,
@@ -488,7 +484,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     }
     setGeoCountry(params.get("country") ?? "");
     setGeoState(params.get("state") ?? "");
-    const initialBoardingSearch = typeSlug === "boarding-school" || typeSlug === "full-boarding-school";
+    const initialBoardingSearch = ["boarding-school", "day-boarding-school", "full-boarding-school"].includes(typeSlug ?? "");
     setGeoCity(initialBoardingSearch ? "" : params.get("city") ?? "");
     setGeoLocation(initialBoardingSearch ? "" : params.get("location") ?? "");
     setLocationGroups(initialBoardingSearch ? [] : params.getAll("location_group"));
@@ -682,11 +678,12 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   }, []);
 
   useEffect(() => {
+    if (homeSearchEnabled && homeCategory === "residential-school") return;
     if (!isBoardingOnlySelection(schoolType, schoolTypes)) return;
     if (geoCity) setGeoCity("");
     if (geoLocation) setGeoLocation("");
     if (locationGroups.length) setLocationGroups([]);
-  }, [schoolType, schoolTypes, geoCity, geoLocation, locationGroups.length]);
+  }, [homeSearchEnabled, homeCategory, schoolType, schoolTypes, geoCity, geoLocation, locationGroups.length]);
 
   useEffect(() => {
     if (
@@ -747,7 +744,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     let cancelled = false;
 
     schools
-      .list({ ordering: "school_name" })
+      .list({ is_featured: true, status: true, ordering: "school_name" })
       .then((response) => {
         if (cancelled) return;
 
@@ -945,8 +942,9 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
     setSchoolType(next.schoolType);
     setGeoCountry(next.country);
     setGeoState(next.state);
-    setGeoCity(boardingOnly ? "" : next.city);
-    setGeoLocation(boardingOnly ? "" : next.location);
+    const residentialHomeSearch = homeSearchEnabled && nextHomeCategory === "residential-school";
+    setGeoCity(boardingOnly && !residentialHomeSearch ? "" : next.city);
+    setGeoLocation(boardingOnly || residentialHomeSearch ? "" : next.location);
     if (locationChanged) setLocationGroups([]);
   }
 
@@ -1527,7 +1525,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
                             : [...current, type.school_type_id]);
                           trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
                         }} />
-                        <span>{type.type_name}</span>
+                        <span>{schoolTypeLabel(type.type_code, type.slug, type.type_name)}</span>
                       </label>;
                     })}
                   </div>

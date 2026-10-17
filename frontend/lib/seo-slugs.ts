@@ -10,7 +10,7 @@ export function toSeoSlug(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export type SchoolTypeCategory = "day-school" | "boarding-school" | "full-boarding-school";
+export type SchoolTypeCategory = "day-school" | "day-boarding-school" | "boarding-school";
 export type HomeSchoolCategory = "day-school" | "residential-school";
 
 export function homeSchoolCategory(typeCode: string, slug = "", name = ""): HomeSchoolCategory | null {
@@ -43,10 +43,10 @@ export function homeSchoolCategoryForIds(
 
 export function schoolTypeCategory(typeCode: string, slug = "", name = ""): SchoolTypeCategory | null {
   const value = `${typeCode} ${slug} ${name}`.toLowerCase().replace(/_/g, "-");
-  if (/full[- ]boarding/.test(value)) return "full-boarding-school";
+  if (/day[- ]boarding/.test(value)) return "day-boarding-school";
   if (/^(boarding|residential)(\s|$)|\bboarding-school\b|\bresidential-school\b/.test(value)) return "boarding-school";
-  // Day Boarding students return home nightly, so it belongs in the Day School search.
-  if (/\bday\b|day-school|day-boarding/.test(value)) return "day-school";
+  if (/full[- ]boarding/.test(value)) return "boarding-school";
+  if (/\bday\b|day-school/.test(value)) return "day-school";
   return null;
 }
 
@@ -54,7 +54,7 @@ export function schoolTypeLabel(typeCode: string, slug = "", name = "") {
   const category = schoolTypeCategory(typeCode, slug, name);
   return category === "day-school" ? "Day School"
     : category === "boarding-school" ? "Boarding School"
-      : category === "full-boarding-school" ? "Full Boarding School" : name;
+      : category === "day-boarding-school" ? "Day Boarding School" : name;
 }
 
 export const schoolTypePath = (typeCode: string, slug = "", name = "") =>
@@ -62,7 +62,6 @@ export const schoolTypePath = (typeCode: string, slug = "", name = "") =>
 
 export function schoolProfileTypeSegment(types: { type_code: string; slug: string; type_name: string }[]) {
   const categories = types.map((type) => schoolTypeCategory(type.type_code, type.slug, type.type_name));
-  if (categories.includes("full-boarding-school")) return "fullboarding";
   if (categories.includes("boarding-school")) return "boarding";
   return "dayschool";
 }

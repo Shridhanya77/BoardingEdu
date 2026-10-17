@@ -259,6 +259,7 @@ export type SchoolListItem = {
   established_year: number | null;
   annual_fee: string | null;
   boarding_required: boolean;
+  is_featured: boolean;
   status: boolean;
   published_at: string | null;
 };
@@ -335,6 +336,8 @@ export type SchoolFilters = {
   min_fee?: number;
   max_fee?: number;
   gender?: "COED" | "BOYS" | "GIRLS";
+  status?: boolean;
+  is_featured?: boolean;
   ordering?: "school_name" | "-school_name" | "established_year" | "-established_year" | "annual_fee" | "-annual_fee";
 };
 export type SchoolTypeListItem = {
@@ -674,6 +677,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     established_year: school.established_year,
     annual_fee: null,
     boarding_required: school.boarding_required,
+    is_featured: school.is_featured,
     status: school.status,
     published_at: school.published_at,
   };

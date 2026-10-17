@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowRight, MapPin, Star } from "lucide-react";
+import { ArrowRight, CheckCircle2, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
+import { schoolTypeLabel } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
   return `/${[
@@ -35,6 +36,7 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
 
   return (
     <div className="featured-card__cover">
+      {school.is_featured && <span className="featured-badge">FEATURED</span>}
       {school.school_image_url && !imageFailed && (
         <Image
           className="featured-card__cover-image"
@@ -74,21 +76,16 @@ export default function FeaturedSchoolCards({
     <div className="featured-cards">
       {schools.map((school) => {
         const boards = school.boards_detail.map((item) => item.board_name).join("/") || "Board on request";
-        const type =
-          school.school_types_detail[0]?.type_name ||
-          (school.gender === "Girls" || school.gender === "GIRLS"
-            ? "Girls' Boarding"
-            : school.gender === "Boys" || school.gender === "BOYS"
-              ? "Boys' Boarding"
-              : "Co-Ed School");
+        const type = school.school_types_detail
+          .map((item) => schoolTypeLabel(item.type_code, item.slug, item.type_name))
+          .join(", ") || "School type not listed";
         const location = [school.city_name, school.state_name].filter(Boolean).join(", ");
-        const facilities = [
-          ...school.school_types_detail.map((item) => item.type_name),
-          school.boarding_required ? "Boarding" : null,
+        const highlights = [
           school.gender,
+          school.established_year ? `Est. ${school.established_year}` : null,
         ]
           .filter((item, index, list): item is string => Boolean(item) && list.indexOf(item) === index)
-          .slice(0, 3);
+          .slice(0, 2);
 
         return (
           <article className="featured-card" key={school.school_id}>
@@ -103,20 +100,23 @@ export default function FeaturedSchoolCards({
               {location || "Location on request"}
             </p>
             <div className="featured-card__rating">
-              <Star size={13} />
+              <CheckCircle2 size={13} />
               {school.verification_status?.toLowerCase() === "verified" ? "Verified profile" : "Reviews coming soon"}
             </div>
             <dl>
-              <dt>Annual Fee Range</dt>
+              <dt>Annual Fee</dt>
               <dd>{formatFee(school.annual_fee)}</dd>
             </dl>
             <div className="featured-card__facilities">
-              {facilities.map((item) => (
+              {highlights.map((item) => (
                 <span key={item}>{item}</span>
               ))}
             </div>
             <Link href={schoolHref(school)}>
               View School <ArrowRight size={14} />
+            </Link>
+            <Link className="featured-card__enquiry" href={`${schoolHref(school)}#school-enquiry`}>
+              Send Enquiry <ArrowRight size={14} />
             </Link>
           </article>
         );

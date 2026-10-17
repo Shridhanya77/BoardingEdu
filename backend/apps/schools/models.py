@@ -23,7 +23,7 @@ class Board(models.Model):
     def __str__(self): return self.board_name
 
 class SchoolType(models.Model):
-    """YOUR 3 TYPES: Day / Day Boarding / Full Boarding"""
+    """Canonical school types are Day, Day Boarding, and Boarding."""
     school_type_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     type_code = models.CharField(max_length=20, unique=True, null=False)  # DAY, DAY-BOARDING, FULL-BOARDING
     type_name = models.CharField(max_length=50, unique=True, null=False)
@@ -113,6 +113,7 @@ class School(models.Model):
 
     # ENTERPRISE FIELDS
     boarding_required = models.BooleanField(default=False, null=False)
+    is_featured = models.BooleanField(default=False, db_index=True)
     status = models.BooleanField(default=True, null=False)
     verification_status = models.CharField(max_length=20, choices=VERIFICATION_CHOICES, default='UNVERIFIED', null=False)
     published_at = models.DateTimeField(null=True, blank=True)
