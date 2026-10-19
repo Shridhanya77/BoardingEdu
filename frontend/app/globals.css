@@ -2001,6 +2001,55 @@ select:focus-visible {
   padding-top: 78px;
 }
 
+.home-directory-search {
+  width: min(100%, 460px);
+  min-height: 44px;
+  margin: -6px 0 20px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #718096;
+  background: #fff;
+  border: 1px solid #dfe5eb;
+  border-radius: 8px;
+}
+
+.home-directory-search:focus-within {
+  border-color: #e8650f;
+  box-shadow: 0 0 0 3px rgb(232 101 15 / 12%);
+}
+
+.home-directory-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 0;
+  color: #142941;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 13px;
+}
+
+.home-directory-toggle {
+  margin-top: 18px;
+  padding: 10px 14px;
+  color: #a64e12;
+  background: #fff;
+  border: 1px solid #e8d6c8;
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.home-directory-toggle:hover {
+  background: #fff8f2;
+  border-color: #dca77e;
+}
+
 .home-section--boards {
   padding-top: 56px;
   border-top: 1px solid #edf0f3;
@@ -2065,6 +2114,7 @@ select:focus-visible {
   border: 0;
   border-radius: 7px;
   cursor: pointer;
+  text-decoration: none;
   text-align: left;
   transition: transform 170ms ease, box-shadow 170ms ease;
 }
@@ -2147,6 +2197,7 @@ select:focus-visible {
   border: 0;
   border-radius: 7px;
   cursor: pointer;
+  text-decoration: none;
   text-align: left;
   transition: transform 170ms ease, box-shadow 170ms ease;
 }
@@ -2154,6 +2205,13 @@ select:focus-visible {
 .board-card:hover {
   box-shadow: 0 13px 25px rgb(7 17 30 / 14%);
   transform: translateY(-3px);
+}
+
+.city-card:focus-visible,
+.board-card:focus-visible,
+.home-directory-toggle:focus-visible {
+  outline: 3px solid #e8650f;
+  outline-offset: 3px;
 }
 
 .board-card--2 {
@@ -8680,5 +8738,133 @@ select:focus-visible {
   .school-detail__main > .detail-panel,
   .facility {
     transition: none;
+  }
+}
+
+:root {
+  --boardingedu-navy: #10243a;
+  --boardingedu-blue: #17456b;
+  --boardingedu-gold: #e2ad34;
+  --boardingedu-surface: #f7f9fc;
+  --boardingedu-text: #263b4f;
+}
+
+.discovery-page--home .hero h1 {
+  max-width: 640px;
+  font-size: clamp(34px, 4.2vw, 56px);
+  line-height: 1.12;
+}
+
+.discovery-page--home .home-section__heading h2,
+.discovery-page--home .school-cta h2,
+.discovery-page--home .final-cta h2 {
+  color: var(--boardingedu-navy);
+}
+
+.discovery-page--home .hero-finder {
+  width: min(760px, 100%);
+  color: var(--boardingedu-text);
+}
+
+.discovery-page--home .school-type-choice.is-selected {
+  color: var(--boardingedu-navy);
+  background: #fff7f4;
+  border-color: #b4232e;
+}
+
+.discovery-page--home .school-type-choice.is-selected .school-type-choice__icon {
+  color: #a62430;
+}
+
+.discovery-page--home .finder-field input {
+  min-height: 46px;
+  color: var(--boardingedu-text);
+  background: #fff;
+}
+
+.discovery-page--home .finder-actions {
+  align-items: center;
+}
+
+.discovery-page--home .finder-clear {
+  min-height: 44px;
+  margin-right: auto;
+  padding: 0 12px;
+  color: var(--boardingedu-blue);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.discovery-page--home .finder-clear:hover {
+  background: var(--boardingedu-surface);
+}
+
+.discovery-page--home .finder-clear:focus-visible,
+.discovery-page--home .finder-error button:focus-visible,
+.discovery-page--home .hero-finder__submit:focus-visible,
+.discovery-page--home .finder-field input:focus-visible,
+.discovery-page--home .school-type-choice:has(input:focus-visible) {
+  outline: 3px solid var(--boardingedu-gold);
+  outline-offset: 3px;
+}
+
+.discovery-page--home .finder-error button {
+  min-height: 36px;
+  margin-left: 4px;
+  padding: 0 10px;
+  color: #7f1d1d;
+  background: #fff;
+  border: 1px solid #b4232e;
+  border-radius: 7px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.discovery-page--home .finder-location-summary {
+  min-height: 20px;
+  color: #536579;
+  font-size: 13px;
+}
+
+.discovery-page--home .featured-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.discovery-page--home .featured-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px rgb(18 36 58 / 12%);
+}
+
+@media (max-width: 640px) {
+  .discovery-page--home .finder-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .discovery-page--home .finder-clear,
+  .discovery-page--home .hero-finder__submit {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .discovery-page--home .school-type-choice {
+    min-height: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discovery-page--home .featured-card {
+    transition: none;
+  }
+
+  .discovery-page--home .featured-card:hover {
+    transform: none;
   }
 }

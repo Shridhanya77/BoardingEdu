@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { BoardListItem, CityListItem } from "@/lib/api";
 import { toSeoSlug } from "@/lib/seo-slugs";
+import { boardListingPath, placeListingPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -67,7 +68,11 @@ export default function SiteFooterSeo({ cities = [], boards = [], dataError }: P
             {popularCities.map((city) => (
               <Link
                 key={city.city_id}
-                href={`/${city.country_slug ?? toSeoSlug(city.country_name)}/${city.state_slug ?? toSeoSlug(city.state_name)}/${city.slug}`}
+                href={placeListingPath({
+                  countrySlug: city.country_slug ?? city.country_name,
+                  stateSlug: city.state_slug ?? city.state_name,
+                  citySlug: city.slug,
+                })}
               >
                 {`Schools in ${city.city_name}`}
               </Link>
@@ -84,7 +89,7 @@ export default function SiteFooterSeo({ cities = [], boards = [], dataError }: P
           <section>
             <h3>By education board</h3>
             {boards.slice(0, 16).map((board) => (
-              <Link key={board.board_id} href={`/board=${toSeoSlug(board.slug)}`}>
+              <Link key={board.board_id} href={boardListingPath(board.slug)}>
                 {`${board.board_name} schools in India`}
               </Link>
             ))}

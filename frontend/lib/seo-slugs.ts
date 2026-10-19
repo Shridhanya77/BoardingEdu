@@ -10,6 +10,25 @@ export function toSeoSlug(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+export function schoolProfilePathFromSlugs({
+  countrySlug,
+  stateSlug,
+  citySlug,
+  localitySlug,
+  schoolSlug,
+}: {
+  countrySlug: string;
+  stateSlug: string;
+  citySlug: string;
+  localitySlug?: string | null;
+  schoolSlug: string;
+}) {
+  return `/${[countrySlug, stateSlug, citySlug, localitySlug, schoolSlug]
+    .filter((slug): slug is string => Boolean(slug))
+    .map(toSeoSlug)
+    .join("/")}`;
+}
+
 export type SchoolTypeCategory = "day-school" | "day-boarding-school" | "boarding-school";
 export type HomeSchoolCategory = "day-school" | "residential-school";
 

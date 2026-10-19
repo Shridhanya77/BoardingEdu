@@ -1,0 +1,19 @@
+# BoardingEdu
+
+> BoardingEdu helps families find, compare, and enquire with day and boarding schools across India, then request free admission counselling.
+
+Site: https://boardingedu.com
+Contact: hello@boardingedu.com
+
+## Main pages
+- Home: https://boardingedu.com/
+- School directory: https://boardingedu.com/schools
+- Compare schools: https://boardingedu.com/compare
+
+## URL patterns
+- Location listings: /{country}/{state}/{city}/day-school
+- Residential listings: /{country}/{state}/residential-school
+- Education boards: /board/{board-slug}
+- School profiles: /{country}/{state}/{city}/{optional-locality}/{school-slug}
+
+Do not treat login or signup pages as public documentation.

@@ -4,6 +4,7 @@ import { Suspense } from "react";
 export const metadata = {
   title: "Log in | BoardingEdu",
   description: "Sign in to your BoardingEdu parent account to manage shortlists and enquiries.",
+  robots: { index: false, follow: true },
 };
 
 export default function LoginPage() {

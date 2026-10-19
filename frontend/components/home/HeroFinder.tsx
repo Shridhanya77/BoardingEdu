@@ -10,6 +10,70 @@ import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolTypeIds, school
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
 type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
+type LocationOption = { id: string; name: string };
+
+function LocationCombobox({
+  id,
+  label,
+  value,
+  options,
+  disabled,
+  required,
+  placeholder,
+  onSelect,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: LocationOption[];
+  disabled?: boolean;
+  required?: boolean;
+  placeholder: string;
+  onSelect: (id: string) => void;
+}) {
+  const [inputValue, setInputValue] = useState(value);
+
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
+
+  function updateValue(nextValue: string) {
+    setInputValue(nextValue);
+    const match = options.find(
+      (option) => option.name.toLocaleLowerCase() === nextValue.trim().toLocaleLowerCase(),
+    );
+    onSelect(match?.id ?? "");
+  }
+
+  return (
+    <label className="finder-field" htmlFor={id}>
+      <span>{label}</span>
+      <input
+        id={id}
+        list={`${id}-options`}
+        value={inputValue}
+        placeholder={placeholder}
+        disabled={disabled}
+        required={required}
+        aria-required={required || undefined}
+        autoComplete="off"
+        aria-autocomplete="list"
+        onChange={(event) => updateValue(event.target.value)}
+        onBlur={() => {
+          const match = options.find(
+            (option) => option.name.toLocaleLowerCase() === inputValue.trim().toLocaleLowerCase(),
+          );
+          if (!match) setInputValue(value);
+        }}
+      />
+      <datalist id={`${id}-options`}>
+        {options.map((option) => (
+          <option value={option.name} key={option.id} />
+        ))}
+      </datalist>
+    </label>
+  );
+}
 
 const homeCategories: { id: HomeSchoolCategory; label: string }[] = [
   { id: "day-school", label: "Day School" },
@@ -26,10 +90,15 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const [states, setStates] = useState<StateListItem[]>([]);
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [locations, setLocations] = useState<LocationListItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingCountries, setLoadingCountries] = useState(true);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+  const [countryError, setCountryError] = useState<string | null>(null);
+  const [stateError, setStateError] = useState<string | null>(null);
+  const [cityError, setCityError] = useState<string | null>(null);
+  const [localityError, setLocalityError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [countrySearch, setCountrySearch] = useState("");
 
   const options = schoolTypes.filter((type) => type.status && (homeSearch
     ? homeSchoolCategory(type.type_code, type.slug, type.type_name)
@@ -46,9 +115,6 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const state = states.find((item) => item.state_id === value.state);
   const city = cities.find((item) => item.city_id === value.city);
   const locality = locations.find((item) => item.location_id === value.location);
-  useEffect(() => {
-    setCountrySearch(country?.country_name ?? "");
-  }, [country?.country_name, value.country]);
   const path = useMemo(() => {
     const parts = country ? [toSeoSlug(country.slug)] : [];
     if (state) parts.push(toSeoSlug(state.slug));
@@ -66,33 +132,36 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
 
   useEffect(() => {
     let active = true;
-    setError(null);
-    geography.countries().then(fetchAllPages).then((rows) => { if (active) setCountries(rows.filter((row) => row.status)); }).catch(() => { if (active) setError("Countries could not be loaded. Please try again."); });
+    setCountryError(null);
+    setLoadingCountries(true);
+    geography.countries().then(fetchAllPages).then((rows) => { if (active) setCountries(rows.filter((row) => row.status)); }).catch((reason: unknown) => { if (active) setCountryError(reason instanceof Error ? reason.message : "Countries could not be loaded."); }).finally(() => { if (active) setLoadingCountries(false); });
     return () => { active = false; };
   }, [retryCount]);
   useEffect(() => {
     let active = true;
-    setError(null);
-    if (!value.country) { setStates([]); return; }
+    setStateError(null);
+    if (!value.country) { setStates([]); setLoadingStates(false); return; }
     setStates([]);
-    setLoading(true);
-    geography.statesOf(value.country).then(fetchAllPages).then((rows) => { if (active) setStates(rows.filter((row) => row.status && row.country_id === value.country)); }).catch(() => { if (active) { setStates([]); setError("States could not be loaded. Please try again."); } }).finally(() => { if (active) setLoading(false); });
+    setLoadingStates(true);
+    geography.statesOf(value.country).then(fetchAllPages).then((rows) => { if (active) setStates(rows.filter((row) => row.status && row.country_id === value.country)); }).catch((reason: unknown) => { if (active) { setStates([]); setStateError(reason instanceof Error ? reason.message : "States could not be loaded."); } }).finally(() => { if (active) setLoadingStates(false); });
     return () => { active = false; };
   }, [value.country, retryCount]);
   useEffect(() => {
     let active = true;
-    setError(null);
-    if (!value.state) { setCities([]); return; }
+    setCityError(null);
+    if (!value.state) { setCities([]); setLoadingCities(false); return; }
     setCities([]);
-    geography.citiesOf(value.state).then(fetchAllPages).then((rows) => { if (active) setCities(rows.filter((row) => row.status && row.state_id === value.state)); }).catch(() => { if (active) { setCities([]); setError("Cities could not be loaded. Please try again."); } });
+    setLoadingCities(true);
+    geography.citiesOf(value.state).then(fetchAllPages).then((rows) => { if (active) setCities(rows.filter((row) => row.status && row.state_id === value.state)); }).catch((reason: unknown) => { if (active) { setCities([]); setCityError(reason instanceof Error ? reason.message : "Cities could not be loaded."); } }).finally(() => { if (active) setLoadingCities(false); });
     return () => { active = false; };
   }, [value.state, retryCount]);
   useEffect(() => {
     let active = true;
-    setError(null);
-    if (!value.city || residential) { setLocations([]); return; }
+    setLocalityError(null);
+    if (!value.city || residential) { setLocations([]); setLoadingLocations(false); return; }
     setLocations([]);
-    geography.locationsOf(value.city).then(fetchAllPages).then((rows) => { if (active) setLocations(rows.filter((row) => row.status && row.city_id === value.city)); }).catch(() => { if (active) { setLocations([]); setError("Localities could not be loaded. Please try again."); } });
+    setLoadingLocations(true);
+    geography.locationsOf(value.city).then(fetchAllPages).then((rows) => { if (active) setLocations(rows.filter((row) => row.status && row.city_id === value.city)); }).catch((reason: unknown) => { if (active) { setLocations([]); setLocalityError(reason instanceof Error ? reason.message : "Localities could not be loaded."); } }).finally(() => { if (active) setLoadingLocations(false); });
     return () => { active = false; };
   }, [value.city, residential, retryCount]);
 
@@ -117,6 +186,10 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     if (!activeCategory || !country || (value.state && !state) || (value.city && !city) || (!residential && value.location && !locality)) return;
     onSubmit(path);
   }
+  function clearSelections() {
+    onChange({ country: "", state: "", city: "", location: "", board: [], schoolType: [] });
+  }
+  const apiError = countryError ?? stateError ?? cityError ?? localityError;
 
   return <form className="hero-finder" onSubmit={submit} role="search">
     <fieldset className="finder-group">
@@ -141,6 +214,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
               name={homeSearch ? "homepage-school-category" : "school-category"}
               value={id}
               checked={selected}
+              required
               disabled={!ids.length}
               onChange={() => patch({ schoolType: ids, city: "", location: "" })}
             />
@@ -155,30 +229,97 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       </div>
     </fieldset>
     {!activeCategory ? (
-      <p className="finder-instruction" role="status">First, choose the type of school</p>
+      <p className="finder-instruction" role="status">
+        Choose Day School or Residential School to continue to location selection.
+      </p>
     ) : <fieldset className="finder-group">
       <legend><span>02</span> Select a location</legend>
       <div className={`finder-group__fields${residential ? " finder-group__fields--regional" : ""}`}>
-        <label className="finder-field"><span>Country</span><input list="hero-country-options" value={countrySearch} placeholder="Search countries" autoComplete="country-name" onChange={(event) => {
-          const query = event.target.value;
-          setCountrySearch(query);
-          const match = countries.find((row) => row.country_name.toLowerCase() === query.trim().toLowerCase());
-          if (match && match.country_id !== value.country) patch({ country: match.country_id, state: "", city: "", location: "" });
-        }} onBlur={() => {
-          const match = countries.find((row) => row.country_name.toLowerCase() === countrySearch.trim().toLowerCase());
-          if (!match) setCountrySearch(country?.country_name ?? "");
-        }} /><datalist id="hero-country-options">{countries.map((row) => <option value={row.country_name} key={row.country_id} />)}</datalist></label>
-        <label className="finder-field"><span>State</span><select value={value.state} disabled={!value.country || loading} onChange={(event) => patch({ state: event.target.value, city: "", location: "" })}><option value="">All states</option>{states.map((row) => <option value={row.state_id} key={row.state_id}>{row.state_name}</option>)}</select></label>
+        <LocationCombobox
+          id="hero-country"
+          label="Country"
+          value={country?.country_name ?? ""}
+          options={countries.map((row) => ({ id: row.country_id, name: row.country_name }))}
+          disabled={loadingCountries}
+          required
+          placeholder={loadingCountries ? "Loading countries…" : "Search countries"}
+          onSelect={(countryId) => patch({ country: countryId, state: "", city: "", location: "" })}
+        />
+        <LocationCombobox
+          id="hero-state"
+          label="State"
+          value={state?.state_name ?? ""}
+          options={states.map((row) => ({ id: row.state_id, name: row.state_name }))}
+          disabled={!value.country || loadingStates}
+          placeholder={loadingStates ? "Loading states…" : "Search states"}
+          onSelect={(stateId) => patch({ state: stateId, city: "", location: "" })}
+        />
         {residential ? (
-          <label className="finder-field"><span>City (optional)</span><select value={value.city} disabled={!value.state} onChange={(event) => patch({ city: event.target.value, location: "" })}><option value="">All cities in state</option>{cities.map((row) => <option value={row.city_id} key={row.city_id}>{row.city_name}</option>)}</select></label>
+          <LocationCombobox
+            id="hero-city"
+            label="City (optional)"
+            value={city?.city_name ?? ""}
+            options={cities.map((row) => ({ id: row.city_id, name: row.city_name }))}
+            disabled={!value.state || loadingCities}
+            placeholder={loadingCities ? "Loading cities…" : "Search cities"}
+            onSelect={(cityId) => patch({ city: cityId, location: "" })}
+          />
         ) : <>
-          <label className="finder-field"><span>City</span><select value={value.city} disabled={!value.state} onChange={(event) => patch({ city: event.target.value, location: "" })}><option value="">All cities</option>{cities.map((row) => <option value={row.city_id} key={row.city_id}>{row.city_name}</option>)}</select></label>
-          <label className="finder-field"><span>Locality</span><select value={value.location} disabled={!value.city || locations.length === 0} onChange={(event) => patch({ location: event.target.value })}><option value="">Any locality</option>{locations.map((row) => <option value={row.location_id} key={row.location_id}>{row.location_name}</option>)}</select></label>
+          <LocationCombobox
+            id="hero-city"
+            label="City"
+            value={city?.city_name ?? ""}
+            options={cities.map((row) => ({ id: row.city_id, name: row.city_name }))}
+            disabled={!value.state || loadingCities}
+            placeholder={loadingCities ? "Loading cities…" : "Search cities"}
+            onSelect={(cityId) => patch({ city: cityId, location: "" })}
+          />
+          <LocationCombobox
+            id="hero-locality"
+            label="Locality (optional)"
+            value={locality?.location_name ?? ""}
+            options={locations.map((row) => ({ id: row.location_id, name: row.location_name }))}
+            disabled={!value.city || loadingLocations}
+            placeholder={loadingLocations ? "Loading localities…" : "Search localities"}
+            onSelect={(locationId) => patch({ location: locationId })}
+          />
         </>}
       </div>
-      {locationMessage && <p role="status">{locationMessage}</p>}{locationError && <p role="alert">{locationError}</p>}{error && <p role="alert">{error} <button type="button" onClick={() => setRetryCount((count) => count + 1)}>Retry</button></p>}{loading && <p role="status">Loading locations…</p>}
-      <p className="finder-location-summary">{[country?.country_name, state?.state_name, city?.city_name, !residential && locality?.location_name].filter(Boolean).join(" · ")}</p>
+      {locationMessage && <p className="finder-message" role="status">{locationMessage}</p>}
+      {locationError && <p className="finder-error" role="alert">{locationError}</p>}
+      {apiError && (
+        <p className="finder-error" role="alert">
+          {apiError}{" "}
+          <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
+            Retry
+          </button>
+        </p>
+      )}
+      {!country && !loadingCountries && !countryError && (
+        <p className="finder-instruction" role="status">
+          Choose a country. State, city, and locality can narrow your results.
+        </p>
+      )}
+      {value.state && !loadingStates && !states.length && !stateError && (
+        <p className="finder-message" role="status">No active states are available for this country.</p>
+      )}
+      {value.city && !loadingLocations && !locations.length && !localityError && !residential && (
+        <p className="finder-message" role="status">No localities are listed for this city. You can still search the whole city.</p>
+      )}
+      {(loadingCountries || loadingStates || loadingCities || loadingLocations) && (
+        <p className="finder-message" role="status">Loading location options…</p>
+      )}
+      <p className="finder-location-summary" aria-live="polite">
+        {[country?.country_name, state?.state_name, city?.city_name, !residential && locality?.location_name].filter(Boolean).join(" · ") || "No location selected"}
+      </p>
     </fieldset>}
-    <div className="finder-actions"><button className="hero-finder__submit" type="submit" disabled={!activeCategory || !country || Boolean(value.state && !state) || Boolean(!residential && value.city && !city) || Boolean(!residential && value.location && !locality)}><Search size={16} /> Search Schools</button></div>
+    <div className="finder-actions">
+      <button className="finder-clear" type="button" onClick={clearSelections}>
+        Clear selections
+      </button>
+      <button className="hero-finder__submit" type="submit" disabled={!activeCategory || !country || Boolean(value.state && !state) || Boolean(!residential && value.city && !city) || Boolean(!residential && value.location && !locality)}>
+        <Search size={16} /> Find Schools
+      </button>
+    </div>
   </form>;
 }

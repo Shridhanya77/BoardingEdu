@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
+import JsonLd from "@/components/JsonLd";
 import { AuthProvider } from "@/lib/auth";
 import { SearchExperienceProvider } from "@/lib/search-experience";
 import SearchAnalyticsConsent from "@/components/SearchAnalyticsConsent";
 import PublicSiteFooter from "@/components/home/PublicSiteFooter";
-import { homeSeoKeywords } from "@/lib/home-content";
+import { homeSeoKeywords, organizationJsonLd, websiteJsonLd } from "@/lib/home-content";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://boardingedu.com"),
-  title: "Find Schools in India | BoardingEdu",
+  metadataBase: new URL(SITE_URL),
+  title: "Find the Right School for Your Child | BoardingEdu",
   description:
     "Explore day and boarding schools in India. Compare school locations, boards, fees, and facilities, then contact schools or request free counselling.",
   keywords: homeSeoKeywords,
@@ -18,11 +20,17 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "BoardingEdu",
-    title: "Find Schools in India | BoardingEdu",
+    siteName: SITE_NAME,
+    title: "Find the Right School for Your Child | BoardingEdu",
     description:
       "Explore day and boarding schools in India. Compare locations, education boards, fees, and facilities.",
-    url: "https://boardingedu.com/",
+    url: SITE_URL,
+    images: [{ url: `${SITE_URL}/BoardingEdu_LOGO.jpeg` }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Find the Right School for Your Child | BoardingEdu",
+    description: "Search, compare, and enquire with schools across India.",
   },
 };
 
@@ -41,6 +49,8 @@ export default function RootLayout({
         */}
         <AuthProvider>
           <SearchExperienceProvider>
+            <JsonLd data={organizationJsonLd} />
+            <JsonLd data={websiteJsonLd} />
             <NavBar />
             {children}
             <SearchAnalyticsConsent />

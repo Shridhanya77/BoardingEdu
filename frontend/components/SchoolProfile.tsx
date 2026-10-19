@@ -22,7 +22,7 @@ import {
   Waves,
 } from "lucide-react";
 import type { SchoolDetail } from "@/lib/api";
-import { schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
@@ -61,16 +61,13 @@ function facilityAppearance(name: string, category: string) {
 }
 
 export function schoolProfilePath(school: SchoolDetail) {
-  return `/${[
-    school.country_detail.slug,
-    school.state_detail.slug,
-    school.city_detail.slug,
-    school.location_detail?.slug,
-    school.slug,
-  ]
-    .filter((slug): slug is string => Boolean(slug))
-    .map((slug) => toSeoSlug(slug))
-    .join("/")}`;
+  return schoolProfilePathFromSlugs({
+    countrySlug: school.country_detail.slug,
+    stateSlug: school.state_detail.slug,
+    citySlug: school.city_detail.slug,
+    localitySlug: school.location_detail?.slug,
+    schoolSlug: school.slug,
+  });
 }
 
 function gradeBadge(gradeName: string, seats: number | null, entryAge: [number | null, number | null]) {

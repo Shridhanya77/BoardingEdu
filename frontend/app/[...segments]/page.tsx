@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, fetchAllPages, geography, schools } from "@/lib/api";
-import type { CityListItem, CountryListItem, LocationListItem, SchoolDetail, SchoolTypeListItem, StateListItem } from "@/lib/api";
+import type { BoardListItem, CityListItem, CountryListItem, LocationListItem, SchoolDetail, SchoolTypeListItem, StateListItem } from "@/lib/api";
 import { homeSchoolTypeIds, schoolTypeCategory, schoolTypeLabel, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
+import { listingCopy, pageMetadata } from "@/lib/seo";
+import { boardListingPath } from "@/lib/school-urls";
 
 export const dynamic = "force-dynamic";
 
@@ -54,46 +56,88 @@ async function resolveHomeTypes(category: HomeSchoolCategory): Promise<SchoolTyp
   return types;
 }
 
+async function findActiveBoard(slug: string): Promise<BoardListItem | undefined> {
+  const boards = await fetchAllPages(await schools.boards());
+  return boards.find((row) => row.status && toSeoSlug(row.slug) === toSeoSlug(slug));
+}
+
+function legacyBoardSlug(segment: string | undefined): string | undefined {
+  if (!segment) return undefined;
+  const prefix = /^board(?:=|%3d)/i;
+  return prefix.test(segment) ? segment.replace(prefix, "") : undefined;
+}
+
 function placePath(place: Place) {
   return [place.country.slug, place.state?.slug, place.city?.slug, place.location?.slug].filter(Boolean).map((slug) => toSeoSlug(slug!)).join("/");
 }
 
+function schoolPageMetadata(school: SchoolDetail): Metadata {
+  const city = school.city_detail.city_name;
+  const state = school.state_detail.state_name;
+  const boards = school.boards_detail.map((board) => board.board_name);
+  return pageMetadata({
+    title: `${school.school_name}, ${city} | BoardingEdu`,
+    description: `Explore ${school.school_name} in ${city}, ${state}. Compare boards, fees, and facilities, then send an enquiry or request counselling.`,
+    path: schoolProfilePath(school),
+    image: school.school_image_url,
+    keywords: [school.school_name, city, state, ...boards, "school admissions"],
+  });
+}
+
+function unavailableMetadata(title: string): Metadata {
+  return { title, robots: { index: false, follow: true } };
+}
+
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const segments = params.segments ?? [];
-  if (segments.length === 1 && segments[0]?.startsWith("board=")) {
-    const requestedSlug = toSeoSlug(segments[0].slice("board=".length));
+  if (segments[0] === "board" && segments.length === 2) {
     try {
-      const boards = await fetchAllPages(await schools.boards());
-      const board = boards.find((row) => row.status && toSeoSlug(row.slug) === requestedSlug);
+      const board = await findActiveBoard(segments[1]);
       if (board) {
-        return {
-          title: `${board.board_name} schools | BoardingEdu`,
-          description: `Explore and compare schools offering ${board.board_name} across India.`,
-          alternates: { canonical: `/board=${toSeoSlug(board.slug)}` },
-        };
+        const copy = listingCopy({ boardName: board.board_name, place: "India" });
+        return pageMetadata({
+          title: copy.title,
+          description: copy.description,
+          path: boardListingPath(board.slug),
+          keywords: [board.board_name, `${board.board_name} schools in India`],
+        });
       }
     } catch {
-      return { title: "School directory | BoardingEdu", robots: { index: false, follow: true } };
+      return unavailableMetadata("School directory | BoardingEdu");
     }
-    return { title: "Education board not found | BoardingEdu", robots: { index: false, follow: true } };
+    return unavailableMetadata("Education board not found | BoardingEdu");
+  }
+  const oldBoardSlug = segments.length === 1 ? legacyBoardSlug(segments[0]) : undefined;
+  if (oldBoardSlug !== undefined) {
+    try {
+      const board = await findActiveBoard(oldBoardSlug);
+      if (board) {
+        const copy = listingCopy({ boardName: board.board_name, place: "India" });
+        return pageMetadata({
+          title: copy.title,
+          description: copy.description,
+          path: boardListingPath(board.slug),
+          keywords: [board.board_name, `${board.board_name} schools in India`],
+        });
+      }
+    } catch {
+      return unavailableMetadata("School directory | BoardingEdu");
+    }
+    return unavailableMetadata("Education board not found | BoardingEdu");
   }
   if (segments[0] === "schools" && segments.length === 1) {
-    return {
+    return pageMetadata({
       title: "School directory | BoardingEdu",
       description: "Explore and compare schools by location, education board, school type, and annual fees.",
-      alternates: { canonical: "/schools" },
-    };
+      path: "/schools",
+      keywords: ["school directory", "schools in India", "boarding schools", "day schools"],
+    });
   }
   if (segments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(segments[2])) {
     try {
-      const school = await schools.bySlug(segments[3]);
-      return {
-        title: `${school.school_name} | BoardingEdu`,
-        description: `Explore ${school.school_name} in ${school.city_detail.city_name}, ${school.state_detail.state_name}.`,
-        alternates: { canonical: schoolProfilePath(school) },
-      };
+      return schoolPageMetadata(await schools.bySlug(segments[3]));
     } catch {
-      return { title: "School profile | BoardingEdu", robots: { index: false, follow: true } };
+      return unavailableMetadata("School profile | BoardingEdu");
     }
   }
   if (
@@ -101,14 +145,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     !["boarding", "dayschool", "fullboarding"].includes(segments[2])
   ) {
     try {
-      const school = await schools.bySlug(segments[segments.length - 1]!);
-      return {
-        title: `${school.school_name} | BoardingEdu`,
-        description: `Explore ${school.school_name} in ${school.city_detail.city_name}, ${school.state_detail.state_name}.`,
-        alternates: { canonical: schoolProfilePath(school) },
-      };
+      return schoolPageMetadata(await schools.bySlug(segments[segments.length - 1]!));
     } catch {
-      return { title: "School profile | BoardingEdu", robots: { index: false, follow: true } };
+      return unavailableMetadata("School profile | BoardingEdu");
     }
   }
   if (
@@ -117,7 +156,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     (searchParams?.home_category === "day-school" || searchParams?.home_category === "residential-school")
   ) {
     const label = searchParams.home_category === "day-school" ? "Day School" : "Residential School";
-    return { title: `${label} search | BoardingEdu`, description: `Choose a location to explore ${label.toLowerCase()}s.`, alternates: { canonical: "/home" } };
+    const copy = listingCopy({ categoryLabel: label, place: "India" });
+    return pageMetadata({
+      title: copy.title,
+      description: `Choose a location to explore ${label.toLowerCase()}s across India.`,
+      path: `/home?home_category=${searchParams.home_category}`,
+    });
   }
   const homeCategory = segments[segments.length - 1]?.toLowerCase();
   if (homeCategory === "day-school" || homeCategory === "residential-school") {
@@ -127,13 +171,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       const place = await resolvePlace(placeSlugs);
       const location = [place.location?.location_name, place.city?.city_name, place.state?.state_name, place.country.country_name].filter(Boolean).join(", ");
       const label = category === "day-school" ? "Day School" : "Residential School";
-      return {
-        title: `${label} in ${location} | BoardingEdu`,
-        description: `Explore ${label.toLowerCase()}s in ${location}. Compare verified school information on BoardingEdu.`,
-        alternates: { canonical: `/${placePath(place)}/${category}` },
-      };
+      const copy = listingCopy({ categoryLabel: label, place: location });
+      return pageMetadata({
+        title: copy.title,
+        description: copy.description,
+        path: `/${placePath(place)}/${category}`,
+        keywords: [copy.heading, location, label],
+      });
     } catch {
-      return { title: "School discovery | BoardingEdu", robots: { index: false, follow: true } };
+      return unavailableMetadata("School discovery | BoardingEdu");
     }
   }
   const isHomePrefix = segments[0] === "home";
@@ -148,20 +194,30 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     const category = schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name);
     const typeQuery = !isLegacyTypePrefix && category !== "day-school" ? `?type=${category}` : "";
     const canonical = `${prefix}${placePath(place)}${typeQuery}`;
-    return { title: `${label} in ${location} | BoardingEdu`, description: `Explore ${label.toLowerCase()} in ${location}. Compare verified school information on BoardingEdu.`, alternates: { canonical } };
+    const copy = listingCopy({ categoryLabel: label, place: location });
+    return pageMetadata({
+      title: copy.title,
+      description: copy.description,
+      path: canonical,
+      keywords: [copy.heading, location, label],
+    });
   } catch {
-    return { title: "School discovery | BoardingEdu", robots: { index: false, follow: true } };
+    return unavailableMetadata("School discovery | BoardingEdu");
   }
 }
 
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
-  if (segments.length === 1 && segments[0]?.startsWith("board=")) {
-    const requestedSlug = toSeoSlug(segments[0].slice("board=".length));
-    const boards = await fetchAllPages(await schools.boards());
-    const board = boards.find((row) => row.status && toSeoSlug(row.slug) === requestedSlug);
+  if (segments[0] === "board" && segments.length === 2) {
+    const board = await findActiveBoard(segments[1]);
     if (!board) notFound();
     return <SchoolDiscovery initialFilter={{ boardIds: [board.board_id] }} />;
+  }
+  const oldBoardSlug = segments.length === 1 ? legacyBoardSlug(segments[0]) : undefined;
+  if (oldBoardSlug !== undefined) {
+    const board = await findActiveBoard(oldBoardSlug);
+    if (!board) notFound();
+    redirect(boardListingPath(board.slug));
   }
   if (segments[0] === "schools" && segments.length === 1) {
     return <SchoolDiscovery initialFilter={{}} />;

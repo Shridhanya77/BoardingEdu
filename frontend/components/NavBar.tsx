@@ -63,11 +63,12 @@ export default function NavBar() {
     ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username
     : "";
 
-  const onSchoolsPage = pathname === "/" || pathname === "";
-  const homeHref = (section: string) => (onSchoolsPage ? section : `/${section}`);
+  const onHomePage = pathname === "/" || pathname === "";
+  const onExplore = pathname === "/schools" || (pathname !== "/" && pathname !== "/compare" && pathname !== "/login" && pathname !== "/signup" && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms"));
+  const homeHref = (section: string) => (onHomePage ? section : `/${section}`);
 
   useEffect(() => {
-    if (!onSchoolsPage) {
+    if (!onHomePage) {
       setHasScrolled(false);
       return;
     }
@@ -76,11 +77,11 @@ export default function NavBar() {
     updateScrollState();
     window.addEventListener("scroll", updateScrollState, { passive: true });
     return () => window.removeEventListener("scroll", updateScrollState);
-  }, [onSchoolsPage]);
+  }, [onHomePage]);
 
   return (
     <header
-      className={`site-header site-header--sticky${onSchoolsPage ? " site-header--hero" : ""}${hasScrolled ? " site-header--scrolled" : ""}`}
+      className={`site-header site-header--sticky${onHomePage ? " site-header--hero" : ""}${hasScrolled ? " site-header--scrolled" : ""}`}
     >
       <Link className="brand" href="/" aria-label="BoardingEdu home">
         <Image
@@ -93,10 +94,10 @@ export default function NavBar() {
       </Link>
 
       <nav className="site-header__nav" aria-label="Primary">
-        <Link className="site-header__link" href="/schools">Find Schools</Link>
-        <Link className="site-header__link" href={homeHref("#how-it-works")}>How It Works</Link>
-        <Link className="site-header__link" href={homeHref("#for-schools")}>For Schools</Link>
-        <Link className="site-header__link" href={homeHref("#about")}>About Us</Link>
+        <Link className={`site-header__link${onHomePage ? " is-active" : ""}`} href="/">Home</Link>
+        <Link className={`site-header__link${onExplore ? " is-active" : ""}`} href="/schools">Explore Schools</Link>
+        <Link className={`site-header__link${pathname === "/compare" ? " is-active" : ""}`} href="/compare">Compare Schools</Link>
+        <Link className="site-header__link" href={homeHref("#counselling")}>Free Counselling</Link>
       </nav>
 
       <div className="site-header__actions">
@@ -159,8 +160,8 @@ export default function NavBar() {
             </Link>
           </>
         )}
-        <Link href="/schools" className="header-action header-action--find">
-          <Search size={15} /> Find a School
+        <Link href={homeHref("#counselling")} className="header-action header-action--find">
+          <Search size={15} /> Get counselling
         </Link>
       </div>
       <button
@@ -186,10 +187,9 @@ export default function NavBar() {
             id="mobile-primary-navigation"
             aria-label="Mobile primary"
           >
-            <Link href="/schools" onClick={() => setMobileNavOpen(false)}>Find Schools</Link>
-            <Link href={homeHref("#how-it-works")} onClick={() => setMobileNavOpen(false)}>How It Works</Link>
-            <Link href={homeHref("#for-schools")} onClick={() => setMobileNavOpen(false)}>For Schools</Link>
-            <Link href={homeHref("#about")} onClick={() => setMobileNavOpen(false)}>About Us</Link>
+            <Link href="/" onClick={() => setMobileNavOpen(false)}>Home</Link>
+            <Link href="/schools" onClick={() => setMobileNavOpen(false)}>Explore Schools</Link>
+            <Link href="/compare" onClick={() => setMobileNavOpen(false)}>Compare Schools</Link>
             <Link href={homeHref("#counselling")} onClick={() => setMobileNavOpen(false)}>Free Counselling</Link>
             {user ? (
               <button

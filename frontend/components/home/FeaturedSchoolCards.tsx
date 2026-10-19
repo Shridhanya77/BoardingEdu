@@ -5,18 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
-import { schoolTypeLabel } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
-  return `/${[
-    school.country_slug,
-    school.state_slug,
-    school.city_slug,
-    school.location_slug,
-    school.slug,
-  ]
-    .filter(Boolean)
-    .join("/")}`;
+  return schoolProfilePathFromSlugs({
+    countrySlug: school.country_slug,
+    stateSlug: school.state_slug,
+    citySlug: school.city_slug,
+    localitySlug: school.location_slug,
+    schoolSlug: school.slug,
+  });
 }
 
 function formatFee(value: string | null) {
@@ -99,10 +97,12 @@ export default function FeaturedSchoolCards({
               <MapPin size={14} />
               {location || "Location on request"}
             </p>
-            <div className="featured-card__rating">
-              <CheckCircle2 size={13} />
-              {school.verification_status?.toLowerCase() === "verified" ? "Verified profile" : "Reviews coming soon"}
-            </div>
+            {school.verification_status?.toLowerCase() === "verified" && (
+              <div className="featured-card__rating">
+                <CheckCircle2 size={13} />
+                Verified profile
+              </div>
+            )}
             <dl>
               <dt>Annual Fee</dt>
               <dd>{formatFee(school.annual_fee)}</dd>

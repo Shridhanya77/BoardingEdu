@@ -380,11 +380,16 @@ export type SchoolVideoListItem = {
   sort_order: number;
 };
 
-export async function fetchAllPages<T>(firstPage: PaginatedResponse<T>, maxPages = 20): Promise<T[]> {
+export async function fetchAllPages<T>(firstPage: PaginatedResponse<T>, maxPages = 1000): Promise<T[]> {
   const items = [...firstPage.results];
   let next = firstPage.next;
   let pages = 1;
+  const visited = new Set<string>();
   while (next && pages < maxPages) {
+    if (visited.has(next)) {
+      throw new Error("The API returned a repeated pagination URL.");
+    }
+    visited.add(next);
     const page = await request<PaginatedResponse<T>>(next);
     items.push(...page.results);
     next = page.next;

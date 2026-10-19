@@ -1,3 +1,5 @@
+import { SITE_EMAIL, SITE_NAME, SITE_PHONE, SITE_URL } from "@/lib/site";
+
 export const exploreItems = [
   { emoji: "🏫", title: "Search Boarding Schools", href: "/#schools", query: "boarding" as const },
   { emoji: "☀️", title: "Search Day Schools", href: "/#schools", query: "day" as const },
@@ -106,35 +108,41 @@ export const homeSeoKeywords = [
   "school admission counselling",
 ];
 
+export const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SITE_NAME,
+  url: SITE_URL,
+  email: SITE_EMAIL,
+  telephone: SITE_PHONE,
+  logo: `${SITE_URL}/BoardingEdu_LOGO.jpeg`,
+  description:
+    "A school discovery platform helping families explore day and boarding schools, compare options, and request admission counselling.",
+};
+
+export const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  url: SITE_URL,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${SITE_URL}/schools?search={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+};
+
+export const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
+  })),
+};
+
 export const jsonLd = {
   "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      name: "BoardingEdu",
-      url: "https://boardingedu.com",
-      email: "hello@boardingedu.com",
-      telephone: "+91-80-4611-0000",
-      description:
-        "A school discovery platform helping families explore schools and compare options.",
-    },
-    {
-      "@type": "WebSite",
-      name: "BoardingEdu",
-      url: "https://boardingedu.com",
-      potentialAction: {
-        "@type": "SearchAction",
-        target: "https://boardingedu.com/?search={search_term_string}",
-        "query-input": "required name=search_term_string",
-      },
-    },
-    {
-      "@type": "FAQPage",
-      mainEntity: faqItems.map((item) => ({
-        "@type": "Question",
-        name: item.question,
-        acceptedAnswer: { "@type": "Answer", text: item.answer },
-      })),
-    },
-  ],
+  "@graph": [organizationJsonLd, websiteJsonLd, faqJsonLd],
 };
