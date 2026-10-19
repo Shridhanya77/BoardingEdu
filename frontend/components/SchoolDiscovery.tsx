@@ -16,6 +16,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -128,6 +129,9 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
     .join(", ");
 
   const href = schoolHref(school);
+  const coverImage =
+    school.school_image_url || school.school_photos?.[0]?.photo_url || "";
+  const logoImage = school.school_logo_url || "";
 
   return (
     <article className="school-card">
@@ -136,9 +140,43 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
         href={href}
         aria-label={`View details for ${school.school_name}`}
       />
+
+      <div className="school-card__media">
+        {coverImage ? (
+          <Image
+            className="school-card__media-image"
+            src={coverImage}
+            alt={`${school.school_name} campus`}
+            fill
+            sizes="(max-width: 820px) 100vw, 420px"
+            unoptimized
+          />
+        ) : (
+          <span className="school-card__media-fallback" aria-hidden="true">
+            <Building2 size={30} strokeWidth={1.4} />
+          </span>
+        )}
+
+        {school.videos_count ? (
+          <span className="school-card__video-count">
+            {school.videos_count} video{school.videos_count === 1 ? "" : "s"}
+          </span>
+        ) : null}
+      </div>
+
       <div className="school-card__top">
-        <div className="school-card__avatar" aria-hidden="true">
-          <Building2 size={23} strokeWidth={1.7} />
+        <div className="school-card__avatar">
+          {logoImage ? (
+            <Image
+              src={logoImage}
+              alt={`${school.school_name} logo`}
+              width={88}
+              height={88}
+              unoptimized
+            />
+          ) : (
+            <Building2 size={23} strokeWidth={1.7} aria-hidden="true" />
+          )}
         </div>
 
         <div className="school-card__title">
@@ -325,6 +363,73 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const initialBoardKey = initialFilter?.boardIds?.join(",") ?? "";
   const initialHomeCategory = initialFilter?.homeCategory;
   const homeSearchEnabled = !initialFilter || Boolean(initialHomeCategory);
+  const listingPlaceName = useMemo(() => {
+    const isInitialLocation =
+      initialFilter?.placeName &&
+      geoCountry === (initialFilter.country ?? "") &&
+      geoState === (initialFilter.state ?? "") &&
+      geoCity === (initialFilter.city ?? "") &&
+      geoLocation === (initialFilter.location ?? "");
+
+    const matchingCity = cities.find((city) =>
+      geoCity
+        ? city.city_id === geoCity
+        : geoState
+          ? city.state_id === geoState
+          : geoCountry
+            ? city.country_id === geoCountry
+            : false,
+    );
+    const initialPlaceName = isInitialLocation ? initialFilter.placeName : "";
+    if (!matchingCity) return initialPlaceName ?? "";
+    if (geoCity) {
+      const place = initialPlaceName && initialPlaceName !== matchingCity.city_name
+        ? `${initialPlaceName}, `
+        : "";
+      return `${place}${matchingCity.city_name}, ${matchingCity.state_name}`;
+    }
+    if (geoState) {
+      const place = initialPlaceName && initialPlaceName !== matchingCity.state_name
+        ? `${initialPlaceName}, `
+        : "";
+      return `${place}${matchingCity.state_name}, ${matchingCity.country_name}`;
+    }
+    return initialPlaceName || matchingCity.country_name;
+  }, [
+    cities,
+    geoCountry,
+    geoState,
+    geoCity,
+    geoLocation,
+    initialFilter?.placeName,
+    initialFilter?.country,
+    initialFilter?.state,
+    initialFilter?.city,
+    initialFilter?.location,
+  ]);
+  const listingBoardName = boards.find((item) => board.includes(item.board_id))?.board_name;
+  const selectedListingSchoolType = schoolTypes.find((type) => type.school_type_id === schoolType[0]);
+  const listingCategoryLabel = homeCategory === "residential-school"
+    ? "Residential School"
+    : homeCategory === "day-school"
+      ? "Day School"
+    : schoolType.length
+      ? schoolTypeLabel(
+          selectedListingSchoolType?.type_code ?? "",
+          selectedListingSchoolType?.slug ?? "",
+          selectedListingSchoolType?.type_name ?? "",
+        )
+      : "";
+  const listingHeading = listingBoardName
+    ? `${listingBoardName} Schools in India`
+    : listingPlaceName
+      ? `${listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools"} in ${listingPlaceName}`
+      : listingCategoryLabel
+        ? `${listingCategoryLabel}s in India`
+        : "Find Schools in India";
+  const listingDescription = listingBoardName
+    ? `Explore ${listingBoardName} schools in India. Compare school locations, fees, facilities, and admission information to find options that fit your family.`
+    : `Explore ${listingCategoryLabel ? `${listingCategoryLabel.toLowerCase()}s` : "schools"}${listingPlaceName ? ` in ${listingPlaceName}` : " across India"}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
   const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
@@ -1040,12 +1145,17 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           </div>
 
           <h1>
-            Find the Right School <span>for Your Child</span>
+            {isHomePage ? (
+              <>Find the Right School <span>for Your Child</span></>
+            ) : (
+              <>{listingHeading}</>
+            )}
           </h1>
 
           <p>
-            Discover schools, compare fees and facilities, shortlist
-            favourites, and connect with schools—all in one place.
+            {isHomePage
+              ? "Discover schools, compare fees and facilities, shortlist favourites, and connect with schools—all in one place."
+              : listingDescription}
           </p>
 
           <HeroFinder
@@ -1546,7 +1656,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             <fieldset className="filter-group">
               <legend>School type</legend>
               <div className="filter-checklist" id="school-type-filter">
-                {(["Day School", "Boarding School", "Full Boarding School"] as const).map((label) => {
+                {(["Day School", "Day Boarding School", "Boarding School"] as const).map((label) => {
                   const ids = schoolTypes
                     .filter((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name) === label)
                     .map((type) => type.school_type_id);

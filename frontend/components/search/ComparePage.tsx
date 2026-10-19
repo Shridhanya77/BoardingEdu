@@ -74,7 +74,7 @@ export default function ComparePage() {
       {comparedSchools.length === 0 ? (
         <section className="compare-empty">
           <h2>No schools selected yet</h2>
-          <p>Select up to three schools from the directory to compare them.</p>
+          <p>Select up to four schools from the directory to compare them.</p>
           <Link href="/schools">Browse schools</Link>
         </section>
       ) : (

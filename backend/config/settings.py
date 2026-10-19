@@ -38,13 +38,15 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
+    'drf_spectacular',
     # Local Apps
     'apps.geography.apps.GeographyConfig',
     'apps.schools.apps.SchoolsConfig',
     'apps.fees.apps.FeesConfig',
     'apps.admissions.apps.AdmissionsConfig',
     'apps.users.apps.UsersConfig',
-    'apps.search.apps.SearchConfig'
+    'apps.search.apps.SearchConfig',
+    'apps.reviews.apps.ReviewsConfig'
 ]
 
 MIDDLEWARE = [
@@ -155,6 +157,16 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+        os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() == "true"
+    )
+    SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "True").lower() == "true"
+
+# Applied in every environment: block clickjacking and tighten referrer leakage.
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 
 # YOUR DRF + JWT AUTH DECISION (WITH TOKEN ROTATION)
@@ -164,7 +176,31 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.BoardingEduCursorPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend','rest_framework.filters.SearchFilter','rest_framework.filters.OrderingFilter',],
-    'DEFAULT_THROTTLE_RATES': {'counselling': '5/hour'},
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'counselling': '5/hour',
+        'review': '10/hour',
+        'enquiry': '10/hour',
+    },
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'BoardingEdu API',
+    'DESCRIPTION': (
+        'School discovery platform API. Covers geography, schools, fees, '
+        'admissions, users (JWT auth) and parent reviews.'
+    ),
+    'VERSION': os.getenv('APP_VERSION', '1.0.0'),
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    'SERVE_AUTHENTICATION': [],
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SORT_OPERATIONS': False,
+    'SCHEMA_PATH_PREFIX': '/api',
+    'SWAGGER_UI_SETTINGS': {'persistAuthorization': True},
 }
 
 SIMPLE_JWT = {
@@ -234,3 +270,58 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = not REDIS_IS_AVAILABLE
 CELERY_TASK_EAGER_PROPAGATES = True
+
+# ===== Observability: structured logging =====
+LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO").upper()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+        "json": {
+            "format": (
+                '{{"time": "{asctime}", "level": "{levelname}", '
+                '"logger": "{name}", "message": "{message}"}}'
+            ),
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose" if DEBUG else "json",
+        },
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
+
+# ===== Observability: error tracking (opt-in via SENTRY_DSN) =====
+SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development" if DEBUG else "production"),
+        release=os.getenv("APP_VERSION", "1.0.0"),
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.0")),
+        send_default_pii=False,
+    )

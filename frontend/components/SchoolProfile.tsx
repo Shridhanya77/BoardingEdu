@@ -21,14 +21,33 @@ import {
   Users,
   Waves,
 } from "lucide-react";
-import type { SchoolDetail } from "@/lib/api";
-import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
+import type { SchoolDetail, ReviewListItem, SchoolRatingSummary } from "@/lib/api";
+import { reviews } from "@/lib/api";
+import { schoolProfilePathFromSlugs, schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
+import { schoolJsonLd } from "@/lib/structured-data";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
 import SchoolCallbackForm from "./SchoolCallbackForm";
+import SchoolProfileActions from "./SchoolProfileActions";
+import SchoolReviews from "./SchoolReviews";
+
+async function loadReviewData(schoolId: string): Promise<{
+  reviews: ReviewListItem[];
+  summary: SchoolRatingSummary | null;
+}> {
+  try {
+    const [listPage, summary] = await Promise.all([
+      reviews.forSchool(schoolId),
+      reviews.summary(schoolId),
+    ]);
+    return { reviews: listPage.results, summary };
+  } catch {
+    return { reviews: [], summary: null };
+  }
+}
 
 function genderLabel(value: string) {
   const normalized = value.toLowerCase();
@@ -91,7 +110,9 @@ function gradeBadge(gradeName: string, seats: number | null, entryAge: [number |
   );
 }
 
-export default function SchoolProfile({ school }: { school: SchoolDetail }) {
+export default async function SchoolProfile({ school }: { school: SchoolDetail }) {
+  const schoolImage = school.school_logo_url || school.school_image_url;
+  const reviewData = await loadReviewData(school.school_id);
   const location = [
     school.location_detail?.location_name,
     school.city_detail.city_name,
@@ -124,23 +145,30 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
       icon: Star,
     },
   ];
-  const structuredData = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "School",
-    name: school.school_name,
-    description: `${school.school_name} in ${location}.`,
-    image: school.school_image_url || undefined,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: school.address,
-      addressLocality: school.city_detail.city_name,
-      addressRegion: school.state_detail.state_name,
-      postalCode: school.pincode || undefined,
-      addressCountry: school.country_detail.country_name,
-    },
-    telephone: school.phone || undefined,
-    email: school.email || undefined,
-  }).replace(/</g, "\\u003c");
+  const countrySlug = toSeoSlug(school.country_detail.slug);
+  const stateSlug = toSeoSlug(school.state_detail.slug);
+  const citySlug = toSeoSlug(school.city_detail.slug);
+  const localitySlug = school.location_detail ? toSeoSlug(school.location_detail.slug) : null;
+  const breadcrumbs = [
+    { name: "Home", url: "/" },
+    { name: school.country_detail.country_name, url: `/home/${countrySlug}` },
+    { name: school.state_detail.state_name, url: `/${countrySlug}/${stateSlug}` },
+    { name: school.city_detail.city_name, url: `/${countrySlug}/${stateSlug}/${citySlug}` },
+    ...(school.location_detail
+      ? [{ name: school.location_detail.location_name, url: `/${countrySlug}/${stateSlug}/${citySlug}/${localitySlug}` }]
+      : []),
+    { name: school.school_name, url: schoolProfilePath(school) },
+  ];
+  const aggregateRating =
+    reviewData.summary && reviewData.summary.average_rating != null && reviewData.summary.review_count > 0
+      ? {
+          ratingValue: reviewData.summary.average_rating,
+          reviewCount: reviewData.summary.review_count,
+          bestRating: 5,
+          worstRating: 1,
+        }
+      : null;
+  const structuredData = JSON.stringify(schoolJsonLd(school, { breadcrumbs, aggregateRating })).replace(/</g, "\\u003c");
 
   return (
     <main className="school-detail-page">
@@ -158,11 +186,11 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
         </nav>
 
         <section className="school-detail__hero">
-          {school.school_logo_url ? (
+          {schoolImage ? (
             <Image
               className="school-detail__crest"
-              src={school.school_logo_url}
-              alt={`${school.school_name} logo`}
+              src={schoolImage}
+              alt={`${school.school_name} ${school.school_logo_url ? "logo" : "image"}`}
               width={80}
               height={80}
               unoptimized
@@ -202,6 +230,7 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
               </a>
             )}
             <a className="detail-button" href="#school-enquiry"><MessageSquare size={16} /> Send an Enquiry</a>
+            <SchoolProfileActions school={school} />
           </div>
         </section>
 
@@ -346,7 +375,12 @@ export default function SchoolProfile({ school }: { school: SchoolDetail }) {
                 <span className="detail-panel__icon"><Star size={18} /></span>
                 <div><h2>Reviews</h2><p>Parent experiences and school feedback.</p></div>
               </div>
-              <p className="empty-state">Reviews have not been published for this school yet.</p>
+              <SchoolReviews
+                schoolId={school.school_id}
+                schoolName={school.short_name || school.school_name}
+                initialReviews={reviewData.reviews}
+                initialSummary={reviewData.summary}
+              />
             </article>
 
             {/* ===== SECTION 5: LOCATION / ADDRESS ===== */}

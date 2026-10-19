@@ -20,6 +20,11 @@ Root routes:
 from django.contrib import admin
 from django.urls import include, path, reverse
 from django.http import HttpResponseRedirect
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from rest_framework.response import Response
 from rest_framework.reverse import reverse as drf_reverse
 from rest_framework.views import APIView
@@ -31,6 +36,7 @@ from rest_framework_simplejwt.views import (
     TokenBlacklistView,
 )
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
+from .health import healthz, readyz
 
 
 class EmailOrUsernameTokenObtainPairView(TokenObtainPairView):
@@ -73,6 +79,16 @@ class BoardingEduApiRoot(APIView):
                     "fees":      drf_reverse("fees:academicyear-list", request=request, format=format).rsplit("/academic-years/", 1)[0] + "/",
                     "users":     drf_reverse("users:user-list",      request=request, format=format).rsplit("/users/",      1)[0] + "/",
                     "admissions": drf_reverse("admissions:child-list", request=request, format=format).rsplit("/children/", 1)[0] + "/",
+                    "reviews":   "/api/reviews/",
+                },
+                "docs": {
+                    "schema": drf_reverse("schema", request=request, format=format),
+                    "swagger_ui": drf_reverse("swagger-ui", request=request, format=format),
+                    "redoc": drf_reverse("redoc", request=request, format=format),
+                },
+                "health": {
+                    "liveness": drf_reverse("healthz", request=request, format=format),
+                    "readiness": drf_reverse("readyz", request=request, format=format),
                 },
                 "admin": drf_reverse("admin:index", request=request, format=format),
             }
@@ -119,4 +135,21 @@ urlpatterns = [
     path("api/users/", include("apps.users.urls", namespace="users")),
     # ===== Admissions App =====
     path("api/admissions/", include("apps.admissions.urls", namespace="admissions")),
+    # ===== Reviews App =====
+    path("api/reviews/", include("apps.reviews.urls", namespace="reviews")),
+    # ===== Health probes (liveness / readiness) =====
+    path("healthz", healthz, name="healthz"),
+    path("readyz", readyz, name="readyz"),
+    # ===== API schema & docs =====
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/schema/swagger-ui/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path(
+        "api/schema/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
+    ),
 ]

@@ -1,4 +1,8 @@
-import { SITE_EMAIL, SITE_NAME, SITE_PHONE, SITE_URL } from "@/lib/site";
+import {
+  faqJsonLd as buildFaqJsonLd,
+  organizationJsonLd as buildOrganizationJsonLd,
+  websiteJsonLd as buildWebsiteJsonLd,
+} from "@/lib/structured-data";
 
 export const exploreItems = [
   { emoji: "🏫", title: "Search Boarding Schools", href: "/#schools", query: "boarding" as const },
@@ -108,39 +112,9 @@ export const homeSeoKeywords = [
   "school admission counselling",
 ];
 
-export const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: SITE_NAME,
-  url: SITE_URL,
-  email: SITE_EMAIL,
-  telephone: SITE_PHONE,
-  logo: `${SITE_URL}/BoardingEdu_LOGO.jpeg`,
-  description:
-    "A school discovery platform helping families explore day and boarding schools, compare options, and request admission counselling.",
-};
-
-export const websiteJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: SITE_NAME,
-  url: SITE_URL,
-  potentialAction: {
-    "@type": "SearchAction",
-    target: `${SITE_URL}/schools?search={search_term_string}`,
-    "query-input": "required name=search_term_string",
-  },
-};
-
-export const faqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqItems.map((item) => ({
-    "@type": "Question",
-    name: item.question,
-    acceptedAnswer: { "@type": "Answer", text: item.answer },
-  })),
-};
+export const organizationJsonLd = buildOrganizationJsonLd();
+export const websiteJsonLd = buildWebsiteJsonLd();
+export const faqJsonLd = buildFaqJsonLd(faqItems);
 
 export const jsonLd = {
   "@context": "https://schema.org",

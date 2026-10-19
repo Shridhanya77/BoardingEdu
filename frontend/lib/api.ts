@@ -641,6 +641,59 @@ export const admissions = {
   list: () => authRequest<PaginatedResponse<EnquiryListItem>>("/admissions/enquiries/"),
 };
 
+// ---------- Reviews & Ratings ----------
+export type ReviewStatus = "PENDING" | "PUBLISHED" | "REJECTED";
+
+export type ReviewListItem = {
+  review_id: string;
+  school_id: string;
+  school_name: string;
+  school_slug: string;
+  user: number | null;
+  author_name: string;
+  rating: number;
+  title: string;
+  body: string;
+  status: ReviewStatus;
+  is_verified: boolean;
+  created_at: string;
+};
+
+export type SchoolRatingSummary = {
+  school_id: string;
+  school_name: string;
+  average_rating: number | null;
+  review_count: number;
+  distribution: Record<string, number>;
+};
+
+export type ReviewInput = {
+  school: string;
+  rating: number;
+  title?: string;
+  body?: string;
+  author_name?: string;
+};
+
+export const reviews = {
+  /** Published reviews for a school (public). */
+  forSchool: (schoolId: string) =>
+    request<PaginatedResponse<ReviewListItem>>(
+      `/reviews/?school=${encodeURIComponent(schoolId)}&ordering=-created_at`,
+    ),
+  /** Aggregate rating for a school (public). */
+  summary: (schoolId: string) =>
+    request<SchoolRatingSummary>(
+      `/reviews/summary/?school=${encodeURIComponent(schoolId)}`,
+    ),
+  /** Submit a review. Requires authentication. */
+  create: (payload: ReviewInput) =>
+    authRequest<ReviewListItem>("/reviews/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+};
+
 export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
   return {
     school_id: school.school_id,

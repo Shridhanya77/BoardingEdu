@@ -28,7 +28,19 @@ export function pageMetadata({
     description,
     keywords: keywords.length ? keywords : undefined,
     alternates: { canonical: path },
-    robots: index ? { index: true, follow: true } : { index: false, follow: true },
+    robots: index
+      ? {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+            "max-video-preview": -1,
+          },
+        }
+      : { index: false, follow: true },
     openGraph: {
       type: "website",
       siteName: SITE_NAME,

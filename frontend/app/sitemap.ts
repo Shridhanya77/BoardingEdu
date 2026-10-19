@@ -21,16 +21,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const [cityPage, boardPage, schoolPage] = await Promise.all([
+    const [countryPage, cityPage, boardPage, schoolPage] = await Promise.all([
+      geography.countries(),
       geography.cities(),
       schools.boards(),
       schools.list({ status: true, ordering: "school_name" }),
     ]);
-    const [cities, boards, schoolRows] = await Promise.all([
+    const [countries, cities, boards, schoolRows] = await Promise.all([
+      fetchAllPages(countryPage),
       fetchAllPages(cityPage),
       fetchAllPages(boardPage),
       fetchAllPages(schoolPage),
     ]);
+
+    // Country-level landing pages: /home/{country}
+    for (const country of countries.filter((item) => item.status)) {
+      entries.push({
+        url: loc(`/home/${toSeoSlug(country.slug)}`),
+        lastModified: now,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
+    }
 
     for (const city of cities.filter((item) => item.status && (item.schools_count ?? 0) > 0)) {
       const country = toSeoSlug(city.country_slug ?? city.country_name);
@@ -58,6 +70,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       states.set(`${country}/${state}`, { country, state });
     }
     for (const { country, state } of states.values()) {
+      // State directory page and the state-level residential listing.
+      entries.push({
+        url: loc(`/${country}/${state}`),
+        lastModified: now,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
       entries.push({
         url: loc(`/${country}/${state}/residential-school`),
         lastModified: now,

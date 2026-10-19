@@ -19,7 +19,7 @@ export default function CompareBar() {
   return (
     <aside className="compare-bar" aria-label="Selected schools for comparison">
       <div className="compare-bar__schools">
-        <strong>Compare {comparedSchools.length}/3</strong>
+        <strong>Compare {comparedSchools.length}/4</strong>
         {comparedSchools.map((school) => (
           <span className="compare-bar__school" key={school.school_id}>
             {school.school_name}
@@ -35,7 +35,7 @@ export default function CompareBar() {
       </div>
       <div className="compare-bar__actions">
         {limitReached && (
-          <span role="status">Compare up to three schools at a time.</span>
+          <span role="status">Compare up to four schools at a time.</span>
         )}
         {storageError && <span role="status">{storageError}</span>}
         <Link
