@@ -64,7 +64,8 @@ export default function NavBar() {
     : "";
 
   const onHomePage = pathname === "/" || pathname === "";
-  const onExplore = pathname === "/schools" || (pathname !== "/" && pathname !== "/compare" && pathname !== "/login" && pathname !== "/signup" && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms"));
+  const onGuides = pathname.startsWith("/guides");
+  const onExplore = (pathname === "/schools" || (pathname !== "/" && pathname !== "/compare" && pathname !== "/login" && pathname !== "/signup" && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms"))) && !onGuides;
   const homeHref = (section: string) => (onHomePage ? section : `/${section}`);
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function NavBar() {
       <nav className="site-header__nav" aria-label="Primary">
         <Link className={`site-header__link${onHomePage ? " is-active" : ""}`} href="/">Home</Link>
         <Link className={`site-header__link${onExplore ? " is-active" : ""}`} href="/schools">Explore Schools</Link>
+        <Link className={`site-header__link${onGuides ? " is-active" : ""}`} href="/guides">Guides</Link>
         <Link className={`site-header__link${pathname === "/compare" ? " is-active" : ""}`} href="/compare">Compare Schools</Link>
         <Link className="site-header__link" href={homeHref("#counselling")}>Free Counselling</Link>
       </nav>
@@ -189,6 +191,7 @@ export default function NavBar() {
           >
             <Link href="/" onClick={() => setMobileNavOpen(false)}>Home</Link>
             <Link href="/schools" onClick={() => setMobileNavOpen(false)}>Explore Schools</Link>
+            <Link href="/guides" onClick={() => setMobileNavOpen(false)}>Guides</Link>
             <Link href="/compare" onClick={() => setMobileNavOpen(false)}>Compare Schools</Link>
             <Link href={homeHref("#counselling")} onClick={() => setMobileNavOpen(false)}>Free Counselling</Link>
             {user ? (

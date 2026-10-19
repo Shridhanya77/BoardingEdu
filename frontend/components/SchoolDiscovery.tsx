@@ -50,6 +50,7 @@ import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
 import { homeSchoolCategoryForIds, isDiscoverableSchoolType, schoolProfilePathFromSlugs, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath } from "@/lib/school-urls";
+import { guideList } from "@/lib/guides";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -164,119 +165,123 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
         ) : null}
       </div>
 
-      <div className="school-card__top">
-        <div className="school-card__avatar">
-          {logoImage ? (
-            <Image
-              src={logoImage}
-              alt={`${school.school_name} logo`}
-              width={88}
-              height={88}
-              unoptimized
-            />
-          ) : (
-            <Building2 size={23} strokeWidth={1.7} aria-hidden="true" />
-          )}
-        </div>
-
-        <div className="school-card__title">
-          <div className="school-card__eyebrow">
-            {school.verification_status?.toLowerCase() === "verified" && (
-              <span className="verified-tag">
-                <CheckCircle2 size={13} />
-                Verified
-              </span>
-            )}
-
-            {school.established_year && (
-              <span>Est. {school.established_year}</span>
+      <div className="school-card__body">
+        <div className="school-card__top">
+          <div className="school-card__avatar">
+            {logoImage ? (
+              <Image
+                src={logoImage}
+                alt={`${school.school_name} logo`}
+                width={88}
+                height={88}
+                unoptimized
+              />
+            ) : (
+              <Building2 size={23} strokeWidth={1.7} aria-hidden="true" />
             )}
           </div>
 
-          <h3>{school.school_name}</h3>
+          <div className="school-card__title">
+            <div className="school-card__eyebrow">
+              {school.verification_status?.toLowerCase() === "verified" && (
+                <span className="verified-tag">
+                  <CheckCircle2 size={13} />
+                  Verified
+                </span>
+              )}
 
-          <p className="school-card__location">
-            <MapPin size={14} />
-            {location || "Location not listed"}
-          </p>
+              {school.established_year && (
+                <span>Est. {school.established_year}</span>
+              )}
+            </div>
+
+            <h3>{school.school_name}</h3>
+
+            <p className="school-card__location">
+              <MapPin size={14} />
+              {location || "Location not listed"}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="school-card__tags">
-        {school.school_types_detail.map((type) => (
-          <span className="school-tag" key={type.school_type_id}>
-            {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
-          </span>
-        ))}
+        <div className="school-card__tags">
+          {school.school_types_detail.map((type) => (
+            <span className="school-tag" key={type.school_type_id}>
+              {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
+            </span>
+          ))}
 
-        {school.boards_detail.map((item) => (
-          <span className="school-tag school-tag--blue" key={item.board_id}>
-            {item.board_name}
-          </span>
-        ))}
+          {school.boards_detail.map((item) => (
+            <span className="school-tag school-tag--blue" key={item.board_id}>
+              {item.board_name}
+            </span>
+          ))}
 
-        {school.gender && (
-          <span className="school-tag school-tag--plain">
-            {school.gender}
-          </span>
-        )}
-        {school.annual_fee != null && (
-          <span className="school-tag school-tag--fee">
-            From {formatRupees(Number(school.annual_fee))} / year
-          </span>
-        )}
-      </div>
-
-      <div className="school-card__footer">
-        <p>
-          {school.address || "Contact the school for address details."}
-        </p>
-
-        <div className="school-card__actions">
-          <label className="school-compare">
-            <input
-              type="checkbox"
-              checked={isCompared}
-              disabled={limitReached && !isCompared}
-              title={
-                comparedSchools.length >= 3 && !isCompared
-                  ? "Remove a school from comparison before adding another."
-                  : undefined
-              }
-              onChange={() => {
-                toggleSchool(school);
-                trackSearchEvent("school_compared", {
-                  selected: !isCompared,
-                });
-              }}
-            />
-            Compare
-          </label>
-          <Link href={href}>View school</Link>
-
-          {school.phone && (
-            <a href={`tel:${school.phone}`}>Call school</a>
+          {school.gender && (
+            <span className="school-tag school-tag--plain">
+              {school.gender}
+            </span>
           )}
-
-          {school.email && (
-            <a
-              className="school-card__email"
-              href={`mailto:${school.email}`}
-              aria-label={`Email ${school.school_name}`}
-            >
-              <ArrowRight size={16} />
-            </a>
+          {school.annual_fee != null && (
+            <span className="school-tag school-tag--fee">
+              From {formatRupees(Number(school.annual_fee))} / year
+            </span>
           )}
+        </div>
+
+        <div className="school-card__footer">
+          <p>
+            {school.address || "Contact the school for address details."}
+          </p>
+
+          <div className="school-card__actions">
+            <label className="school-compare">
+              <input
+                type="checkbox"
+                checked={isCompared}
+                disabled={limitReached && !isCompared}
+                title={
+                  comparedSchools.length >= 3 && !isCompared
+                    ? "Remove a school from comparison before adding another."
+                    : undefined
+                }
+                onChange={() => {
+                  toggleSchool(school);
+                  trackSearchEvent("school_compared", {
+                    selected: !isCompared,
+                  });
+                }}
+              />
+              Compare
+            </label>
+            <Link href={href}>View school</Link>
+
+            {school.phone && (
+              <a href={`tel:${school.phone}`}>Call school</a>
+            )}
+
+            {school.email && (
+              <a
+                className="school-card__email"
+                href={`mailto:${school.email}`}
+                aria-label={`Email ${school.school_name}`}
+              >
+                <ArrowRight size={16} />
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </article>
   );
 }
 
-type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; schoolTypes?: string[]; boardIds?: string[]; homeCategory?: HomeSchoolCategory };
+type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; schoolTypes?: string[]; boardIds?: string[]; homeCategory?: HomeSchoolCategory; ordering?: SchoolFilters["ordering"] };
+type RelatedSearch = { label: string; href: string };
+type Breadcrumb = { name: string; url: string };
 const finderScrollStorageKey = "boardingeu:finder-scroll-path";
 
-export default function SchoolDiscovery({ initialFilter }: { initialFilter?: InitialDiscoveryFilter } = {}) {
+export default function SchoolDiscovery({ initialFilter, relatedSearches, breadcrumbs }: { initialFilter?: InitialDiscoveryFilter; relatedSearches?: RelatedSearch[]; breadcrumbs?: Breadcrumb[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const isHomePage = pathname === "/";
@@ -328,7 +333,7 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const filtersPanelRef = useRef<HTMLElement>(null);
   const [gender, setGender] = useState<SchoolFilters["gender"]>();
   const [ordering, setOrdering] =
-    useState<SchoolFilters["ordering"]>("school_name");
+    useState<SchoolFilters["ordering"]>(initialFilter?.ordering ?? "school_name");
   const [results, setResults] = useState<SchoolListItem[]>([]);
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -352,6 +357,23 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   const locationRestoreApplied = useRef(false);
   const initialLocationWasInUrl = useRef(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
+
+  const homeGuides = useMemo(() => guideList().slice(0, 3), []);
+
+  const directoryStats = useMemo(() => {
+    const schoolTotal = cities.reduce(
+      (total, city) => total + (city.schools_count ?? 0),
+      0,
+    );
+    const stats: { value: number; label: string }[] = [];
+    if (schoolTotal > 0) stats.push({ value: schoolTotal, label: "School listings" });
+    if (cities.length > 0) stats.push({ value: cities.length, label: "Cities covered" });
+    if (boards.length > 0) stats.push({ value: boards.length, label: "Education boards" });
+    if (schoolTypes.length > 0) {
+      stats.push({ value: schoolTypes.length, label: "School types" });
+    }
+    return stats;
+  }, [boards.length, cities, schoolTypes.length]);
 
   const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
   const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
@@ -420,16 +442,14 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
           selectedListingSchoolType?.type_name ?? "",
         )
       : "";
-  const listingHeading = listingBoardName
-    ? `${listingBoardName} Schools in India`
-    : listingPlaceName
-      ? `${listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools"} in ${listingPlaceName}`
-      : listingCategoryLabel
-        ? `${listingCategoryLabel}s in India`
-        : "Find Schools in India";
-  const listingDescription = listingBoardName
-    ? `Explore ${listingBoardName} schools in India. Compare school locations, fees, facilities, and admission information to find options that fit your family.`
-    : `Explore ${listingCategoryLabel ? `${listingCategoryLabel.toLowerCase()}s` : "schools"}${listingPlaceName ? ` in ${listingPlaceName}` : " across India"}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
+  const listingPlaceLabel = listingPlaceName || "India";
+  const listingTypeLabel = listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools";
+  const listingSubject = listingBoardName ? `${listingBoardName} ${listingTypeLabel}` : listingTypeLabel;
+  const listingHeading = `${listingSubject} in ${listingPlaceLabel}`;
+  const listingDescription = `Explore ${listingSubject} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
+  const resultsHeading = loading
+    ? `${listingSubject} in ${listingPlaceLabel}`
+    : `${results.length} ${listingSubject} in ${listingPlaceLabel}`;
   const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
@@ -464,7 +484,8 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
     let cancelled = false;
-    const residentialOnly = homeCategory === "residential-school" || (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes);
+    const placeScoped = Boolean(initialCity || initialLocation);
+    const residentialOnly = !placeScoped && (homeCategory === "residential-school" || (schoolType.length > 0 && schoolTypes.length === 0) || isBoardingOnlySelection(schoolType, schoolTypes));
 
     const filters: SchoolFilters = {
       search: search || undefined,
@@ -1137,6 +1158,24 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
   return (
     <main className={`discovery-page ${isHomePage ? "discovery-page--home" : "discovery-page--listing"}`}>
+      {!isHomePage && breadcrumbs && breadcrumbs.length > 0 && (
+        <nav className="breadcrumbs" aria-label="Breadcrumb">
+          <ol>
+            {breadcrumbs.map((crumb, index) =>
+              index === breadcrumbs.length - 1 ? (
+                <li key={crumb.url} aria-current="page">
+                  {crumb.name}
+                </li>
+              ) : (
+                <li key={crumb.url}>
+                  <Link href={crumb.url}>{crumb.name}</Link>
+                </li>
+              ),
+            )}
+          </ol>
+        </nav>
+      )}
+
       <section className="hero">
         <div className="hero__copy">
           <div className="hero__kicker">
@@ -1223,6 +1262,24 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
 
       {isHomePage && (
         <>
+      {directoryStats.length > 0 && (
+        <section className="trust-strip" aria-label="Directory at a glance">
+          <div className="trust-strip__stats">
+            {directoryStats.map((stat) => (
+              <div className="trust-stat" key={stat.label}>
+                <strong>{stat.value.toLocaleString("en-IN")}</strong>
+                <span>{stat.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="trust-strip__note">
+            <ShieldCheck size={15} aria-hidden />
+            Listings are compiled from school-published information. Always
+            confirm fees, seats and admission dates directly with the school.
+          </p>
+        </section>
+      )}
+
       <section className="home-section home-section--steps" id="how-it-works">
         <div className="home-section__heading home-section__heading--centered">
           <div>
@@ -1454,31 +1511,28 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       <section className="home-section home-section--blog" id="blog">
         <div className="home-section__heading">
           <div>
-            <div className="section-eyebrow">FROM THE BLOG</div>
-            <h2>Latest school guides</h2>
+            <div className="section-eyebrow">FROM THE GUIDES</div>
+            <h2>Practical guides for parents</h2>
           </div>
 
-          <span className="coming-soon-label">
-            <Newspaper size={14} /> Coming soon
-          </span>
+          <Link href="/guides">
+            All guides <ArrowRight size={15} />
+          </Link>
         </div>
 
-        <div
-          className="coming-soon-grid coming-soon-grid--blog"
-          aria-label="Blog articles are coming soon"
-        >
-          {[
-            "Boarding school admissions",
-            "Choosing an education board",
-            "Planning a school visit",
-          ].map((title) => (
-            <article className="blog-placeholder" key={title}>
-              <span className="blog-placeholder__icon">
-                <Newspaper size={19} />
+        <div className="guide-teaser-grid">
+          {homeGuides.map((guide) => (
+            <article className="guide-teaser" key={guide.slug}>
+              <span className="guide-teaser__tag">
+                <Newspaper size={14} aria-hidden /> {guide.category}
               </span>
-              <span className="blog-placeholder__tag">SCHOOL GUIDE</span>
-              <h3>{title}</h3>
-              <p>Practical guides from BoardingEdu are on the way.</p>
+              <h3>
+                <Link href={`/guides/${guide.slug}`}>{guide.title}</Link>
+              </h3>
+              <p>{guide.summary}</p>
+              <span className="guide-teaser__meta">
+                {guide.readingMinutes} min read
+              </span>
             </article>
           ))}
         </div>
@@ -1598,11 +1652,11 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
       <section className="discovery-content" id="schools">
         <div className="section-heading">
           <div>
-            <div className="section-eyebrow">EXPLORE THE DIRECTORY</div>
-            <h2>Schools to start your search</h2>
+            <div className="section-eyebrow">SCHOOL DIRECTORY</div>
+            <h2>{resultsHeading}</h2>
             <p>
-              Search, filter, and compare the school details that matter to
-              your family.
+              Compare boards, fees, and facilities, then contact schools
+              directly or request free counselling.
             </p>
           </div>
 
@@ -1907,6 +1961,19 @@ export default function SchoolDiscovery({ initialFilter }: { initialFilter?: Ini
             )}
           </div>
         </div>
+
+        {relatedSearches && relatedSearches.length > 0 && (
+          <nav className="related-searches" aria-labelledby="related-searches-heading">
+            <h2 id="related-searches-heading">Related searches</h2>
+            <ul>
+              {relatedSearches.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
       </section>
       )}
 

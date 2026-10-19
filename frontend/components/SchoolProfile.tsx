@@ -416,6 +416,21 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
           </aside>
         </div>
       </div>
+
+      <div className="school-sticky-cta" role="group" aria-label="School contact actions">
+        {school.phone ? (
+          <a
+            className="school-sticky-cta__call"
+            href={`tel:${school.phone}`}
+            aria-label={`Call ${school.school_name}`}
+          >
+            <Phone size={17} aria-hidden /> Call
+          </a>
+        ) : null}
+        <a className="school-sticky-cta__enquire" href="#school-enquiry">
+          <MessageSquare size={17} aria-hidden /> Enquire now
+        </a>
+      </div>
     </main>
   );
 }

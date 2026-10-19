@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { fetchAllPages, geography, schools } from "@/lib/api";
+import { guideList } from "@/lib/guides";
 import { boardListingPath, placeListingPath, schoolListPath } from "@/lib/school-urls";
 import { toSeoSlug } from "@/lib/seo-slugs";
 import { SITE_URL } from "@/lib/site";
@@ -18,7 +19,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: loc("/terms"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: loc("/cookies"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: loc("/grievance"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
+    { url: loc("/guides"), lastModified: now, changeFrequency: "weekly", priority: 0.6 },
   ];
+
+  for (const guide of guideList()) {
+    entries.push({
+      url: loc(`/guides/${guide.slug}`),
+      lastModified: new Date(guide.updated),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    });
+  }
 
   try {
     const [countryPage, cityPage, boardPage, schoolPage] = await Promise.all([

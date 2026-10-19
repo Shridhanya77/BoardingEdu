@@ -131,7 +131,9 @@ export default function SiteFooterSeo({ cities = [], boards = [], dataError }: P
           <Link href="/schools?type=day-school">Day schools</Link>
           <Link href="/compare">Compare schools</Link>
           <Link href="/#featured">Featured school profiles</Link>
-          <Link href="/#blog">School admission guides</Link>
+          <Link href="/guides">School admission guides</Link>
+          <Link href="/guides/how-to-shortlist-boarding-schools">How to shortlist schools</Link>
+          <Link href="/guides/cbse-icse-ib-igcse-explained">Boards explained</Link>
         </div>
         <div>
           <h3>Counselling</h3>
@@ -159,7 +161,7 @@ export default function SiteFooterSeo({ cities = [], boards = [], dataError }: P
           <h3>BoardingEdu</h3>
           <Link href="/#about">About BoardingEdu</Link>
           <Link href="/#faq">Frequently asked questions</Link>
-          <Link href="/#blog">School guides</Link>
+          <Link href="/guides">School guides</Link>
           <Link href="/#counselling">Contact counselling</Link>
         </div>
       </div>

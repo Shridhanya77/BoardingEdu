@@ -28,10 +28,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: {
-    default: "Find the Right School for Your Child | BoardingEdu",
-    template: `%s | ${SITE_NAME}`,
-  },
+  title: "Find the Right School for Your Child | BoardingEdu",
   description:
     "Explore day and boarding schools in India. Compare school locations, boards, fees, and facilities, then contact schools or request free counselling.",
   keywords: homeSeoKeywords,
