@@ -15,7 +15,9 @@ from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
 from apps.reviews.models import Review
 from config.pagination import SchoolDirectoryPagination
+from apps.users.permissions import IsStaffAdmin
 from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
+from .services import SchoolVerificationError, set_school_verification_status
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -118,21 +120,25 @@ class SchoolFilter(django_filters.FilterSet):
         ]
 
     @staticmethod
-    def _home_school_category(school_type):
+    def _home_school_categories(school_type):
         value = f'{school_type.type_code} {school_type.slug} {school_type.type_name}'.lower().replace('_', '-')
-        if 'boarding' in value:
-            return 'residential-school'
+        if re.search(r'day[- ]boarding', value):
+            return {'day-school', 'residential-school'}
+        if re.search(r'\bboarding\b|\bresidential\b', value):
+            return {'residential-school'}
         if re.search(r'\bday\b|day-school', value):
-            return 'day-school'
-        return None
+            return {'day-school'}
+        return set()
 
     def filter_home_category(self, queryset, name, value):
+        if value == 'boarding-schools':
+            value = 'residential-school'
         if value not in ('day-school', 'residential-school'):
             return queryset.none()
         matching_type_ids = [
             school_type.pk
             for school_type in SchoolType.objects.filter(status=True)
-            if self._home_school_category(school_type) == value
+            if value in self._home_school_categories(school_type)
         ]
         if not matching_type_ids:
             return queryset.none()
@@ -427,6 +433,67 @@ class SchoolViewSet(ReadWriteModelViewSet):
         'average_rating', 'review_count', 'is_featured',
     ]
     ordering = ['school_name']
+
+    def get_permissions(self):
+        if self.action in {
+            'verification_queue',
+            'verification_history',
+            'set_verification_status',
+        }:
+            return [IsStaffAdmin()]
+        return super().get_permissions()
+
+    @action(detail=False, methods=['get'], url_path='verification-queue')
+    def verification_queue(self, request):
+        schools = School.objects.filter(
+            verification_status=School.VERIFICATION_CHOICES[1][0],
+        ).select_related('city', 'state').order_by('updated_at', 'school_name')
+        page = self.paginate_queryset(schools)
+        if page is not None:
+            return self.get_paginated_response(
+                SchoolListSerializer(page, many=True).data
+            )
+        serializer = SchoolListSerializer(schools, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='verification-history')
+    def verification_history(self, request, pk=None):
+        school = self.get_object()
+        events = school.verification_events.select_related('actor')
+        return Response([
+            {
+                'event_id': str(event.event_id),
+                'previous_status': event.previous_status,
+                'new_status': event.new_status,
+                'note': event.note,
+                'actor': event.actor.get_username(),
+                'created_at': event.created_at,
+            }
+            for event in events
+        ])
+
+    @action(detail=True, methods=['post'], url_path='verification')
+    def set_verification_status(self, request, pk=None):
+        try:
+            school, event = set_school_verification_status(
+                school_id=pk,
+                actor=request.user,
+                new_status=request.data.get('status'),
+                note=request.data.get('note'),
+            )
+        except School.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=404)
+        except SchoolVerificationError as error:
+            return Response({error.field: str(error)}, status=400)
+
+        return Response(
+            {
+                'school_id': str(school.school_id),
+                'verification_status': school.verification_status,
+                'event_id': str(event.event_id),
+            },
+            status=200,
+        )
 
     @action(
         detail=False,

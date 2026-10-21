@@ -7,7 +7,6 @@ import type {
   BoardListItem,
   CityListItem,
   CountryListItem,
-  LocationListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
 import SiteFooterSeo from "./SiteFooterSeo";
@@ -17,7 +16,6 @@ export default function PublicSiteFooter() {
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
   const [countries, setCountries] = useState<CountryListItem[]>([]);
-  const [locations, setLocations] = useState<LocationListItem[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,9 +25,8 @@ export default function PublicSiteFooter() {
       geography.cities().then((page) => fetchAllPages(page, 1000)),
       schools.boards().then((page) => fetchAllPages(page)),
       geography.countries().then((page) => fetchAllPages(page)),
-      geography.locations().then((page) => fetchAllPages(page, 1000)),
       schools.types().then((page) => fetchAllPages(page)),
-    ]).then(([cityResult, boardResult, countryResult, locationResult, typeResult]) => {
+    ]).then(([cityResult, boardResult, countryResult, typeResult]) => {
       if (cancelled) return;
 
       if (cityResult.status === "fulfilled") {
@@ -52,15 +49,11 @@ export default function PublicSiteFooter() {
         setCountries(countryResult.value.filter((country) => country.status));
       }
 
-      if (locationResult.status === "fulfilled") {
-        setLocations(locationResult.value.filter((location) => location.status));
-      }
-
       if (typeResult.status === "fulfilled") {
         setSchoolTypes(typeResult.value.filter((type) => type.status));
       }
 
-      const rejected = [cityResult, boardResult, countryResult, locationResult, typeResult].filter(
+      const rejected = [cityResult, boardResult, countryResult, typeResult].filter(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
 
@@ -93,7 +86,6 @@ export default function PublicSiteFooter() {
       cities={cities}
       boards={boards}
       countries={countries}
-      locations={locations}
       schoolTypes={schoolTypes}
       dataError={error}
     />

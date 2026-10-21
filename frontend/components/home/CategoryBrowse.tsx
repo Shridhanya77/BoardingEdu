@@ -4,13 +4,13 @@ import { ArrowRight, GraduationCap, House } from "lucide-react";
 const categories = [
   {
     href: "/home?home_category=day-school",
-    title: "Day School",
+    title: "Day Schools",
     text: "Explore schools where students travel home after class.",
     Icon: GraduationCap,
   },
   {
-    href: "/home?home_category=residential-school",
-    title: "Boarding School",
+    href: "/home?home_category=boarding-schools",
+    title: "Boarding Schools",
     text: "Explore day boarding and full boarding schools across India.",
     Icon: House,
   },
@@ -34,7 +34,7 @@ export default function CategoryBrowse() {
             <h3>{title}</h3>
             <p>{text}</p>
             <span>
-              Browse {title.toLowerCase()}s <ArrowRight size={15} />
+              Browse {title.toLowerCase()} <ArrowRight size={15} />
             </span>
           </Link>
         ))}

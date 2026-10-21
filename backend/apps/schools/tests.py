@@ -2,16 +2,22 @@ from datetime import date
 from decimal import Decimal
 from importlib import import_module
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from django.apps import apps
 from django.db import connection
 from django.http import QueryDict
-from django.test import TestCase
+from django.urls import reverse
+from django.test import SimpleTestCase, TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import APIClient
 
 from apps.admissions.models import CounsellingRequest
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, Location, State
-from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVideo
+from apps.users.models import User
+from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
+from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .views import SchoolFilter, SchoolViewSet
 
@@ -531,19 +537,19 @@ class SchoolClassificationTests(TestCase):
             location_name='Whitefield',
             slug='whitefield',
         )
-        residential = self.create_school('STALE-LOCATION-BOARDING')
+        residential = self.create_school('LOCAL-DAY-BOARDING')
         residential.location = whitefield
         residential.save()
         residential.school_types.add(self.day_boarding)
-        full_boarding = self.create_school('STALE-LOCATION-FULL-BOARDING')
+        full_boarding = self.create_school('LOCAL-FULL-BOARDING')
         full_boarding.location = whitefield
         full_boarding.save()
         full_boarding.school_types.add(self.full_boarding)
-        day_school = self.create_school('NOT-RESIDENTIAL-DAY')
+        day_school = self.create_school('LOCAL-DAY')
         day_school.location = whitefield
         day_school.save()
         day_school.school_types.add(self.day)
-        legacy_school = self.create_school('LEGACY-CITY-BOARDING')
+        legacy_school = self.create_school('CITY-BOARDING')
         legacy_school.location = whitefield
         legacy_school.save()
         legacy_school.school_types.add(self.boarding)
@@ -561,7 +567,7 @@ class SchoolClassificationTests(TestCase):
             slug='mumbai',
         )
         other_state_residential = School.objects.create(
-            school_code='OTHER-STATE-BOARDING',
+            school_code='OTHER-BOARDING',
             school_name='Other State Boarding School',
             slug='other-state-boarding-school',
             country=self.country,
@@ -577,20 +583,27 @@ class SchoolClassificationTests(TestCase):
             'state': str(self.state.pk),
             'city': str(self.city.pk),
             'location': str(whitefield.pk),
-            'home_category': 'residential-school',
+            'home_category': 'boarding-schools',
         })
         result = SchoolFilter(params, queryset=School.objects.all())
 
         self.assertTrue(result.is_valid(), result.errors)
         self.assertSetEqual(
             set(result.qs.values_list('school_code', flat=True)),
-            {'STALE-LOCATION-BOARDING', 'STALE-LOCATION-FULL-BOARDING', 'LEGACY-CITY-BOARDING'},
+            {'LOCAL-DAY-BOARDING', 'LOCAL-FULL-BOARDING', 'CITY-BOARDING'},
         )
         response = self.client.get('/api/schools/schools/', params)
         self.assertEqual(response.status_code, 200)
         self.assertSetEqual(
             {item['school_code'] for item in response.data['results']},
-            {'STALE-LOCATION-BOARDING', 'STALE-LOCATION-FULL-BOARDING', 'LEGACY-CITY-BOARDING'},
+            {'LOCAL-DAY-BOARDING', 'LOCAL-FULL-BOARDING', 'CITY-BOARDING'},
+        )
+        params['home_category'] = 'residential-school'
+        legacy_category = SchoolFilter(params, queryset=School.objects.all())
+        self.assertTrue(legacy_category.is_valid(), legacy_category.errors)
+        self.assertSetEqual(
+            set(legacy_category.qs.values_list('school_code', flat=True)),
+            {'LOCAL-DAY-BOARDING', 'LOCAL-FULL-BOARDING', 'CITY-BOARDING'},
         )
 
         params['city'] = str(stale_city.pk)
@@ -604,7 +617,7 @@ class SchoolClassificationTests(TestCase):
         self.assertTrue(country_scope.is_valid(), country_scope.errors)
         self.assertSetEqual(
             set(country_scope.qs.values_list('school_code', flat=True)),
-            {'OTHER-STATE-BOARDING'},
+            {'OTHER-BOARDING'},
         )
 
         params['state'] = str(self.state.pk)
@@ -615,7 +628,7 @@ class SchoolClassificationTests(TestCase):
         self.assertTrue(day_school_result.is_valid(), day_school_result.errors)
         self.assertSetEqual(
             set(day_school_result.qs.values_list('school_code', flat=True)),
-            {'NOT-RESIDENTIAL-DAY'},
+            {'LOCAL-DAY', 'LOCAL-DAY-BOARDING'},
         )
 
         params.pop('home_category')
@@ -635,7 +648,7 @@ class SchoolClassificationTests(TestCase):
         self.assertTrue(legacy_filter_result.is_valid(), legacy_filter_result.errors)
         self.assertSetEqual(
             set(legacy_filter_result.qs.values_list('school_code', flat=True)),
-            {'LEGACY-CITY-BOARDING'},
+            {'CITY-BOARDING'},
         )
 
     def test_school_type_filters_distinguish_day_boarding_and_full_boarding(self):
@@ -741,6 +754,207 @@ class SchoolClassificationTests(TestCase):
             SchoolListSerializer(school).data['annual_fee'],
             Decimal('850000.00'),
         )
+
+    def verification_client(self, role):
+        user = User.objects.create_user(
+            username=f'verifier-{role.lower()}',
+            password='test-password',
+            role=role,
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client, user
+
+    def test_staff_admin_can_change_verification_status_with_audit_note(self):
+        school = self.create_school('VERIFY-SCHOOL')
+        school.verification_status = 'PENDING'
+        school.save(update_fields=['verification_status'])
+        client, actor = self.verification_client(User.ROLE_STAFF_ADMIN)
+
+        response = client.post(
+            f'/api/schools/schools/{school.pk}/verification/',
+            {'status': 'VERIFIED', 'note': 'Ownership documents reviewed.'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        school.refresh_from_db()
+        self.assertEqual(school.verification_status, 'VERIFIED')
+        event = SchoolVerificationEvent.objects.get(school=school)
+        self.assertEqual(event.previous_status, 'PENDING')
+        self.assertEqual(event.new_status, 'VERIFIED')
+        self.assertEqual(event.note, 'Ownership documents reviewed.')
+        self.assertEqual(event.actor, actor)
+
+    def test_parent_cannot_access_verification_queue_or_change_status(self):
+        school = self.create_school('PRIVATE-VERIFY')
+        client, _ = self.verification_client(User.ROLE_PARENT)
+
+        queue_response = client.get(
+            '/api/schools/schools/verification-queue/',
+        )
+        change_response = client.post(
+            f'/api/schools/schools/{school.pk}/verification/',
+            {'status': 'VERIFIED', 'note': 'Not authorized.'},
+            format='json',
+        )
+
+        self.assertEqual(queue_response.status_code, 403)
+        self.assertEqual(change_response.status_code, 403)
+        self.assertFalse(SchoolVerificationEvent.objects.exists())
+
+    def test_verification_change_requires_a_note(self):
+        school = self.create_school('VERIFY-NOTE')
+        client, _ = self.verification_client(User.ROLE_SUPER_ADMIN)
+
+        response = client.post(
+            f'/api/schools/schools/{school.pk}/verification/',
+            {'status': 'VERIFIED', 'note': '  '},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        school.refresh_from_db()
+        self.assertEqual(school.verification_status, 'UNVERIFIED')
+        self.assertFalse(SchoolVerificationEvent.objects.exists())
+
+    def test_generic_school_api_cannot_change_verification_status(self):
+        school = self.create_school('VERIFY-API-READONLY')
+        user = User.objects.create_user(
+            username='school-editor',
+            password='test-password',
+            role=User.ROLE_STAFF_ADMIN,
+        )
+        change_school_permission = apps.get_model(
+            'auth', 'Permission'
+        ).objects.get(codename='change_school')
+        user.user_permissions.add(change_school_permission)
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        response = client.patch(
+            f'/api/schools/schools/{school.pk}/',
+            {'verification_status': 'VERIFIED'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        school.refresh_from_db()
+        self.assertEqual(school.verification_status, 'UNVERIFIED')
+        self.assertFalse(SchoolVerificationEvent.objects.exists())
+
+    def test_admin_verification_queue_allows_staff_admin_decisions(self):
+        school = self.create_school('VERIFY-ADMIN')
+        school.verification_status = 'PENDING'
+        school.save(update_fields=['verification_status'])
+        admin_user = User.objects.create_user(
+            username='verification-admin',
+            password='test-password',
+            role=User.ROLE_STAFF_ADMIN,
+            is_staff=True,
+        )
+        self.client.force_login(admin_user)
+        url = reverse('admin:schools_school_verification_queue')
+
+        queue_response = self.client.get(url)
+        decision_response = self.client.post(
+            url,
+            {
+                'school_id': str(school.pk),
+                'status': 'VERIFIED',
+                'note': 'Admin panel documents approved.',
+            },
+        )
+
+        self.assertEqual(queue_response.status_code, 200)
+        self.assertContains(queue_response, school.school_name)
+        self.assertEqual(decision_response.status_code, 302)
+        school.refresh_from_db()
+        self.assertEqual(school.verification_status, 'VERIFIED')
+        self.assertEqual(
+            SchoolVerificationEvent.objects.get(school=school).actor,
+            admin_user,
+        )
+
+    def test_admin_verification_queue_rejects_other_staff_roles(self):
+        admin_user = User.objects.create_user(
+            username='non-verification-admin',
+            password='test-password',
+            role=User.ROLE_PARENT,
+            is_staff=True,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(
+            reverse('admin:schools_school_verification_queue')
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+
+class CloudinaryUploadTests(SimpleTestCase):
+    @patch.dict(
+        'os.environ',
+        {
+            'CLOUDINARY_CLOUD_NAME': 'boardingedu',
+            'CLOUDINARY_API_KEY': 'test-key',
+            'CLOUDINARY_API_SECRET': 'test-secret',
+            'SCHOOL_IMAGE_HOST': 'images.boardingedu.com',
+        },
+    )
+    @patch('apps.schools.cloudinary_uploads.requests.post')
+    def test_upload_returns_configured_https_image_host(self, post):
+        response = Mock()
+        response.ok = True
+        response.json.return_value = {
+            'secure_url': (
+                'https://res.cloudinary.com/boardingedu/image/upload/'
+                'v123/boardingedu/schools/school-id/campus-image.jpg'
+            ),
+        }
+        post.return_value = response
+        image = SimpleUploadedFile(
+            'campus.jpg',
+            b'\xff\xd8\xff' + b'valid-image-data',
+            content_type='image/jpeg',
+        )
+
+        image_url = upload_school_image(
+            image,
+            school_id='school-id',
+            image_kind='campus',
+        )
+
+        self.assertEqual(
+            image_url,
+            'https://images.boardingedu.com/image/upload/'
+            'v123/boardingedu/schools/school-id/campus-image.jpg',
+        )
+        post.assert_called_once()
+
+    @patch('apps.schools.cloudinary_uploads.requests.post')
+    def test_invalid_image_is_rejected_without_calling_cloudinary(self, post):
+        image = SimpleUploadedFile(
+            'campus.png',
+            b'not-an-image',
+            content_type='image/png',
+        )
+
+        with self.assertRaisesRegex(CloudinaryUploadError, 'not a valid'):
+            upload_school_image(image, school_id='school-id', image_kind='campus')
+
+        post.assert_not_called()
+
+    @patch.dict('os.environ', {}, clear=True)
+    def test_missing_credentials_raise_a_clear_configuration_error(self):
+        image = SimpleUploadedFile(
+            'campus.png',
+            b'\x89PNG\r\n\x1a\n' + b'valid-image-data',
+            content_type='image/png',
+        )
+
+        with self.assertRaisesRegex(CloudinaryUploadError, 'CLOUDINARY_CLOUD_NAME'):
+            upload_school_image(image, school_id='school-id', image_kind='campus')
 
 
 class SchoolFAQApiTests(TestCase):

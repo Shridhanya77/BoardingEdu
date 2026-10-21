@@ -2,11 +2,11 @@ import type { MetadataRoute } from "next";
 import { fetchAllPages, geography, schools } from "@/lib/api";
 import { guideList } from "@/lib/guides";
 import { boardListingPath, placeListingPath, schoolListPath } from "@/lib/school-urls";
-import { toSeoSlug } from "@/lib/seo-slugs";
+import { toSeoSlug, withTrailingSlash } from "@/lib/seo-slugs";
 import { SITE_URL } from "@/lib/site";
 
 function loc(path: string): string {
-  return `${SITE_URL}${path}`;
+  return `${SITE_URL}${withTrailingSlash(path)}`;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -81,7 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       states.set(`${country}/${state}`, { country, state });
     }
     for (const { country, state } of states.values()) {
-      // State directory page and the state-level residential listing.
+      // State directory page and the state-level boarding listing.
       entries.push({
         url: loc(`/${country}/${state}`),
         lastModified: now,
@@ -89,7 +89,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       });
       entries.push({
-        url: loc(`/${country}/${state}/residential-school`),
+        url: loc(`/${country}/${state}/boarding-schools`),
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.65,

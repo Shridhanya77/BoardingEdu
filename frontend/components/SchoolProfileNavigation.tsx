@@ -39,15 +39,21 @@ export default function SchoolProfileNavigation() {
     <nav className="school-profile-nav" aria-label="School profile sections">
       <div className="school-profile-nav__inner">
         {sections.map(({ id, label }) => (
-          <a
+          <button
+            type="button"
             className={activeSection === id ? "is-active" : ""}
-            href={`#${id}`}
             key={id}
             aria-current={activeSection === id ? "location" : undefined}
-            onClick={() => setActiveSection(id)}
+            onClick={() => {
+              setActiveSection(id);
+              document.getElementById(id)?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }}
           >
             {label}
-          </a>
+          </button>
         ))}
       </div>
     </nav>

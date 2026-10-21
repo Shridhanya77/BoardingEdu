@@ -342,7 +342,7 @@ export type SchoolFilters = {
   location?: string;
   location_group?: string[];
   school_type?: string | string[];
-  home_category?: "day-school" | "residential-school";
+  home_category?: "day-school" | "boarding-schools" | "residential-school";
   board?: string | string[];
   grade?: string | string[];
   min_fee?: number;

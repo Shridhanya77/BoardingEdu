@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
+    &rsaquo; <a href="{% url 'admin:schools_school_changelist' %}">Schools</a>
+    &rsaquo; Pending verification
+  </div>
+{% endblock %}
+
+{% block content %}
+  <h1>Pending school verification</h1>
+
+  {% if error_form %}
+    <div class="errornote">
+      {% for field, errors in error_form.errors.items %}
+        {% for error in errors %}<p>{{ error }}</p>{% endfor %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if schools %}
+    <table>
+      <thead>
+        <tr>
+          <th>School</th>
+          <th>Location</th>
+          <th>Current status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for school in schools %}
+          <tr>
+            <td>
+              <a href="{% url 'admin:schools_school_change' school.pk %}">{{ school.school_name }}</a>
+              <br><small>{{ school.school_code }}</small>
+            </td>
+            <td>{{ school.city.city_name }}, {{ school.state.state_name }}</td>
+            <td>Pending Verification</td>
+            <td>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="school_id" value="{{ school.pk }}">
+                <select name="status" required>
+                  <option value="">Choose status</option>
+                  {% for status, label in verification_statuses %}
+                    <option value="{{ status }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <textarea name="note" rows="2" maxlength="1000" required></textarea>
+                <button type="submit" class="button">Save decision</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if page_obj.has_other_pages %}
+      <p class="paginator">
+        {% if page_obj.has_previous %}
+          <a href="?p={{ page_obj.previous_page_number }}">Previous</a>
+        {% endif %}
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        {% if page_obj.has_next %}
+          <a href="?p={{ page_obj.next_page_number }}">Next</a>
+        {% endif %}
+      </p>
+    {% endif %}
+  {% else %}
+    <p>No schools are waiting for verification.</p>
+  {% endif %}
+{% endblock %}

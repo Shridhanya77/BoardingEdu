@@ -1,8 +1,15 @@
-from django.contrib import admin
+from django import forms
+from django.contrib import admin, messages
+from django.core.paginator import Paginator
+from django.http import HttpResponseForbidden
 from django.db.models import Count
-from django.urls import reverse
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 
+from apps.users.models import User
+from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
+from .services import SchoolVerificationError, set_school_verification_status
 from .models import (
     Board,
     SchoolType,
@@ -14,6 +21,7 @@ from .models import (
     SchoolFacility,
     SchoolGrade,
     SchoolFAQ,
+    SchoolVerificationEvent,
 )
 
 
@@ -54,6 +62,22 @@ def render_fee_structures_panel(obj):
         '<ul>{}</ul><p><a class="button" href="{}">Add fee structure</a></p>',
         rows,
         add_url,
+    )
+
+
+def is_verification_admin(user):
+    return getattr(user, "role", None) in (
+        User.ROLE_STAFF_ADMIN,
+        User.ROLE_SUPER_ADMIN,
+    )
+
+
+class SchoolVerificationAdminForm(forms.Form):
+    school_id = forms.UUIDField(widget=forms.HiddenInput)
+    status = forms.ChoiceField(choices=School.VERIFICATION_CHOICES)
+    note = forms.CharField(
+        max_length=1000,
+        widget=forms.Textarea(attrs={"rows": 2}),
     )
 
 
@@ -172,10 +196,57 @@ class SchoolGradeInline(admin.TabularInline):
     autocomplete_fields = ("grade",)
     list_display_links = ("grade",)
 
+class SchoolPhotoInlineForm(forms.ModelForm):
+    photo_upload = forms.FileField(
+        required=False,
+        label="Upload photo to Cloudinary",
+        help_text="JPG, PNG, or WebP; maximum 10 MB.",
+    )
+
+    class Meta:
+        model = SchoolPhoto
+        fields = (
+            "photo_url",
+            "caption",
+            "alt_text",
+            "category",
+            "sort_order",
+            "status",
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.errors:
+            return cleaned_data
+        uploaded_file = cleaned_data.get("photo_upload")
+        if uploaded_file:
+            try:
+                self.instance.photo_url = upload_school_image(
+                    uploaded_file,
+                    school_id=self.instance.school_id,
+                    image_kind="gallery",
+                )
+            except CloudinaryUploadError as error:
+                self.add_error("photo_upload", str(error))
+        elif self.instance._state.adding and self.has_changed():
+            self.add_error("photo_upload", "Upload a photo for each new gallery entry.")
+        return cleaned_data
+
+
 class SchoolPhotoInline(admin.TabularInline):
     model = SchoolPhoto
+    form = SchoolPhotoInlineForm
     extra = 1
-    fields = ("photo_url", "caption", "alt_text", "category", "sort_order", "status")
+    fields = (
+        "photo_url",
+        "photo_upload",
+        "caption",
+        "alt_text",
+        "category",
+        "sort_order",
+        "status",
+    )
+    readonly_fields = ("photo_url",)
 
 class SchoolVideoInline(admin.TabularInline):
     model = SchoolVideo
@@ -183,8 +254,51 @@ class SchoolVideoInline(admin.TabularInline):
     fields = ("video_url", "thumbnail_url", "caption", "category", "sort_order", "status")
 
 
+class SchoolAdminForm(forms.ModelForm):
+    school_logo_upload = forms.FileField(
+        required=False,
+        label="Upload school logo to Cloudinary",
+        help_text="JPG, PNG, or WebP; maximum 10 MB.",
+    )
+    school_image_upload = forms.FileField(
+        required=False,
+        label="Upload campus image to Cloudinary",
+        help_text="JPG, PNG, or WebP; maximum 10 MB.",
+    )
+
+    class Meta:
+        model = School
+        fields = "__all__"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.errors:
+            return cleaned_data
+        for field_name, image_kind, model_field in (
+            ("school_logo_upload", "logo", "school_logo_url"),
+            ("school_image_upload", "campus", "school_image_url"),
+        ):
+            uploaded_file = cleaned_data.get(field_name)
+            if uploaded_file:
+                try:
+                    setattr(
+                        self.instance,
+                        model_field,
+                        upload_school_image(
+                            uploaded_file,
+                            school_id=self.instance.pk,
+                            image_kind=image_kind,
+                        ),
+                    )
+                except CloudinaryUploadError as error:
+                    self.add_error(field_name, str(error))
+        return cleaned_data
+
+
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
+    form = SchoolAdminForm
+    change_list_template = "admin/schools/school/change_list.html"
     list_display = (
         "school_code",
         "school_name",
@@ -242,6 +356,9 @@ class SchoolAdmin(admin.ModelAdmin):
     readonly_fields = (
         "created_at",
         "updated_at",
+        "verification_status",
+        "school_logo_url",
+        "school_image_url",
         "fee_structures_panel",
     )
 
@@ -254,6 +371,8 @@ class SchoolAdmin(admin.ModelAdmin):
                     "school_name",
                     "short_name",
                     "slug",
+                    "school_logo_upload",
+                    "school_image_upload",
                     "school_logo_url",
                     "school_image_url",
                 )
@@ -342,6 +461,65 @@ class SchoolAdmin(admin.ModelAdmin):
         "location",
     )
 
+    def get_urls(self):
+        custom_urls = [
+            path(
+                "verification-queue/",
+                self.admin_site.admin_view(self.verification_queue_view),
+                name="schools_school_verification_queue",
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def verification_queue_view(self, request):
+        if not is_verification_admin(request.user):
+            return HttpResponseForbidden(
+                "Verification access requires Staff Admin or Super Admin."
+            )
+
+        error_form = None
+        if request.method == "POST":
+            form = SchoolVerificationAdminForm(request.POST)
+            if form.is_valid():
+                try:
+                    school, _ = set_school_verification_status(
+                        school_id=form.cleaned_data["school_id"],
+                        actor=request.user,
+                        new_status=form.cleaned_data["status"],
+                        note=form.cleaned_data["note"],
+                    )
+                except School.DoesNotExist:
+                    form.add_error("school_id", "The selected school no longer exists.")
+                except SchoolVerificationError as error:
+                    form.add_error(error.field, str(error))
+                else:
+                    messages.success(
+                        request,
+                        f"{school.school_name} verification status was updated.",
+                    )
+                    return redirect("admin:schools_school_verification_queue")
+            error_form = form
+
+        pending_schools = School.objects.filter(
+            verification_status="PENDING",
+        ).select_related("city", "state").order_by("school_name")
+        paginator = Paginator(pending_schools, 50)
+        page_obj = paginator.get_page(request.GET.get("p"))
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "Pending school verification",
+            "schools": page_obj.object_list,
+            "page_obj": page_obj,
+            "verification_statuses": School.VERIFICATION_CHOICES,
+            "error_form": error_form,
+        }
+        return render(
+            request,
+            "admin/schools/school/verification_queue.html",
+            context,
+        )
+
     @admin.display(description="Boards")
     def board_names(self, obj):
         return ", ".join(obj.boards.values_list("board_name", flat=True))
@@ -349,6 +527,49 @@ class SchoolAdmin(admin.ModelAdmin):
     @admin.display(description="School types")
     def school_type_names(self, obj):
         return ", ".join(obj.school_types.values_list("type_name", flat=True))
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        super().save_formset(request, form, formset, change)
+
+
+@admin.register(SchoolVerificationEvent)
+class SchoolVerificationEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "school",
+        "previous_status",
+        "new_status",
+        "actor",
+        "created_at",
+    )
+    list_filter = ("previous_status", "new_status", "created_at")
+    search_fields = ("school__school_name", "school__school_code", "actor__username", "note")
+    readonly_fields = (
+        "event_id",
+        "school",
+        "previous_status",
+        "new_status",
+        "note",
+        "actor",
+        "created_at",
+    )
+
+    def has_module_permission(self, request):
+        return is_verification_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return is_verification_admin(request.user)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SchoolFacility)

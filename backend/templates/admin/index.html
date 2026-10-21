@@ -1,0 +1,147 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/dashboard.css" %}">{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}{{ block.super }} dashboard be-dashboard{% endblock %}
+
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content %}
+{% with s=boardingedu_stats %}
+<div id="content-main">
+
+  {% if s %}
+  <section class="be-stats">
+    <header class="be-stats__head">
+      <h2>{% translate "Platform Overview" %}</h2>
+      <span class="be-stats__time">{% translate "Updated" %} {{ s.generated_at|date:"d M Y, H:i" }}</span>
+    </header>
+
+    <div class="be-cards">
+      {% for c in s.cards %}
+        {% if c.url %}<a class="be-card be-card--{{ c.tone }}" href="{{ c.url }}">{% else %}<div class="be-card be-card--{{ c.tone }}">{% endif %}
+          <span class="be-card__label">{{ c.label }}</span>
+          <strong class="be-card__value">{{ c.value }}</strong>
+          {% if c.hint %}<span class="be-card__hint">{{ c.hint }}</span>{% endif %}
+        {% if c.url %}</a>{% else %}</div>{% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="be-panels">
+    <section class="be-panel">
+      <h3>{% translate "Enquiries — last 6 months" %}</h3>
+      <div class="be-chart">
+        {% for m in s.months %}
+        <div class="be-chart__col">
+          <span class="be-chart__value">{{ m.value }}</span>
+          <div class="be-chart__bar" style="height: {{ m.pct }}%"></div>
+          <span class="be-chart__label">{{ m.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="be-panel">
+      <h3>{% translate "Users by role" %}</h3>
+      <ul class="be-list">
+        {% for r in s.roles %}
+        <li><span>{{ r.label }}</span><strong>{{ r.value }}</strong></li>
+        {% empty %}
+        <li><span>{% translate "No users yet" %}</span></li>
+        {% endfor %}
+      </ul>
+
+      <h3>{% translate "Directory coverage" %}</h3>
+      <ul class="be-chips">
+        {% for item in s.coverage %}
+        <li><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <div class="be-panels">
+    <section class="be-panel">
+      <h3>{% translate "Latest enquiries" %}</h3>
+      {% if s.recent_enquiries %}
+      <table class="be-table">
+        <tbody>
+          {% for e in s.recent_enquiries %}
+          <tr>
+            <td>{{ e.enquiry_code|default:"—" }}</td>
+            <td>{{ e.school__school_name|truncatechars:34 }}</td>
+            <td><span class="be-tag">{{ e.status }}</span></td>
+            <td class="be-table__date">{{ e.created_at|date:"d M" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="be-empty">{% translate "No enquiries yet." %}</p>
+      {% endif %}
+    </section>
+
+    <section class="be-panel">
+      <h3>{% translate "Reviews awaiting moderation" %}</h3>
+      {% if s.recent_reviews %}
+      <table class="be-table">
+        <tbody>
+          {% for r in s.recent_reviews %}
+          <tr>
+            <td><a href="{{ r.url }}">{{ r.school__school_name|truncatechars:30 }}</a></td>
+            <td>{{ r.rating }}&#9733;</td>
+            <td class="be-table__date">{{ r.created_at|date:"d M" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="be-empty">{% translate "Moderation queue is clear." %}</p>
+      {% endif %}
+    </section>
+  </div>
+  {% endif %}
+
+  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="recent-actions-module">
+        <h2>{% translate 'Recent actions' %}</h2>
+        <h3>{% translate 'My actions' %}</h3>
+            {% load log %}
+            {% get_admin_log 10 as admin_log for_user user %}
+            {% if not admin_log %}
+            <p>{% translate 'None available' %}</p>
+            {% else %}
+            <ul class="actionlist">
+            {% for entry in admin_log %}
+            <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+                <span class="visually-hidden">{% if entry.is_addition %}{% translate 'Added:' %}{% elif entry.is_change %}{% translate 'Changed:' %}{% elif entry.is_deletion %}{% translate 'Deleted:' %}{% endif %}</span>
+                {% if entry.is_deletion or not entry.get_admin_url %}
+                    {{ entry.object_repr }}
+                {% else %}
+                    <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                {% endif %}
+                <br>
+                {% if entry.content_type %}
+                    <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
+                {% else %}
+                    <span class="mini quiet">{% translate 'Unknown content' %}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+            </ul>
+            {% endif %}
+    </div>
+</div>
+{% endblock %}

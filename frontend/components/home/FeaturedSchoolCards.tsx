@@ -115,8 +115,8 @@ export default function FeaturedSchoolCards({
             <Link href={schoolHref(school)}>
               View School <ArrowRight size={14} />
             </Link>
-            <Link className="featured-card__enquiry" href={`${schoolHref(school)}#school-enquiry`}>
-              Send Enquiry <ArrowRight size={14} />
+            <Link className="featured-card__enquiry" href={schoolHref(school)}>
+              Contact options <ArrowRight size={14} />
             </Link>
           </article>
         );

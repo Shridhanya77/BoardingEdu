@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withTrailingSlash } from "@/lib/seo-slugs";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 export function absoluteUrl(path = "/"): string {
@@ -21,13 +22,14 @@ export function pageMetadata({
   index?: boolean;
   image?: string | null;
 }): Metadata {
-  const url = absoluteUrl(path);
+  const canonicalPath = path.startsWith("http") ? path : withTrailingSlash(path);
+  const url = absoluteUrl(canonicalPath);
   const ogImage = image || `${SITE_URL}/BoardingEdu_LOGO.jpeg`;
   return {
     title,
     description,
     keywords: keywords.length ? keywords : undefined,
-    alternates: { canonical: path },
+    alternates: { canonical: canonicalPath },
     robots: index
       ? {
           index: true,
@@ -64,11 +66,13 @@ export function listingCopy(options: {
   boardName?: string;
 }): { title: string; description: string; heading: string } {
   const place = options.place || "India";
-  const subject = options.boardName
-    ? `${options.boardName} schools`
-    : options.categoryLabel
-      ? `${options.categoryLabel}s`
-      : "Schools";
+  const category = options.categoryLabel?.replace(/\s+$/, "");
+  const subject = [
+    options.boardName,
+    category ? `${category}s` : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ") || "Schools";
   const heading = `${subject} in ${place}`;
   return {
     heading,

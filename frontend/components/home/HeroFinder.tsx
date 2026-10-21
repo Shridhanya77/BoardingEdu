@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography } from "@/lib/api";
 import type { CityListItem, CountryListItem, LocationListItem, SchoolTypeListItem, StateListItem } from "@/lib/api";
-import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolTypeIds, schoolTypeCategory, toSeoSlug, type HomeSchoolCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolCategoryPath, homeSchoolTypeIds, schoolTypeCategory, toSeoSlug, type HomeSchoolCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
 
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
@@ -76,8 +76,8 @@ function LocationCombobox({
 }
 
 const homeCategories: { id: HomeSchoolCategory; label: string }[] = [
-  { id: "day-school", label: "Day School" },
-  { id: "residential-school", label: "Residential School" },
+  { id: "day-school", label: "Day Schools" },
+  { id: "residential-school", label: "Boarding Schools" },
 ];
 const schoolTypeCategories: { id: SchoolTypeCategory; label: string }[] = [
   { id: "day-school", label: "Day School" },
@@ -117,6 +117,9 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const locality = locations.find((item) => item.location_id === value.location);
   const path = useMemo(() => {
     const parts = country ? [toSeoSlug(country.slug)] : [];
+    const homeCategory = activeCategory === "day-school" || activeCategory === "residential-school"
+      ? activeCategory
+      : null;
     if (state) parts.push(toSeoSlug(state.slug));
     if (city) parts.push(toSeoSlug(city.slug));
     if (!residential && city && locality) parts.push(toSeoSlug(locality.slug));
@@ -125,8 +128,10 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       const typeQuery = activeCategory && activeCategory !== "day-school" ? `?type=${activeCategory}` : "";
       return `${pathname}${typeQuery}`;
     }
-    return activeCategory
-      ? country ? `/${parts.join("/")}/${activeCategory}` : `/home?home_category=${activeCategory}`
+    return homeCategory
+      ? country
+        ? `/${parts.join("/")}/${homeSchoolCategoryPath(homeCategory)}`
+        : `/home?home_category=${homeSchoolCategoryPath(homeCategory)}`
       : "/home";
   }, [country, state, city, locality, residential, activeCategory, homeSearch]);
 
@@ -204,7 +209,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
           const description = id === "day-school"
             ? "Students commute daily and return home after classes"
             : id === "residential-school"
-              ? "Explore day boarding and boarding schools."
+              ? "Explore day boarding and full boarding schools."
               : id === "day-boarding-school"
                 ? "Your child returns home each evening."
                 : "Your child stays at school.";
@@ -230,7 +235,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     </fieldset>
     {!activeCategory ? (
       <p className="finder-instruction" role="status">
-        Choose Day School or Residential School to continue to location selection.
+        Choose Day Schools or Boarding Schools to continue to location selection.
       </p>
     ) : <fieldset className="finder-group">
       <legend><span>02</span> Select a location</legend>

@@ -38,8 +38,8 @@ import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
-import SchoolCallbackForm from "./SchoolCallbackForm";
-import SchoolProfileActions from "./SchoolProfileActions";
+import SchoolCallbackModal from "./SchoolCallbackModal";
+import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
 import SchoolReviews from "./SchoolReviews";
 
 async function loadReviewData(schoolId: string): Promise<{
@@ -356,7 +356,9 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
                 <Phone size={16} /> Call
               </a>
             )}
-            <a className="detail-button" href="#school-enquiry"><MessageSquare size={16} /> Send an Enquiry</a>
+            <SchoolEnquiryButton className="detail-button">
+              <MessageSquare size={16} /> Send an Enquiry
+            </SchoolEnquiryButton>
             <SchoolProfileActions school={school} />
           </div>
         </section>
@@ -552,7 +554,7 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
 
           {/* ===== ASIDE ===== */}
           <aside className="school-detail__aside">
-            <SchoolCallbackForm school={school} />
+            <SchoolCallbackModal school={school} />
             <div id="school-enquiry"><SchoolEnquiryForm school={school} /></div>
 
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>
@@ -645,9 +647,9 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
             <Phone size={17} aria-hidden /> Call
           </a>
         ) : null}
-        <a className="school-sticky-cta__enquire" href="#school-enquiry">
+        <SchoolEnquiryButton className="school-sticky-cta__enquire">
           <MessageSquare size={17} aria-hidden /> Enquire now
-        </a>
+        </SchoolEnquiryButton>
       </div>
     </main>
   );

@@ -5,6 +5,7 @@ const apiBase = (
 ).replace(/\/+$/, "");
 
 const nextConfig = {
+  trailingSlash: true,
   async rewrites() {
     return [
       {

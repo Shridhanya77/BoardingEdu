@@ -10,6 +10,15 @@ export function toSeoSlug(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+export function withTrailingSlash(path: string): string {
+  const url = new URL(path, "https://boardingeu.invalid");
+  const lastSegment = url.pathname.slice(url.pathname.lastIndexOf("/") + 1);
+  if (!url.pathname.endsWith("/") && !lastSegment.includes(".")) {
+    url.pathname = `${url.pathname}/`;
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 export function schoolProfilePathFromSlugs({
   countrySlug,
   stateSlug,
@@ -23,20 +32,35 @@ export function schoolProfilePathFromSlugs({
   localitySlug?: string | null;
   schoolSlug: string;
 }) {
-  return `/${[countrySlug, stateSlug, citySlug, localitySlug, schoolSlug]
+  return withTrailingSlash(`/${[countrySlug, stateSlug, citySlug, localitySlug, schoolSlug]
     .filter((slug): slug is string => Boolean(slug))
     .map(toSeoSlug)
-    .join("/")}`;
+    .join("/")}`);
 }
 
 export type SchoolTypeCategory = "day-school" | "day-boarding-school" | "boarding-school";
 export type HomeSchoolCategory = "day-school" | "residential-school";
 
-export function homeSchoolCategory(typeCode: string, slug = "", name = ""): HomeSchoolCategory | null {
-  const value = `${typeCode} ${slug} ${name}`.toLowerCase().replace(/_/g, "-");
-  if (/\bboarding\b/.test(value)) return "residential-school";
-  if (/\bday\b|day-school/.test(value)) return "day-school";
+export function homeSchoolCategoryFromValue(value?: string | null): HomeSchoolCategory | null {
+  if (value === "day-school") return "day-school";
+  if (value === "boarding-schools" || value === "residential-school") return "residential-school";
   return null;
+}
+
+export function homeSchoolCategoryPath(category: HomeSchoolCategory): "day-school" | "boarding-schools" {
+  return category === "day-school" ? "day-school" : "boarding-schools";
+}
+
+export function homeSchoolCategories(typeCode: string, slug = "", name = ""): HomeSchoolCategory[] {
+  const type = schoolTypeCategory(typeCode, slug, name);
+  if (type === "day-boarding-school") return ["day-school", "residential-school"];
+  if (type === "day-school") return ["day-school"];
+  if (type === "boarding-school") return ["residential-school"];
+  return [];
+}
+
+export function homeSchoolCategory(typeCode: string, slug = "", name = ""): HomeSchoolCategory | null {
+  return homeSchoolCategories(typeCode, slug, name)[0] ?? null;
 }
 
 export function homeSchoolTypeIds(
@@ -44,7 +68,7 @@ export function homeSchoolTypeIds(
   category: HomeSchoolCategory,
 ) {
   return types
-    .filter((type) => homeSchoolCategory(type.type_code, type.slug, type.type_name) === category)
+    .filter((type) => homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(category))
     .map((type) => type.school_type_id);
 }
 
@@ -52,12 +76,24 @@ export function homeSchoolCategoryForIds(
   typeIds: string[],
   types: { school_type_id: string; type_code: string; slug: string; type_name: string }[],
 ): HomeSchoolCategory | null {
-  const categories = typeIds.map((id) => {
-    const type = types.find((item) => item.school_type_id === id);
-    return type ? homeSchoolCategory(type.type_code, type.slug, type.type_name) : null;
-  });
-  if (!categories.length || categories.some((category) => !category || category !== categories[0])) return null;
-  return categories[0];
+  const selectedTypes = typeIds
+    .map((id) => types.find((item) => item.school_type_id === id))
+    .filter((type): type is (typeof types)[number] => Boolean(type));
+  if (!selectedTypes.length || selectedTypes.length !== typeIds.length) return null;
+
+  const containsDayOnlyType = selectedTypes.some((type) =>
+    schoolTypeCategory(type.type_code, type.slug, type.type_name) === "day-school",
+  );
+  const containsBoardingOnlyType = selectedTypes.some((type) =>
+    schoolTypeCategory(type.type_code, type.slug, type.type_name) === "boarding-school",
+  );
+  if (containsDayOnlyType && !containsBoardingOnlyType) return "day-school";
+  if (containsBoardingOnlyType) return "residential-school";
+  return homeSchoolCategories(
+    selectedTypes[0].type_code,
+    selectedTypes[0].slug,
+    selectedTypes[0].type_name,
+  )[0] ?? null;
 }
 
 export function schoolTypeCategory(typeCode: string, slug = "", name = ""): SchoolTypeCategory | null {

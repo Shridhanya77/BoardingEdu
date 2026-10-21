@@ -37,6 +37,10 @@ from rest_framework_simplejwt.views import (
 )
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
 from .health import healthz, readyz
+from .admin_dashboard import install_admin_dashboard
+
+
+install_admin_dashboard()
 
 
 class EmailOrUsernameTokenObtainPairView(TokenObtainPairView):

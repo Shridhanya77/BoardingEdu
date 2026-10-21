@@ -541,6 +541,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'school_id',
             'slug',
+            'verification_status',
             'published_at',
             'created_at',
             'updated_at',

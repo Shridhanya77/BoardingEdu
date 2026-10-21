@@ -1,4 +1,5 @@
 import uuid
+from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 from apps.geography.models import Country, State, City, Location
@@ -177,6 +178,38 @@ class School(models.Model):
 
     def __str__(self):
         return f"{self.school_code} - {self.school_name}"
+
+
+class SchoolVerificationEvent(models.Model):
+    event_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.PROTECT,
+        related_name="verification_events",
+        db_column="school_id",
+    )
+    previous_status = models.CharField(max_length=20, choices=School.VERIFICATION_CHOICES)
+    new_status = models.CharField(max_length=20, choices=School.VERIFICATION_CHOICES)
+    note = models.TextField(max_length=1000)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="school_verification_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "school_verification_events"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["school", "created_at"],
+                name="sch_ver_ev_sch_created_idx",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.school.school_name}: {self.previous_status} to {self.new_status}"
 
 
 class SchoolPhoto(models.Model):
