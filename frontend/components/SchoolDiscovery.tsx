@@ -1801,17 +1801,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <article key={school.school_id}>
                 <Link href={schoolHref(school)} className="compare-promo__school-link">
                   <span className="compare-promo__school-image">
-                    {school.school_image_url ? (
-                      <Image
-                        src={school.school_image_url}
-                        alt=""
-                        fill
-                        sizes="(max-width: 640px) 100vw, 220px"
-                        unoptimized
-                      />
-                    ) : (
-                      <Building2 size={23} aria-hidden />
-                    )}
+                    <Building2 size={23} aria-hidden />
                   </span>
                   <strong>{school.school_name}</strong>
                 </Link>

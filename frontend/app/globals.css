@@ -7444,6 +7444,19 @@ select:focus-visible {
   padding-bottom: 34px;
 }
 
+.seo-footer__group-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.seo-footer__group-table th,
+.seo-footer__group-table td {
+  padding: 0;
+  border: 0;
+  text-align: left;
+}
+
 .seo-footer__search-cloud {
   display: flex;
   flex-wrap: wrap;
@@ -9181,10 +9194,13 @@ select:focus-visible {
   --boardingedu-text: var(--ink-soft);
 }
 
-.discovery-page--home .home-section__heading h2,
+.discovery-page--home .home-section__heading h2 {
+  color: var(--boardingedu-navy);
+}
+
 .discovery-page--home .school-cta h2,
 .discovery-page--home .final-cta h2 {
-  color: var(--boardingedu-navy);
+  color: #fff;
 }
 
 .discovery-page--home .hero-finder {

@@ -29,24 +29,11 @@ function formatFee(value: string | null) {
 
 function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
   const [logoFailed, setLogoFailed] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
   const initials = school.short_name || school.school_name.slice(0, 2);
 
   return (
     <div className="featured-card__cover">
       {school.is_featured && <span className="featured-badge">FEATURED</span>}
-      {school.school_image_url && !imageFailed && (
-        <Image
-          className="featured-card__cover-image"
-          src={school.school_image_url}
-          alt=""
-          fill
-          sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw"
-          unoptimized
-          aria-hidden="true"
-          onError={() => setImageFailed(true)}
-        />
-      )}
       <div className="featured-card__logo">
         {school.school_logo_url && !logoFailed ? (
           <Image

@@ -453,9 +453,6 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
                                 <span className="facility__icon"><Icon size={18} aria-hidden="true" /></span>
                                 {f.facility_name}
                               </span>
-                              {f.quantity_or_capacity != null && (
-                                <span className="facility__qty">Qty {f.quantity_or_capacity}</span>
-                              )}
                               {f.description && (
                                 <p className="facility__desc">{f.description}</p>
                               )}

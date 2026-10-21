@@ -114,63 +114,79 @@ export default function SiteFooterSeo({
       );
   }, [countries, uniqueCities]);
 
-  const popularSearchLinks = useMemo(() => {
-    const links: { label: string; href: string }[] = [];
-    for (const category of availableCategories) {
-      const categoryParam = homeSchoolCategoryPath(category.category);
-      links.push({
-        label: category.label,
-        href: `/schools/?home_category=${categoryParam}`,
-      });
-      for (const country of countrySearches.slice(0, 5)) {
+  const popularSearchGroups = useMemo(
+    () =>
+      availableCategories.map((category) => {
+        const links: { label: string; href: string }[] = [];
+        const categoryParam = homeSchoolCategoryPath(category.category);
         links.push({
-          label: `${category.label} in ${country.country_name}`,
-          href: placeListingPath({
-            countrySlug: country.slug,
-            category: category.category,
-          }),
+          label: category.label,
+          href: `/schools/?home_category=${categoryParam}`,
         });
-      }
-      for (const [, state] of stateSearches.slice(0, 10)) {
-        links.push({
-          label: `${category.label} in ${state.name}`,
-          href: placeListingPath({
-            countrySlug: state.countrySlug,
-            stateSlug: state.stateSlug,
-            category: category.category,
-          }),
-        });
-      }
-      for (const city of popularCities.slice(0, 10)) {
-        links.push({
-          label: `${category.label} in ${city.city_name}`,
-          href: placeListingPath({
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-            category: category.category,
-          }),
-        });
-      }
-      for (const board of topBoards.slice(0, 8)) {
-        links.push({
-          label: `${board.board_name} ${category.label}`,
-          href: boardListingPath(board.slug, category.category),
-        });
-      }
-    }
-    return uniqueBy(links, (item) => item.href);
-  }, [availableCategories, countrySearches, popularCities, stateSearches, topBoards]);
+        for (const country of countrySearches.slice(0, 5)) {
+          links.push({
+            label: `${category.label} in ${country.country_name}`,
+            href: placeListingPath({
+              countrySlug: country.slug,
+              category: category.category,
+            }),
+          });
+        }
+        for (const [, state] of stateSearches.slice(0, 10)) {
+          links.push({
+            label: `${category.label} in ${state.name}`,
+            href: placeListingPath({
+              countrySlug: state.countrySlug,
+              stateSlug: state.stateSlug,
+              category: category.category,
+            }),
+          });
+        }
+        for (const city of popularCities.slice(0, 10)) {
+          links.push({
+            label: `${category.label} in ${city.city_name}`,
+            href: placeListingPath({
+              countrySlug: city.country_slug ?? city.country_name,
+              stateSlug: city.state_slug ?? city.state_name,
+              citySlug: city.slug,
+              category: category.category,
+            }),
+          });
+        }
+        for (const board of topBoards.slice(0, 8)) {
+          links.push({
+            label: `${board.board_name} ${category.label}`,
+            href: boardListingPath(board.slug, category.category),
+          });
+        }
+        return {
+          label: category.label,
+          links: uniqueBy(links, (item) => item.href),
+        };
+      }),
+    [availableCategories, countrySearches, popularCities, stateSearches, topBoards],
+  );
 
   return (
     <footer className="seo-footer" id="sitemap">
       <nav className="seo-footer__popular" aria-label="School searches by type, board, and location">
-        <div className="seo-footer__search-cloud">
-          {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-          {popularSearchLinks.map((item) => (
-            <Link key={item.href} href={item.href}>{item.label}</Link>
-          ))}
-        </div>
+        {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
+        <table className="seo-footer__group-table">
+          <tbody>
+            {popularSearchGroups.map((group) => (
+              <tr key={group.label}>
+                <th className="sr-only" scope="row">{group.label}</th>
+                <td>
+                  <div className="seo-footer__search-cloud">
+                    {group.links.map((item) => (
+                      <Link key={item.href} href={item.href}>{item.label}</Link>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </nav>
 
       <div className="seo-footer__grid">
