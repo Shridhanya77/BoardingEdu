@@ -3,28 +3,38 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { fetchAllPages, geography, schools } from "@/lib/api";
-import type { BoardListItem, CityListItem } from "@/lib/api";
+import type {
+  BoardListItem,
+  CityListItem,
+  CountryListItem,
+  LocationListItem,
+  SchoolTypeListItem,
+} from "@/lib/api";
 import SiteFooterSeo from "./SiteFooterSeo";
 
 export default function PublicSiteFooter() {
   const pathname = usePathname();
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
+  const [countries, setCountries] = useState<CountryListItem[]>([]);
+  const [locations, setLocations] = useState<LocationListItem[]>([]);
+  const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      geography.cities(),
-      schools.boards(),
-    ])
-      .then(([cityPage, boardPage]) =>
-        Promise.all([fetchAllPages(cityPage, 1000), fetchAllPages(boardPage)]),
-      )
-      .then(([cityRows, boardRows]) => {
-        if (cancelled) return;
+    Promise.allSettled([
+      geography.cities().then((page) => fetchAllPages(page, 1000)),
+      schools.boards().then((page) => fetchAllPages(page)),
+      geography.countries().then((page) => fetchAllPages(page)),
+      geography.locations().then((page) => fetchAllPages(page, 1000)),
+      schools.types().then((page) => fetchAllPages(page)),
+    ]).then(([cityResult, boardResult, countryResult, locationResult, typeResult]) => {
+      if (cancelled) return;
+
+      if (cityResult.status === "fulfilled") {
         setCities(
-          cityRows
+          cityResult.value
             .filter((city) => city.status)
             .sort(
               (left, right) =>
@@ -32,14 +42,37 @@ export default function PublicSiteFooter() {
                 left.city_name.localeCompare(right.city_name),
             ),
         );
-        setBoards(boardRows.filter((board) => board.status));
+      }
+
+      if (boardResult.status === "fulfilled") {
+        setBoards(boardResult.value.filter((board) => board.status));
+      }
+
+      if (countryResult.status === "fulfilled") {
+        setCountries(countryResult.value.filter((country) => country.status));
+      }
+
+      if (locationResult.status === "fulfilled") {
+        setLocations(locationResult.value.filter((location) => location.status));
+      }
+
+      if (typeResult.status === "fulfilled") {
+        setSchoolTypes(typeResult.value.filter((type) => type.status));
+      }
+
+      const rejected = [cityResult, boardResult, countryResult, locationResult, typeResult].filter(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+
+      if (rejected.length > 0) {
+        const reason: unknown = rejected[0]!.reason;
+        setError(
+          reason instanceof Error ? reason.message : "Search links are temporarily unavailable.",
+        );
+      } else {
         setError(null);
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setError(reason instanceof Error ? reason.message : "Search links are temporarily unavailable.");
-        }
-      });
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -55,5 +88,14 @@ export default function PublicSiteFooter() {
     return null;
   }
 
-  return <SiteFooterSeo cities={cities} boards={boards} dataError={error} />;
+  return (
+    <SiteFooterSeo
+      cities={cities}
+      boards={boards}
+      countries={countries}
+      locations={locations}
+      schoolTypes={schoolTypes}
+      dataError={error}
+    />
+  );
 }

@@ -2,9 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
+  ArrowRight,
   BedDouble,
   BookOpen,
   Bus,
+  CalendarDays,
   CheckCircle2,
   FlaskConical,
   GraduationCap,
@@ -21,8 +23,14 @@ import {
   Users,
   Waves,
 } from "lucide-react";
-import type { SchoolDetail, ReviewListItem, SchoolRatingSummary } from "@/lib/api";
-import { reviews } from "@/lib/api";
+import type {
+  SchoolDetail,
+  SchoolFilters,
+  SchoolListItem,
+  ReviewListItem,
+  SchoolRatingSummary,
+} from "@/lib/api";
+import { reviews, schools } from "@/lib/api";
 import { schoolProfilePathFromSlugs, schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
 import { schoolJsonLd } from "@/lib/structured-data";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
@@ -89,6 +97,69 @@ export function schoolProfilePath(school: SchoolDetail) {
   });
 }
 
+function listItemPath(school: SchoolListItem) {
+  return schoolProfilePathFromSlugs({
+    countrySlug: school.country_slug,
+    stateSlug: school.state_slug,
+    citySlug: school.city_slug,
+    localitySlug: school.location_slug,
+    schoolSlug: school.slug,
+  });
+}
+
+function formatFee(value: string | null) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)}`;
+}
+
+/**
+ * Other schools to compare with this one. We widen the search step by step —
+ * city, then state, then board — so a visitor always sees a useful next step
+ * instead of an empty block.
+ */
+async function loadNearbySchools(
+  school: SchoolDetail,
+): Promise<{ label: string; items: SchoolListItem[] } | null> {
+  const board = school.boards_detail[0];
+  const tiers: { label: string; filters: SchoolFilters }[] = [
+    {
+      label: `Other schools in ${school.city_detail.city_name}`,
+      filters: { city: school.city_detail.city_id },
+    },
+    {
+      label: `Other schools in ${school.state_detail.state_name}`,
+      filters: { state: school.state_detail.state_id },
+    },
+    ...(board
+      ? [
+          {
+            label: `Other ${board.board_name} schools`,
+            filters: { board: board.board_id },
+          },
+        ]
+      : []),
+  ];
+
+  for (const tier of tiers) {
+    try {
+      const page = await schools.list({
+        ...tier.filters,
+        ordering: "-is_featured",
+        page_size: 7,
+      });
+      const items = page.results
+        .filter((item) => item.school_id !== school.school_id)
+        .slice(0, 6);
+      if (items.length) return { label: tier.label, items };
+    } catch {
+      // A failed tier should never break the profile page — widen instead.
+    }
+  }
+
+  return null;
+}
+
 function gradeBadge(gradeName: string, seats: number | null, entryAge: [number | null, number | null]) {
   const range = entryAge.filter((x): x is number => x != null);
   return (
@@ -112,13 +183,36 @@ function gradeBadge(gradeName: string, seats: number | null, entryAge: [number |
 
 export default async function SchoolProfile({ school }: { school: SchoolDetail }) {
   const schoolImage = school.school_logo_url || school.school_image_url;
-  const reviewData = await loadReviewData(school.school_id);
+  const [reviewData, nearbySchools] = await Promise.all([
+    loadReviewData(school.school_id),
+    loadNearbySchools(school),
+  ]);
   const location = [
     school.location_detail?.location_name,
     school.city_detail.city_name,
     school.state_detail.state_name,
     school.country_detail.country_name,
   ].filter(Boolean).join(", ");
+  const relatedSearchLinks = [
+    ...school.boards_detail.map((board) => ({
+      label: `${board.board_name} schools in ${school.city_detail.city_name}`,
+      filters: { board: board.board_id, city: school.city_detail.city_id },
+    })),
+    ...school.school_types_detail.map((type) => ({
+      label: `${schoolTypeLabel(type.type_code, type.slug, type.type_name)} schools in ${school.city_detail.city_name}`,
+      filters: { school_type: type.school_type_id, city: school.city_detail.city_id },
+    })),
+    ...school.boards_detail.flatMap((board) =>
+      school.school_types_detail.map((type) => ({
+        label: `${board.board_name} ${schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()} schools`,
+        filters: {
+          board: board.board_id,
+          school_type: type.school_type_id,
+          city: school.city_detail.city_id,
+        },
+      })),
+    ),
+  ];
 
   // Group facilities by category for cleaner grid display
   const facilitiesByCategory = new Map<string, SchoolDetail["facilities_detail"][number][]>();
@@ -145,6 +239,39 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
       icon: Star,
     },
   ];
+  // Quick-stats strip — only rendered for values that actually exist in the DB.
+  const orderedGrades = [...school.grades_offered_detail].sort(
+    (left, right) => left.sort_order - right.sort_order,
+  );
+  const classesRange = orderedGrades.length
+    ? orderedGrades[0].grade_name === orderedGrades[orderedGrades.length - 1].grade_name
+      ? orderedGrades[0].grade_name
+      : `${orderedGrades[0].grade_name} – ${orderedGrades[orderedGrades.length - 1].grade_name}`
+    : null;
+  const quickStats = [
+    {
+      label: "Established",
+      value: school.established_year ? String(school.established_year) : null,
+      icon: CalendarDays,
+    },
+    { label: "Classes offered", value: classesRange, icon: GraduationCap },
+    {
+      label: "Education board",
+      value: school.boards_detail.map((board) => board.board_name).join(", ") || null,
+      icon: Landmark,
+    },
+    { label: "Student community", value: genderLabel(school.gender), icon: Users },
+    {
+      label: "Facilities listed",
+      value: school.facilities_detail.length
+        ? String(school.facilities_detail.length)
+        : null,
+      icon: Star,
+    },
+  ].filter((stat): stat is { label: string; value: string; icon: typeof Star } =>
+    Boolean(stat.value),
+  );
+
   const countrySlug = toSeoSlug(school.country_detail.slug);
   const stateSlug = toSeoSlug(school.state_detail.slug);
   const citySlug = toSeoSlug(school.city_detail.slug);
@@ -233,6 +360,22 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
             <SchoolProfileActions school={school} />
           </div>
         </section>
+
+        {quickStats.length > 0 && (
+          <dl className="school-quick-stats" aria-label="School quick facts">
+            {quickStats.map(({ label, value, icon: Icon }) => (
+              <div className="school-quick-stat" key={label}>
+                <dt>
+                  <span className="school-quick-stat__icon">
+                    <Icon size={16} aria-hidden="true" />
+                  </span>
+                  {label}
+                </dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         <SchoolProfileNavigation />
 
@@ -415,6 +558,81 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>
           </aside>
         </div>
+
+        {nearbySchools && (
+          <section className="school-nearby" aria-labelledby="school-nearby-heading">
+            <div className="detail-panel__heading">
+              <span className="detail-panel__icon"><GraduationCap size={18} /></span>
+              <div>
+                <h2 id="school-nearby-heading">{nearbySchools.label}</h2>
+                <p>Other schools families shortlist alongside {school.short_name || school.school_name}.</p>
+              </div>
+            </div>
+
+            <div className="school-nearby__grid">
+              {nearbySchools.items.map((item) => (
+                <Link
+                  className="school-nearby-card"
+                  href={listItemPath(item)}
+                  key={item.school_id}
+                >
+                  <span className="school-nearby-card__media">
+                    {item.school_image_url ? (
+                      <Image
+                        src={item.school_image_url}
+                        alt={`${item.school_name} campus`}
+                        fill
+                        sizes="220px"
+                        unoptimized
+                      />
+                    ) : (
+                      <GraduationCap size={22} aria-hidden="true" />
+                    )}
+                  </span>
+
+                  <span className="school-nearby-card__body">
+                    <strong className="school-nearby-card__name">{item.school_name}</strong>
+
+                    <span className="school-nearby-card__place">
+                      <MapPin size={13} aria-hidden="true" />
+                      {[item.city_name, item.state_name].filter(Boolean).join(", ")}
+                    </span>
+
+                    <span className="school-nearby-card__tags">
+                      {item.boards_detail.slice(0, 2).map((board) => (
+                        <span className="school-tag school-tag--blue" key={board.board_id}>
+                          {board.board_name}
+                        </span>
+                      ))}
+                      {formatFee(item.annual_fee) && (
+                        <span className="school-tag school-tag--fee">
+                          From {formatFee(item.annual_fee)} / year
+                        </span>
+                      )}
+                    </span>
+                  </span>
+
+                  <ArrowRight className="school-nearby-card__arrow" size={16} aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        {relatedSearchLinks.length > 0 && (
+          <nav className="school-profile-related" aria-labelledby="school-profile-related-heading">
+            <h2 id="school-profile-related-heading">Related school searches</h2>
+            <div>
+              {relatedSearchLinks.map((item) => (
+                <Link
+                  key={item.label}
+                  href={`/schools?${new URLSearchParams(item.filters).toString()}`}
+                >
+                  {item.label} <ArrowRight size={14} aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+          </nav>
+        )}
       </div>
 
       <div className="school-sticky-cta" role="group" aria-label="School contact actions">

@@ -12,6 +12,12 @@ type Props = {
   initialSummary: SchoolRatingSummary | null;
 };
 
+type RatingCategory =
+  | "academics_rating"
+  | "facilities_rating"
+  | "safety_rating"
+  | "communication_rating";
+
 function Stars({ value, size = 16 }: { value: number; size?: number }) {
   const rounded = Math.round(value);
   return (
@@ -40,6 +46,9 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
   const [list, setList] = useState<ReviewListItem[]>(initialReviews);
 
   const [rating, setRating] = useState(5);
+  const [categoryRatings, setCategoryRatings] = useState<
+    Partial<Record<RatingCategory, number>>
+  >({});
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +56,12 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
   const [submitted, setSubmitted] = useState(false);
 
   const hasReviews = (summary?.review_count ?? 0) > 0;
+  const ratingCategories = [
+    { field: "academics_rating", label: "Academics & teaching" },
+    { field: "facilities_rating", label: "Facilities & campus" },
+    { field: "safety_rating", label: "Safety & wellbeing" },
+    { field: "communication_rating", label: "Communication & admissions" },
+  ] as const;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,12 +72,19 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
     }
     setSubmitting(true);
     try {
-      const created = await reviews.create({ school: schoolId, rating, title, body });
+      const created = await reviews.create({
+        school: schoolId,
+        rating,
+        ...categoryRatings,
+        title,
+        body,
+      });
       setList((prev) => [created, ...prev]);
       setSubmitted(true);
       setTitle("");
       setBody("");
       setRating(5);
+      setCategoryRatings({});
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
@@ -108,6 +130,27 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
           </ul>
         )}
       </div>
+
+      {summary && (
+        <div className="reviews-category-ratings">
+          {ratingCategories.map(({ field, label }) => {
+            const category = summary.category_ratings?.[field];
+            return (
+              <div className="reviews-category-ratings__item" key={field}>
+                <span>{label}</span>
+                <strong>
+                  {category?.average != null ? `${category.average.toFixed(1)} / 5` : "Not rated"}
+                </strong>
+                <small>
+                  {category?.count
+                    ? `${category.count} parent rating${category.count === 1 ? "" : "s"}`
+                    : "No category ratings yet"}
+                </small>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {list.length === 0 ? (
         <p className="empty-state"><Star size={16} /> Be the first to review {schoolName}.</p>
@@ -159,6 +202,32 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
                 </button>
               ))}
             </div>
+            <fieldset className="review-form__category-ratings">
+              <legend>Rate specific areas (optional)</legend>
+              {ratingCategories.map(({ field, label }) => (
+                <label key={field}>
+                  <span>{label}</span>
+                  <select
+                    value={categoryRatings[field] ?? ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setCategoryRatings((current) => {
+                        const next = { ...current };
+                        if (value) next[field] = Number(value);
+                        else delete next[field];
+                        return next;
+                      });
+                    }}
+                    disabled={submitting}
+                  >
+                    <option value="">Not rated</option>
+                    {[5, 4, 3, 2, 1].map((score) => (
+                      <option value={score} key={score}>{score} out of 5</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </fieldset>
             <label className="field">
               <span className="field__label">Title</span>
               <input

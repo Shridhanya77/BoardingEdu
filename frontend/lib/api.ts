@@ -258,13 +258,25 @@ export type SchoolListItem = {
   principal_name: string | null;
   established_year: number | null;
   annual_fee: string | null;
+  average_rating: number | null;
+  review_count: number;
+  academics_rating?: number | null;
+  facilities_rating?: number | null;
+  safety_rating?: number | null;
+  communication_rating?: number | null;
+  grades_range?: string | null;
   boarding_required: boolean;
   is_featured: boolean;
   status: boolean;
   published_at: string | null;
 };
 
-export type PaginatedResponse<T> = { next: string | null; previous: string | null; results: T[] };
+export type PaginatedResponse<T> = {
+  count?: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
 export type CountryListItem = {
   country_id: string;
   country_code: string;
@@ -338,7 +350,16 @@ export type SchoolFilters = {
   gender?: "COED" | "BOYS" | "GIRLS";
   status?: boolean;
   is_featured?: boolean;
-  ordering?: "school_name" | "-school_name" | "established_year" | "-established_year" | "annual_fee" | "-annual_fee";
+  page?: number;
+  page_size?: number;
+  ordering?:
+    | "school_name" | "-school_name"
+    | "established_year" | "-established_year"
+    | "annual_fee" | "-annual_fee"
+    | "average_rating" | "-average_rating"
+    | "review_count" | "-review_count"
+    | "is_featured" | "-is_featured"
+    | "created_at" | "-created_at";
 };
 export type SchoolTypeListItem = {
   school_type_id: string;
@@ -360,6 +381,11 @@ export type GradeListItem = {
   grade_name: string;
   sort_order: number;
   status: boolean;
+};
+export type SchoolFAQListItem = {
+  faq_id: string;
+  question: string;
+  answer: string;
 };
 
 export type SchoolPhotoListItem = {
@@ -475,6 +501,14 @@ export const schools = {
   types: () => request<PaginatedResponse<SchoolTypeListItem>>("/schools/school-types/"),
   boards: () => request<PaginatedResponse<BoardListItem>>("/schools/boards/"),
   grades: () => request<PaginatedResponse<GradeListItem>>("/schools/grades/"),
+  faqs: (filters: Partial<Record<"country" | "state" | "city" | "location" | "board" | "school_type", string>> = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const query = params.toString();
+    return request<SchoolFAQListItem[]>(`/schools/faqs/${query ? `?${query}` : ""}`);
+  },
   retrieve: (uuid: string) => request<SchoolDetail>(`/schools/schools/${uuid}/`),
   /**
    * Direct slug lookup via the dedicated backend by-slug endpoint.
@@ -488,6 +522,7 @@ export const schools = {
 export const geography = {
   countries: () => request<PaginatedResponse<CountryListItem>>("/geography/countries/"),
   cities: () => request<PaginatedResponse<CityListItem>>("/geography/cities/"),
+  locations: () => request<PaginatedResponse<LocationListItem>>("/geography/locations/"),
   statesOf: (countryId: string) =>
     request<PaginatedResponse<StateListItem>>(`/geography/countries/${countryId}/states/`),
   citiesOf: (stateId: string) =>
@@ -652,6 +687,10 @@ export type ReviewListItem = {
   user: number | null;
   author_name: string;
   rating: number;
+  academics_rating: number | null;
+  facilities_rating: number | null;
+  safety_rating: number | null;
+  communication_rating: number | null;
   title: string;
   body: string;
   status: ReviewStatus;
@@ -665,11 +704,19 @@ export type SchoolRatingSummary = {
   average_rating: number | null;
   review_count: number;
   distribution: Record<string, number>;
+  category_ratings: Record<
+    "academics_rating" | "facilities_rating" | "safety_rating" | "communication_rating",
+    { average: number | null; count: number }
+  >;
 };
 
 export type ReviewInput = {
   school: string;
   rating: number;
+  academics_rating?: number;
+  facilities_rating?: number;
+  safety_rating?: number;
+  communication_rating?: number;
   title?: string;
   body?: string;
   author_name?: string;
@@ -681,6 +728,9 @@ export const reviews = {
     request<PaginatedResponse<ReviewListItem>>(
       `/reviews/?school=${encodeURIComponent(schoolId)}&ordering=-created_at`,
     ),
+  /** Most recent published reviews across the whole directory (public). */
+  latest: () =>
+    request<PaginatedResponse<ReviewListItem>>("/reviews/?ordering=-created_at"),
   /** Aggregate rating for a school (public). */
   summary: (schoolId: string) =>
     request<SchoolRatingSummary>(
@@ -734,6 +784,9 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     principal_name: school.principal_name,
     established_year: school.established_year,
     annual_fee: null,
+    average_rating: null,
+    review_count: 0,
+    grades_range: null,
     boarding_required: school.boarding_required,
     is_featured: school.is_featured,
     status: school.status,

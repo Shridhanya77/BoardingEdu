@@ -13,6 +13,7 @@ from .models import (
     SchoolVideo,
     SchoolFacility,
     SchoolGrade,
+    SchoolFAQ,
 )
 
 
@@ -115,6 +116,24 @@ class GradeAdmin(admin.ModelAdmin):
     list_filter = ("status",)
     search_fields = ("grade_code", "grade_name")
     ordering = ("sort_order",)
+
+
+@admin.register(SchoolFAQ)
+class SchoolFAQAdmin(admin.ModelAdmin):
+    list_display = (
+        "question",
+        "country",
+        "state",
+        "city",
+        "location",
+        "board",
+        "school_type",
+        "sort_order",
+        "status",
+    )
+    list_filter = ("status", "country", "state", "city", "location", "board", "school_type")
+    search_fields = ("question", "answer")
+    ordering = ("sort_order", "question")
 
 
 @admin.register(Facility)

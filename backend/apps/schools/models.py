@@ -77,6 +77,45 @@ class Facility(models.Model):
     def __str__(self): return f"{self.category}: {self.facility_name}"
 
 
+class SchoolFAQ(models.Model):
+    """Staff-managed answers used across directory and location listings."""
+
+    faq_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    question = models.CharField(max_length=300)
+    answer = models.TextField()
+    country = models.ForeignKey(
+        Country, on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
+    )
+    state = models.ForeignKey(
+        State, on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
+    )
+    city = models.ForeignKey(
+        City, on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
+    )
+    location = models.ForeignKey(
+        Location, on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
+    )
+    board = models.ForeignKey(
+        "Board", on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
+    )
+    school_type = models.ForeignKey(
+        "SchoolType", on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    status = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "school_directory_faqs"
+        ordering = ["sort_order", "question"]
+        verbose_name = "School directory FAQ"
+        verbose_name_plural = "School directory FAQs"
+
+    def __str__(self):
+        return self.question
+
+
 # ---------- SCHOOLS — CENTRAL ENTITY (matches your 2nd diagram DARK GREEN box) ----------
 class School(models.Model):
     GENDER_CHOICES = [('COED', 'Co-Ed'), ('BOYS', 'Boys Only'), ('GIRLS', 'Girls Only')]

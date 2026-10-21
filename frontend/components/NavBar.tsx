@@ -2,7 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import CounsellingModal from "@/components/home/CounsellingModal";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -27,8 +28,19 @@ export default function NavBar() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [counsellingOpen, setCounsellingOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const counsellingTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+  const closeCounselling = useCallback(() => {
+    setCounsellingOpen(false);
+    if (window.matchMedia("(max-width: 900px)").matches) {
+      mobileMenuToggleRef.current?.focus();
+    } else {
+      counsellingTriggerRef.current?.focus();
+    }
+  }, []);
 
   // Close dropdown when user clicks outside or navigates
   useEffect(() => {
@@ -162,11 +174,17 @@ export default function NavBar() {
             </Link>
           </>
         )}
-        <Link href={homeHref("#counselling")} className="header-action header-action--find">
+        <button
+          ref={counsellingTriggerRef}
+          type="button"
+          className="header-action header-action--find"
+          onClick={() => setCounsellingOpen(true)}
+        >
           <Search size={15} /> Get counselling
-        </Link>
+        </button>
       </div>
       <button
+        ref={mobileMenuToggleRef}
         className="mobile-menu-toggle"
         type="button"
         aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
@@ -194,6 +212,16 @@ export default function NavBar() {
             <Link href="/guides" onClick={() => setMobileNavOpen(false)}>Guides</Link>
             <Link href="/compare" onClick={() => setMobileNavOpen(false)}>Compare Schools</Link>
             <Link href={homeHref("#counselling")} onClick={() => setMobileNavOpen(false)}>Free Counselling</Link>
+            <button
+              className="mobile-navigation__counselling"
+              type="button"
+              onClick={() => {
+                setMobileNavOpen(false);
+                setCounsellingOpen(true);
+              }}
+            >
+              <Search size={16} aria-hidden /> Get counselling
+            </button>
             {user ? (
               <button
                 className="mobile-navigation__logout"
@@ -213,6 +241,7 @@ export default function NavBar() {
           </nav>
         </>
       )}
+      {counsellingOpen && <CounsellingModal onClose={closeCounselling} />}
     </header>
   );
 }

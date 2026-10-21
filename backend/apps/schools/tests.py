@@ -11,7 +11,7 @@ from django.test import TestCase
 from apps.admissions.models import CounsellingRequest
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, Location, State
-from .models import Board, Grade, School, SchoolGrade, SchoolPhoto, SchoolType, SchoolVideo
+from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVideo
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .views import SchoolFilter, SchoolViewSet
 
@@ -741,3 +741,91 @@ class SchoolClassificationTests(TestCase):
             SchoolListSerializer(school).data['annual_fee'],
             Decimal('850000.00'),
         )
+
+
+class SchoolFAQApiTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.country = Country.objects.create(
+            country_code='IN',
+            country_name='India',
+            slug='india',
+        )
+        cls.state = State.objects.create(
+            country=cls.country,
+            state_code='MH',
+            state_name='Maharashtra',
+            slug='maharashtra',
+        )
+        cls.city = City.objects.create(
+            state=cls.state,
+            city_code='MUM',
+            city_name='Mumbai',
+            slug='mumbai',
+        )
+        cls.location = Location.objects.create(
+            city=cls.city,
+            location_code='SOU',
+            location_name='South Mumbai',
+            slug='south-mumbai',
+        )
+        cls.board = Board.objects.create(
+            board_code='FAQ-CBSE',
+            board_name='CBSE',
+            slug='faq-cbse',
+        )
+        cls.school_type = SchoolType.objects.get(type_code='DAY')
+        cls.global_faq = SchoolFAQ.objects.create(
+            question='How do I compare schools?',
+            answer='Review their profiles.',
+            status=True,
+        )
+        cls.state_faq = SchoolFAQ.objects.create(
+            question='Which schools are in Maharashtra?',
+            answer='Explore the directory.',
+            country=cls.country,
+            state=cls.state,
+            status=True,
+        )
+        SchoolFAQ.objects.create(
+            question='What is available in South Mumbai?',
+            answer='Browse local schools.',
+            country=cls.country,
+            state=cls.state,
+            city=cls.city,
+            location=cls.location,
+            status=True,
+        )
+        SchoolFAQ.objects.create(
+            question='Unpublished question',
+            answer='This should not be public.',
+        )
+
+    def test_faq_list_is_public_and_matches_the_requested_scope(self):
+        response = self.client.get(
+            '/api/schools/faqs/',
+            {
+                'country': str(self.country.pk),
+                'state': str(self.state.pk),
+                'board': str(self.board.pk),
+                'school_type': str(self.school_type.pk),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {item['faq_id'] for item in response.data},
+            {str(self.global_faq.pk), str(self.state_faq.pk)},
+        )
+
+    def test_city_and_locality_faqs_require_matching_scope(self):
+        response = self.client.get(
+            '/api/schools/faqs/',
+            {
+                'country': str(self.country.pk),
+                'state': str(self.state.pk),
+                'city': str(self.city.pk),
+                'location': str(self.location.pk),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 3)

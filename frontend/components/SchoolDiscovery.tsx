@@ -3,16 +3,24 @@
 import {
   ArrowDownUp,
   ArrowRight,
+  BarChart3,
+  BedDouble,
+  BookOpen,
   Building2,
   CheckCircle2,
+  GraduationCap,
   Heart,
   LoaderCircle,
   MapPin,
+  Mail,
+  MessageCircle,
   Newspaper,
+  Phone,
   Search,
   SearchCheck,
   ShieldCheck,
   SlidersHorizontal,
+  Star,
   Users,
   X,
 } from "lucide-react";
@@ -21,10 +29,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { fetchAllPages, geography, schools } from "@/lib/api";
+import { fetchAllPages, geography, reviews, schools } from "@/lib/api";
 import type {
   BoardListItem,
   CityListItem,
+  LocationListItem,
+  ReviewListItem,
+  SchoolFAQListItem,
   SchoolFilters,
   SchoolListItem,
   SchoolTypeListItem,
@@ -48,7 +59,7 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { homeSchoolCategoryForIds, isDiscoverableSchoolType, schoolProfilePathFromSlugs, schoolTypeLabel, type HomeSchoolCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategoryForIds, isDiscoverableSchoolType, schoolProfilePathFromSlugs, schoolTypeLabel, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath } from "@/lib/school-urls";
 import { guideList } from "@/lib/guides";
 
@@ -72,16 +83,54 @@ const genderOptions: {
   { label: "Girls", value: "GIRLS" },
 ];
 
+const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
+
+const PAGE_SIZE = 12;
+
 const orderingOptions: Record<
   string,
   NonNullable<SchoolFilters["ordering"]>
 > = {
-  school_name: "school_name",
-  "-school_name": "-school_name",
-  established_year: "established_year",
-  "-established_year": "-established_year",
+  "-is_featured": "-is_featured",
+  "-average_rating": "-average_rating",
+  "-review_count": "-review_count",
   annual_fee: "annual_fee",
   "-annual_fee": "-annual_fee",
+  "-established_year": "-established_year",
+  established_year: "established_year",
+  school_name: "school_name",
+  "-school_name": "-school_name",
+};
+
+/** Human labels for the sort dropdown — one source for the list and the chips. */
+const orderingLabels: Partial<
+  Record<NonNullable<SchoolFilters["ordering"]>, string>
+> = {
+  "-is_featured": "Recommended",
+  "-average_rating": "Highest rated",
+  "-review_count": "Most popular",
+  annual_fee: "Annual fees: low to high",
+  "-annual_fee": "Annual fees: high to low",
+  "-established_year": "Newest established",
+  established_year: "Oldest established",
+  school_name: "Name: A to Z",
+  "-school_name": "Name: Z to A",
+};
+
+/** The three canonical school types, in the order parents usually shop for them. */
+const schoolTypeBrowseOrder = [
+  "boarding-school",
+  "day-boarding-school",
+  "day-school",
+] as const;
+
+const schoolTypeBrowseCopy: Record<(typeof schoolTypeBrowseOrder)[number], string> = {
+  "boarding-school":
+    "Students live on campus with residential care, meals and supervised study.",
+  "day-boarding-school":
+    "A full school day with meals and study support, with children home each evening.",
+  "day-school":
+    "Regular school hours, with students travelling home at the end of the day.",
 };
 
 function formatRupees(value: number) {
@@ -116,7 +165,15 @@ async function currentLocationPreferences(
   return createLocationPreferences(validatedCountries);
 }
 
-function SchoolCard({ school }: { school: SchoolListItem }) {
+function SchoolCard({
+  school,
+  selectedBoards = [],
+  selectedSchoolTypes = [],
+}: {
+  school: SchoolListItem;
+  selectedBoards?: string[];
+  selectedSchoolTypes?: string[];
+}) {
   const {
     comparedSchools,
     limitReached,
@@ -201,17 +258,45 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
               <MapPin size={14} />
               {location || "Location not listed"}
             </p>
+
+            {(school.average_rating != null || school.grades_range) && (
+              <div className="school-card__meta">
+                {school.average_rating != null && (
+                  <span
+                    className="school-card__rating"
+                    aria-label={`Rated ${school.average_rating} out of 5 from ${school.review_count} reviews`}
+                  >
+                    <Star size={14} aria-hidden="true" />
+                    <strong>{school.average_rating.toFixed(1)}</strong>
+                    <span className="school-card__rating-count">
+                      ({school.review_count}{" "}
+                      {school.review_count === 1 ? "review" : "reviews"})
+                    </span>
+                  </span>
+                )}
+
+                {school.grades_range && (
+                  <span className="school-card__classes">
+                    Classes: {school.grades_range}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="school-card__tags">
-          {school.school_types_detail.map((type) => (
+          {school.school_types_detail
+            .filter((type) => !selectedSchoolTypes.length || selectedSchoolTypes.includes(type.school_type_id))
+            .map((type) => (
             <span className="school-tag" key={type.school_type_id}>
               {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
             </span>
           ))}
 
-          {school.boards_detail.map((item) => (
+          {school.boards_detail
+            .filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id))
+            .map((item) => (
             <span className="school-tag school-tag--blue" key={item.board_id}>
               {item.board_name}
             </span>
@@ -279,12 +364,22 @@ function SchoolCard({ school }: { school: SchoolListItem }) {
 type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; schoolTypes?: string[]; boardIds?: string[]; homeCategory?: HomeSchoolCategory; ordering?: SchoolFilters["ordering"] };
 type RelatedSearch = { label: string; href: string };
 type Breadcrumb = { name: string; url: string };
+type PlaceHighlight = { label: string; href: string; kind: "state" | "city" | "locality" };
 const finderScrollStorageKey = "boardingeu:finder-scroll-path";
+
+function withListingFilters(href: string, boards: string[], schoolTypes: string[]) {
+  const url = new URL(href, "https://boardingeu.invalid");
+  boards.forEach((id) => url.searchParams.append("board", id));
+  schoolTypes.forEach((id) => url.searchParams.append("school_type", id));
+  return `${url.pathname}${url.search}`;
+}
 
 export default function SchoolDiscovery({ initialFilter, relatedSearches, breadcrumbs }: { initialFilter?: InitialDiscoveryFilter; relatedSearches?: RelatedSearch[]; breadcrumbs?: Breadcrumb[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const isHomePage = pathname === "/";
+  const { comparedSchools, toggleSchool } = useSearchExperience();
+  const [comparePromoMessage, setComparePromoMessage] = useState("");
   useEffect(() => {
     const destinationPath = window.sessionStorage.getItem(finderScrollStorageKey);
     if (!destinationPath) return;
@@ -310,8 +405,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citiesError, setCitiesError] = useState<string | null>(null);
   const [citiesRetry, setCitiesRetry] = useState(0);
-  const [citySearch, setCitySearch] = useState("");
-  const [citiesExpanded, setCitiesExpanded] = useState(false);
+  const [hoveredCityIds, setHoveredCityIds] = useState<string[] | null>(null);
+  const [locations, setLocations] = useState<LocationListItem[]>([]);
+  const [locationsError, setLocationsError] = useState<string | null>(null);
+  const [schoolFaqs, setSchoolFaqs] = useState<SchoolFAQListItem[]>([]);
+  const [schoolFaqsError, setSchoolFaqsError] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const [boardSearch, setBoardSearch] = useState("");
   const [boardsExpanded, setBoardsExpanded] = useState(false);
   const [board, setBoard] = useState<string[]>([]);
@@ -333,11 +432,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const filtersPanelRef = useRef<HTMLElement>(null);
   const [gender, setGender] = useState<SchoolFilters["gender"]>();
   const [ordering, setOrdering] =
-    useState<SchoolFilters["ordering"]>(initialFilter?.ordering ?? "school_name");
+    useState<SchoolFilters["ordering"]>(initialFilter?.ordering ?? DEFAULT_ORDERING);
+  const [page, setPage] = useState(1);
   const [results, setResults] = useState<SchoolListItem[]>([]);
-  const [nextPage, setNextPage] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
@@ -357,6 +457,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const locationRestoreApplied = useRef(false);
   const initialLocationWasInUrl = useRef(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
+  const [latestReviews, setLatestReviews] = useState<ReviewListItem[]>([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
 
   const homeGuides = useMemo(() => guideList().slice(0, 3), []);
 
@@ -374,6 +476,50 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     }
     return stats;
   }, [boards.length, cities, schoolTypes.length]);
+
+  /** The three canonical school types, resolved against the live taxonomy. */
+  const schoolTypeBrowseCards = useMemo(
+    () =>
+      schoolTypeBrowseOrder.flatMap((slug) => {
+        const match = schoolTypes.find(
+          (type) =>
+            schoolTypeLabel(type.type_code, type.slug, type.type_name)
+              .toLowerCase()
+              .replaceAll(" ", "-") === slug,
+        );
+        if (!match) return [];
+        return [
+          {
+            slug,
+            label: schoolTypeLabel(match.type_code, match.slug, match.type_name),
+            href: `/schools?type=${slug}`,
+            text: schoolTypeBrowseCopy[slug],
+          },
+        ];
+      }),
+    [schoolTypes],
+  );
+
+  // Latest published parent reviews — the section hides itself until there are
+  // real reviews, so the home page never shows invented testimonials.
+  useEffect(() => {
+    let cancelled = false;
+    reviews
+      .latest()
+      .then((page) => {
+        if (cancelled) return;
+        setLatestReviews(page.results.slice(0, 3));
+        setReviewsLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLatestReviews([]);
+        setReviewsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isHomePage]);
 
   const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
   const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
@@ -447,30 +593,176 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const listingSubject = listingBoardName ? `${listingBoardName} ${listingTypeLabel}` : listingTypeLabel;
   const listingHeading = `${listingSubject} in ${listingPlaceLabel}`;
   const listingDescription = `Explore ${listingSubject} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
-  const resultsHeading = loading
-    ? `${listingSubject} in ${listingPlaceLabel}`
-    : `${results.length} ${listingSubject} in ${listingPlaceLabel}`;
+  const firstResultIndex = totalCount === 0 ? 0 : 1;
+  const lastResultIndex = results.length;
+  const resultsHeading = `${listingSubject} in ${listingPlaceLabel}`;
+  const hasMoreResults = results.length < totalCount;
   const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
 
+  // Any change to search/filters/sort returns the visitor to the first page.
+  const pageResetKey = useRef(queryKey);
+  useEffect(() => {
+    if (pageResetKey.current === queryKey) return;
+    pageResetKey.current = queryKey;
+    setPage(1);
+    setResults([]);
+    setTotalCount(0);
+    setLoadMoreError(null);
+  }, [queryKey]);
+
   const cityCards = useMemo(() => {
-    const query = citySearch.trim().toLocaleLowerCase();
-    const matchingCities = cities.filter((city) =>
-      `${city.city_name} ${city.state_name} ${city.country_name}`
-        .toLocaleLowerCase()
-        .includes(query),
-    );
-    return citiesExpanded || query ? matchingCities : matchingCities.slice(0, 6);
-  }, [cities, citiesExpanded, citySearch]);
+    const featuredCities = cities.filter((city) => (city.schools_count ?? 0) > 0);
+    if (!hoveredCityIds) return featuredCities.slice(0, 10);
+    const selectedIds = new Set(hoveredCityIds);
+    return featuredCities.filter((city) => selectedIds.has(city.city_id));
+  }, [cities, hoveredCityIds]);
   const boardCards = useMemo(() => {
     const query = boardSearch.trim().toLocaleLowerCase();
     const matchingBoards = boards.filter((item) =>
       `${item.board_name} ${item.board_code}`.toLocaleLowerCase().includes(query),
     );
-    return boardsExpanded || query ? matchingBoards : matchingBoards.slice(0, 8);
+    if (query || boardsExpanded) return matchingBoards;
+    const featuredCodes = ["CBSE", "IB", "ICSE", "IGCSE"];
+    return featuredCodes.flatMap((code) => {
+      const match = matchingBoards.find(
+        (item) => item.board_code.trim().toUpperCase() === code,
+      );
+      return match ? [match] : [];
+    });
   }, [boardSearch, boards, boardsExpanded]);
+  const activeCountryId = geoCountry || initialCountry || "";
+  const activeStateId = geoState || initialState || "";
+  const activeCityId = geoCity || initialCity || "";
+  const placeHighlights = useMemo<PlaceHighlight[]>(() => {
+    if (activeCityId) {
+      return locations
+        .slice()
+        .sort((left, right) => left.location_name.localeCompare(right.location_name))
+        .slice(0, 10)
+        .map((location) => ({
+          label: location.location_name,
+          href: placeListingPath({
+            countrySlug: location.country_name,
+            stateSlug: location.state_name,
+            citySlug: location.city_name,
+            locationSlug: location.slug,
+          }),
+          kind: "locality",
+        }));
+    }
+    if (activeStateId) {
+      return cities
+        .filter((city) => city.state_id === activeStateId)
+        .slice(0, 10)
+        .map((city) => ({
+          label: city.city_name,
+          href: placeListingPath({
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+          }),
+          kind: "city",
+        }));
+    }
+    if (!activeCountryId) return [];
+    const states = new Map<string, { city: CityListItem; count: number }>();
+    for (const city of cities) {
+      if (city.country_id !== activeCountryId) continue;
+      const current = states.get(city.state_id) ?? { city, count: 0 };
+      current.count += city.schools_count ?? 0;
+      states.set(city.state_id, current);
+    }
+    return [...states.values()]
+      .sort((left, right) => right.count - left.count || left.city.state_name.localeCompare(right.city.state_name))
+      .slice(0, 10)
+      .map(({ city }) => ({
+        label: city.state_name,
+        href: placeListingPath({
+          countrySlug: city.country_slug ?? city.country_name,
+          stateSlug: city.state_slug ?? city.state_name,
+        }),
+        kind: "state",
+      }));
+  }, [activeCityId, activeCountryId, activeStateId, cities, locations]);
+
+  useEffect(() => {
+    if (!activeCityId) {
+      setLocations([]);
+      setLocationsError(null);
+      return;
+    }
+    let cancelled = false;
+    setLocations([]);
+    setLocationsError(null);
+    geography
+      .locationsOf(activeCityId)
+      .then((response) => fetchAllPages(response))
+      .then((rows) => {
+        if (!cancelled) {
+          setLocations(
+            rows
+              .filter((location) => location.status)
+              .sort((left, right) => left.location_name.localeCompare(right.location_name)),
+          );
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setLocationsError(
+            reason instanceof Error ? reason.message : "Could not load nearby localities.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCityId]);
+
+  useEffect(() => {
+    if (isHomePage || !queryRestored) return;
+    let cancelled = false;
+    const filters = {
+      ...(activeCountryId ? { country: activeCountryId } : {}),
+      ...(activeStateId ? { state: activeStateId } : {}),
+      ...(activeCityId ? { city: activeCityId } : {}),
+      ...(geoLocation || initialLocation
+        ? { location: geoLocation || initialLocation || undefined }
+        : {}),
+      ...(board[0] ? { board: board[0] } : {}),
+      ...(schoolType[0] ? { school_type: schoolType[0] } : {}),
+    };
+    setSchoolFaqs([]);
+    setSchoolFaqsError(null);
+    schools
+      .faqs(filters)
+      .then((rows) => {
+        if (!cancelled) setSchoolFaqs(rows);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setSchoolFaqsError(
+            reason instanceof Error ? reason.message : "Could not load directory FAQs.",
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCityId, activeCountryId, activeStateId, board, geoLocation, initialLocation, isHomePage, queryRestored, schoolType]);
+
+  const listingFaqEntries = useMemo(() => {
+    const entries = [...schoolFaqs, ...faqItems.slice(0, 4)];
+    const seen = new Set<string>();
+    return entries.filter((item) => {
+      const key = item.question.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [schoolFaqs]);
 
   const whyBoardingEdu = [
     "Verified school profiles",
@@ -501,32 +793,41 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       max_fee: feeMax,
       gender,
       ordering,
+      page: page > 1 ? page : undefined,
+      page_size: PAGE_SIZE,
     };
 
     activeQuery.current = queryKey;
     setLoading(true);
     setError(null);
-    setLoadingMore(false);
+    setLoadMoreError(null);
 
     schools
       .list(filters)
       .then((response) => {
         if (cancelled) return;
 
-        setResults(response.results);
-        setNextPage(response.next);
+        setResults((current) => {
+          if (page === 1) return response.results;
+          const existingIds = new Set(current.map((school) => school.school_id));
+          return [
+            ...current,
+            ...response.results.filter((school) => !existingIds.has(school.school_id)),
+          ];
+        });
+        setTotalCount(response.count ?? response.results.length);
       })
       .catch((reason: unknown) => {
         if (cancelled) return;
 
-        setResults([]);
-        setNextPage(null);
-
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Could not load schools."
-        );
+        const message = reason instanceof Error ? reason.message : "Could not load schools.";
+        if (page === 1) {
+          setResults([]);
+          setTotalCount(0);
+          setError(message);
+        } else {
+          setLoadMoreError(message);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -535,7 +836,24 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, queryKey, retryCount]);
+  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount]);
+
+  useEffect(() => {
+    if (isHomePage || loading || !hasMoreResults || error || loadMoreError) return;
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.unobserve(sentinel);
+          setPage((current) => current + 1);
+        }
+      },
+      { rootMargin: "320px 0px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [error, hasMoreResults, isHomePage, loadMoreError, loading]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -584,7 +902,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       (params.get("gender") as SchoolFilters["gender"]) || undefined
     );
     setOrdering(
-      (params.get("ordering") as SchoolFilters["ordering"]) || "school_name"
+      (params.get("ordering") as SchoolFilters["ordering"]) || DEFAULT_ORDERING
     );
     const min = Number(params.get("min_fee") ?? 0);
     const max = Number(params.get("max_fee") ?? 3_000_000);
@@ -767,7 +1085,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [boardsRetry]);
 
   useEffect(() => {
-    if (!isHomePage) return;
     let cancelled = false;
     setCitiesLoading(true);
     setCitiesError(null);
@@ -803,7 +1120,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, [citiesRetry, isHomePage]);
+  }, [citiesRetry]);
 
   useEffect(() => {
     if (!isBoardingOnlySelection(schoolType, schoolTypes)) return;
@@ -869,9 +1186,27 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     let cancelled = false;
+    const activeCountry = geoCountry || initialCountry;
+    const activeState = geoState || initialState;
+    const activeCity = geoCity || initialCity;
+    const activeLocation = geoLocation || initialLocation;
+    const boardingOnly = isBoardingOnlySelection(schoolType, schoolTypes);
+    setFeaturedLoading(true);
+    setFeaturedError(null);
 
     schools
-      .list({ is_featured: true, ordering: "school_name" })
+      .list({
+        is_featured: true,
+        ordering: "-average_rating",
+        page_size: 4,
+        country: activeCountry || undefined,
+        state: activeState || undefined,
+        city: boardingOnly ? undefined : activeCity || undefined,
+        location: boardingOnly ? undefined : activeLocation || undefined,
+        board,
+        school_type: schoolType,
+        home_category: homeCategory ?? undefined,
+      })
       .then((response) => {
         if (cancelled) return;
 
@@ -894,7 +1229,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [
+    board,
+    geoCity,
+    geoCountry,
+    geoLocation,
+    geoState,
+    homeCategory,
+    initialCity,
+    initialCountry,
+    initialLocation,
+    initialState,
+    schoolType,
+    schoolTypes,
+  ]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -952,43 +1300,86 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setGeoLocation("");
     setFeeRange([0, 3_000_000]);
     setGender(undefined);
-    setOrdering("school_name");
-  }
-
-  async function loadMore() {
-    if (!nextPage || loadingMore) return;
-
-    const requestedQuery = queryKey;
-
-    setLoadingMore(true);
-    setError(null);
-
-    try {
-      const response = await schools.page(nextPage);
-
-      if (activeQuery.current !== requestedQuery) return;
-
-      setResults((current) => [...current, ...response.results]);
-      setNextPage(response.next);
-    } catch (reason: unknown) {
-      if (activeQuery.current === requestedQuery) {
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Could not load more schools."
-        );
-      }
-    } finally {
-      if (activeQuery.current === requestedQuery) {
-        setLoadingMore(false);
-      }
-    }
+    setOrdering(DEFAULT_ORDERING);
+    setPage(1);
   }
 
   const hasFilters = Boolean(
-    search || geoCountry || geoState || geoCity || geoLocation || locationGroups.length > 0 || schoolType.length > 0 || board.length > 0 || gender || ordering !== "school_name"
+    search || geoCountry || geoState || geoCity || geoLocation || locationGroups.length > 0 || schoolType.length > 0 || board.length > 0 || gender || ordering !== DEFAULT_ORDERING
       || feeMin !== undefined || feeMax !== undefined
   );
+
+  /**
+   * Every applied filter as a removable chip, so visitors can see exactly what
+   * is narrowing their results and undo one thing at a time.
+   */
+  const activeFilters = [
+    ...(search
+      ? [
+          {
+            key: "search",
+            label: `“${search}”`,
+            onClear: () => {
+              setSearchInput("");
+              setSearch("");
+            },
+          },
+        ]
+      : []),
+    ...schoolType.map((typeId) => {
+      const type = schoolTypes.find((item) => item.school_type_id === typeId);
+      return {
+        key: `type-${typeId}`,
+        label: type
+          ? schoolTypeLabel(type.type_code, type.slug, type.type_name)
+          : "School type",
+        onClear: () =>
+          setSchoolType((current) => current.filter((id) => id !== typeId)),
+      };
+    }),
+    ...board.map((boardId) => {
+      const item = boards.find((entry) => entry.board_id === boardId);
+      return {
+        key: `board-${boardId}`,
+        label: item?.board_name ?? "Education board",
+        onClear: () =>
+          setBoard((current) => current.filter((id) => id !== boardId)),
+      };
+    }),
+    ...(gender
+      ? [
+          {
+            key: "gender",
+            label:
+              genderOptions.find((option) => option.value === gender)?.label ??
+              "Students",
+            onClear: () => setGender(undefined),
+          },
+        ]
+      : []),
+    ...(feeMin !== undefined || feeMax !== undefined
+      ? [
+          {
+            key: "fee",
+            label: `Fees ${formatRupees(feeMin ?? 0)} – ${formatRupees(
+              feeMax ?? 3_000_000,
+            )}`,
+            onClear: () => setFeeRange([0, 3_000_000]),
+          },
+        ]
+      : []),
+    ...(ordering !== DEFAULT_ORDERING
+      ? [
+          {
+            key: "ordering",
+            label: `Sorted by ${
+              orderingLabels[ordering ?? DEFAULT_ORDERING] ?? DEFAULT_ORDERING
+            }`,
+            onClear: () => setOrdering(DEFAULT_ORDERING),
+          },
+        ]
+      : []),
+  ];
 
   function scrollToSchools() {
     if (isHomePage) {
@@ -1280,6 +1671,113 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </section>
       )}
 
+      {schoolTypeBrowseCards.length > 0 && (
+        <section className="home-section home-section--types" id="school-types">
+          <div className="home-section__heading home-section__heading--centered">
+            <div>
+              <div className="section-eyebrow">START HERE</div>
+              <h2>What kind of school are you looking for?</h2>
+            </div>
+          </div>
+
+          <div className="type-browse-grid">
+            {schoolTypeBrowseCards.map((card, index) => (
+              <Link className="type-browse-card" href={card.href} key={card.slug}>
+                <span className="type-browse-card__icon" aria-hidden="true">
+                  {index === 0 && <BedDouble size={20} />}
+                  {index === 1 && <GraduationCap size={20} />}
+                  {index === 2 && <Building2 size={20} />}
+                </span>
+
+                <h3>{card.label}</h3>
+                <p>{card.text}</p>
+
+                <span className="type-browse-card__action">
+                  Browse {card.label.toLowerCase()}s <ArrowRight size={15} />
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <p className="type-browse-note">
+            Not sure yet? <Link href="/schools">Browse every school</Link> or read
+            our <Link href="/guides">parent guides</Link>.
+          </p>
+        </section>
+      )}
+
+      <section className="home-section compare-promo" id="compare-schools">
+        <div className="compare-promo__intro">
+          <span className="compare-promo__eyebrow"><BarChart3 size={15} /> YOUR SHORTLIST, SIDE BY SIDE</span>
+          <h2>Compare schools on what matters to your family</h2>
+          <p>
+            See boards, school type, fees and parent ratings together before you decide.
+            Category ratings only appear when parents have shared them.
+          </p>
+          <Link href="/compare" className="compare-promo__action">
+            Open school comparison <ArrowRight size={16} />
+          </Link>
+          <span className="compare-promo__status" role="status" aria-live="polite">
+            {comparePromoMessage || `${comparedSchools.length} of 4 schools in your comparison`}
+          </span>
+        </div>
+        <div className="compare-promo__schools">
+          {featuredSchools.slice(0, 3).map((school) => {
+            const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
+            return (
+              <article key={school.school_id}>
+                <Link href={schoolHref(school)} className="compare-promo__school-link">
+                  <span className="compare-promo__school-image">
+                    {school.school_image_url ? (
+                      <Image
+                        src={school.school_image_url}
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 100vw, 220px"
+                        unoptimized
+                      />
+                    ) : (
+                      <Building2 size={23} aria-hidden />
+                    )}
+                  </span>
+                  <strong>{school.school_name}</strong>
+                </Link>
+                <span>{school.boards_detail.map((item) => item.board_code).join(" · ") || "Board not listed"}</span>
+                <span>
+                  {school.average_rating != null
+                    ? `${school.average_rating.toFixed(1)} overall parent rating`
+                    : "No parent rating yet"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isCompared && comparedSchools.length >= 4) {
+                      setComparePromoMessage("Remove a school from your comparison before adding another.");
+                      return;
+                    }
+                    toggleSchool(school);
+                    setComparePromoMessage(
+                      isCompared
+                        ? `${school.school_name} removed from comparison.`
+                        : `${school.school_name} added to comparison.`,
+                    );
+                  }}
+                >
+                  {isCompared ? "Remove from compare" : "Add to compare"}
+                </button>
+              </article>
+            );
+          })}
+          {!featuredSchools.length && (
+            <div className="compare-promo__empty">
+              <BookOpen size={24} />
+              <p>Explore the directory to build your own school shortlist.</p>
+              <Link href="/schools">Browse schools</Link>
+            </div>
+          )}
+        </div>
+      </section>
+
       <section className="home-section home-section--steps" id="how-it-works">
         <div className="home-section__heading home-section__heading--centered">
           <div>
@@ -1311,7 +1809,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="home-section__heading">
           <div>
             <div className="section-eyebrow">SCHOOL LOCATIONS</div>
-            <h2>Cities in the directory</h2>
+            <h2>Top cities for school search</h2>
           </div>
           {citiesError && (
             <p className="section-error" role="status">
@@ -1323,18 +1821,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           )}
         </div>
 
-        <label className="home-directory-search">
-          <span className="sr-only">Search cities by city, state, or country</span>
-          <Search size={16} aria-hidden="true" />
-          <input
-            type="search"
-            value={citySearch}
-            onChange={(event) => setCitySearch(event.target.value)}
-            placeholder="Search cities, states, or countries"
-          />
-        </label>
-
-        <div className="city-grid">
+        <div
+          className="city-grid"
+          onMouseEnter={() => {
+            const candidates = cities.filter((city) => (city.schools_count ?? 0) > 0);
+            for (let index = candidates.length - 1; index > 0; index -= 1) {
+              const randomIndex = Math.floor(Math.random() * (index + 1));
+              [candidates[index], candidates[randomIndex]] = [
+                candidates[randomIndex]!,
+                candidates[index]!,
+              ];
+            }
+            setHoveredCityIds(candidates.slice(0, 10).map((city) => city.city_id));
+          }}
+          onMouseLeave={() => setHoveredCityIds(null)}
+        >
           {cityCards.map((city, index) => (
             <Link
               className={`city-card city-card--${index + 1}`}
@@ -1358,22 +1859,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           )}
           {!citiesLoading && !citiesError && cityCards.length === 0 && (
             <p className="section-empty">
-              {citySearch
-                ? "No cities match your search."
-                : "No active cities are available right now."}
+              No active cities with listed schools are available right now.
             </p>
           )}
         </div>
-        {!citiesLoading && cities.length > 6 && !citySearch && (
-          <button
-            className="home-directory-toggle"
-            type="button"
-            aria-expanded={citiesExpanded}
-            onClick={() => setCitiesExpanded((expanded) => !expanded)}
-          >
-            {citiesExpanded ? "Show popular cities" : `View all ${cities.length} cities`}
-          </button>
-        )}
       </section>
 
       <section className="home-section home-section--boards" id="boards">
@@ -1428,14 +1917,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </p>
           )}
         </div>
-        {!boardsLoading && boards.length > 8 && !boardSearch && (
+        {!boardsLoading && boards.length > 4 && !boardSearch && (
           <button
             className="home-directory-toggle"
             type="button"
             aria-expanded={boardsExpanded}
             onClick={() => setBoardsExpanded((expanded) => !expanded)}
           >
-            {boardsExpanded ? "Show fewer boards" : `View all ${boards.length} boards`}
+            {boardsExpanded ? "Show featured boards" : "Explore all boards"}
           </button>
         )}
       </section>
@@ -1473,6 +1962,34 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
       <CounsellingSection />
 
+      <section className="home-section talk-to-us" id="talk-to-us">
+        <div className="talk-to-us__heading">
+          <span className="section-eyebrow">HERE WHEN YOU NEED US</span>
+          <h2>Talk to a real person about your school search</h2>
+          <p>Get clear answers from our team—whether you&apos;re just starting out or ready to shortlist.</p>
+        </div>
+        <div className="talk-to-us__options">
+          <a href="mailto:hello@boardingedu.com">
+            <span><Mail size={20} /></span>
+            <strong>Email our team</strong>
+            <small>hello@boardingedu.com</small>
+            <ArrowRight size={16} />
+          </a>
+          <a href="tel:+918046110000">
+            <span><Phone size={20} /></span>
+            <strong>Call BoardingEdu</strong>
+            <small>+91 80-4611-0000</small>
+            <ArrowRight size={16} />
+          </a>
+          <Link href="#counselling">
+            <span><MessageCircle size={20} /></span>
+            <strong>Request free guidance</strong>
+            <small>Tell us your child&apos;s needs</small>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      </section>
+
       <section
         className="home-section home-section--testimonials"
         id="parent-stories"
@@ -1480,32 +1997,70 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="home-section__heading">
           <div>
             <div className="section-eyebrow">TRUST, EARNED</div>
-            <h2>Parent testimonials</h2>
+            <h2>What parents say</h2>
           </div>
 
-          <span className="coming-soon-label">
-            <Heart size={14} /> Coming soon
-          </span>
+          <Link href="/schools">
+            Find your school <ArrowRight size={15} />
+          </Link>
         </div>
 
-        <div
-          className="coming-soon-grid"
-          aria-label="Parent testimonials are coming soon"
-        >
-          {[1, 2, 3].map((item) => (
-            <article className="coming-soon-card" key={item}>
-              <div className="coming-soon-card__icon">
-                <Users size={19} />
-              </div>
-              <span>Parent stories</span>
+        {reviewsLoaded &&
+          (latestReviews.length > 0 ? (
+          <div className="review-teaser-grid">
+            {latestReviews.map((review) => (
+              <article className="review-teaser" key={review.review_id}>
+                <div
+                  className="review-teaser__stars"
+                  aria-label={`Rated ${review.rating} out of 5`}
+                >
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <Star
+                      key={index}
+                      size={15}
+                      aria-hidden="true"
+                      className={
+                        index < review.rating ? "review-teaser__star--filled" : undefined
+                      }
+                    />
+                  ))}
+                </div>
+
+                {review.title && <h3>{review.title}</h3>}
+                <p>{review.body}</p>
+
+                <span className="review-teaser__byline">
+                  {review.author_name}
+                  {review.school_name ? ` · ${review.school_name}` : ""}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="review-invite">
+            <span className="review-invite__icon" aria-hidden="true">
+              <Heart size={20} />
+            </span>
+
+            <div className="review-invite__copy">
+              <h3>No parent reviews published yet</h3>
               <p>
-                We’ll share verified experiences from families once reviews are
-                available.
+                Reviews appear here as soon as families share their experience.
+                If your child studies at one of these schools, your review helps
+                other parents choose with confidence.
               </p>
-              <div className="coming-soon-card__rule" />
-            </article>
+            </div>
+
+            <div className="review-invite__actions">
+              <Link className="primary-button" href="/signup">
+                Share your experience
+              </Link>
+              <Link className="secondary-button" href="/schools">
+                Browse schools
+              </Link>
+            </div>
+          </div>
           ))}
-        </div>
       </section>
 
       <section className="home-section home-section--blog" id="blog">
@@ -1521,8 +2076,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
 
         <div className="guide-teaser-grid">
-          {homeGuides.map((guide) => (
+          {homeGuides.map((guide, index) => (
             <article className="guide-teaser" key={guide.slug}>
+              <div className={`guide-teaser__visual guide-teaser__visual--${index + 1}`} aria-hidden="true">
+                <span>GUIDE 0{index + 1}</span>
+                {index === 0 ? <BookOpen size={38} /> : index === 1 ? <GraduationCap size={38} /> : <MapPin size={38} />}
+                <i />
+                <i />
+              </div>
               <span className="guide-teaser__tag">
                 <Newspaper size={14} aria-hidden /> {guide.category}
               </span>
@@ -1650,6 +2211,50 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
       {!isHomePage && (
       <section className="discovery-content" id="schools">
+        {(activeCountryId || activeStateId || activeCityId) && (
+          <section className="listing-place-spotlight" aria-label={`Explore schools in ${listingPlaceLabel}`}>
+            <div className="listing-place-spotlight__heading">
+              <span className="section-eyebrow">EXPLORE THIS AREA</span>
+              <h2>Find schools around {listingPlaceLabel}</h2>
+              <p>Browse nearby places or compare featured schools listed in this area.</p>
+            </div>
+            {placeHighlights.length > 0 && (
+              <nav className="listing-place-spotlight__places" aria-label="Nearby school locations">
+                {placeHighlights.map((place) => (
+                  <Link
+                    key={`${place.kind}-${place.label}`}
+                    href={withListingFilters(place.href, board, schoolType)}
+                  >
+                    <MapPin size={14} aria-hidden />
+                    {place.kind === "state" ? `Schools in ${place.label}` : place.label}
+                    <ArrowRight size={13} aria-hidden />
+                  </Link>
+                ))}
+              </nav>
+            )}
+            {locationsError && activeCityId && (
+              <p className="listing-place-spotlight__error" role="status">{locationsError}</p>
+            )}
+            <div className="listing-place-spotlight__featured">
+              <div className="home-section__heading">
+                <div>
+                  <div className="section-eyebrow">LOCAL PICKS</div>
+                  <h2>Featured schools in {listingPlaceLabel}</h2>
+                </div>
+              </div>
+              {featuredLoading ? (
+                <p className="section-empty" role="status">Loading featured schools…</p>
+              ) : featuredError ? (
+                <p className="listing-place-spotlight__error" role="alert">{featuredError}</p>
+              ) : featuredSchools.length ? (
+                <FeaturedSchoolCards schools={featuredSchools} />
+              ) : (
+                <p className="section-empty">No featured schools are listed for this area yet.</p>
+              )}
+            </div>
+          </section>
+        )}
+
         <div className="section-heading">
           <div>
             <div className="section-eyebrow">SCHOOL DIRECTORY</div>
@@ -1658,14 +2263,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               Compare boards, fees, and facilities, then contact schools
               directly or request free counselling.
             </p>
-          </div>
-
-          <div className="results-count" aria-live="polite">
-            {loading
-              ? "Finding schools…"
-              : `${results.length} ${
-                  results.length === 1 ? "school" : "schools"
-                } shown`}
           </div>
         </div>
 
@@ -1716,6 +2313,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     .map((type) => type.school_type_id);
                   if (!ids.length) return null;
                   const selected = ids.some((id) => schoolType.includes(id));
+                  if (schoolType.length && !selected) return null;
                   return <label className="filter-check" key={label}>
                     <input type="checkbox" checked={selected} onChange={() => {
                       setSchoolType((current) => selected
@@ -1738,7 +2336,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <fieldset className="filter-group">
               <legend>Education board</legend>
               <div className="filter-checklist" id="board-filter">
-                {boards.map((item) => (
+                {boards
+                  .filter((item) => !board.length || board.includes(item.board_id))
+                  .map((item) => (
                   <label className="filter-check" key={item.board_id}>
                     <input
                       type="checkbox"
@@ -1851,7 +2451,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 <span className="school-results__icon">
                   <Building2 size={16} />
                 </span>
-                <span>Schools</span>
+                <span>
+                  {loading
+                    ? "Searching schools…"
+                    : totalCount === 0
+                      ? "No schools found"
+                      : `Showing ${firstResultIndex}–${lastResultIndex} of ${totalCount} schools`}
+                </span>
               </div>
 
               <label className="sort-control">
@@ -1866,19 +2472,41 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   }}
                   aria-label="Sort schools"
                 >
-                  <option value="school_name">Name: A to Z</option>
-                  <option value="-school_name">Name: Z to A</option>
-                  <option value="-established_year">
-                    Newest established
-                  </option>
-                  <option value="established_year">
-                    Oldest established
-                  </option>
-                  <option value="annual_fee">Annual fees: low to high</option>
-                  <option value="-annual_fee">Annual fees: high to low</option>
+                  {Object.values(orderingOptions).map((value) => (
+                    <option value={value} key={value}>
+                      {orderingLabels[value] ?? value}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
+
+            {activeFilters.length > 0 && (
+              <div className="active-filters" aria-label="Applied filters">
+                <span className="active-filters__label">Applied</span>
+
+                {activeFilters.map((filter) => (
+                  <button
+                    type="button"
+                    className="active-filter"
+                    key={filter.key}
+                    onClick={filter.onClear}
+                    aria-label={`Remove filter ${filter.label}`}
+                  >
+                    {filter.label}
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  className="active-filters__clear"
+                  onClick={clearFilters}
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
 
             {error && (
               <div
@@ -1896,7 +2524,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {loading && (
+            {loading && results.length === 0 && (
               <div className="school-list school-list--skeleton" role="status">
                 <span className="sr-only">Finding schools for you…</span>
                 {Array.from({ length: 4 }, (_, index) => (
@@ -1927,40 +2555,73 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {!loading && !error && results.length > 0 && (
+            {!error && results.length > 0 && (
               <>
                 <div className="school-list">
                   {results.map((school) => (
                     <SchoolCard
                       key={school.school_id}
                       school={school}
+                      selectedBoards={board}
+                      selectedSchoolTypes={schoolType}
                     />
                   ))}
                 </div>
-
-                {nextPage && (
-                  <button
-                    className="load-more"
-                    type="button"
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? (
-                      <>
-                        <LoaderCircle className="spin" size={17} />
-                        Loading…
-                      </>
-                    ) : (
-                      <>
-                        Load more schools <ArrowRight size={16} />
-                      </>
-                    )}
-                  </button>
-                )}
+                <div
+                  className="school-load-more"
+                  ref={loadMoreRef}
+                  aria-live="polite"
+                >
+                  {loadMoreError ? (
+                    <>
+                      <p role="alert">{loadMoreError}</p>
+                      <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
+                        Retry loading schools
+                      </button>
+                    </>
+                  ) : loading ? (
+                    <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
+                  ) : hasMoreResults ? (
+                    <button type="button" onClick={() => setPage((current) => current + 1)}>
+                      Load more schools <ArrowRight size={16} aria-hidden />
+                    </button>
+                  ) : totalCount > PAGE_SIZE ? (
+                    <p>You&apos;ve viewed all {totalCount} schools.</p>
+                  ) : null}
+                </div>
               </>
             )}
           </div>
         </div>
+
+        <section className="listing-faq" aria-labelledby="listing-faq-heading">
+          <div className="listing-faq__heading">
+            <span className="section-eyebrow">PARENT QUESTIONS</span>
+            <h2 id="listing-faq-heading">Frequently asked questions</h2>
+            {schoolFaqsError && (
+              <p role="status">Staff-managed FAQs could not be loaded: {schoolFaqsError}</p>
+            )}
+          </div>
+          <div className="faq-list">
+            {listingFaqEntries.map((item, index) => {
+              const open = activeFaq === index;
+              return (
+                <div className={`faq-item ${open ? "faq-item--open" : ""}`} key={item.question}>
+                  <button
+                    type="button"
+                    className="faq-question"
+                    aria-expanded={open}
+                    onClick={() => setActiveFaq(open ? null : index)}
+                  >
+                    <span>{item.question}</span>
+                    <span className="faq-toggle">{open ? "−" : "+"}</span>
+                  </button>
+                  {open && <p className="faq-answer">{item.answer}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {relatedSearches && relatedSearches.length > 0 && (
           <nav className="related-searches" aria-labelledby="related-searches-heading">

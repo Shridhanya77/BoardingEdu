@@ -46,6 +46,34 @@ export default function ComparePage() {
           : `₹${new Intl.NumberFormat("en-IN").format(Number(school.annual_fee))}`,
     },
     {
+      label: "Academics & teaching rating",
+      value: (school: (typeof comparedSchools)[number]) =>
+        school.academics_rating == null
+          ? "No parent ratings yet"
+          : `${school.academics_rating.toFixed(1)} / 5`,
+    },
+    {
+      label: "Facilities & campus rating",
+      value: (school: (typeof comparedSchools)[number]) =>
+        school.facilities_rating == null
+          ? "No parent ratings yet"
+          : `${school.facilities_rating.toFixed(1)} / 5`,
+    },
+    {
+      label: "Safety & wellbeing rating",
+      value: (school: (typeof comparedSchools)[number]) =>
+        school.safety_rating == null
+          ? "No parent ratings yet"
+          : `${school.safety_rating.toFixed(1)} / 5`,
+    },
+    {
+      label: "Communication & admissions rating",
+      value: (school: (typeof comparedSchools)[number]) =>
+        school.communication_rating == null
+          ? "No parent ratings yet"
+          : `${school.communication_rating.toFixed(1)} / 5`,
+    },
+    {
       label: "Established",
       value: (school: (typeof comparedSchools)[number]) =>
         school.established_year?.toString() ?? "Not listed",

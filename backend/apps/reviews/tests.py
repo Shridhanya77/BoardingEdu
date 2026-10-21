@@ -119,6 +119,8 @@ class ReviewApiTests(TestCase):
             {
                 "school": str(self.school.school_id),
                 "rating": 5,
+                "academics_rating": 4,
+                "facilities_rating": 5,
                 "title": "Great school",
                 "body": "Loved the campus.",
             },
@@ -129,6 +131,8 @@ class ReviewApiTests(TestCase):
         self.assertEqual(review.user, self.parent)
         self.assertEqual(review.status, Review.STATUS_PENDING)
         self.assertEqual(review.author_name, "parent2")
+        self.assertEqual(review.academics_rating, 4)
+        self.assertEqual(review.facilities_rating, 5)
 
     def test_duplicate_review_for_same_school_is_rejected(self):
         Review.objects.create(
@@ -158,12 +162,19 @@ class ReviewApiTests(TestCase):
 
     def test_summary_aggregates_published_reviews(self):
         Review.objects.create(
-            school=self.school, user=self.parent, rating=5, status=Review.STATUS_PUBLISHED
+            school=self.school,
+            user=self.parent,
+            rating=5,
+            academics_rating=5,
+            facilities_rating=4,
+            status=Review.STATUS_PUBLISHED,
         )
         Review.objects.create(
             school=self.school,
             user=self.other_parent,
             rating=3,
+            academics_rating=3,
+            safety_rating=4,
             status=Review.STATUS_PUBLISHED,
         )
         response = self.client.get(
@@ -173,6 +184,18 @@ class ReviewApiTests(TestCase):
         self.assertEqual(response.data["review_count"], 2)
         self.assertEqual(response.data["average_rating"], 4.0)
         self.assertEqual(response.data["distribution"]["5"], 1)
+        self.assertEqual(response.data["category_ratings"]["academics_rating"], {
+            "average": 4.0,
+            "count": 2,
+        })
+        self.assertEqual(response.data["category_ratings"]["facilities_rating"], {
+            "average": 4.0,
+            "count": 1,
+        })
+        self.assertEqual(response.data["category_ratings"]["safety_rating"], {
+            "average": 4.0,
+            "count": 1,
+        })
 
     def test_summary_requires_school_param(self):
         response = self.client.get("/api/reviews/summary/")

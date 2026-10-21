@@ -4,12 +4,18 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from django.db.models import DecimalField, F, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import (
+    Avg, Count, DecimalField, F, FloatField, IntegerField, OuterRef, Prefetch,
+    Q, Subquery, Sum,
+)
+from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
-from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility,SchoolGrade
+from apps.reviews.models import Review
+from config.pagination import SchoolDirectoryPagination
+from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -18,7 +24,23 @@ from .serializers import (
     SchoolDetailSerializer, SchoolListSerializer,
     SchoolFacilityDetailSerializer, SchoolFacilityListSerializer,
     SchoolGradeDetailSerializer, SchoolGradeListSerializer,
+    SchoolFAQSerializer,
 )
+
+
+class SchoolFAQViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = SchoolFAQSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = SchoolFAQ.objects.filter(status=True)
+        for field in ("country", "state", "city", "location", "board", "school_type"):
+            value = self.request.query_params.get(field)
+            if value:
+                queryset = queryset.filter(Q(**{f"{field}__isnull": True}) | Q(**{field: value}))
+            else:
+                queryset = queryset.filter(**{f"{field}__isnull": True})
+        return queryset
 
 
 class ReadWriteModelViewSet(viewsets.ModelViewSet):
@@ -28,6 +50,41 @@ class ReadWriteModelViewSet(viewsets.ModelViewSet):
         if self.action in ('list',) and hasattr(self, 'list_serializer_class'):
             return self.list_serializer_class
         return self.serializer_class
+
+
+class NullsLastOrderingFilter(filters.OrderingFilter):
+    """Keeps schools with missing values at the bottom of the list.
+
+    PostgreSQL sorts NULLs first on a descending order, which would put
+    unrated or fee-less schools above the ones the parent is looking for.
+    """
+
+    NULLABLE_FIELDS = {'average_rating', 'review_count', 'annual_fee', 'established_year'}
+
+    def get_ordering(self, request, queryset, view):
+        ordering = list(super().get_ordering(request, queryset, view) or [])
+        if not ordering:
+            return ordering
+        resolved = []
+        for field in ordering:
+            bare = field.lstrip('-')
+            if bare in self.NULLABLE_FIELDS:
+                expression = F(bare)
+                resolved.append(
+                    expression.desc(nulls_last=True)
+                    if field.startswith('-')
+                    else expression.asc(nulls_last=True)
+                )
+            else:
+                resolved.append(field)
+        # Offset pagination needs a deterministic, unique ordering, otherwise
+        # rows can repeat or disappear between pages when the sort key ties.
+        requested = {str(item).lstrip('-') for item in ordering}
+        if 'school_name' not in requested:
+            resolved.append('school_name')
+        if 'school_id' not in requested:
+            resolved.append('school_id')
+        return resolved
 
 
 class SchoolFilter(django_filters.FilterSet):
@@ -269,12 +326,91 @@ class SchoolViewSet(ReadWriteModelViewSet):
             annual_fee=Subquery(
                 SchoolFilter.annual_fee_subquery(),
                 output_field=DecimalField(max_digits=12, decimal_places=2),
-            )
+            ),
+            average_rating=Subquery(
+                Review.objects.filter(
+                    school=OuterRef('pk'),
+                    status=Review.STATUS_PUBLISHED,
+                )
+                .order_by()
+                .values('school')
+                .annotate(rating_avg=Avg('rating'))
+                .values('rating_avg')[:1],
+                output_field=FloatField(),
+            ),
+            academics_rating=Subquery(
+                Review.objects.filter(
+                    school=OuterRef("pk"),
+                    status=Review.STATUS_PUBLISHED,
+                    academics_rating__isnull=False,
+                )
+                .order_by()
+                .values("school")
+                .annotate(rating_avg=Avg("academics_rating"))
+                .values("rating_avg")[:1],
+                output_field=FloatField(),
+            ),
+            facilities_rating=Subquery(
+                Review.objects.filter(
+                    school=OuterRef("pk"),
+                    status=Review.STATUS_PUBLISHED,
+                    facilities_rating__isnull=False,
+                )
+                .order_by()
+                .values("school")
+                .annotate(rating_avg=Avg("facilities_rating"))
+                .values("rating_avg")[:1],
+                output_field=FloatField(),
+            ),
+            safety_rating=Subquery(
+                Review.objects.filter(
+                    school=OuterRef("pk"),
+                    status=Review.STATUS_PUBLISHED,
+                    safety_rating__isnull=False,
+                )
+                .order_by()
+                .values("school")
+                .annotate(rating_avg=Avg("safety_rating"))
+                .values("rating_avg")[:1],
+                output_field=FloatField(),
+            ),
+            communication_rating=Subquery(
+                Review.objects.filter(
+                    school=OuterRef("pk"),
+                    status=Review.STATUS_PUBLISHED,
+                    communication_rating__isnull=False,
+                )
+                .order_by()
+                .values("school")
+                .annotate(rating_avg=Avg("communication_rating"))
+                .values("rating_avg")[:1],
+                output_field=FloatField(),
+            ),
+            review_count=Coalesce(
+                Subquery(
+                    Review.objects.filter(
+                        school=OuterRef('pk'),
+                        status=Review.STATUS_PUBLISHED,
+                    )
+                    .order_by()
+                    .values('school')
+                    .annotate(total=Count('review_id'))
+                    .values('total')[:1],
+                    output_field=IntegerField(),
+                ),
+                0,
+            ),
         )
         .all()
     )
     serializer_class = SchoolDetailSerializer
     list_serializer_class = SchoolListSerializer
+    pagination_class = SchoolDirectoryPagination
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        NullsLastOrderingFilter,
+    ]
     filterset_class = SchoolFilter
     filterset_fields = [
         'country', 'state', 'city', 'location',
@@ -288,6 +424,7 @@ class SchoolViewSet(ReadWriteModelViewSet):
     ordering_fields = [
         'school_name', 'school_code', 'established_year',
         'created_at', 'published_at', 'annual_fee',
+        'average_rating', 'review_count', 'is_featured',
     ]
     ordering = ['school_name']
 

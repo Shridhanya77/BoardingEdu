@@ -61,6 +61,30 @@ class Review(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         help_text="Star rating from 1 (poor) to 5 (excellent).",
     )
+    academics_rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        null=True,
+        blank=True,
+        help_text="Optional parent rating for academics and teaching.",
+    )
+    facilities_rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        null=True,
+        blank=True,
+        help_text="Optional parent rating for facilities and campus.",
+    )
+    safety_rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        null=True,
+        blank=True,
+        help_text="Optional parent rating for safety and wellbeing.",
+    )
+    communication_rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        null=True,
+        blank=True,
+        help_text="Optional parent rating for communication and admissions.",
+    )
     title = models.CharField(max_length=200, blank=True)
     body = models.TextField(blank=True)
     status = models.CharField(

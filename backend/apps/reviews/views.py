@@ -1,4 +1,4 @@
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 
 from rest_framework import filters, status, viewsets
@@ -149,11 +149,38 @@ class ReviewViewSet(viewsets.ModelViewSet):
         for star in ratings:
             distribution[str(star)] += 1
 
+        category_fields = (
+            "academics_rating",
+            "facilities_rating",
+            "safety_rating",
+            "communication_rating",
+        )
+        category_aggregate = published.aggregate(
+            **{
+                key: expression
+                for field in category_fields
+                for key, expression in (
+                    (f"{field}_average", Avg(field)),
+                    (f"{field}_count", Count(field)),
+                )
+            }
+        )
         payload = {
             "school_id": school.school_id,
             "school_name": school.school_name,
             "average_rating": average,
             "review_count": aggregate["review_count"],
             "distribution": distribution,
+            "category_ratings": {
+                field: {
+                    "average": (
+                        round(category_aggregate[f"{field}_average"], 2)
+                        if category_aggregate[f"{field}_average"] is not None
+                        else None
+                    ),
+                    "count": category_aggregate[f"{field}_count"],
+                }
+                for field in category_fields
+            },
         }
         return Response(SchoolRatingSummarySerializer(payload).data)

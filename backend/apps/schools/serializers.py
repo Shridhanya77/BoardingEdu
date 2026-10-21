@@ -17,6 +17,7 @@ from .models import (
     SchoolVideo,
     SchoolFacility,
     SchoolGrade,
+    SchoolFAQ,
 )
 
 
@@ -70,6 +71,13 @@ class SchoolTypeListSerializer(serializers.ModelSerializer):
             'slug',
             'status',
         ]
+
+
+class SchoolFAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolFAQ
+        fields = ["faq_id", "question", "answer"]
+        read_only_fields = fields
 
 
 class SchoolTypeDetailSerializer(serializers.ModelSerializer):
@@ -250,6 +258,13 @@ class SchoolListSerializer(serializers.ModelSerializer):
     annual_fee = serializers.SerializerMethodField()
     school_photos = serializers.SerializerMethodField()
     videos_count = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    academics_rating = serializers.FloatField(read_only=True, allow_null=True)
+    facilities_rating = serializers.FloatField(read_only=True, allow_null=True)
+    safety_rating = serializers.FloatField(read_only=True, allow_null=True)
+    communication_rating = serializers.FloatField(read_only=True, allow_null=True)
+    grades_range = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -263,6 +278,13 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'school_photos',
             'videos_count',
             'slug',
+            'average_rating',
+            'review_count',
+            'academics_rating',
+            'facilities_rating',
+            'safety_rating',
+            'communication_rating',
+            'grades_range',
 
             'country_id',
             'country_name',
@@ -351,6 +373,36 @@ class SchoolListSerializer(serializers.ModelSerializer):
             return len(videos)
         return obj.videos.filter(status=True).count()
 
+    def get_average_rating(self, obj):
+        value = getattr(obj, 'average_rating', None)
+        return round(float(value), 1) if value is not None else None
+
+    def get_review_count(self, obj):
+        value = getattr(obj, 'review_count', None)
+        return int(value) if value is not None else 0
+
+    def get_grades_range(self, obj):
+        """Human readable class range, e.g. "LKG - 12".
+
+        Uses the ``school_grades`` prefetch so the listing stays at one query.
+        """
+        school_grades = getattr(obj, 'school_grades', None)
+        if school_grades is None:
+            return None
+        grades = [
+            item.grade
+            for item in school_grades.all()
+            if getattr(item, 'is_active', True) and item.grade is not None
+        ]
+        if not grades:
+            return None
+        # sort_order is the canonical ordering for classes (LKG, UKG, 1..12).
+        first = min(grades, key=lambda grade: (grade.sort_order, grade.grade_name))
+        last = max(grades, key=lambda grade: (grade.sort_order, grade.grade_name))
+        if first.grade_name == last.grade_name:
+            return first.grade_name
+        return f"{first.grade_name} - {last.grade_name}"
+
 
 class SchoolPhotoListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -429,6 +481,8 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
     facilities_detail = serializers.SerializerMethodField()
     photos_detail = serializers.SerializerMethodField()
     videos_detail = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -440,6 +494,8 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'school_logo_url',
             'school_image_url',
             'slug',
+            'average_rating',
+            'review_count',
 
             'country',
             'country_detail',
@@ -631,6 +687,14 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
                 'created_at',
             )
         return SchoolVideoListSerializer(videos, many=True).data
+
+    def get_average_rating(self, obj):
+        value = getattr(obj, 'average_rating', None)
+        return round(float(value), 1) if value is not None else None
+
+    def get_review_count(self, obj):
+        value = getattr(obj, 'review_count', None)
+        return int(value) if value is not None else 0
 
 
 # ======================================================================

@@ -21,6 +21,10 @@ class ReviewListSerializer(serializers.ModelSerializer):
             "user",
             "author_name",
             "rating",
+            "academics_rating",
+            "facilities_rating",
+            "safety_rating",
+            "communication_rating",
             "title",
             "body",
             "status",
@@ -52,6 +56,10 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             "school",
             "author_name",
             "rating",
+            "academics_rating",
+            "facilities_rating",
+            "safety_rating",
+            "communication_rating",
             "title",
             "body",
         ]
@@ -79,4 +87,8 @@ class SchoolRatingSummarySerializer(serializers.Serializer):
     distribution = serializers.DictField(
         child=serializers.IntegerField(),
         help_text="Mapping of star value (1-5) to review count.",
+    )
+    category_ratings = serializers.DictField(
+        child=serializers.DictField(),
+        help_text="Average and response count for each parent rating category.",
     )

@@ -10,7 +10,6 @@ import {
   schools,
   type BoardListItem,
   type CityListItem,
-  type CountryListItem,
   type GradeListItem,
   type SchoolTypeListItem,
   type StateListItem,
@@ -27,8 +26,6 @@ export default function CounsellingSection() {
   const [citySearch, setCitySearch] = useState("");
   const [preferredCountryId, setPreferredCountryId] = useState("");
   const [preferredStateId, setPreferredStateId] = useState("");
-  const [preferredCityId, setPreferredCityId] = useState("");
-  const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [states, setStates] = useState<StateListItem[]>([]);
   const [availableCities, setAvailableCities] = useState<CityListItem[]>([]);
   const [loadingStates, setLoadingStates] = useState(false);
@@ -60,7 +57,18 @@ export default function CounsellingSection() {
           setGrades(gradeRows.filter((row) => row.status));
           setBoards(boardRows.filter((row) => row.status));
           setSchoolTypes(typeRows.filter((row) => row.status));
-          setCountries(countryRows.filter((row) => row.status));
+          const india = countryRows.find(
+            (country) =>
+              country.status &&
+              (country.country_code.toUpperCase() === "IN" ||
+                country.slug.toLowerCase() === "india" ||
+                country.country_name.toLowerCase() === "india"),
+          );
+          if (india) {
+            setPreferredCountryId(india.country_id);
+          } else {
+            setCityError("India location options are not available right now.");
+          }
         }
       })
       .catch((reason: unknown) => {
@@ -76,15 +84,11 @@ export default function CounsellingSection() {
   useEffect(() => {
     if (!preferredCountryId) {
       setStates([]);
-      setPreferredStateId("");
-      setPreferredCityId("");
       setLoadingStates(false);
       return;
     }
     let cancelled = false;
     setStates([]);
-    setPreferredStateId("");
-    setPreferredCityId("");
     setLoadingStates(true);
     geography
       .statesOf(preferredCountryId)
@@ -112,13 +116,11 @@ export default function CounsellingSection() {
   useEffect(() => {
     if (!preferredStateId) {
       setAvailableCities([]);
-      setPreferredCityId("");
       setLoadingCities(false);
       return;
     }
     let cancelled = false;
     setAvailableCities([]);
-    setPreferredCityId("");
     setLoadingCities(true);
     geography
       .citiesOf(preferredStateId)
@@ -150,11 +152,9 @@ export default function CounsellingSection() {
     [preferred]
   );
 
-  function addPreferredCity() {
-    const city = availableCities.find((item) => item.city_id === preferredCityId);
-    if (!city || preferred.some((item) => item.city_id === city.city_id)) return;
+  function addPreferredCity(city: CityListItem) {
+    if (preferred.some((item) => item.city_id === city.city_id)) return;
     setPreferred((current) => [...current, city]);
-    setPreferredCityId("");
     setCitySearch("");
   }
 
@@ -207,9 +207,7 @@ export default function CounsellingSection() {
       setSelectedGrades([]);
       setHomeCity("");
       setPreferred([]);
-      setPreferredCountryId("");
       setPreferredStateId("");
-      setPreferredCityId("");
       setCitySearch("");
       setSelectedBoards([]);
       setSelectedSchoolTypes([]);
@@ -346,71 +344,75 @@ export default function CounsellingSection() {
           )}
           {citiesOpen && (
             <div className="counselling__city-picker" id="preferred-cities-picker">
-              <label>
-                Country
-                <select
-                  value={preferredCountryId}
-                  onChange={(event) => {
-                    setPreferredCountryId(event.target.value);
-                    setPreferredStateId("");
-                    setPreferredCityId("");
-                    setPreferred([]);
-                    setCitySearch("");
-                    setCityError(null);
-                  }}
-                >
-                  <option value="">Choose a country</option>
-                  {countries.map((country) => (
-                    <option value={country.country_id} key={country.country_id}>{country.country_name}</option>
-                  ))}
-                </select>
+              <label className="counselling__city-search">
+                Find a city
+                <input
+                  value={citySearch}
+                  onChange={(event) => setCitySearch(event.target.value)}
+                  placeholder="Search cities in a state"
+                  disabled={loadingStates}
+                />
               </label>
-              <div className="counselling__location-selects">
-                <label>
-                  State
-                  <select
-                    value={preferredStateId}
-                    disabled={!preferredCountryId || loadingStates || !states.length}
-                    onChange={(event) => {
-                      setPreferredStateId(event.target.value);
-                      setPreferredCityId("");
-                      setCityError(null);
-                    }}
-                  >
-                    <option value="">{loadingStates ? "Loading states…" : "Choose a state"}</option>
-                    {states.map((state) => <option value={state.state_id} key={state.state_id}>{state.state_name}</option>)}
-                  </select>
-                </label>
-                <label>
-                  City
-                  <select
-                    value={preferredCityId}
-                    disabled={!preferredStateId || loadingCities || !availableCities.length}
-                    onChange={(event) => setPreferredCityId(event.target.value)}
-                  >
-                    <option value="">{loadingCities ? "Loading cities…" : "Choose a city"}</option>
-                    {availableCities
-                      .filter((city) => !preferred.some((item) => item.city_id === city.city_id))
-                      .filter((city) => city.city_name.toLowerCase().includes(citySearch.trim().toLowerCase()))
-                      .map((city) => <option value={city.city_id} key={city.city_id}>{city.city_name}</option>)}
-                  </select>
-                </label>
-                <label className="counselling__city-search">
-                  Find a city
-                  <input value={citySearch} onChange={(event) => setCitySearch(event.target.value)} placeholder="Optional city search" disabled={!preferredStateId} />
-                </label>
-                <button
-                  type="button"
-                  className="counselling__add-city"
-                  disabled={!preferredCityId}
-                  onClick={addPreferredCity}
-                >
-                  Add city
-                </button>
-              </div>
-              {!preferredCountryId && <p className="counselling__city-empty">Choose a country to see its states.</p>}
-              {preferredCountryId && !loadingStates && !states.length && <p className="counselling__city-empty">No states are available for this country.</p>}
-              {preferredStateId && !loadingCities && !availableCities.length && <p className="counselling__city-empty">No cities are available for this state.</p>}
+              {loadingStates ? (
+                <p className="counselling__city-empty" role="status">Loading states…</p>
+              ) : states.length ? (
+                <div className="counselling__state-list">
+                  {states.map((state) => {
+                    const isOpen = preferredStateId === state.state_id;
+                    const matchingCities = isOpen
+                      ? availableCities.filter(
+                          (city) =>
+                            !preferred.some((item) => item.city_id === city.city_id) &&
+                            city.city_name.toLowerCase().includes(citySearch.trim().toLowerCase()),
+                        )
+                      : [];
+                    return (
+                      <section key={state.state_id}>
+                        <button
+                          type="button"
+                          aria-expanded={isOpen}
+                          onClick={() => {
+                            setPreferredStateId(isOpen ? "" : state.state_id);
+                            setCityError(null);
+                          }}
+                        >
+                          <span className="counselling__state-chevron" aria-hidden>
+                            {isOpen ? "▾" : "›"}
+                          </span>
+                          <span>{state.state_name}</span>
+                          <small>{isOpen ? "Hide cities" : "Show cities"}</small>
+                        </button>
+                        {isOpen && (
+                          <div className="counselling__city-options">
+                            {loadingCities ? (
+                              <p className="counselling__city-empty" role="status">Loading cities…</p>
+                            ) : matchingCities.length ? (
+                              matchingCities.map((city) => (
+                                <button
+                                  type="button"
+                                  key={city.city_id}
+                                  onClick={() => addPreferredCity(city)}
+                                >
+                                  {city.city_name}
+                                  <small>Add</small>
+                                </button>
+                              ))
+                            ) : (
+                              <p className="counselling__city-empty">
+                                {availableCities.length
+                                  ? "No cities match your search."
+                                  : "No cities are available for this state."}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="counselling__city-empty">No states are available right now.</p>
+              )}
             </div>
           )}
           {cityError && <p className="counselling__error" role="alert">{cityError}</p>}
