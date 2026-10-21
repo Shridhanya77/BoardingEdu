@@ -59,7 +59,7 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { homeSchoolCategoryForIds, isDiscoverableSchoolType, schoolProfilePathFromSlugs, schoolTypeLabel, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategoryForIds, isDiscoverableSchoolType, schoolProfilePathFromSlugs, schoolTypeLabel,type HomeSchoolCategory } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath } from "@/lib/school-urls";
 import { guideList } from "@/lib/guides";
 
@@ -1199,13 +1199,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         is_featured: true,
         ordering: "-average_rating",
         page_size: 4,
-        country: activeCountry || undefined,
-        state: activeState || undefined,
-        city: boardingOnly ? undefined : activeCity || undefined,
-        location: boardingOnly ? undefined : activeLocation || undefined,
-        board,
-        school_type: schoolType,
-        home_category: homeCategory ?? undefined,
+        country: isHomePage ? undefined : activeCountry || undefined,
+        state: isHomePage ? undefined : activeState || undefined,
+        city: isHomePage || boardingOnly ? undefined : activeCity || undefined,
+        location: isHomePage || boardingOnly ? undefined : activeLocation || undefined,
+        board: isHomePage ? undefined : board,
+        school_type: isHomePage ? undefined : schoolType,
+        home_category: isHomePage ? undefined : homeCategory ?? undefined,
       })
       .then((response) => {
         if (cancelled) return;
@@ -1240,6 +1240,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     initialCountry,
     initialLocation,
     initialState,
+    isHomePage,
     schoolType,
     schoolTypes,
   ]);
