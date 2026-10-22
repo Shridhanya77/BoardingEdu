@@ -1,16 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { schoolSectionPath, schoolSections, type SchoolSectionId } from "@/lib/school-sections";
+import { useEffect, useRef, useState } from "react";
+import { schoolSectionPath, schoolSectionSeo, schoolSections, type SchoolSectionId } from "@/lib/school-sections";
+
+function setHeadMeta(selector: string, attribute: "name" | "property", key: string, content: string) {
+  let meta = document.head.querySelector<HTMLMetaElement>(selector);
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute(attribute, key);
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", content);
+}
 
 export default function SchoolProfileNavigation({
   schoolPath,
+  schoolName,
+  city,
+  overviewDescription,
   initialSection = "overview",
 }: {
   schoolPath: string;
+  schoolName: string;
+  city: string;
+  overviewDescription: string;
   initialSection?: SchoolSectionId;
 }) {
   const [activeSection, setActiveSection] = useState<SchoolSectionId>(initialSection);
+  const clickedSection = useRef<SchoolSectionId | null>(null);
+
+  function applySectionHead(section: SchoolSectionId) {
+    const { title, description } = schoolSectionSeo({
+      schoolName,
+      city,
+      section,
+      overviewDescription,
+    });
+    document.title = title;
+    setHeadMeta('meta[name="description"]', "name", "description", description);
+    setHeadMeta('meta[property="og:title"]', "property", "og:title", title);
+    setHeadMeta('meta[property="og:description"]', "property", "og:description", description);
+    setHeadMeta('meta[name="twitter:title"]', "name", "twitter:title", title);
+    setHeadMeta('meta[name="twitter:description"]', "name", "twitter:description", description);
+  }
+
+  useEffect(() => {
+    applySectionHead(activeSection);
+  }, [activeSection, city, overviewDescription, schoolName]);
 
   useEffect(() => {
     const targets = schoolSections
@@ -23,6 +59,7 @@ export default function SchoolProfileNavigation({
         const visible = entries
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (clickedSection.current) return;
         if (visible) setActiveSection(visible.target.id as SchoolSectionId);
       },
       { rootMargin: "-150px 0px -65% 0px", threshold: [0, 0.1, 0.35, 0.7] },
@@ -40,7 +77,12 @@ export default function SchoolProfileNavigation({
   }, [initialSection]);
 
   function goToSection(id: SchoolSectionId) {
+    clickedSection.current = id;
+    window.setTimeout(() => {
+      if (clickedSection.current === id) clickedSection.current = null;
+    }, 900);
     setActiveSection(id);
+    applySectionHead(id);
     const nextPath = schoolSectionPath(schoolPath, id);
     if (window.location.pathname !== nextPath) {
       window.history.replaceState(null, "", nextPath);

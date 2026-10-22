@@ -66,6 +66,15 @@ def render_fee_structures_panel(obj):
 
 
 def is_verification_admin(user):
+    """Staff admins, super admins, and Django superusers may verify schools.
+
+    A superuser created with ``createsuperuser`` keeps the default Parent role
+    until it is changed, but still owns the platform and must reach this queue.
+    """
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
     return getattr(user, "role", None) in (
         User.ROLE_STAFF_ADMIN,
         User.ROLE_SUPER_ADMIN,

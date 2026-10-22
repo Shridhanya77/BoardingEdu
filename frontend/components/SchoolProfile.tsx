@@ -32,12 +32,16 @@ import type {
 } from "@/lib/api";
 import { reviews, schools } from "@/lib/api";
 import {
+  homeSchoolCategory,
   schoolProfilePathFromSlugs,
   schoolProfileTypeSegment,
   schoolTypeLabel,
   toSeoSlug,
 } from "@/lib/seo-slugs";
-import { schoolJsonLd } from "@/lib/structured-data";
+import { boardListingPath, placeListingPath } from "@/lib/school-urls";
+import { schoolProfileFaqs } from "@/lib/school-faqs";
+import { faqJsonLd, schoolJsonLd } from "@/lib/structured-data";
+import SchoolFaqList from "./SchoolFaqList";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
@@ -210,26 +214,49 @@ export default async function SchoolProfile({
   ].filter(Boolean).join(", ");
   const cityName = school.city_detail.city_name;
   const stateName = school.state_detail.state_name;
-  const cityFilters = { city: school.city_detail.city_id };
-  const stateFilters = { state: school.state_detail.state_id };
   const primaryBoard = school.boards_detail[0];
   const primaryType = school.school_types_detail[0];
-  const relatedSearchLinks: { label: string; filters: Record<string, string> }[] = [
+  const homeCategory = primaryType
+    ? homeSchoolCategory(primaryType.type_code, primaryType.slug, primaryType.type_name)
+    : null;
+  const categoryLabel = homeCategory === "day-school" ? "Day Schools" : homeCategory ? "Boarding Schools" : "Schools";
+  const cityPlace = {
+    countrySlug: school.country_detail.slug,
+    stateSlug: school.state_detail.slug,
+    citySlug: school.city_detail.slug,
+  };
+  const relatedSearchLinks: { label: string; href: string }[] = [
     ...(primaryBoard
       ? [{
-          label: `${primaryBoard.board_name} schools in ${cityName}`,
-          filters: { board: primaryBoard.board_id, ...cityFilters },
+          label: `${primaryBoard.board_name} ${categoryLabel}`,
+          href: boardListingPath(primaryBoard.slug, homeCategory),
         }]
       : []),
-    ...(primaryType
+    ...(homeCategory
       ? [{
-          label: `${schoolTypeLabel(primaryType.type_code, primaryType.slug, primaryType.type_name)} schools in ${cityName}`,
-          filters: { school_type: primaryType.school_type_id, ...cityFilters },
+          label: `${categoryLabel} in ${cityName}`,
+          href: placeListingPath({ ...cityPlace, category: homeCategory }),
         }]
       : []),
-    { label: `More schools in ${cityName}`, filters: cityFilters },
-    { label: `Schools in ${stateName}`, filters: stateFilters },
+    { label: `More schools in ${cityName}`, href: placeListingPath(cityPlace) },
+    {
+      label: `Schools in ${stateName}`,
+      href: placeListingPath({
+        countrySlug: school.country_detail.slug,
+        stateSlug: school.state_detail.slug,
+      }),
+    },
+    ...(school.location_detail
+      ? [{
+          label: `Schools in ${school.location_detail.location_name}`,
+          href: placeListingPath({
+            ...cityPlace,
+            locationSlug: school.location_detail.slug,
+          }),
+        }]
+      : []),
   ];
+  const profileFaqs = schoolProfileFaqs(school);
 
   // Group facilities by category for cleaner grid display
   const facilitiesByCategory = new Map<string, SchoolDetail["facilities_detail"][number][]>();
@@ -313,10 +340,12 @@ export default async function SchoolProfile({
         }
       : null;
   const structuredData = JSON.stringify(schoolJsonLd(school, { breadcrumbs, aggregateRating })).replace(/</g, "\\u003c");
+  const faqStructuredData = JSON.stringify(faqJsonLd(profileFaqs)).replace(/</g, "\\u003c");
 
   return (
     <main className="school-detail-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
       <SchoolEnquiryProvider school={school}>
       <div className="school-detail">
         <Link className="school-detail__back" href="/schools"><ArrowLeft size={15} /> Back to schools</Link>
@@ -408,7 +437,27 @@ export default async function SchoolProfile({
           </dl>
         )}
 
-        <SchoolProfileNavigation schoolPath={schoolProfilePath(school)} initialSection={initialSection} />
+        <SchoolProfileNavigation
+          schoolPath={schoolProfilePath(school)}
+          schoolName={school.school_name}
+          city={cityName}
+          overviewDescription={(
+            (school.tagline || school.about?.replace(/\s+/g, " ").trim())
+              ? `${school.school_name} is a ${
+                  school.school_types_detail.length
+                    ? school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()).join(" and ")
+                    : "school"
+                } in ${cityName}, ${stateName}. ${school.tagline || school.about?.replace(/\s+/g, " ").trim()}`
+              : `Explore ${school.school_name}, a ${
+                  school.school_types_detail.length
+                    ? school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()).join(" and ")
+                    : "school"
+                } in ${cityName}, ${stateName}${
+                  school.boards_detail.length ? `, following ${school.boards_detail.map((board) => board.board_name).join(" and ")}` : ""
+                }. View fees, facilities and admissions information.`
+          ).slice(0, 180)}
+          initialSection={initialSection}
+        />
 
         <div className="school-detail__grid">
           <section className="school-detail__main">
@@ -655,16 +704,14 @@ export default async function SchoolProfile({
             <h2 id="school-profile-related-heading">Related school searches</h2>
             <div>
               {relatedSearchLinks.map((item) => (
-                <Link
-                  key={item.label}
-                  href={`/schools?${new URLSearchParams(item.filters).toString()}`}
-                >
+                <Link key={item.href} href={item.href}>
                   {item.label} <ArrowRight size={14} aria-hidden="true" />
                 </Link>
               ))}
             </div>
           </nav>
         )}
+        <SchoolFaqList schoolName={school.school_name} city={cityName} items={profileFaqs} />
       </div>
 
       <div className="school-sticky-cta" role="group" aria-label="School contact actions">

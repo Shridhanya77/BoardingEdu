@@ -7,7 +7,7 @@ import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
 import { listingCopy, pageMetadata } from "@/lib/seo";
 import { boardListingPath, schoolDirectoryPath } from "@/lib/school-urls";
-import { isSchoolSectionId, schoolSectionPath, type SchoolSectionId } from "@/lib/school-sections";
+import { isSchoolSectionId, schoolSectionPath, schoolSectionSeo, type SchoolSectionId } from "@/lib/school-sections";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
 
@@ -187,9 +187,15 @@ function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Me
       ? `${school.school_name} is a ${schoolTypeText} in ${city}, ${state}. ${schoolSummary}`
       : `Explore ${school.school_name}, a ${schoolTypeText} in ${city}, ${state}${boards.length ? `, following ${boards.join(" and ")}` : ""}. View fees, facilities and admissions information.`
   ).slice(0, 180);
+  const sectionCopy = schoolSectionSeo({
+    schoolName: school.school_name,
+    city,
+    section,
+    overviewDescription: description,
+  });
   return pageMetadata({
-    title: `${school.school_name} | ${city} School | BoardingEdu`,
-    description,
+    title: sectionCopy.title,
+    description: sectionCopy.description,
     path: schoolSectionPath(schoolProfilePath(school), section),
     image: school.school_image_url,
     keywords: school.seo_keywords ?? [],

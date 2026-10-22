@@ -894,6 +894,22 @@ class SchoolClassificationTests(TestCase):
             admin_user,
         )
 
+    def test_admin_verification_queue_allows_django_superuser(self):
+        school = self.create_school('VERIFY-SUPERUSER')
+        school.verification_status = 'PENDING'
+        school.save(update_fields=['verification_status'])
+        admin_user = User.objects.create_superuser(
+            username='legacy-superuser',
+            email='legacy-superuser@example.com',
+            password='test-password',
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(reverse('admin:schools_school_verification_queue'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, school.school_name)
+
     def test_admin_verification_queue_rejects_other_staff_roles(self):
         admin_user = User.objects.create_user(
             username='non-verification-admin',

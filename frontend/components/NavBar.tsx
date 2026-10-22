@@ -11,7 +11,8 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, dashboardPathForRole } from "@/lib/auth";
+import type { UserRole } from "@/lib/api";
 import CounsellingModal from "@/components/home/CounsellingModal";
 import CounsellingLink from "@/components/home/CounsellingLink";
 import {
@@ -24,6 +25,38 @@ function initials(name: string): string {
   if (parts.length === 0) return "U";
   if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+type HeaderLink = { href: string; label: string; active: boolean };
+
+function headerLinks(role: UserRole | null, pathname: string): HeaderLink[] {
+  const home = pathname === "/" || pathname === "";
+  const guides = pathname.startsWith("/guides");
+  const compare = pathname.startsWith("/compare");
+  const explore = !home && !guides && !compare && !pathname.startsWith("/dashboard") && !pathname.startsWith("/login") && !pathname.startsWith("/signup") && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms") && !pathname.startsWith("/counselling");
+  const shared: HeaderLink[] = [
+    { href: "/", label: "Home", active: home },
+    { href: "/schools/", label: "Explore Schools", active: explore },
+  ];
+  if (!role || role === "PARENT") {
+    return [
+      ...shared,
+      { href: "/guides/", label: "Guides", active: guides },
+      { href: "/compare/", label: "Compare Schools", active: compare },
+      { href: "/counselling/", label: "Free Counselling", active: pathname.startsWith("/counselling") },
+    ];
+  }
+  if (role === "SCHOOL_ADMIN") {
+    return [
+      ...shared,
+      { href: "/dashboard/school/", label: "School dashboard", active: pathname.startsWith("/dashboard/school") },
+    ];
+  }
+  return [
+    ...shared,
+    { href: "/dashboard/staff-admin/", label: "Staff dashboard", active: pathname.startsWith("/dashboard/staff-admin") },
+    { href: "/dashboard/admin/", label: "Platform admin", active: pathname.startsWith("/dashboard/admin") },
+  ];
 }
 
 export default function NavBar() {
@@ -89,10 +122,11 @@ export default function NavBar() {
   const displayName = user
     ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username
     : "";
-
+  const role = user?.role ?? null;
+  const links = headerLinks(role, pathname);
+  const showCounselling = !role || role === "PARENT";
+  const dashboardHref = user ? dashboardPathForRole(user.role) : "/";
   const onHomePage = pathname === "/" || pathname === "";
-  const onGuides = pathname.startsWith("/guides");
-  const onExplore = (pathname === "/schools" || (pathname !== "/" && pathname !== "/compare" && pathname !== "/login" && pathname !== "/signup" && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms"))) && !onGuides;
   useEffect(() => {
     if (!onHomePage) {
       setHasScrolled(false);
@@ -120,11 +154,17 @@ export default function NavBar() {
       </Link>
 
       <nav className="site-header__nav" aria-label="Primary">
-        <Link className={`site-header__link${onHomePage ? " is-active" : ""}`} href="/">Home</Link>
-        <Link className={`site-header__link${onExplore ? " is-active" : ""}`} href="/schools">Explore Schools</Link>
-        <Link className={`site-header__link${onGuides ? " is-active" : ""}`} href="/guides">Guides</Link>
-        <Link className={`site-header__link${pathname === "/compare" ? " is-active" : ""}`} href="/compare">Compare Schools</Link>
-        <CounsellingLink className="site-header__link">Free Counselling</CounsellingLink>
+        {links.map((item) => (
+          item.href === "/counselling/" ? (
+            <CounsellingLink className={`site-header__link${item.active ? " is-active" : ""}`} key={item.href}>
+              {item.label}
+            </CounsellingLink>
+          ) : (
+            <Link className={`site-header__link${item.active ? " is-active" : ""}`} href={item.href} key={item.href}>
+              {item.label}
+            </Link>
+          )
+        ))}
       </nav>
 
       <div className="site-header__actions">
@@ -158,8 +198,8 @@ export default function NavBar() {
                   </div>
                 </div>
                 <div className="user-menu__links">
-                  <Link href="/schools" role="menuitem">
-                    <Search size={14} /> Browse schools
+                  <Link href={dashboardHref} role="menuitem">
+                    <Search size={14} /> {user.role_display} dashboard
                   </Link>
                   <div role="separator" className="sep" />
                   <button
@@ -187,6 +227,7 @@ export default function NavBar() {
             </Link>
           </>
         )}
+        {showCounselling && (
         <button
           ref={counsellingTriggerRef}
           type="button"
@@ -195,6 +236,7 @@ export default function NavBar() {
         >
           <Search size={15} /> Get counselling
         </button>
+        )}
       </div>
       <button
         ref={mobileMenuToggleRef}
@@ -220,11 +262,18 @@ export default function NavBar() {
             id="mobile-primary-navigation"
             aria-label="Mobile primary"
           >
-            <Link href="/" onClick={() => setMobileNavOpen(false)}>Home</Link>
-            <Link href="/schools" onClick={() => setMobileNavOpen(false)}>Explore Schools</Link>
-            <Link href="/guides" onClick={() => setMobileNavOpen(false)}>Guides</Link>
-            <Link href="/compare" onClick={() => setMobileNavOpen(false)}>Compare Schools</Link>
-            <CounsellingLink onClick={() => setMobileNavOpen(false)}>Free Counselling</CounsellingLink>
+            {links.map((item) => (
+              item.href === "/counselling/" ? (
+                <CounsellingLink key={item.href} onClick={() => setMobileNavOpen(false)}>
+                  {item.label}
+                </CounsellingLink>
+              ) : (
+                <Link href={item.href} key={item.href} onClick={() => setMobileNavOpen(false)}>
+                  {item.label}
+                </Link>
+              )
+            ))}
+            {showCounselling && (
             <button
               className="mobile-navigation__counselling"
               type="button"
@@ -235,7 +284,12 @@ export default function NavBar() {
             >
               <Search size={16} aria-hidden /> Get counselling
             </button>
+            )}
             {user ? (
+              <>
+              <Link href={dashboardHref} onClick={() => setMobileNavOpen(false)}>
+                {user.role_display} dashboard
+              </Link>
               <button
                 className="mobile-navigation__logout"
                 type="button"
@@ -247,6 +301,7 @@ export default function NavBar() {
               >
                 <LogOut size={16} aria-hidden /> Log out
               </button>
+              </>
             ) : <>
               <Link href="/login" onClick={() => setMobileNavOpen(false)}>Log in</Link>
               <Link href="/signup" onClick={() => setMobileNavOpen(false)}>Register</Link>

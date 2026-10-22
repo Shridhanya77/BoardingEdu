@@ -23,6 +23,8 @@ export default function ComparePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectionMessage, setSelectionMessage] = useState<string | null>(null);
+  const [activeGroup, setActiveGroup] = useState("all");
+  const [differencesOnly, setDifferencesOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,67 +65,132 @@ export default function ComparePage() {
     return <main className="compare-page" aria-busy="true">Loading comparison…</main>;
   }
 
-  const rows = [
+  const groups: {
+    id: string;
+    label: string;
+    rows: {
+      label: string;
+      value: (school: (typeof comparedSchools)[number]) => string;
+      score?: (school: (typeof comparedSchools)[number]) => number | null;
+      prefer?: "low" | "high";
+    }[];
+  }[] = [
     {
-      label: "Location",
-      value: (school: (typeof comparedSchools)[number]) =>
-        [school.city_name, school.state_name].filter(Boolean).join(", ") || "Not listed",
+      id: "academics",
+      label: "Academics",
+      rows: [
+        {
+          label: "Education board",
+          value: (school) => school.boards_detail.map((board) => board.board_name).join(", ") || "Not listed",
+        },
+        {
+          label: "School type",
+          value: (school) =>
+            school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not listed",
+        },
+        {
+          label: "Classes offered",
+          value: (school) => school.grades_range || "Not listed",
+        },
+        {
+          label: "Academics rating",
+          value: (school) => school.academics_rating == null ? "No parent ratings yet" : `${school.academics_rating.toFixed(1)} / 5`,
+          score: (school) => school.academics_rating ?? null,
+          prefer: "high",
+        },
+      ],
     },
     {
-      label: "Education boards",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.boards_detail.map((board) => board.board_name).join(", ") || "Not listed",
+      id: "fees",
+      label: "Fees",
+      rows: [
+        {
+          label: "Annual fees",
+          value: (school) =>
+            school.annual_fee == null
+              ? "Not published"
+              : `₹${new Intl.NumberFormat("en-IN").format(Number(school.annual_fee))}`,
+          score: (school) => {
+            const amount = Number(school.annual_fee);
+            return Number.isFinite(amount) && amount > 0 ? amount : null;
+          },
+          prefer: "low",
+        },
+      ],
     },
     {
-      label: "School types",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not listed",
+      id: "campus",
+      label: "Campus",
+      rows: [
+        {
+          label: "Location",
+          value: (school) => [school.city_name, school.state_name].filter(Boolean).join(", ") || "Not listed",
+        },
+        {
+          label: "Student community",
+          value: (school) => school.gender || "Not listed",
+        },
+        {
+          label: "Facilities rating",
+          value: (school) => school.facilities_rating == null ? "No parent ratings yet" : `${school.facilities_rating.toFixed(1)} / 5`,
+          score: (school) => school.facilities_rating ?? null,
+          prefer: "high",
+        },
+        {
+          label: "Safety rating",
+          value: (school) => school.safety_rating == null ? "No parent ratings yet" : `${school.safety_rating.toFixed(1)} / 5`,
+          score: (school) => school.safety_rating ?? null,
+          prefer: "high",
+        },
+      ],
     },
     {
-      label: "Student community",
-      value: (school: (typeof comparedSchools)[number]) => school.gender || "Not listed",
-    },
-    {
-      label: "Annual fees",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.annual_fee == null
-          ? "Not published"
-          : `₹${new Intl.NumberFormat("en-IN").format(Number(school.annual_fee))}`,
-    },
-    {
-      label: "Academics & teaching rating",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.academics_rating == null
-          ? "No parent ratings yet"
-          : `${school.academics_rating.toFixed(1)} / 5`,
-    },
-    {
-      label: "Facilities & campus rating",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.facilities_rating == null
-          ? "No parent ratings yet"
-          : `${school.facilities_rating.toFixed(1)} / 5`,
-    },
-    {
-      label: "Safety & wellbeing rating",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.safety_rating == null
-          ? "No parent ratings yet"
-          : `${school.safety_rating.toFixed(1)} / 5`,
-    },
-    {
-      label: "Communication & admissions rating",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.communication_rating == null
-          ? "No parent ratings yet"
-          : `${school.communication_rating.toFixed(1)} / 5`,
-    },
-    {
-      label: "Established",
-      value: (school: (typeof comparedSchools)[number]) =>
-        school.established_year?.toString() ?? "Not listed",
+      id: "admission",
+      label: "Admission",
+      rows: [
+        {
+          label: "Admission status",
+          value: (school) =>
+            school.admission_open === undefined
+              ? "Ask the school"
+              : school.admission_open
+                ? "Admissions open"
+                : "Admissions closed",
+        },
+        {
+          label: "Established",
+          value: (school) => school.established_year?.toString() ?? "Not listed",
+        },
+        {
+          label: "Parent rating",
+          value: (school) =>
+            school.average_rating == null ? "No parent ratings yet" : `${school.average_rating.toFixed(1)} / 5 · ${school.review_count} reviews`,
+          score: (school) => school.average_rating,
+          prefer: "high",
+        },
+        {
+          label: "Communication rating",
+          value: (school) => school.communication_rating == null ? "No parent ratings yet" : `${school.communication_rating.toFixed(1)} / 5`,
+          score: (school) => school.communication_rating ?? null,
+          prefer: "high",
+        },
+      ],
     },
   ];
+
+  const visibleGroups = groups.filter((group) => activeGroup === "all" || group.id === activeGroup);
+
+  function winningIndex(row: (typeof groups)[number]["rows"][number]) {
+    if (!row.score || !row.prefer || comparedSchools.length < 2) return -1;
+    const scored = comparedSchools.map((school, index) => ({ index, score: row.score!(school) }));
+    const present = scored.filter((item): item is { index: number; score: number } => item.score != null);
+    if (present.length < 2) return -1;
+    const target = row.prefer === "low"
+      ? Math.min(...present.map((item) => item.score))
+      : Math.max(...present.map((item) => item.score));
+    const winners = present.filter((item) => item.score === target);
+    return winners.length === 1 ? winners[0].index : -1;
+  }
 
   return (
     <main className="compare-page compare-page--studio">
@@ -223,69 +290,119 @@ export default function ComparePage() {
       {comparedSchools.length === 0 ? (
         <section className="compare-empty">
           <h2>No schools selected yet</h2>
-          <p>Search above or browse the directory to select up to four schools.</p>
+          <p>Select at least two schools to compare fees, boards, ratings and admissions side by side.</p>
           <Link href="/schools/">Browse schools</Link>
         </section>
       ) : (
-        <div className="compare-table-wrap">
-          <table className="compare-table">
-            <thead>
-              <tr>
-                <th scope="col">School detail</th>
-                {comparedSchools.map((school) => (
-                  <th scope="col" key={school.school_id}>
-                    <div className="compare-table__school">
-                      {school.school_image_url || school.school_logo_url ? (
-                        <Image
-                          className="compare-table__school-image"
-                          src={school.school_image_url || school.school_logo_url || ""}
-                          alt=""
-                          width={48}
-                          height={48}
-                          unoptimized
-                        />
-                      ) : (
-                        <span className="compare-table__school-image compare-table__school-image--empty">
-                          <GraduationCap size={20} aria-hidden />
-                        </span>
-                      )}
-                      <strong>{school.school_name}</strong>
-                      <button
-                        type="button"
-                        onClick={() => removeSchool(school.school_id)}
-                        aria-label={`Remove ${school.school_name} from comparison`}
-                      >
-                        <X size={15} />
-                      </button>
-                    </div>
-                    <Link
-                      href={schoolProfilePathFromSlugs({
-                        countrySlug: school.country_slug,
-                        stateSlug: school.state_slug,
-                        citySlug: school.city_slug,
-                        localitySlug: school.location_slug,
-                        schoolSlug: school.slug,
-                        typeSegment: schoolProfileTypeSegment(school.school_types_detail),
-                      })}
-                    >
-                      View profile
-                    </Link>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.label}>
-                  <th scope="row">{row.label}</th>
-                  {comparedSchools.map((school) => (
-                    <td key={school.school_id}>{row.value(school)}</td>
-                  ))}
-                </tr>
+        <section className="compare-board" style={{ ["--compare-cols" as string]: comparedSchools.length }}>
+          <div className="compare-board__tools">
+            <div className="compare-tabs" role="tablist" aria-label="Comparison groups">
+              {[{ id: "all", label: "All details" }, ...groups.map(({ id, label }) => ({ id, label }))].map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeGroup === group.id}
+                  className={activeGroup === group.id ? "is-active" : ""}
+                  onClick={() => setActiveGroup(group.id)}
+                >
+                  {group.label}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+            <label className="compare-diff">
+              <input
+                type="checkbox"
+                checked={differencesOnly}
+                onChange={(event) => setDifferencesOnly(event.target.checked)}
+              />
+              Show differences only
+            </label>
+          </div>
+
+          <div className="compare-board__heads">
+            <div className="compare-board__corner">School</div>
+            {comparedSchools.map((school) => (
+              <article className="compare-school-card" key={school.school_id}>
+                <span className="compare-school-card__photo">
+                  {school.school_image_url || school.school_logo_url ? (
+                    <Image
+                      src={school.school_image_url || school.school_logo_url || ""}
+                      alt=""
+                      fill
+                      sizes="220px"
+                      unoptimized
+                    />
+                  ) : (
+                    <GraduationCap size={22} aria-hidden />
+                  )}
+                </span>
+                <div>
+                  <strong>{school.school_name}</strong>
+                  <small>{[school.city_name, school.state_name].filter(Boolean).join(", ")}</small>
+                </div>
+                <div className="compare-school-card__actions">
+                  <Link
+                    href={schoolProfilePathFromSlugs({
+                      countrySlug: school.country_slug,
+                      stateSlug: school.state_slug,
+                      citySlug: school.city_slug,
+                      localitySlug: school.location_slug,
+                      schoolSlug: school.slug,
+                      typeSegment: schoolProfileTypeSegment(school.school_types_detail),
+                    })}
+                  >
+                    View profile
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => removeSchool(school.school_id)}
+                    aria-label={`Remove ${school.school_name} from comparison`}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {comparedSchools.length < 2 && (
+            <p className="compare-board__hint">Add one more school to see them side by side.</p>
+          )}
+
+          <div className="compare-groups" key={`${activeGroup}-${differencesOnly}`}>
+            {visibleGroups.map((group) => {
+              const rows = group.rows.filter((row) => {
+                if (!differencesOnly || comparedSchools.length < 2) return true;
+                const values = comparedSchools.map((school) => row.value(school));
+                return new Set(values).size > 1;
+              });
+              if (!rows.length) return null;
+              return (
+                <section className="compare-group" key={group.id}>
+                  <h2>{group.label}</h2>
+                  {rows.map((row) => {
+                    const winner = winningIndex(row);
+                    return (
+                      <div className="compare-row" key={row.label}>
+                        <div className="compare-row__label">{row.label}</div>
+                        {comparedSchools.map((school, index) => (
+                          <div
+                            className={index === winner ? "compare-cell is-best" : "compare-cell"}
+                            key={school.school_id}
+                          >
+                            {row.value(school)}
+                            {index === winner && <em>{row.prefer === "low" ? "Lower fee" : "Higher rating"}</em>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </section>
+              );
+            })}
+          </div>
+        </section>
       )}
     </main>
   );

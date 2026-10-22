@@ -561,6 +561,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       const label = category === "residential-school" ? "Boarding schools" : "Day schools";
       return {
         key: city.city_id,
+        category,
         title: `${label} in ${city.city_name || "—"}`,
         place: [city.state_name, city.country_name].filter(Boolean).join(", ") || "—",
         count: city.schools_count ?? 0,
@@ -1947,9 +1948,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           {isHomePage && (
             <div className="hero-spots">
               {(heroSpots.length ? heroSpots : [
-                { key: "boarding", title: "Boarding schools in —", place: "—", count: 0, href: "/schools/boarding-school/" },
-                { key: "day", title: "Day schools in —", place: "—", count: 0, href: "/schools/day-school/" },
-              ]).map((spot) => (
+                { key: "boarding", category: "residential-school" as const, title: "Boarding schools in —", place: "—", count: 0, href: "/schools/boarding-school/" },
+                { key: "day", category: "day-school" as const, title: "Day schools in —", place: "—", count: 0, href: "/schools/day-school/" },
+              ])
+                .filter((spot) => !homeCategory || spot.category === homeCategory)
+                .map((spot) => (
                 <Link className="hero-spot" href={spot.href} key={spot.key}>
                   <strong>{spot.title}</strong>
                   <span>{spot.count > 0 ? `${spot.count} listed · ${spot.place}` : spot.place}</span>
@@ -2072,6 +2075,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     )}
                   </span>
                   <strong>{school.school_name}</strong>
+                  <span>
+                    {[school.city_name, school.boards_detail[0]?.board_name].filter(Boolean).join(" · ") || "School"}
+                    {school.annual_fee != null ? ` · ${formatRupees(Number(school.annual_fee))}/yr` : ""}
+                  </span>
                 </Link>
                 <button
                   type="button"
@@ -2106,6 +2113,22 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           )}
         </div>
+        {comparedSchools.length >= 2 && (
+          <div className="compare-promo__live" aria-label="Schools in your comparison">
+            {comparedSchools.map((school) => (
+              <article key={school.school_id}>
+                <strong>{school.school_name}</strong>
+                <span>{[school.city_name, school.state_name].filter(Boolean).join(", ") || "Location not listed"}</span>
+                <span>{school.boards_detail.map((board) => board.board_name).join(", ") || "Board not listed"}</span>
+                <span>
+                  {school.annual_fee == null
+                    ? "Fee not published"
+                    : `${formatRupees(Number(school.annual_fee))} / year`}
+                </span>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="home-section home-quick-actions" aria-labelledby="home-quick-actions-heading">

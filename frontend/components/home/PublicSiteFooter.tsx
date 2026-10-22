@@ -7,6 +7,7 @@ import type {
   BoardListItem,
   CityListItem,
   CountryListItem,
+  LocationListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
 import SiteFooterSeo from "./SiteFooterSeo";
@@ -17,6 +18,7 @@ export default function PublicSiteFooter() {
   const [boards, setBoards] = useState<BoardListItem[]>([]);
   const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
+  const [locations, setLocations] = useState<LocationListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,7 +28,8 @@ export default function PublicSiteFooter() {
       schools.boards().then((page) => fetchAllPages(page)),
       geography.countries().then((page) => fetchAllPages(page)),
       schools.types().then((page) => fetchAllPages(page)),
-    ]).then(([cityResult, boardResult, countryResult, typeResult]) => {
+      geography.locations().then((page) => fetchAllPages(page, 1000)),
+    ]).then(([cityResult, boardResult, countryResult, typeResult, locationResult]) => {
       if (cancelled) return;
 
       if (cityResult.status === "fulfilled") {
@@ -53,7 +56,11 @@ export default function PublicSiteFooter() {
         setSchoolTypes(typeResult.value.filter((type) => type.status));
       }
 
-      const rejected = [cityResult, boardResult, countryResult, typeResult].filter(
+      if (locationResult.status === "fulfilled") {
+        setLocations(locationResult.value.filter((location) => location.status && location.slug));
+      }
+
+      const rejected = [cityResult, boardResult, countryResult, typeResult, locationResult].filter(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
 
@@ -87,6 +94,7 @@ export default function PublicSiteFooter() {
       boards={boards}
       countries={countries}
       schoolTypes={schoolTypes}
+      locations={locations}
       dataError={error}
     />
   );
