@@ -46,6 +46,7 @@ import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
+import SchoolTypePickerModal, { type SchoolTypePickerRequest } from "@/components/home/SchoolTypePickerModal";
 import {
   createLocationPreferences,
   isBoardingOnlySelection,
@@ -67,7 +68,7 @@ isDiscoverableSchoolType,
 schoolProfilePathFromSlugs,
 schoolTypeLabel,
 type HomeSchoolCategory, } from "@/lib/seo-slugs";
-import { boardListingPath, placeListingPath } from "@/lib/school-urls";
+import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 import { guideList } from "@/lib/guides";
 
 function schoolHref(school: SchoolListItem) {
@@ -368,7 +369,7 @@ function SchoolCard({
   );
 }
 
-type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; schoolTypes?: string[]; boardIds?: string[]; homeCategory?: HomeSchoolCategory; ordering?: SchoolFilters["ordering"] };
+type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; place?: { countrySlug: string; stateSlug?: string; citySlug?: string; locationSlug?: string }; schoolTypes?: string[]; boardIds?: string[]; boardSlug?: string; homeCategory?: HomeSchoolCategory; ordering?: SchoolFilters["ordering"] };
 type RelatedSearch = { label: string; href: string };
 type Breadcrumb = { name: string; url: string };
 type PlaceHighlight = { label: string; href: string; kind: "state" | "city" | "locality" };
@@ -387,6 +388,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const isHomePage = pathname === "/";
   const { comparedSchools, toggleSchool } = useSearchExperience();
   const [comparePromoMessage, setComparePromoMessage] = useState("");
+  const [typePicker, setTypePicker] = useState<SchoolTypePickerRequest | null>(null);
   useEffect(() => {
     const destinationPath = window.sessionStorage.getItem(finderScrollStorageKey);
     if (!destinationPath) return;
@@ -506,6 +508,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     [schoolTypes],
   );
 
+  /**
+   * Listing chooser cards are built from the static taxonomy so the section is
+   * present in the first paint, before the school type list is fetched.
+   */
+  const schoolTypeChooserCards = useMemo(
+    () =>
+      schoolTypeBrowseOrder.map((category) => ({
+        category,
+        slug: homeSchoolCategoryPath(category),
+        label: schoolTypeBrowseCopy[category].label,
+        text: schoolTypeBrowseCopy[category].text,
+      })),
+    [],
+  );
+
   // Latest published parent reviews — the section hides itself until there are
   // real reviews, so the home page never shows invented testimonials.
   useEffect(() => {
@@ -536,7 +553,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const initialSchoolTypeKey = initialFilter?.schoolTypes?.join(",") ?? "";
   const initialBoardKey = initialFilter?.boardIds?.join(",") ?? "";
   const initialHomeCategory = initialFilter?.homeCategory;
-  const homeSearchEnabled = !initialFilter || Boolean(initialHomeCategory);
   const listingPlaceName = useMemo(() => {
     const isInitialLocation =
       initialFilter?.placeName &&
@@ -598,7 +614,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const listingTypeLabel = listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools";
   const listingSubject = listingBoardName ? `${listingBoardName} ${listingTypeLabel}` : listingTypeLabel;
   const listingHeading = `${listingSubject} in ${listingPlaceLabel}`;
-  const listingDescription = `Explore ${listingSubject} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
+  // Day boarding belongs to both families, so the chosen type is always named
+  // together with the day boarding schools it includes.
+  const listingFamilyTypes = homeCategory === "day-school"
+    ? "day schools and day boarding schools"
+    : homeCategory === "residential-school"
+      ? "boarding schools and day boarding schools"
+      : null;
+  const listingDescription = listingFamilyTypes
+    ? `Explore ${listingFamilyTypes} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`
+    : `Explore ${listingSubject} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
   const firstResultIndex = totalCount === 0 ? 0 : 1;
   const lastResultIndex = results.length;
   const resultsHeading = `${listingSubject} in ${listingPlaceLabel}`;
@@ -617,6 +642,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       seen.has(item.href) ? false : (seen.add(item.href), true),
     );
   }, [boards, homeCategory, relatedSearches, schoolType, schoolTypes]);
+  /**
+   * Family implied by the school-type checkboxes. Only the opposite extreme is
+   * hidden in the filter panel, because Day Boarding belongs to both families.
+   */
+  const filterSelectionFamily = homeSchoolCategoryForIds(schoolType, schoolTypes);
   const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
@@ -653,24 +683,82 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return match ? [match] : [];
     });
   }, [boardSearch, boards, boardsExpanded]);
+  /**
+   * Top states, ranked by the number of listed schools across their cities.
+   * Rendered above Top cities so parents can zoom out before picking a city.
+   */
+  const stateCards = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { state_id: string; state_name: string; state_slug: string; country_slug: string; count: number }
+    >();
+    for (const city of cities) {
+      const count = city.schools_count ?? 0;
+      if (count <= 0) continue;
+      const current = grouped.get(city.state_id) ?? {
+        state_id: city.state_id,
+        state_name: city.state_name,
+        state_slug: city.state_slug ?? city.state_name,
+        country_slug: city.country_slug ?? city.country_name,
+        count: 0,
+      };
+      current.count += count;
+      grouped.set(city.state_id, current);
+    }
+    return [...grouped.values()]
+      .sort((left, right) => right.count - left.count || left.state_name.localeCompare(right.state_name))
+      .slice(0, 10);
+  }, [cities]);
   const activeCountryId = geoCountry || initialCountry || "";
   const activeStateId = geoState || initialState || "";
   const activeCityId = geoCity || initialCity || "";
   function categoryBrowsePath(category: HomeSchoolCategory) {
+    // The server resolves the place for landing pages, so the chooser can link to
+    // the typed URL without waiting for the city list to load.
+    if (initialFilter?.place) {
+      return placeListingPath({ ...initialFilter.place, category });
+    }
     const placeCity =
       cities.find((city) => city.city_id === activeCityId) ??
       cities.find((city) => city.state_id === activeStateId) ??
       cities.find((city) => city.country_id === activeCountryId);
     if (!placeCity || !activeCountryId) {
-      return `/schools/?home_category=${homeSchoolCategoryPath(category)}`;
+      return schoolDirectoryPath(category);
     }
+    const localityId = geoLocation || initialLocation;
     return placeListingPath({
       countrySlug: placeCity.country_slug ?? placeCity.country_name,
       stateSlug: activeStateId ? placeCity.state_slug ?? placeCity.state_name : undefined,
       citySlug: activeCityId ? placeCity.slug : undefined,
+      locationSlug: localityId
+        ? locations.find((location) => location.location_id === localityId)?.slug
+        : undefined,
       category,
     });
   }
+  const hasBoardContext = Boolean(initialFilter?.boardIds?.length);
+  const hasPlaceContext = Boolean(activeCountryId || activeStateId || activeCityId);
+  /** Chooser target for a type card — keeps the board scope when there is one. */
+  function typeChooserPath(category: HomeSchoolCategory) {
+    if (initialFilter?.boardSlug) return boardListingPath(initialFilter.boardSlug, category);
+    return categoryBrowsePath(category);
+  }
+  /**
+   * Board, state and city cards on the home page ask for the school type in a
+   * popup before navigating, so the listing lands on a typed URL straight away.
+   */
+  function openTypePicker(request: SchoolTypePickerRequest) {
+    setTypePicker(request);
+  }
+  /** A place or board page with no type selected asks for a school type first. */
+  const showTypeChooser =
+    !isHomePage && !homeCategory && schoolType.length === 0 && (hasBoardContext || hasPlaceContext);
+  /**
+   * The hero finder follows the same two family cards as the home page whenever
+   * the visitor still has to pick a school type — including the chooser pages,
+   * so the type vocabulary stays consistent end to end.
+   */
+  const homeSearchEnabled = !initialFilter || Boolean(initialHomeCategory) || showTypeChooser;
   const placeHighlights = useMemo<PlaceHighlight[]>(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
     if (activeCityId) {
@@ -1744,7 +1832,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </section>
       )}
 
-      {schoolTypeBrowseCards.length > 0 && (
+      {(isHomePage ? schoolTypeBrowseCards.length > 0 : showTypeChooser) && (
         <section className="home-section home-section--types" id="school-types">
           <div className="home-section__heading home-section__heading--centered">
             <div>
@@ -1754,8 +1842,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           <div className="type-browse-grid">
-            {schoolTypeBrowseCards.map((card) => (
-              <Link className="type-browse-card" href={categoryBrowsePath(card.category)} key={card.slug}>
+            {(isHomePage ? schoolTypeBrowseCards : schoolTypeChooserCards).map((card) => (
+              <Link className="type-browse-card" href={typeChooserPath(card.category)} key={card.slug}>
                 <span className="type-browse-card__icon" aria-hidden="true">
                   {card.category === "day-school"
                     ? <GraduationCap size={20} />
@@ -1773,8 +1861,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           <p className="type-browse-note">
-            Not sure yet? <Link href="/schools">Browse every school</Link> or read
-            our <Link href="/guides">parent guides</Link>.
+            {isHomePage ? (
+              <>
+                Not sure yet? <Link href="/schools">Browse every school</Link> or read
+                our <Link href="/guides">parent guides</Link>.
+              </>
+            ) : (
+              <>
+                Day boarding schools are listed with both options. Prefer to see
+                everything? <Link href="#schools">Browse all schools in this area</Link>.
+              </>
+            )}
           </p>
         </section>
       )}
@@ -1787,6 +1884,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             See boards, school type, fees and parent ratings together before you decide.
             Category ratings only appear when parents have shared them.
           </p>
+          <ul className="compare-promo__criteria">
+            <li><Building2 size={14} aria-hidden /> Board &amp; school type</li>
+            <li><MapPin size={14} aria-hidden /> Location &amp; locality</li>
+            <li><BarChart3 size={14} aria-hidden /> Annual fees</li>
+            <li><Star size={14} aria-hidden /> Parent ratings</li>
+          </ul>
           <Link href="/compare" className="compare-promo__action">
             Open school comparison <ArrowRight size={16} />
           </Link>
@@ -1797,22 +1900,52 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="compare-promo__schools">
           {featuredSchools.slice(0, 3).map((school) => {
             const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
+            const boards = school.boards_detail.map((item) => item.board_code).join(" · ") || "Board not listed";
+            const type = school.school_types_detail
+              .map((item) => schoolTypeLabel(item.type_code, item.slug, item.type_name))
+              .join(", ") || "School type not listed";
+            const cover = school.school_image_url || school.school_logo_url || "";
             return (
               <article key={school.school_id}>
                 <Link href={schoolHref(school)} className="compare-promo__school-link">
                   <span className="compare-promo__school-image">
-                    <Building2 size={23} aria-hidden />
+                    {cover ? (
+                      <Image src={cover} alt="" fill sizes="200px" unoptimized />
+                    ) : (
+                      <Building2 size={23} aria-hidden />
+                    )}
                   </span>
                   <strong>{school.school_name}</strong>
                 </Link>
-                <span>{school.boards_detail.map((item) => item.board_code).join(" · ") || "Board not listed"}</span>
-                <span>
-                  {school.average_rating != null
-                    ? `${school.average_rating.toFixed(1)} overall parent rating`
-                    : "No parent rating yet"}
-                </span>
+                <dl className="compare-promo__facts">
+                  <div>
+                    <dt>Board</dt>
+                    <dd>{boards}</dd>
+                  </div>
+                  <div>
+                    <dt>Type</dt>
+                    <dd>{type}</dd>
+                  </div>
+                  <div>
+                    <dt>Annual fee</dt>
+                    <dd>
+                      {school.annual_fee != null && Number.isFinite(Number(school.annual_fee))
+                        ? `From ${formatRupees(Number(school.annual_fee))}`
+                        : "On request"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Parents</dt>
+                    <dd>
+                      {school.average_rating != null
+                        ? `${school.average_rating.toFixed(1)} / 5`
+                        : "No rating yet"}
+                    </dd>
+                  </div>
+                </dl>
                 <button
                   type="button"
+                  className={isCompared ? "is-added" : undefined}
                   onClick={() => {
                     if (!isCompared && comparedSchools.length >= 4) {
                       setComparePromoMessage("Remove a school from your comparison before adding another.");
@@ -1826,7 +1959,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     );
                   }}
                 >
-                  {isCompared ? "Remove from compare" : "Add to compare"}
+                  {isCompared ? (
+                    <><X size={14} aria-hidden /> Remove from compare</>
+                  ) : (
+                    <><Plus size={14} aria-hidden /> Add to compare</>
+                  )}
                 </button>
               </article>
             );
@@ -1868,6 +2005,52 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
+      {stateCards.length > 0 && (
+        <section className="home-section home-section--states" id="states">
+          <div className="home-section__heading">
+            <div>
+              <div className="section-eyebrow">EXPLORE BY STATE</div>
+              <h2>Top states for school search</h2>
+            </div>
+          </div>
+
+          <div className="city-grid">
+            {stateCards.map((state, index) => {
+              const hrefFor = (category?: HomeSchoolCategory | null) =>
+                placeListingPath({
+                  countrySlug: state.country_slug,
+                  stateSlug: state.state_slug,
+                  category,
+                });
+              return (
+                <Link
+                  className={`city-card city-card--${index + 1}`}
+                  key={state.state_id}
+                  href={hrefFor(null)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openTypePicker({
+                      title: `Schools in ${state.state_name}`,
+                      subtitle: "Pick a school type to open the right listings first.",
+                      hrefFor: (category) => hrefFor(category),
+                      allHref: hrefFor(null),
+                      allLabel: `See every school in ${state.state_name}`,
+                    });
+                  }}
+                >
+                  <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="city-card__name">{state.state_name}</span>
+                  <span className="city-card__state">{state.count} schools listed</span>
+                  <span className="city-card__action">
+                    Explore schools <ArrowRight size={14} />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className="home-section home-section--cities" id="cities">
         <div className="home-section__heading">
           <div>
@@ -1899,25 +2082,39 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           }}
           onMouseLeave={() => setHoveredCityIds(null)}
         >
-          {cityCards.map((city, index) => (
-            <Link
-              className={`city-card city-card--${index + 1}`}
-              key={city.city_id}
-              href={placeListingPath({
+          {cityCards.map((city, index) => {
+            const hrefFor = (category?: HomeSchoolCategory | null) =>
+              placeListingPath({
                 countrySlug: city.country_slug ?? city.country_name,
                 stateSlug: city.state_slug ?? city.state_name,
                 citySlug: city.slug,
-                category: homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes),
-              })}
-            >
-              <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
-              <span className="city-card__name">{city.city_name}</span>
-              <span className="city-card__state">{city.state_name}</span>
-              <span className="city-card__action">
-                Explore schools <ArrowRight size={14} />
-              </span>
-            </Link>
-          ))}
+                category,
+              });
+            return (
+              <Link
+                className={`city-card city-card--${index + 1}`}
+                key={city.city_id}
+                href={hrefFor(null)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  openTypePicker({
+                    title: `Schools in ${city.city_name}`,
+                    subtitle: "Pick a school type to open the right listings first.",
+                    hrefFor: (category) => hrefFor(category),
+                    allHref: hrefFor(null),
+                    allLabel: `See every school in ${city.city_name}`,
+                  });
+                }}
+              >
+                <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
+                <span className="city-card__name">{city.city_name}</span>
+                <span className="city-card__state">{city.state_name}</span>
+                <span className="city-card__action">
+                  Explore schools <ArrowRight size={14} />
+                </span>
+              </Link>
+            );
+          })}
           {citiesLoading && (
             <p className="section-empty" role="status">Loading cities…</p>
           )}
@@ -1962,10 +2159,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <Link
               className={`board-card board-card--${index + 1}`}
               key={boardItem.board_id}
-              href={boardListingPath(
-                boardItem.slug,
-                homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes),
-              )}
+              href={boardListingPath(boardItem.slug)}
+              onClick={(event) => {
+                event.preventDefault();
+                openTypePicker({
+                  title: `${boardItem.board_name} schools`,
+                  subtitle: "Pick a school type to open the right listings first.",
+                  hrefFor: (category) => boardListingPath(boardItem.slug, category),
+                  allHref: boardListingPath(boardItem.slug),
+                  allLabel: `See every ${boardItem.board_name} school`,
+                });
+              }}
             >
               <span className="board-card__mark">{boardItem.board_code}</span>
               <span className="board-card__name">{boardItem.board_name}</span>
@@ -2388,16 +2592,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <legend>School type</legend>
               <div className="filter-checklist" id="school-type-filter">
                 {(["Day School", "Day Boarding School", "Boarding School"] as const).map((label) => {
-                  const ids = schoolTypes
-                    .filter((type) =>
-                      schoolTypeLabel(type.type_code, type.slug, type.type_name) === label &&
-                      (!homeCategory ||
-                        homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(homeCategory)),
-                    )
-                    .map((type) => type.school_type_id);
+                  const rows = schoolTypes.filter((type) =>
+                    schoolTypeLabel(type.type_code, type.slug, type.type_name) === label &&
+                    (!homeCategory ||
+                      homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(homeCategory)),
+                  );
+                  const ids = rows.map((type) => type.school_type_id);
                   if (!ids.length) return null;
                   const selected = ids.some((id) => schoolType.includes(id));
-                  if (!homeCategory && schoolType.length && !selected) return null;
+                  // Day Boarding belongs to both families, so a typed or checked
+                  // selection hides only the opposite extreme, never Day Boarding.
+                  if (!homeCategory && !selected && filterSelectionFamily &&
+                      !rows.some((type) =>
+                        homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(filterSelectionFamily))) {
+                    return null;
+                  }
                   return <label className="filter-check" key={label}>
                     <input type="checkbox" checked={selected} onChange={() => {
                       setSchoolType((current) => selected
@@ -2730,6 +2939,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         onBoard={selectBoard}
         onSchoolType={selectSchoolType}
       />
+      <SchoolTypePickerModal request={typePicker} onClose={() => setTypePicker(null)} />
       {!isHomePage && !filtersOpen && <CompareBar />}
     </main>
   );

@@ -37,7 +37,7 @@ import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeeSummary from "./SchoolFeeSummary";
-import SchoolEnquiryForm from "./SchoolEnquiryForm";
+import SchoolEnquiryProvider from "./SchoolEnquiryDialog";
 import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
 import SchoolReviews from "./SchoolReviews";
 import type { SchoolSectionId } from "@/lib/school-sections";
@@ -337,6 +337,7 @@ export default async function SchoolProfile({
   return (
     <main className="school-detail-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
+      <SchoolEnquiryProvider school={school}>
       <div className="school-detail">
         <Link className="school-detail__back" href="/schools"><ArrowLeft size={15} /> Back to schools</Link>
 
@@ -591,7 +592,18 @@ export default async function SchoolProfile({
 
           {/* ===== ASIDE ===== */}
           <aside className="school-detail__aside">
-            <div id="school-enquiry"><SchoolEnquiryForm school={school} /></div>
+            <div className="detail-panel enquiry-panel" id="school-enquiry">
+              <div className="detail-panel__heading">
+                <span className="detail-panel__icon"><MessageSquare size={18} /></span>
+                <div>
+                  <h2>Enquire about admissions</h2>
+                  <p>Share a few details and the school will get back to you.</p>
+                </div>
+              </div>
+              <SchoolEnquiryButton className="primary-button">
+                <MessageSquare size={16} /> Send an enquiry
+              </SchoolEnquiryButton>
+            </div>
 
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>
           </aside>
@@ -687,6 +699,7 @@ export default async function SchoolProfile({
           <MessageSquare size={17} aria-hidden /> Enquire now
         </SchoolEnquiryButton>
       </div>
+      </SchoolEnquiryProvider>
     </main>
   );
 }

@@ -15,12 +15,32 @@ import {
   Tokens,
   TokensProvider,
   UserDetail,
+  UserRole,
   auth,
   apiRequestUrl,
   configureAuthTokens,
+  registerSchool as registerSchoolRequest,
   users,
   type RegisterInput,
+  type SchoolRegistrationInput,
+  type SchoolRegistrationResult,
 } from "./api";
+
+/** Landing page for a role once signed in. */
+export function dashboardPathForRole(role: UserRole | null | undefined): string {
+  switch (role) {
+    case "SCHOOL_ADMIN":
+      return "/dashboard/school/";
+    case "STAFF_ADMIN":
+      return "/dashboard/staff-admin/";
+    case "SUPER_ADMIN":
+      return "/dashboard/admin/";
+    case "PARENT":
+      return "/dashboard/parent/";
+    default:
+      return "/";
+  }
+}
 
 // ----------------------------------------------------------------------
 // 1. LocalStorage token provider — wires api.ts authRequest<T>() to the browser
@@ -107,6 +127,11 @@ type AuthContextValue =
     login: (username: string, password: string) => Promise<UserDetail>;
     /** Register a new Parent user. On success logs them in immediately. */
     register: (payload: RegisterInput) => Promise<UserDetail>;
+    /**
+     * Register a school. The account stays inactive until an admin verifies the
+     * school, so this deliberately does NOT sign the user in.
+     */
+    registerSchool: (payload: SchoolRegistrationInput) => Promise<SchoolRegistrationResult>;
     /** Logs the current user out locally + invalidates the refresh token remotely if possible. */
     logout: () => Promise<void>;
     /** Re-fetches /me (e.g. after a profile update). Useful after edits. */
@@ -180,6 +205,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const registerSchool = useCallback<AuthContextValue["registerSchool"]>(
+    async (payload) => {
+      dispatch({ type: "SET_LOADING" });
+      try {
+        const result = await registerSchoolRequest(payload);
+        // School accounts cannot sign in until an admin verifies the school.
+        dispatch({ type: "SET_GUEST" });
+        return result;
+      } catch (e) {
+        const message =
+          e instanceof ApiError ? e.message : "School registration failed. Please try again.";
+        dispatch({ type: "SET_GUEST", error: message });
+        throw e;
+      }
+    },
+    [],
+  );
+
   const logout = useCallback<AuthContextValue["logout"]>(async () => {
     // Best-effort blacklist the refresh token on the server.
     try {
@@ -214,8 +257,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearError = useCallback(() => dispatch({ type: "CLEAR_ERROR" }), []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, login, register, logout, reloadMe, clearError }),
-    [state, login, register, logout, reloadMe, clearError],
+    () => ({ ...state, login, register, registerSchool, logout, reloadMe, clearError }),
+    [state, login, register, registerSchool, logout, reloadMe, clearError],
   );
 
   return createElement(AuthContext.Provider, { value }, children);

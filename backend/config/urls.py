@@ -141,6 +141,8 @@ urlpatterns = [
     path("api/admissions/", include("apps.admissions.urls", namespace="admissions")),
     # ===== Reviews App =====
     path("api/reviews/", include("apps.reviews.urls", namespace="reviews")),
+    # ===== Role dashboards (school / parent / admin / staff-admin) =====
+    path("api/dashboards/", include("apps.dashboards.urls", namespace="dashboards")),
     # ===== Health probes (liveness / readiness) =====
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),

@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'apps.admissions.apps.AdmissionsConfig',
     'apps.users.apps.UsersConfig',
     'apps.search.apps.SearchConfig',
-    'apps.reviews.apps.ReviewsConfig'
+    'apps.reviews.apps.ReviewsConfig',
+    'apps.dashboards.apps.DashboardsConfig'
 ]
 
 MIDDLEWARE = [

@@ -3,13 +3,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, LogIn, UserRound, Lock } from "lucide-react";
-import { ApiError } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { ApiError, apiErrorMessage } from "@/lib/api";
+import { dashboardPathForRole, useAuth } from "@/lib/auth";
 
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const redirectTo = params.get("next") ?? "/";
+  const redirectTo = params.get("next") ?? "";
 
   const { login, error, clearError, status } = useAuth();
 
@@ -28,15 +28,17 @@ export default function LoginForm() {
     }
     setSubmitting(true);
     try {
-      await login(username.trim(), password);
-      router.push(redirectTo);
+      const me = await login(username.trim(), password);
+      // Each role lands on its own dashboard unless a specific page was requested.
+      router.push(redirectTo || dashboardPathForRole(me.role));
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 401) {
-          setFormError("Email/username or password is incorrect. Please try again.");
-        } else {
-          setFormError(err.message);
-        }
+        const message = apiErrorMessage(err);
+        setFormError(
+          err.status === 401 && /invalid|no active account/i.test(message)
+            ? "Email/username or password is incorrect. Please try again."
+            : message,
+        );
       } else {
         setFormError("Login failed. Please try again.");
       }
@@ -108,6 +110,10 @@ export default function LoginForm() {
 
           <p className="account-card__hint">
             Don&apos;t have a parent account? <Link href="/signup">Sign up here</Link>.
+          </p>
+          <p className="account-card__hint">
+            Run a school? <Link href="/signup/school">Register your school</Link> — our team
+            verifies every school before the dashboard unlocks.
           </p>
         </form>
       </section>

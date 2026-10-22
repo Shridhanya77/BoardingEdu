@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { LoaderCircle, X } from "lucide-react";
 import {
   admissions,
@@ -129,7 +130,7 @@ export default function CounsellingModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="counselling-modal__backdrop"
       onMouseDown={(event) => {
@@ -230,6 +231,7 @@ export default function CounsellingModal({
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

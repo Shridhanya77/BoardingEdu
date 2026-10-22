@@ -43,12 +43,24 @@ export type HomeSchoolCategory = "day-school" | "residential-school";
 
 export function homeSchoolCategoryFromValue(value?: string | null): HomeSchoolCategory | null {
   if (value === "day-school") return "day-school";
-  if (value === "boarding-schools" || value === "residential-school") return "residential-school";
+  if (value === "boarding-school" || value === "boarding-schools" || value === "residential-school") return "residential-school";
   return null;
 }
 
+/**
+ * Query value used by the `?home_category=` API filter. The backend accepts
+ * `day-school` and `boarding-schools` (plus `residential-school`).
+ */
 export function homeSchoolCategoryPath(category: HomeSchoolCategory): "day-school" | "boarding-schools" {
   return category === "day-school" ? "day-school" : "boarding-schools";
+}
+
+/**
+ * Final path segment of a typed listing URL, e.g. /india/karnataka/boarding-school/.
+ * Day Boarding belongs to both families, so only the two parent types get a segment.
+ */
+export function schoolCategorySegment(category: HomeSchoolCategory): "day-school" | "boarding-school" {
+  return category === "day-school" ? "day-school" : "boarding-school";
 }
 
 export function homeSchoolCategories(typeCode: string, slug = "", name = ""): HomeSchoolCategory[] {

@@ -2,6 +2,7 @@ import re
 import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import (
@@ -27,6 +28,7 @@ from .serializers import (
     SchoolFacilityDetailSerializer, SchoolFacilityListSerializer,
     SchoolGradeDetailSerializer, SchoolGradeListSerializer,
     SchoolFAQSerializer,
+    SchoolRegistrationSerializer,
 )
 
 
@@ -435,6 +437,8 @@ class SchoolViewSet(ReadWriteModelViewSet):
     ordering = ['school_name']
 
     def get_permissions(self):
+        if self.action == 'register':
+            return [AllowAny()]
         if self.action in {
             'verification_queue',
             'verification_history',
@@ -442,6 +446,30 @@ class SchoolViewSet(ReadWriteModelViewSet):
         }:
             return [IsStaffAdmin()]
         return super().get_permissions()
+
+    @action(detail=False, methods=['post'], url_path='register')
+    def register(self, request):
+        """
+        Public school self-registration.
+        Creates a PENDING school plus its SCHOOL_ADMIN login; an admin must
+        verify the school before that login can obtain a token.
+        """
+        serializer = SchoolRegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        school = serializer.save()
+        return Response(
+            {
+                'school_id': str(school.school_id),
+                'school_code': school.school_code,
+                'school_name': school.school_name,
+                'verification_status': school.verification_status,
+                'detail': (
+                    'Registration received. Our team will verify your school '
+                    'before your account is activated.'
+                ),
+            },
+            status=201,
+        )
 
     @action(detail=False, methods=['get'], url_path='verification-queue')
     def verification_queue(self, request):

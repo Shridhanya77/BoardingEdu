@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, fetchAllPages, geography, schools } from "@/lib/api";
 import type { BoardListItem, CityListItem, CountryListItem, LocationListItem, SchoolDetail, SchoolTypeListItem, StateListItem } from "@/lib/api";
-import { homeSchoolCategoryFromValue, homeSchoolCategoryPath, homeSchoolTypeIds, schoolTypeCategory, schoolTypeLabel, toSeoSlug, withTrailingSlash, type HomeSchoolCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategoryFromValue, homeSchoolTypeIds, schoolCategorySegment, schoolTypeCategory, schoolTypeLabel, toSeoSlug, withTrailingSlash, type HomeSchoolCategory } from "@/lib/seo-slugs";
 import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
 import { listingCopy, pageMetadata } from "@/lib/seo";
-import { boardListingPath } from "@/lib/school-urls";
+import { boardListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 import { isSchoolSectionId, schoolSectionPath, type SchoolSectionId } from "@/lib/school-sections";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 type Place = { country: CountryListItem; state?: StateListItem; city?: CityListItem; location?: LocationListItem };
 type Props = { params: { segments?: string[] }; searchParams?: { type?: string; home_category?: string } };
 
-function placeBreadcrumbs(place: Place, label?: string) {
+function placeBreadcrumbs(place: Place, category?: HomeSchoolCategory) {
   const country = toSeoSlug(place.country.slug);
   const items = [
     { name: "Home", url: "/" },
@@ -36,7 +36,12 @@ function placeBreadcrumbs(place: Place, label?: string) {
       }
     }
   }
-  if (label) items.push({ name: label, url: withTrailingSlash(`/${placePath(place)}`) });
+  if (category) {
+    items.push({
+      name: category === "day-school" ? "Day Schools" : "Boarding Schools",
+      url: withTrailingSlash(`/${placePath(place)}/${schoolCategorySegment(category)}`),
+    });
+  }
   return items;
 }
 
@@ -98,6 +103,17 @@ function legacyBoardSlug(segment: string | undefined): string | undefined {
   return prefix.test(segment) ? segment.replace(prefix, "") : undefined;
 }
 
+/**
+ * Legacy `?type=` values map onto the two canonical listing families. Day
+ * Boarding belongs to both families, so it resolves to the day-school family —
+ * matching `homeSchoolCategoryForIds` on the client.
+ */
+function legacyTypeCategory(value?: string): HomeSchoolCategory | null {
+  if (!value) return null;
+  if (value === "day-school" || value === "day-boarding-school") return "day-school";
+  return homeSchoolCategoryFromValue(value);
+}
+
 function placePath(place: Place) {
   return [place.country.slug, place.state?.slug, place.city?.slug, place.location?.slug].filter(Boolean).map((slug) => toSeoSlug(slug!)).join("/");
 }
@@ -122,7 +138,7 @@ function relatedSearchesFor(
     if (option.category === options.currentCategory) continue;
     candidates.push({
       label: `${option.label} in ${label}`,
-      href: withTrailingSlash(`/${placePath(place)}/${homeSchoolCategoryPath(option.category)}`),
+      href: withTrailingSlash(`/${placePath(place)}/${schoolCategorySegment(option.category)}`),
     });
   }
   const seen = new Set<string>();
@@ -170,11 +186,12 @@ function unavailableMetadata(title: string): Metadata {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const segments = params.segments ?? [];
-  if (segments[0] === "board" && segments.length === 2) {
+  const boardMetaCategory = homeSchoolCategoryFromValue(segments[2]?.toLowerCase());
+  if (segments[0] === "board" && (segments.length === 2 || (segments.length === 3 && Boolean(boardMetaCategory)))) {
     try {
       const board = await findActiveBoard(segments[1]);
       if (board) {
-        const homeCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
+        const homeCategory = boardMetaCategory ?? homeSchoolCategoryFromValue(searchParams?.home_category);
         const categoryLabel = homeCategory === "day-school"
           ? "Day School"
           : homeCategory === "residential-school"
@@ -219,6 +236,20 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       keywords: ["school directory", "schools in India", "boarding schools", "day schools"],
     });
   }
+  // Typed directory listings: /schools/day-school/ and /schools/boarding-school/.
+  if (segments[0] === "schools" && segments.length === 2) {
+    const directoryCategory = homeSchoolCategoryFromValue(segments[1]?.toLowerCase());
+    if (directoryCategory) {
+      const label = directoryCategory === "day-school" ? "Day School" : "Boarding School";
+      const copy = listingCopy({ categoryLabel: label, place: "India" });
+      return pageMetadata({
+        title: copy.title,
+        description: copy.description,
+        path: schoolDirectoryPath(directoryCategory),
+        keywords: [copy.heading, label, "schools in India"],
+      });
+    }
+  }
   const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
   if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
@@ -227,8 +258,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       return unavailableMetadata("School profile | BoardingEdu");
     }
   }
-  // Trailing school-type suffixes (…/residential-school, …/day-school) are listings, not school slugs.
-  const isCategorySuffix = ["day-school", "boarding-schools", "residential-school"].includes(schoolSegments[schoolSegments.length - 1]?.toLowerCase() ?? "");
+  // Trailing school-type suffixes (…/boarding-school, …/day-school) are listings, not school slugs.
+  const isCategorySuffix = ["day-school", "boarding-school", "boarding-schools", "residential-school"].includes(schoolSegments[schoolSegments.length - 1]?.toLowerCase() ?? "");
   if (
     !isCategorySuffix &&
     (schoolSegments.length === 4 || schoolSegments.length === 5) &&
@@ -239,20 +270,6 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     } catch {
       return unavailableMetadata("School profile | BoardingEdu");
     }
-  }
-  if (
-    segments.length === 1 &&
-    segments[0] === "home" &&
-    homeSchoolCategoryFromValue(searchParams?.home_category)
-  ) {
-    const homeCategory = homeSchoolCategoryFromValue(searchParams?.home_category)!;
-    const label = homeCategory === "day-school" ? "Day School" : "Boarding School";
-    const copy = listingCopy({ categoryLabel: label, place: "India" });
-    return pageMetadata({
-      title: copy.title,
-      description: `Choose a location to explore ${label.toLowerCase()}s across India.`,
-      path: `/home?home_category=${homeSchoolCategoryPath(homeCategory)}`,
-    });
   }
   const category = homeSchoolCategoryFromValue(segments[segments.length - 1]?.toLowerCase());
   if (category) {
@@ -265,7 +282,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       return pageMetadata({
         title: copy.title,
         description: copy.description,
-        path: `/${placePath(place)}/${homeSchoolCategoryPath(category)}`,
+        path: `/${placePath(place)}/${schoolCategorySegment(category)}`,
         keywords: [copy.heading, location, label],
       });
     } catch {
@@ -277,18 +294,27 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const slugs = isHomePrefix ? segments.slice(1) : isLegacyTypePrefix ? segments.slice(1, 5) : segments.slice(0, 4);
   if (!slugs.length) return { title: "BoardingEdu" };
   try {
-    const [types, place] = await Promise.all([resolveTypes(isLegacyTypePrefix ? segments[0] : searchParams?.type), resolvePlace(slugs)]);
-    const label = schoolTypeLabel(types[0].type_code, types[0].slug, types[0].type_name);
+    const place = await resolvePlace(slugs);
     const location = [place.location?.location_name, place.city?.city_name, place.state?.state_name, place.country.country_name].filter(Boolean).join(", ");
-    const prefix = isLegacyTypePrefix ? `/${segments[0]}/` : isHomePrefix && slugs.length === 1 ? "/home/" : "/";
-    const category = schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name);
-    const typeQuery = !isLegacyTypePrefix && category !== "day-school" ? `?type=${category}` : "";
-    const canonical = `${prefix}${placePath(place)}${typeQuery}`;
+    const base = `${isHomePrefix && slugs.length === 1 ? "/home/" : "/"}${placePath(place)}`;
+    const category = isLegacyTypePrefix
+      ? homeSchoolCategoryFromValue(segments[0])
+      : legacyTypeCategory(searchParams?.type);
+    if (!category) {
+      const copy = listingCopy({ place: location });
+      return pageMetadata({
+        title: copy.title,
+        description: copy.description,
+        path: base,
+        keywords: [copy.heading, location],
+      });
+    }
+    const label = category === "day-school" ? "Day School" : "Boarding School";
     const copy = listingCopy({ categoryLabel: label, place: location });
     return pageMetadata({
       title: copy.title,
       description: copy.description,
-      path: canonical,
+      path: `${base}/${schoolCategorySegment(category)}`,
       keywords: [copy.heading, location, label],
     });
   } catch {
@@ -299,10 +325,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
   const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
-  if (segments[0] === "board" && segments.length === 2) {
+  const boardPathCategory = segments.length === 3 ? homeSchoolCategoryFromValue(segments[2]?.toLowerCase()) : null;
+  if (segments[0] === "board" && (segments.length === 2 || (segments.length === 3 && Boolean(boardPathCategory)))) {
     const board = await findActiveBoard(segments[1]);
     if (!board) notFound();
-    const homeCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
+    const queryCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
+    // Legacy `?home_category=` board links fold into the typed path URL.
+    if (queryCategory) redirect(boardListingPath(board.slug, boardPathCategory ?? queryCategory));
+    const homeCategory = boardPathCategory;
     const types = homeCategory ? await resolveHomeTypes(homeCategory) : [];
     const breadcrumbs = [
       { name: "Home", url: "/" },
@@ -318,6 +348,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
         <SchoolDiscovery
           initialFilter={{
             boardIds: [board.board_id],
+            boardSlug: board.slug,
             schoolTypes: types.map((type) => type.school_type_id),
             homeCategory: homeCategory ?? undefined,
           }}
@@ -333,6 +364,9 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     redirect(boardListingPath(board.slug));
   }
   if (segments[0] === "schools" && segments.length === 1) {
+    // Legacy `?home_category=` directory links fold into the typed path URL.
+    const legacyCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
+    if (legacyCategory) redirect(schoolDirectoryPath(legacyCategory));
     const breadcrumbs = [
       { name: "Home", url: "/" },
       { name: "School directory", url: "/schools" },
@@ -347,18 +381,41 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   if (segments[0] === "home" && segments.length === 1) {
     const homeCategory = searchParams?.home_category;
     const category = homeSchoolCategoryFromValue(homeCategory);
-    if (category) {
-      const types = await resolveHomeTypes(category);
-      return <SchoolDiscovery initialFilter={{ schoolTypes: types.map((type) => type.school_type_id), homeCategory: category }} />;
-    }
+    if (category) redirect(schoolDirectoryPath(category));
     if (!searchParams?.type) return <SchoolDiscovery />;
     const types = await resolveTypes(searchParams.type);
     return <SchoolDiscovery initialFilter={{ schoolTypes: types.map((type) => type.school_type_id) }} />;
   }
 
+  // Typed directory listings: /schools/day-school/ and /schools/boarding-school/.
   if (segments[0] === "schools" && segments.length === 2) {
+    const directoryCategory = homeSchoolCategoryFromValue(segments[1]?.toLowerCase());
+    if (directoryCategory) {
+      if (searchParams?.home_category) redirect(schoolDirectoryPath(directoryCategory));
+      const types = await resolveHomeTypes(directoryCategory);
+      const breadcrumbs = [
+        { name: "Home", url: "/" },
+        { name: "School directory", url: "/schools" },
+        {
+          name: directoryCategory === "day-school" ? "Day Schools" : "Boarding Schools",
+          url: schoolDirectoryPath(directoryCategory),
+        },
+      ];
+      return (
+        <>
+          <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
+          <SchoolDiscovery
+            initialFilter={{
+              schoolTypes: types.map((type) => type.school_type_id),
+              homeCategory: directoryCategory,
+            }}
+            breadcrumbs={breadcrumbs}
+          />
+        </>
+      );
+    }
     try {
-      const school = await schools.bySlug(segments[1]);
+      const school = await schools.bySlug(segments[1]!);
       redirect(schoolProfilePath(school));
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) notFound();
@@ -392,7 +449,8 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     }
   }
 
-  // Keep existing /day-school/... and /residential-school/... listing and school URLs.
+  // Legacy /day-school/... and /residential-school/... listings fold into the
+  // canonical /{place}/{day-school|boarding-school}/ form.
   if (["day-school", "residential-school"].includes(schoolSegments[0] ?? "") && (schoolSegments.length === 4 || schoolSegments.length === 5)) {
     if (schoolSegments.length === 5) {
       try {
@@ -405,35 +463,14 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       }
     }
     const place = await resolvePlace(schoolSegments.slice(1, 5));
-    const types = await resolveTypes(schoolSegments[0]);
-    const breadcrumbs = placeBreadcrumbs(place, segments[0] === "day-school" ? "Day Schools" : "Boarding Schools");
-    return (
-      <>
-        <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
-        <SchoolDiscovery
-          breadcrumbs={breadcrumbs}
-          relatedSearches={relatedSearchesFor(place, {
-            currentCategory: segments[0] === "day-school" ? "day-school" : "residential-school",
-          })}
-          initialFilter={{
-            country: place.country.country_id,
-            state: place.state?.state_id,
-            city: place.city?.city_id,
-            location: place.location?.location_id,
-            placeName: place.location?.location_name ?? place.city?.city_name ?? place.state?.state_name ?? place.country.country_name,
-            schoolTypes: types.map((type) => type.school_type_id),
-          }}
-        />
-      </>
-    );
+    const category: HomeSchoolCategory = schoolSegments[0] === "day-school" ? "day-school" : "residential-school";
+    redirect(`/${placePath(place)}/${schoolCategorySegment(category)}`);
   }
 
   const category = homeSchoolCategoryFromValue(segments[segments.length - 1]?.toLowerCase());
   if (category) {
     const placeSlugs = segments.slice(0, -1);
-    if (!placeSlugs.length || (category === "residential-school" && placeSlugs.length > 3) || (category === "day-school" && placeSlugs.length > 4)) {
-      notFound();
-    }
+    if (!placeSlugs.length || placeSlugs.length > 4) notFound();
     // Historical /country/state/city/school-slug links retain priority over suffix routes.
     if (segments.length === 4) {
       try {
@@ -444,9 +481,9 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       }
     }
     const [place, types] = await Promise.all([resolvePlace(placeSlugs), resolveHomeTypes(category)]);
-    const path = `/${placePath(place)}/${homeSchoolCategoryPath(category)}`;
+    const path = `/${placePath(place)}/${schoolCategorySegment(category)}`;
     if (`/${segments.join("/")}` !== path) redirect(path);
-    const breadcrumbs = placeBreadcrumbs(place, category === "day-school" ? "Day Schools" : "Boarding Schools");
+    const breadcrumbs = placeBreadcrumbs(place, category);
     return (
       <>
         <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
@@ -467,7 +504,8 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     );
   }
 
-  // New hierarchy routes: /home/country, /country/state[/city[/locality]].
+  // Place landing pages: /home/country, /country/state[/city[/locality]].
+  // These ask for a school type first; the typed URL is the filtered listing.
   const isHomePrefix = segments[0] === "home";
   const slugs = isHomePrefix ? segments.slice(1) : segments;
   if (slugs.length >= 1 && slugs.length <= 4) {
@@ -481,37 +519,33 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       }
     }
     const place = await resolvePlace(slugs);
-    const types = await resolveTypes(searchParams?.type);
-    if (types.some((type) => {
-      const category = schoolTypeCategory(type.type_code, type.slug, type.type_name);
-      return category === "boarding-school" || category === "day-boarding-school";
-    }) && (place.city || place.location)) notFound();
     const path = slugs.length === 1 ? `/home/${toSeoSlug(place.country.slug)}` : `/${placePath(place)}`;
-    const category = schoolTypeCategory(types[0].type_code, types[0].slug, types[0].type_name);
-    const canonicalPath = `${path}${category === "day-school" ? "" : `?type=${category}`}`;
-    const requestedPath = `/${segments.join("/")}${searchParams?.type ? `?type=${searchParams.type}` : ""}`;
-    if (requestedPath !== canonicalPath) redirect(canonicalPath);
-    const categoryLabel =
-      category === "day-school" ? "Day Schools"
-        : category === "boarding-school" ? "Boarding Schools"
-          : category === "day-boarding-school" ? "Day Boarding Schools"
-            : undefined;
-    const breadcrumbs = placeBreadcrumbs(place, categoryLabel);
+    // Legacy ?type= listings fold into the canonical typed URL.
+    const requestedType = legacyTypeCategory(searchParams?.type);
+    if (requestedType) {
+      const typedPath = `/${placePath(place)}/${schoolCategorySegment(requestedType)}`;
+      if (`/${segments.join("/")}${searchParams?.type ? `?type=${searchParams.type}` : ""}` !== typedPath) redirect(typedPath);
+    }
+    if (`/${segments.join("/")}` !== path) redirect(path);
+    const breadcrumbs = placeBreadcrumbs(place);
     return (
       <>
         <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
         <SchoolDiscovery
           breadcrumbs={breadcrumbs}
-          relatedSearches={relatedSearchesFor(place, {
-            currentCategory: category === "day-school" ? "day-school" : "residential-school",
-          })}
+          relatedSearches={relatedSearchesFor(place, { includeBase: false })}
           initialFilter={{
             country: place.country.country_id,
             state: place.state?.state_id,
             city: place.city?.city_id,
             location: place.location?.location_id,
             placeName: place.location?.location_name ?? place.city?.city_name ?? place.state?.state_name ?? place.country.country_name,
-            schoolTypes: types.map((type) => type.school_type_id),
+            place: {
+              countrySlug: place.country.slug ?? place.country.country_name,
+              stateSlug: place.state?.slug ?? place.state?.state_name,
+              citySlug: place.city?.slug ?? place.city?.city_name,
+              locationSlug: place.location?.slug ?? place.location?.location_name,
+            },
           }}
         />
       </>

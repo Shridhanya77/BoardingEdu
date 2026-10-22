@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -24,7 +25,29 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
             if len(usernames) == 1:
                 attrs["username"] = usernames[0]
 
-        return super().validate(attrs)
+        data = super().validate(attrs)
+
+        # School accounts only become usable once an admin verifies the school.
+        user = self.user
+        if user.role == UserModel.ROLE_SCHOOL_ADMIN:
+            try:
+                school = user.school_admin_profile.school
+            except (SchoolAdminProfile.DoesNotExist, AttributeError):
+                school = None
+            if school is not None and school.verification_status != "VERIFIED":
+                if school.verification_status == "PENDING":
+                    message = (
+                        f"'{school.school_name}' is still awaiting verification. "
+                        "You will be able to sign in once our team approves the school."
+                    )
+                else:
+                    message = (
+                        "This school account is not verified yet. "
+                        "Please contact support if you believe this is a mistake."
+                    )
+                raise AuthenticationFailed(message)
+
+        return data
 
 
 # ======================================================================
@@ -141,13 +164,21 @@ class UserDetailSerializer(serializers.ModelSerializer):
         # Always check raw FK column first; profile.school raises
         # RelatedObjectDoesNotExist when school_id is NULL (on_delete SET_NULL).
         if not profile.school_id:
-            school_info = {"school_id": None, "school_code": None, "school_name": None}
+            school_info = {
+                "school_id": None,
+                "school_code": None,
+                "school_name": None,
+                "school_slug": None,
+                "school_verification_status": None,
+            }
         else:
             school = profile.school
             school_info = {
                 "school_id": str(school.school_id),
                 "school_code": school.school_code,
                 "school_name": school.school_name,
+                "school_slug": school.slug,
+                "school_verification_status": school.verification_status,
             }
 
         return {

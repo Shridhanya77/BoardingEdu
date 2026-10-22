@@ -39,6 +39,26 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Human-readable message from any thrown API error. Pulls `detail` (or the
+ * first field error) out of the DRF response body instead of echoing the URL.
+ */
+export function apiErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    const body = error.body;
+    if (body && typeof body === "object") {
+      const record = body as Record<string, unknown>;
+      if (typeof record.detail === "string") return record.detail;
+      for (const value of Object.values(record)) {
+        const first = Array.isArray(value) ? value[0] : value;
+        if (typeof first === "string" && first.trim()) return first;
+      }
+    }
+    return error.message;
+  }
+  return error instanceof Error ? error.message : "Something went wrong.";
+}
+
 async function parseBody(res: Response) {
   const text = await res.text();
   if (!text) return null;
@@ -204,7 +224,7 @@ export type UserDetail = {
   created_at: string;
   updated_at: string;
   parent_profile: { address: string; occupation: string; preferred_contact_method: "EMAIL" | "PHONE" | "WHATSAPP" } | null;
-  school_admin_profile: { school_id: string | null; school_code: string | null; school_name: string | null; designation: string } | null;
+  school_admin_profile: { school_id: string | null; school_code: string | null; school_name: string | null; school_slug?: string | null; school_verification_status?: "UNVERIFIED" | "PENDING" | "VERIFIED" | null; designation: string } | null;
   staff_admin_profile: { designation: string; department: string } | null;
 };
 export type RegisterInput = {
@@ -793,3 +813,195 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     published_at: school.published_at,
   };
 }
+
+// ---------- School self-registration & verification ----------
+
+export type SchoolRegistrationInput = {
+  school_name: string;
+  city: string;
+  address: string;
+  pincode?: string;
+  school_phone?: string;
+  school_email?: string;
+  established_year?: number | null;
+  gender?: "COED" | "BOYS" | "GIRLS";
+  boards?: string[];
+  school_types?: string[];
+  contact_full_name: string;
+  designation?: string;
+  username: string;
+  email: string;
+  phone: string;
+  password: string;
+  password_confirm: string;
+};
+
+export type SchoolRegistrationResult = {
+  school_id: string;
+  school_code: string;
+  school_name: string;
+  verification_status: string;
+  detail: string;
+};
+
+export type VerificationStatus = "UNVERIFIED" | "PENDING" | "VERIFIED";
+
+export async function registerSchool(
+  payload: SchoolRegistrationInput,
+): Promise<SchoolRegistrationResult> {
+  return request<SchoolRegistrationResult>("/schools/schools/register/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Pending-verification schools, for the admin review queue. */
+export async function fetchVerificationQueue(): Promise<PaginatedResponse<SchoolListItem>> {
+  return authRequest<PaginatedResponse<SchoolListItem>>(
+    "/schools/schools/verification-queue/",
+  );
+}
+
+export async function setSchoolVerification(
+  schoolId: string,
+  status: VerificationStatus,
+  note: string,
+): Promise<{ school_id: string; verification_status: string; event_id: string }> {
+  return authRequest<{ school_id: string; verification_status: string; event_id: string }>(
+    `/schools/schools/${schoolId}/verification/`,
+    { method: "POST", body: JSON.stringify({ status, note }) },
+  );
+}
+
+// ---------- Role dashboards ----------
+
+export type DashboardEnquiry = {
+  enquiry_id: string;
+  enquiry_code: string;
+  status: EnquiryStatus;
+  priority: EnquiryPriority;
+  created_at: string;
+  school_name: string;
+  parent_name: string;
+  parent_email: string;
+  parent_phone: string;
+  child_name: string;
+  message: string;
+};
+
+export type PendingSchool = {
+  school_id: string;
+  school_name: string;
+  school_code: string;
+  city_name: string;
+  state_name: string;
+  created_at: string;
+};
+
+export type SchoolDashboardData = {
+  school: {
+    school_id: string;
+    school_name: string;
+    school_code: string;
+    slug: string;
+    verification_status: VerificationStatus;
+    status: boolean;
+    city_name: string;
+    state_name: string;
+    country_slug: string;
+    state_slug: string;
+    city_slug: string;
+    location_slug: string | null;
+    profile_completeness: number;
+  };
+  stats: {
+    enquiries_total: number;
+    enquiries_new: number;
+    enquiries_this_month: number;
+    enquiries_converted: number;
+    reviews_published: number;
+    reviews_pending: number;
+    average_rating: number | null;
+  };
+  enquiry_status: Record<string, number>;
+  recent_enquiries: DashboardEnquiry[];
+};
+
+export type ParentDashboardData = {
+  stats: {
+    enquiries_total: number;
+    enquiries_open: number;
+    children: number;
+    reviews_total: number;
+    reviews_published: number;
+  };
+  children: {
+    child_id: string;
+    name: string;
+    date_of_birth: string;
+    gender: string;
+  }[];
+  recent_enquiries: DashboardEnquiry[];
+};
+
+export type AdminDashboardData = {
+  schools: {
+    total: number;
+    listed: number;
+    pending_verification: number;
+    verified: number;
+    added_this_month: number;
+  };
+  users: {
+    total: number;
+    parents: number;
+    school_admins: number;
+    staff_admins: number;
+    super_admins: number;
+    new_this_month: number;
+  };
+  enquiries: {
+    total: number;
+    this_month: number;
+    by_status: Record<string, number>;
+  };
+  reviews: { total: number; by_status: Record<string, number> };
+  counselling: { total: number; new: number };
+  coverage: { cities_covered: number };
+  pending_schools: PendingSchool[];
+  recent_enquiries: DashboardEnquiry[];
+};
+
+export type StaffAdminDashboardData = {
+  queues: {
+    reviews_pending: number;
+    schools_pending: number;
+    enquiries_new: number;
+    enquiries_unassigned: number;
+    counselling_new: number;
+  };
+  workload: {
+    enquiries_this_month: number;
+    reviews_this_month: number;
+    counselling_this_month: number;
+  };
+  recent_reviews: {
+    review_id: string;
+    school_name: string;
+    rating: number;
+    status: ReviewStatus;
+    author_name: string;
+    title: string;
+    created_at: string;
+  }[];
+  recent_enquiries: DashboardEnquiry[];
+  pending_schools: PendingSchool[];
+};
+
+export const dashboards = {
+  school: () => authRequest<SchoolDashboardData>("/dashboards/school/"),
+  parent: () => authRequest<ParentDashboardData>("/dashboards/parent/"),
+  admin: () => authRequest<AdminDashboardData>("/dashboards/admin/"),
+  staffAdmin: () =>
+    authRequest<StaffAdminDashboardData>("/dashboards/staff-admin/"),
+};

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { fetchAllPages, geography, schools } from "@/lib/api";
 import { guideList } from "@/lib/guides";
-import { boardListingPath, placeListingPath, schoolListPath } from "@/lib/school-urls";
+import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
 import { toSeoSlug, withTrailingSlash } from "@/lib/seo-slugs";
 import { SITE_URL } from "@/lib/site";
 
@@ -14,6 +14,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: loc("/"), lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: loc("/schools"), lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: loc(schoolDirectoryPath("day-school")), lastModified: now, changeFrequency: "daily", priority: 0.85 },
+    { url: loc(schoolDirectoryPath("residential-school")), lastModified: now, changeFrequency: "daily", priority: 0.85 },
     { url: loc("/compare"), lastModified: now, changeFrequency: "weekly", priority: 0.4 },
     { url: loc("/privacy"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: loc("/terms"), lastModified: now, changeFrequency: "yearly", priority: 0.2 },
@@ -89,7 +91,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       });
       entries.push({
-        url: loc(`/${country}/${state}/boarding-schools`),
+        url: loc(placeListingPath({
+          countrySlug: country,
+          stateSlug: state,
+          category: "residential-school",
+        })),
         lastModified: now,
         changeFrequency: "weekly",
         priority: 0.65,

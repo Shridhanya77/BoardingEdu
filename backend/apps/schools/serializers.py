@@ -1,5 +1,10 @@
+import re
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework import serializers
 
+from apps.geography.models import City
 from apps.geography.serializers import (
     CountryListSerializer,
     StateListSerializer,
@@ -855,3 +860,154 @@ class SchoolGradeDetailSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+
+# ======================================================================
+# SCHOOL SELF-REGISTRATION (public onboarding)
+# Creates a PENDING school + its SCHOOL_ADMIN login in one atomic step.
+# The account stays unusable until a staff/super admin verifies the school.
+# ======================================================================
+
+def next_school_code() -> str:
+    """Sequential school code, e.g. SCH0001."""
+    codes = School.objects.filter(school_code__regex=r'^SCH\d+$').values_list(
+        'school_code', flat=True
+    )
+    highest = max((int(code[3:]) for code in codes), default=0)
+    return f'SCH{highest + 1:04d}'
+
+
+class SchoolRegistrationSerializer(serializers.Serializer):
+    """Public school sign-up → pending School + pending SCHOOL_ADMIN user."""
+
+    # ---- School profile ----
+    school_name = serializers.CharField(max_length=255)
+    city = serializers.UUIDField()
+    address = serializers.CharField(max_length=500)
+    pincode = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    school_phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    school_email = serializers.EmailField(required=False, allow_blank=True)
+    established_year = serializers.IntegerField(required=False, allow_null=True)
+    gender = serializers.ChoiceField(
+        choices=[choice[0] for choice in School.GENDER_CHOICES],
+        required=False,
+        default='COED',
+    )
+    boards = serializers.ListField(
+        child=serializers.UUIDField(), required=False, allow_empty=True
+    )
+    school_types = serializers.ListField(
+        child=serializers.UUIDField(), required=False, allow_empty=True
+    )
+
+    # ---- Primary contact / login credentials ----
+    contact_full_name = serializers.CharField(max_length=150)
+    designation = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=17)
+    password = serializers.CharField(min_length=8, write_only=True)
+    password_confirm = serializers.CharField(min_length=8, write_only=True)
+
+    def validate_email(self, value):
+        User = get_user_model()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                'An account with this email address already exists.'
+            )
+        return value
+
+    def validate_username(self, value):
+        User = get_user_model()
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError('This username is already taken.')
+        return value
+
+    def validate_phone(self, value):
+        digits = re.sub(r'\D', '', value or '')
+        if not 9 <= len(digits) <= 15:
+            raise serializers.ValidationError(
+                'Enter a phone number with 9 to 15 digits, e.g. +919999999999.'
+            )
+        return value
+
+    def validate_city(self, value):
+        try:
+            return City.objects.select_related('state__country').get(
+                pk=value, status=True
+            )
+        except City.DoesNotExist:
+            raise serializers.ValidationError('Choose a valid city.')
+
+    def validate(self, data):
+        if data['password'] != data['password_confirm']:
+            raise serializers.ValidationError(
+                {'password_confirm': 'Passwords do not match.'}
+            )
+        if data.get('established_year') and not (
+            1800 <= data['established_year'] <= 2100
+        ):
+            raise serializers.ValidationError(
+                {'established_year': 'Enter a year between 1800 and 2100.'}
+            )
+
+        boards = Board.objects.filter(pk__in=data.get('boards') or [])
+        school_types = SchoolType.objects.filter(
+            pk__in=data.get('school_types') or []
+        )
+        if data.get('boards') and boards.count() != len(set(data['boards'])):
+            raise serializers.ValidationError({'boards': 'Choose valid boards.'})
+        if data.get('school_types') and school_types.count() != len(
+            set(data['school_types'])
+        ):
+            raise serializers.ValidationError(
+                {'school_types': 'Choose valid school types.'}
+            )
+        data['_boards'] = list(boards)
+        data['_school_types'] = list(school_types)
+        return data
+
+    @transaction.atomic
+    def create(self, validated_data):
+        User = get_user_model()
+        from apps.users.models import SchoolAdminProfile
+
+        city = validated_data['city']
+        contact_name = validated_data['contact_full_name'].strip()
+        first_name, _, last_name = contact_name.partition(' ')
+
+        school = School.objects.create(
+            school_code=next_school_code(),
+            school_name=validated_data['school_name'].strip(),
+            country=city.state.country,
+            state=city.state,
+            city=city,
+            address=validated_data['address'].strip(),
+            pincode=validated_data.get('pincode', ''),
+            phone=validated_data.get('school_phone', ''),
+            email=validated_data.get('school_email', ''),
+            established_year=validated_data.get('established_year'),
+            gender=validated_data.get('gender', 'COED'),
+            principal_name=contact_name[:100],
+            # Not publicly visible until an admin verifies the school.
+            status=False,
+            verification_status='PENDING',
+        )
+        school.boards.set(validated_data['_boards'])
+        school.school_types.set(validated_data['_school_types'])
+
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=first_name,
+            last_name=last_name,
+            phone=validated_data['phone'],
+            role=User.ROLE_SCHOOL_ADMIN,
+        )
+        SchoolAdminProfile.objects.create(
+            user=user,
+            school=school,
+            designation=validated_data.get('designation', ''),
+        )
+        return school

@@ -8,6 +8,7 @@ import type { SchoolDetail } from "@/lib/api";
 import { schoolDetailToListItem } from "@/lib/api";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
+import { useSchoolEnquiry } from "./SchoolEnquiryDialog";
 
 export function SchoolEnquiryButton({
   className,
@@ -16,15 +17,10 @@ export function SchoolEnquiryButton({
   className: string;
   children: ReactNode;
 }) {
+  const enquiry = useSchoolEnquiry();
+
   return (
-    <button
-      className={className}
-      type="button"
-      onClick={() => document.getElementById("school-enquiry")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      })}
-    >
+    <button className={className} type="button" onClick={() => enquiry?.open()}>
       {children}
     </button>
   );

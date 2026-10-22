@@ -1,5 +1,5 @@
 import {
-  homeSchoolCategoryPath,
+  schoolCategorySegment,
   schoolProfilePathFromSlugs,
   toSeoSlug,
   withTrailingSlash,
@@ -25,16 +25,40 @@ export function schoolListPath(school: SchoolPathFields): string {
   });
 }
 
+/**
+ * Board listing URL. The school-type family is a path segment (never a query
+ * string) so every canonical URL ends with a trailing slash:
+ *   /board/cbse/                → board chooser / all CBSE schools
+ *   /board/cbse/day-school/     → CBSE day + day boarding schools
+ *   /board/cbse/boarding-school/→ CBSE boarding + day boarding schools
+ */
 export function boardListingPath(
   slug: string,
   category?: HomeSchoolCategory | null,
 ): string {
-  const path = withTrailingSlash(`/board/${toSeoSlug(slug)}`);
-  return category
-    ? `${path}?home_category=${homeSchoolCategoryPath(category)}`
-    : path;
+  const base = withTrailingSlash(`/board/${toSeoSlug(slug)}`);
+  return category ? `${base}${schoolCategorySegment(category)}/` : base;
 }
 
+/**
+ * Typed school-directory URL with no query string:
+ *   /schools/                   → every school
+ *   /schools/day-school/        → day + day boarding schools
+ *   /schools/boarding-school/   → boarding + day boarding schools
+ */
+export function schoolDirectoryPath(category?: HomeSchoolCategory | null): string {
+  return category
+    ? `/schools/${schoolCategorySegment(category)}/`
+    : withTrailingSlash("/schools");
+}
+
+/**
+ * Hierarchical listing URL. Without a category it is the place landing page
+ * that asks for a school type first:
+ *   /india/karnataka/bengaluru/                 → school-type chooser
+ *   /india/karnataka/bengaluru/day-school/      → day + day boarding schools
+ *   /india/karnataka/bengaluru/boarding-school/ → boarding + day boarding schools
+ */
 export function placeListingPath(parts: {
   countrySlug: string;
   stateSlug?: string | null;
@@ -52,7 +76,7 @@ export function placeListingPath(parts: {
     .map(toSeoSlug)
     .join("/")}`;
   const categoryPath = parts.category
-    ? `${path}/${homeSchoolCategoryPath(parts.category)}`
+    ? `${path}/${schoolCategorySegment(parts.category)}`
     : path;
   return withTrailingSlash(categoryPath);
 }

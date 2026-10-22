@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography } from "@/lib/api";
 import type { CityListItem, CountryListItem, LocationListItem, SchoolTypeListItem, StateListItem } from "@/lib/api";
-import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolCategoryPath, homeSchoolTypeIds, schoolTypeCategory, toSeoSlug, type HomeSchoolCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
+import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolTypeIds, schoolCategorySegment, schoolTypeCategory, toSeoSlug, type HomeSchoolCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
+import { schoolDirectoryPath } from "@/lib/school-urls";
 
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
@@ -130,8 +131,8 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     }
     return homeCategory
       ? country
-        ? `/${parts.join("/")}/${homeSchoolCategoryPath(homeCategory)}`
-        : `/home?home_category=${homeSchoolCategoryPath(homeCategory)}`
+        ? `/${parts.join("/")}/${schoolCategorySegment(homeCategory)}`
+        : schoolDirectoryPath(homeCategory)
       : "/home";
   }, [country, state, city, locality, residential, activeCategory, homeSearch]);
 
