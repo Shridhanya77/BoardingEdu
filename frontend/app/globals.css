@@ -13967,3 +13967,309 @@ select:focus-visible {
   background: #e8650f;
   color: #fff;
 }
+
+.hero-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(640px, 100%);
+  margin: 18px 0 8px;
+  padding: 8px 8px 8px 16px;
+  background: rgb(255 255 255 / 96%);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 999px;
+  box-shadow: 0 18px 40px rgb(8 20 40 / 22%);
+}
+
+.hero-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #17324d;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.hero-search button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: #f26b1d;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hero-search button:hover {
+  background: #d85a12;
+}
+
+.discovery-page--home .home-quick-actions {
+  margin: 8px auto 0;
+  padding: 28px 22px 24px;
+  border: 0;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 12% 20%, rgb(255 140 60 / 35%), transparent 28%),
+    radial-gradient(circle at 88% 80%, rgb(80 140 255 / 28%), transparent 32%),
+    linear-gradient(135deg, #10243d 0%, #1a3d66 55%, #12304f 100%);
+}
+
+.discovery-page--home .home-quick-actions .section-eyebrow,
+.discovery-page--home .home-quick-actions h2 {
+  color: #fff;
+}
+
+.discovery-page--home .home-quick-action {
+  background: rgb(255 255 255 / 94%);
+  cursor: pointer;
+}
+
+.discovery-page--home .home-quick-action:hover {
+  transform: translateY(-4px);
+}
+
+.discovery-page--home .featured-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.discovery-page--home .featured-card--compact {
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.discovery-page--home .featured-card--compact > a {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0 0 12px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-decoration: none;
+}
+
+.discovery-page--home .featured-card--compact .featured-card__cover {
+  width: 100%;
+  min-height: 96px;
+  padding: 14px;
+}
+
+.discovery-page--home .featured-card--compact .featured-card__photo {
+  object-fit: cover;
+  opacity: 0.38;
+}
+
+.discovery-page--home .featured-card--compact .featured-card__logo {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-width: 2px;
+  border-radius: 12px;
+}
+
+.discovery-page--home .featured-card--compact h3,
+.discovery-page--home .featured-card--compact .featured-card__place,
+.discovery-page--home .featured-card--compact .featured-card__meta,
+.discovery-page--home .featured-card--compact .featured-card__rating {
+  margin: 0;
+  padding: 0 12px;
+}
+
+.discovery-page--home .featured-card--compact h3 {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.discovery-page--home .featured-card--compact .featured-card__place,
+.discovery-page--home .featured-card--compact .featured-card__meta {
+  color: #5c6d82;
+  font-size: 12px;
+}
+
+.discovery-page--home .featured-card--compact .featured-card__rating {
+  margin: 8px 12px 12px;
+  width: fit-content;
+}
+
+.discovery-page--home .featured-card--compact:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px rgb(18 36 58 / 14%);
+}
+
+.discovery-page--home .counselling {
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+
+.discovery-page--home .counselling__intro p {
+  max-width: 36ch;
+}
+
+.discovery-page--home .state-card,
+.discovery-page--home .city-card,
+.discovery-page--home .board-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.discovery-page--home .state-card:hover,
+.discovery-page--home .city-card:hover,
+.discovery-page--home .board-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 28px rgb(16 36 61 / 16%);
+}
+
+.school-feature-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.read-more p {
+  margin: 0 0 8px;
+  line-height: 1.6;
+}
+
+.read-more button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #c2410c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.school-keyword-line {
+  margin: 12px 0;
+  color: #5c6d82;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.account-card__hint {
+  margin: 8px 0 0;
+  color: #5c6d82;
+  line-height: 1.5;
+}
+
+.discovery-page--listing .filters-panel {
+  position: sticky;
+  top: 16px;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(160deg, #f26b1d, #1d4e89) border-box;
+  border: 1px solid transparent;
+}
+
+@media (max-width: 800px) {
+  .school-feature-split,
+  .discovery-page--home .home-quick-actions__grid,
+  .discovery-page--home .featured-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .discovery-page--listing .filters-panel {
+    position: static;
+  }
+}
+
+.grades-offered--ribbon {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.grades-offered--ribbon .grade-offered {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(160deg, #f26b1d, #1d4e89) border-box;
+  border: 1px solid transparent;
+  transition: transform 280ms cubic-bezier(.2, .8, .2, 1), box-shadow 280ms ease, filter 280ms ease;
+}
+
+.grades-offered--ribbon .grade-offered:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.03);
+  box-shadow: 0 16px 30px rgb(18 36 58 / 12%);
+}
+
+.grades-offered--ribbon .grade-offered__name {
+  font-size: 15px;
+}
+
+.school-detail__principal {
+  margin: 12px 0 0;
+  color: #3d5168;
+  font-size: 14px;
+}
+
+.discovery-page--home .counselling__form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 14px;
+}
+
+.discovery-page--home .counselling__form h3,
+.discovery-page--home .counselling__form button[type="submit"],
+.discovery-page--home .counselling__form .counselling__error,
+.discovery-page--home .counselling__form .counselling__ok,
+.discovery-page--home .counselling__form .counselling__lock {
+  grid-column: 1 / -1;
+}
+
+.account-page {
+  background:
+    radial-gradient(circle at 15% 10%, rgb(242 107 29 / 18%), transparent 28%),
+    radial-gradient(circle at 85% 0%, rgb(29 78 137 / 16%), transparent 32%),
+    #f4f7fb;
+}
+
+.account-card {
+  background: rgb(255 255 255 / 82%);
+  backdrop-filter: blur(16px);
+  transition: transform 320ms cubic-bezier(.2, .8, .2, 1), box-shadow 320ms ease, filter 320ms ease;
+}
+
+.account-card:hover {
+  transform: translateY(-6px);
+  filter: brightness(1.02);
+  box-shadow: 0 24px 50px rgb(16 36 61 / 14%);
+}
+
+.account-form .field__wrap,
+.account-form input,
+.account-form select,
+.counselling__form input,
+.counselling__form select {
+  transition: border-color 240ms ease, box-shadow 240ms ease, transform 240ms ease, filter 240ms ease;
+}
+
+.account-form .field__wrap:focus-within,
+.counselling__form input:focus,
+.counselling__form select:focus {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 0 0 4px rgb(242 107 29 / 16%);
+}
+
+.account-form button[type="submit"],
+.counselling__form button[type="submit"] {
+  transition: transform 280ms cubic-bezier(.2, .8, .2, 1), filter 280ms ease, box-shadow 280ms ease;
+}
+
+.account-form button[type="submit"]:hover,
+.counselling__form button[type="submit"]:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08) saturate(1.05);
+  box-shadow: 0 14px 28px rgb(15 90 70 / 22%);
+}

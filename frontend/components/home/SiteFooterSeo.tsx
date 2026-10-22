@@ -14,7 +14,7 @@ import {
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { placeListingPath } from "@/lib/school-urls";
+import { boardListingPath, placeListingPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -137,30 +137,11 @@ export default function SiteFooterSeo({
     const links: { label: string; href: string }[] = [];
 
     for (const { category, label } of availableCategories) {
-      const typeLabel = label.replace("Day Schools", "Day").replace("Boarding Schools", "Boarding");
-
       for (const board of topBoards) {
-        for (const city of topCities) {
-          links.push({
-            label: `${board.board_name} ${typeLabel} Schools in ${city.city_name}`,
-            href: `${placeListingPath({
-              countrySlug: city.country_slug ?? city.country_name,
-              stateSlug: city.state_slug ?? city.state_name,
-              citySlug: city.slug,
-              category,
-            })}?board=${toSeoSlug(board.slug)}`,
-          });
-        }
-        for (const [, state] of topStates) {
-          links.push({
-            label: `${board.board_name} ${typeLabel} Schools in ${state.name}`,
-            href: `${placeListingPath({
-              countrySlug: state.countrySlug,
-              stateSlug: state.stateSlug,
-              category,
-            })}?board=${toSeoSlug(board.slug)}`,
-          });
-        }
+        links.push({
+          label: `${board.board_name} ${label}`,
+          href: boardListingPath(board.slug, category),
+        });
       }
 
       for (const city of topCities) {

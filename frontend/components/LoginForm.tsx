@@ -59,6 +59,9 @@ export default function LoginForm() {
       <section className="account-card">
         <span className="section-eyebrow">BOARDINGEDU LOGIN</span>
         <h1>Welcome back.</h1>
+        <p className="account-card__hint">
+          Parents, school admins, staff admins, and platform admins sign in here. Each role opens its own dashboard.
+        </p>
 
 
         <form className="account-form" onSubmit={onSubmit} noValidate>

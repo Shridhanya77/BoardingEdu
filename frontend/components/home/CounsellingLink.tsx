@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -20,24 +20,18 @@ export default function CounsellingLink({
   const pathname = usePathname();
   const router = useRouter();
 
-  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
+  function handleClick() {
     onClick?.();
-    if (pathname === "/") {
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `${window.location.pathname}${window.location.search}`,
-      );
+    if (pathname === "/counselling" || pathname === "/counselling/") {
       scrollToCounselling();
       return;
     }
     window.sessionStorage.setItem(counsellingScrollStorageKey, "true");
-    router.push("/", { scroll: false });
+    router.push("/counselling/");
   }
 
   return (
-    <Link className={className} href="/" onClick={handleClick}>
+    <Link className={className} href="/counselling/" onClick={handleClick}>
       {children}
     </Link>
   );

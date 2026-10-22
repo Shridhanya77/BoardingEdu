@@ -542,15 +542,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [botOnboardingOpen, setBotOnboardingOpen] = useState(false);
 
-  useEffect(() => {
-    if (isHomePage) {
-      const shown = window.sessionStorage.getItem("boardingeu:bot-onboarding-shown");
-      if (!shown) {
-        setBotOnboardingOpen(true);
-        window.sessionStorage.setItem("boardingeu:bot-onboarding-shown", "true");
-      }
-    }
-  }, [isHomePage]);
   const [locationPreferences, setLocationPreferences] =
     useState<LocationPreferences | null>(null);
   const [locationPreferencesLoaded, setLocationPreferencesLoaded] = useState(false);
@@ -1903,6 +1894,23 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               : listingDescription}
           </p>
 
+          {isHomePage && (
+            <form
+              className="hero-search"
+              role="search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const query = String(new FormData(event.currentTarget).get("q") ?? "").trim();
+                router.push(query ? `/schools/?search=${encodeURIComponent(query)}` : "/schools/");
+              }}
+            >
+              <label className="sr-only" htmlFor="home-school-search">Search schools</label>
+              <Search size={18} aria-hidden />
+              <input id="home-school-search" name="q" type="search" placeholder="Search a school, city, or board" />
+              <button type="submit">Search</button>
+            </form>
+          )}
+
           <HeroFinder
             value={finderValue()}
             schoolTypes={schoolTypes}
@@ -1999,7 +2007,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </section>
       )}
 
-      {(isHomePage ? schoolTypeBrowseCards.length > 0 : showTypeChooser) && (
+      {!isHomePage && showTypeChooser && (
         <section className="home-section home-section--types" id="school-types">
           <div className="home-section__heading home-section__heading--centered">
             <div>
@@ -2009,7 +2017,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           <div className="type-browse-grid">
-            {(isHomePage ? schoolTypeBrowseCards : schoolTypeChooserCards).map((card) => (
+            {schoolTypeChooserCards.map((card) => (
               <Link className="type-browse-card" href={typeChooserPath(card.category)} key={card.slug}>
                 <span className="type-browse-card__icon" aria-hidden="true">
                   {card.category === "day-school"
@@ -2028,17 +2036,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           <p className="type-browse-note">
-            {isHomePage ? (
-              <>
-                Not sure yet? <Link href="/schools">Browse every school</Link> or read
-                our <Link href="/guides">parent guides</Link>.
-              </>
-            ) : (
-              <>
-                Day boarding schools are listed with both options. Prefer to see
-                everything? <Link href="#schools">Browse all schools in this area</Link>.
-              </>
-            )}
+            <Link href={schoolDirectoryPath()}>Browse every school</Link>
           </p>
         </section>
       )}
@@ -2046,15 +2044,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       <section className="home-section compare-promo" id="compare-schools">
         <div className="compare-promo__intro">
           <span className="compare-promo__eyebrow"><BarChart3 size={15} /> YOUR SHORTLIST, SIDE BY SIDE</span>
-          <h2>Compare schools on what matters to your family</h2>
-          <p>Boards, fees, and parent ratings, side by side.</p>
-          <ul className="compare-promo__criteria">
-            <li><Building2 size={14} aria-hidden /> Board &amp; school type</li>
-            <li><MapPin size={14} aria-hidden /> Location &amp; locality</li>
-            <li><BarChart3 size={14} aria-hidden /> Annual fees</li>
-            <li><Star size={14} aria-hidden /> Parent ratings</li>
-          </ul>
-          <Link href="/compare" className="compare-promo__action">
+          <h2>Compare schools</h2>
+          <p>Add a school, then open the comparison.</p>
+          <Link href="/compare/" className="compare-promo__action">
             Open school comparison <ArrowRight size={16} />
           </Link>
           <span className="compare-promo__status" role="status" aria-live="polite">
@@ -2064,10 +2056,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="compare-promo__schools">
           {comparisonSchools.map((school) => {
             const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
-            const boards = school.boards_detail.map((item) => item.board_code).join(" · ") || "Board not listed";
-            const type = school.school_types_detail
-              .map((item) => schoolTypeLabel(item.type_code, item.slug, item.type_name))
-              .join(", ") || "School type not listed";
             const cover =
               school.school_image_url ||
               school.school_photos?.[0]?.photo_url ||
@@ -2085,32 +2073,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   </span>
                   <strong>{school.school_name}</strong>
                 </Link>
-                <dl className="compare-promo__facts">
-                  <div>
-                    <dt>Board</dt>
-                    <dd>{boards}</dd>
-                  </div>
-                  <div>
-                    <dt>Type</dt>
-                    <dd>{type}</dd>
-                  </div>
-                  <div>
-                    <dt>Annual fee</dt>
-                    <dd>
-                      {school.annual_fee != null && Number.isFinite(Number(school.annual_fee))
-                        ? `From ${formatRupees(Number(school.annual_fee))}`
-                        : "On request"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Parents</dt>
-                    <dd>
-                      {school.average_rating != null
-                        ? `${school.average_rating.toFixed(1)} / 5`
-                        : "No rating yet"}
-                    </dd>
-                  </div>
-                </dl>
                 <button
                   type="button"
                   className={isCompared ? "is-added" : undefined}
@@ -2160,25 +2122,39 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <small>Open the complete directory</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
-          <Link className="home-quick-action" href="/schools?max_fee=100000">
+          <Link className="home-quick-action" href="/schools/?max_fee=100000">
             <span><CircleDollarSign size={20} aria-hidden /></span>
             <strong>Schools under ₹1 lakh</strong>
             <small>Start with your budget</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
-          <Link className="home-quick-action" href="#cities">
+          <Link
+            className="home-quick-action"
+            href={
+              cityCards[0]
+                ? placeListingPath({
+                    countrySlug: cityCards[0].country_slug ?? cityCards[0].country_name,
+                    stateSlug: cityCards[0].state_slug ?? cityCards[0].state_name,
+                    citySlug: cityCards[0].slug,
+                  })
+                : schoolDirectoryPath()
+            }
+          >
             <span><MapPin size={20} aria-hidden /></span>
             <strong>Choose a location</strong>
-            <small>Browse popular cities</small>
+            <small>{cityCards[0]?.city_name ?? "Browse popular cities"}</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
-          <Link className="home-quick-action" href="#boards">
+          <Link
+            className="home-quick-action"
+            href={boards[0] ? boardListingPath(boards[0].slug) : schoolDirectoryPath()}
+          >
             <span><BookOpen size={20} aria-hidden /></span>
             <strong>Choose a board</strong>
-            <small>Browse curricula</small>
+            <small>{boards[0]?.board_name ?? "Browse curricula"}</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
-          <Link className="home-quick-action" href="/compare">
+          <Link className="home-quick-action" href="/compare/">
             <span><BarChart3 size={20} aria-hidden /></span>
             <strong>Compare schools</strong>
             <small>Review your shortlist</small>

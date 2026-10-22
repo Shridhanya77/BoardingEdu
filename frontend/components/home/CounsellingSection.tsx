@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   admissions,
@@ -15,7 +15,6 @@ import {
   type StateListItem,
 } from "@/lib/api";
 import GradeMultiSelect from "./GradeMultiSelect";
-import { schoolTypeLabel } from "@/lib/seo-slugs";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
@@ -27,6 +26,7 @@ export default function CounsellingSection() {
   const [preferredCountryId, setPreferredCountryId] = useState("");
   const [preferredStateId, setPreferredStateId] = useState("");
   const [states, setStates] = useState<StateListItem[]>([]);
+  const [cityChoices, setCityChoices] = useState<CityListItem[]>([]);
   const [availableCities, setAvailableCities] = useState<CityListItem[]>([]);
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
@@ -51,12 +51,18 @@ export default function CounsellingSection() {
       schools.boards().then((page) => fetchAllPages(page)),
       schools.types().then((page) => fetchAllPages(page)),
       geography.countries().then((page) => fetchAllPages(page)),
+      geography.cities().then((page) => fetchAllPages(page, 1000)),
     ])
-      .then(([gradeRows, boardRows, typeRows, countryRows]) => {
+      .then(([gradeRows, boardRows, typeRows, countryRows, cityRows]) => {
         if (!cancelled) {
           setGrades(gradeRows.filter((row) => row.status));
           setBoards(boardRows.filter((row) => row.status));
           setSchoolTypes(typeRows.filter((row) => row.status));
+          setCityChoices(
+            cityRows
+              .filter((row) => row.status && (row.schools_count ?? 0) >= 0)
+              .sort((left, right) => left.city_name.localeCompare(right.city_name)),
+          );
           const india = countryRows.find(
             (country) =>
               country.status &&
@@ -147,17 +153,6 @@ export default function CounsellingSection() {
     };
   }, [preferredStateId, preferredCountryId]);
 
-  const selectedNames = useMemo(
-    () => preferred.map((city) => city.city_name).join(", "),
-    [preferred]
-  );
-
-  function addPreferredCity(city: CityListItem) {
-    if (preferred.some((item) => item.city_id === city.city_id)) return;
-    setPreferred((current) => [...current, city]);
-    setCitySearch("");
-  }
-
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -229,40 +224,12 @@ export default function CounsellingSection() {
     <section className="home-section counselling" id="counselling">
       <div className="counselling__intro">
         <div className="section-eyebrow">100% FREE SERVICE</div>
-        <h2>Get Free One-on-One Admission Counselling</h2>
-        <p>
-          Our expert counsellors connect with you to provide personalised guidance on school
-          selection, fee structures, board differences, and everything you need for a confident
-          admission decision.
-        </p>
-        <ul>
-          <li>
-            <span>🎓</span>
-            <div>
-              <strong>Expert Board Guidance</strong>
-              <p>CBSE, ICSE, IB, Cambridge — understand every board difference.</p>
-            </div>
-          </li>
-          <li>
-            <span>🏫</span>
-            <div>
-              <strong>Personalised School Matching</strong>
-              <p>We help you narrow your options based on your family&apos;s needs.</p>
-            </div>
-          </li>
-          <li>
-            <span>📋</span>
-            <div>
-              <strong>Application & Document Support</strong>
-              <p>Forms, deadlines, fee planning, and admission strategy.</p>
-            </div>
-          </li>
-        </ul>
+        <h2>Free admission counselling</h2>
+        <p>Tell us the class and city. A counsellor will call you back.</p>
       </div>
 
       <form className="counselling__form" onSubmit={onSubmit}>
-        <h3>Book Free Counselling</h3>
-        <p>Share your details to request personalised guidance.</p>
+        <h3>Request a call</h3>
 
         <label>
           Your Name
@@ -304,173 +271,24 @@ export default function CounsellingSection() {
         />
         {optionsError && <p className="counselling__error" role="alert">{optionsError}</p>}
         <label>
-          Home City
-          <input
-            value={homeCity}
-            onChange={(event) => setHomeCity(event.target.value)}
-            placeholder="e.g. Mumbai"
-          />
-        </label>
-        <div className="counselling__cities">
-          <span id="preferred-cities-label">Preferred Cities *</span>
-          <button
-            type="button"
-            className="counselling__cities-trigger"
-            aria-expanded={citiesOpen}
-            aria-controls="preferred-cities-picker"
-            aria-labelledby="preferred-cities-label"
-            onClick={() => setCitiesOpen((open) => !open)}
-          >
-            {citiesOpen ? "Hide state and city options" : "Choose states and cities"}
-          </button>
-          {preferred.length > 0 && (
-            <div className="counselling__picked">
-              {preferred.map((city) => (
-                <button
-                  type="button"
-                  key={city.city_id}
-                  aria-label={`Remove ${city.city_name}`}
-                  onClick={() =>
-                    setPreferred((current) =>
-                      current.filter((item) => item.city_id !== city.city_id)
-                    )
-                  }
-                >
-                  {city.city_name} · {city.state_name}, {city.country_name} ×
-                </button>
-              ))}
-              <button type="button" aria-label="Clear all preferred cities" onClick={() => setPreferred([])}>Clear all</button>
-            </div>
-          )}
-          {citiesOpen && (
-            <div className="counselling__city-picker" id="preferred-cities-picker">
-              <label className="counselling__city-search">
-                Find a city
-                <input
-                  value={citySearch}
-                  onChange={(event) => setCitySearch(event.target.value)}
-                  placeholder="Search cities in a state"
-                  disabled={loadingStates}
-                />
-              </label>
-              {loadingStates ? (
-                <p className="counselling__city-empty" role="status">Loading states…</p>
-              ) : states.length ? (
-                <div className="counselling__state-list">
-                  {states.map((state) => {
-                    const isOpen = preferredStateId === state.state_id;
-                    const matchingCities = isOpen
-                      ? availableCities.filter(
-                          (city) =>
-                            !preferred.some((item) => item.city_id === city.city_id) &&
-                            city.city_name.toLowerCase().includes(citySearch.trim().toLowerCase()),
-                        )
-                      : [];
-                    return (
-                      <section key={state.state_id}>
-                        <button
-                          type="button"
-                          aria-expanded={isOpen}
-                          onClick={() => {
-                            setPreferredStateId(isOpen ? "" : state.state_id);
-                            setCityError(null);
-                          }}
-                        >
-                          <span className="counselling__state-chevron" aria-hidden>
-                            {isOpen ? "▾" : "›"}
-                          </span>
-                          <span>{state.state_name}</span>
-                          <small>{isOpen ? "Hide cities" : "Show cities"}</small>
-                        </button>
-                        {isOpen && (
-                          <div className="counselling__city-options">
-                            {loadingCities ? (
-                              <p className="counselling__city-empty" role="status">Loading cities…</p>
-                            ) : matchingCities.length ? (
-                              matchingCities.map((city) => (
-                                <button
-                                  type="button"
-                                  key={city.city_id}
-                                  onClick={() => addPreferredCity(city)}
-                                >
-                                  {city.city_name}
-                                  <small>Add</small>
-                                </button>
-                              ))
-                            ) : (
-                              <p className="counselling__city-empty">
-                                {availableCities.length
-                                  ? "No cities match your search."
-                                  : "No cities are available for this state."}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </section>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="counselling__city-empty">No states are available right now.</p>
-              )}
-            </div>
-          )}
-          {cityError && <p className="counselling__error" role="alert">{cityError}</p>}
-          {selectedNames && <p className="sr-only" aria-live="polite">Selected: {selectedNames}</p>}
-        </div>
-        {boards.length > 0 && (
-          <fieldset className="counselling__preferences">
-            <legend>Preferred education boards</legend>
-            {boards.map((board) => (
-              <label key={board.board_id}>
-                <input
-                  type="checkbox"
-                  checked={selectedBoards.includes(board.board_id)}
-                  disabled={submitting}
-                  onChange={(event) =>
-                    setSelectedBoards((current) =>
-                      event.target.checked
-                        ? [...current, board.board_id]
-                        : current.filter((id) => id !== board.board_id)
-                    )
-                  }
-                />
-                {board.board_name}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        {schoolTypes.length > 0 && (
-          <fieldset className="counselling__preferences">
-            <legend>Preferred school types</legend>
-            {schoolTypes.map((type) => (
-              <label key={type.school_type_id}>
-                <input
-                  type="checkbox"
-                  checked={selectedSchoolTypes.includes(type.school_type_id)}
-                  disabled={submitting}
-                  onChange={(event) =>
-                    setSelectedSchoolTypes((current) =>
-                      event.target.checked
-                        ? [...current, type.school_type_id]
-                        : current.filter((id) => id !== type.school_type_id)
-                    )
-                  }
-                />
-                {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        <label>
-          Additional requirements
-          <textarea
-            rows={3}
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
+          City
+          <select
+            value={preferred[0]?.city_id ?? ""}
+            required
             disabled={submitting}
-            placeholder="Optional details that will help our counsellor prepare."
-          />
+            onChange={(event) => {
+              const city = cityChoices.find((item) => item.city_id === event.target.value);
+              setPreferred(city ? [city] : []);
+              setHomeCity(city?.city_name ?? "");
+            }}
+          >
+            <option value="">{cityChoices.length ? "Choose a city" : "Loading cities…"}</option>
+            {cityChoices.map((city) => (
+              <option key={city.city_id} value={city.city_id}>
+                {city.city_name}, {city.state_name}
+              </option>
+            ))}
+          </select>
         </label>
 
         {error && <p className="counselling__error" role="alert">{error}</p>}

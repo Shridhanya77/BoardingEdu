@@ -3,6 +3,11 @@
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title }}{% endblock %}
 
+{% block extrahead %}
+{{ block.super }}
+<link rel="icon" href="{% static 'admin/img/boardingedu-logo.jpeg' %}" type="image/jpeg">
+{% endblock %}
+
 {% block extrastyle %}{{ block.super }}
 <link rel="stylesheet" href="{% static 'admin/css/boardingedu_admin.css' %}">
 {% endblock %}
@@ -10,8 +15,11 @@
 {% block branding %}
 <div id="site-name">
   <a href="{% url 'admin:index' %}">
-    <span class="be-mark">BE</span>
-    <span class="be-mark-text">{{ site_header }}</span>
+    <img class="be-logo" src="{% static 'admin/img/boardingedu-logo.jpeg' %}" alt="BoardingEdu" width="36" height="36">
+    <span class="be-mark-text">
+      <strong>BoardingEdu</strong>
+      <small>Admin</small>
+    </span>
   </a>
 </div>
 {% if user.is_anonymous %}{% include "admin/color_theme_toggle.html" %}{% endif %}

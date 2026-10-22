@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowRight, GraduationCap, House, X } from "lucide-react";
+import { GraduationCap, House, X } from "lucide-react";
 import type { HomeSchoolCategory } from "@/lib/seo-slugs";
 
 export type SchoolTypePickerRequest = {
@@ -16,17 +16,9 @@ export type SchoolTypePickerRequest = {
   allLabel: string;
 };
 
-const OPTIONS: { category: HomeSchoolCategory; title: string; text: string }[] = [
-  {
-    category: "day-school",
-    title: "Day Schools",
-    text: "Regular school hours — students travel home at the end of the day.",
-  },
-  {
-    category: "residential-school",
-    title: "Boarding Schools",
-    text: "Day boarding and full boarding schools with residential care.",
-  },
+const OPTIONS: { category: HomeSchoolCategory; title: string }[] = [
+  { category: "day-school", title: "Day Schools" },
+  { category: "residential-school", title: "Boarding Schools" },
 ];
 
 export default function SchoolTypePickerModal({
@@ -64,9 +56,7 @@ export default function SchoolTypePickerModal({
       {request && (
         <>
           <div className="type-picker-modal__intro">
-            <span className="section-eyebrow">CHOOSE A SCHOOL TYPE</span>
             <h2>{request.title}</h2>
-            <p>{request.subtitle}</p>
           </div>
 
           <div className="type-picker-modal__options">
@@ -85,16 +75,12 @@ export default function SchoolTypePickerModal({
                   )}
                 </span>
                 <strong>{option.title}</strong>
-                <small>{option.text}</small>
-                <span className="type-picker-modal__action">
-                  Browse {option.title.toLowerCase()} <ArrowRight size={15} />
-                </span>
               </Link>
             ))}
           </div>
 
           <Link className="type-picker-modal__all" href={request.allHref} onClick={onClose}>
-            {request.allLabel} <ArrowRight size={14} />
+            All schools
           </Link>
         </>
       )}

@@ -45,6 +45,7 @@ import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryProvider from "./SchoolEnquiryDialog";
 import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
 import SchoolReviews from "./SchoolReviews";
+import ReadMore from "./ReadMore";
 import type { SchoolSectionId } from "@/lib/school-sections";
 
 async function loadReviewData(schoolId: string): Promise<{
@@ -181,7 +182,7 @@ function gradeBadge(gradeName: string, seats: number | null, entryAge: [number |
       </div>
       {range.length > 0 && (
         <p className="grade-offered__age">
-          Entry age: {range.join(" – ")} year{range.length > 1 ? "s" : ""}
+          Entry age {range.join("–")}
         </p>
       )}
     </li>
@@ -365,20 +366,6 @@ export default async function SchoolProfile({
             {school.short_name && <p className="school-detail__short-name">{school.short_name}</p>}
             {school.tagline && <p className="school-detail__tagline">{school.tagline}</p>}
             <p className="school-detail__location"><MapPin size={16} />{location}</p>
-            <p className="school-detail__summary">
-              {school.school_name} is a{" "}
-              {school.school_types_detail.length
-                ? school.school_types_detail
-                    .map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase())
-                    .join(" and ")
-                : "school"}
-              {" "}in {location}
-              {school.boards_detail.length
-                ? `, affiliated with ${school.boards_detail.map((board) => board.board_name).join(" and ")}`
-                : ""}
-              . This page covers fees, facilities, admissions
-              {school.admission_open ? " (currently open)" : ""} and parent reviews.
-            </p>
 
             <div className="school-chips" role="list">
               {chips.map(({ label, icon: Icon }) => (
@@ -429,35 +416,49 @@ export default async function SchoolProfile({
             <article className="detail-panel" id="overview">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Landmark size={18} /></span>
-                <div><h2>About this school</h2><p>Key information to help your family explore.</p></div>
+                <div><h2>Overview</h2></div>
               </div>
-              {school.about && <p className="school-detail__about">{school.about}</p>}
-              <dl className="school-facts">
-                <div><dt>Education board</dt><dd>{school.boards_detail.map((board) => board.board_name).join(", ") || "Not provided"}</dd></div>
-                <div><dt>School type</dt><dd>{school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not provided"}</dd></div>
-                <div><dt>Student community</dt><dd>{genderLabel(school.gender)}</dd></div>
-                <div><dt>Established</dt><dd>{school.established_year ?? "Not provided"}</dd></div>
-                <div><dt>Principal</dt><dd>{school.principal_name || "Not provided"}</dd></div>
-              </dl>
+              <ReadMore
+                text={
+                  school.about?.trim()
+                    || `${school.school_name} is a ${
+                      school.school_types_detail.length
+                        ? school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()).join(" and ")
+                        : "school"
+                    } in ${location}${
+                      school.boards_detail.length
+                        ? `, affiliated with ${school.boards_detail.map((board) => board.board_name).join(" and ")}`
+                        : ""
+                    }.`
+                }
+              />
+              {school.principal_name && (
+                <p className="school-detail__principal">Principal: {school.principal_name}</p>
+              )}
             </article>
 
-            {/* ===== SECTION 2: GRADES OFFERED (NEW) ===== */}
+            <article className="detail-panel" id="fees">
+              <div className="detail-panel__heading">
+                <span className="detail-panel__icon"><Landmark size={18} /></span>
+                <div><h2>Fees</h2></div>
+              </div>
+              <SchoolFeeSummary
+                schoolId={school.school_id}
+                grades={school.grades_offered_detail.map(({ grade_id, grade_name }) => ({ grade_id, grade_name }))}
+              />
+            </article>
+
             <article className="detail-panel" id="admissions">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><GraduationCap size={18} /></span>
                 <div>
-                  <h2>Grades offered</h2>
-                  <p>
-                    {school.grades_offered_detail.length
-                      ? `${school.grades_offered_detail.length} grades are currently open for applications.`
-                      : "Grade offerings are not published yet."}
-                  </p>
+                  <h2>Grades</h2>
                 </div>
               </div>
               {school.grades_offered_detail.length === 0 ? (
                 <p className="empty-state"><BookOpen size={16} /> Contact the school to confirm which grades they currently offer.</p>
               ) : (
-                <ul className="grades-offered">
+                <ul className="grades-offered grades-offered--ribbon">
                   {school.grades_offered_detail.map((g) =>
                     gradeBadge(g.grade_name, g.seats_available, [g.entry_age_min, g.entry_age_max])
                   )}
@@ -494,9 +495,6 @@ export default async function SchoolProfile({
                                 <span className="facility__icon"><Icon size={18} aria-hidden="true" /></span>
                                 {f.facility_name}
                               </span>
-                              {f.description && (
-                                <p className="facility__desc">{f.description}</p>
-                              )}
                             </li>
                           );
                         })}
@@ -505,22 +503,6 @@ export default async function SchoolProfile({
                   ))}
                 </div>
               )}
-            </article>
-
-            {/* ===== SECTION 4: FEE SUMMARY (NEW) ===== */}
-            <article className="detail-panel" id="fees">
-              <div className="detail-panel__heading">
-                <span className="detail-panel__icon"><Landmark size={18} /></span>
-                <div>
-                  <h2>Fee structure</h2>
-                  <p>Published fee details are displayed once the school confirms them.</p>
-                </div>
-              </div>
-
-              <SchoolFeeSummary
-                schoolId={school.school_id}
-                grades={school.grades_offered_detail.map(({ grade_id, grade_name }) => ({ grade_id, grade_name }))}
-              />
             </article>
 
             <section className="detail-panel school-detail__media-panel" id="media">
@@ -667,21 +649,6 @@ export default async function SchoolProfile({
               ))}
             </div>
           </section>
-        )}
-        {(school.seo_keywords?.length ?? 0) > 0 && (
-          <nav className="school-search-topics" aria-labelledby="school-search-topics-heading">
-            <h2 id="school-search-topics-heading">Searches this profile answers</h2>
-            <p>
-              Each topic is a real directory search, so families can compare other schools for the same query.
-            </p>
-            <div>
-              {school.seo_keywords?.map((keyword) => (
-                <Link key={keyword} href={`/schools?search=${encodeURIComponent(keyword)}`}>
-                  {keyword}
-                </Link>
-              ))}
-            </div>
-          </nav>
         )}
         {relatedSearchLinks.length > 0 && (
           <nav className="school-profile-related" aria-labelledby="school-profile-related-heading">
