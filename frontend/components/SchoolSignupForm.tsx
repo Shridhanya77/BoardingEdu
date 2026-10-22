@@ -71,7 +71,7 @@ function fieldErrors(err: unknown, field: string): string[] | null {
 }
 
 export default function SchoolSignupForm() {
-  const { registerSchool, error, clearError } = useAuth();
+  const { registerSchool, clearError } = useAuth();
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [boards, setBoards] = useState<BoardListItem[]>([]);

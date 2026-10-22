@@ -7,6 +7,7 @@ import {
   BookOpen,
   Building2,
   CheckCircle2,
+  ChevronDown,
   GraduationCap,
   Heart,
   LoaderCircle,
@@ -15,6 +16,7 @@ import {
   MessageCircle,
   Newspaper,
   Phone,
+  Plus,
   Search,
   SearchCheck,
   ShieldCheck,
@@ -28,7 +30,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { fetchAllPages, geography, reviews, schools } from "@/lib/api";
 import type {
   BoardListItem,
@@ -145,6 +147,38 @@ function formatRupees(value: number) {
   return `₹${new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
   }).format(value)}`;
+}
+
+/** Recognisable accent per education board, so the board grid reads as a set of
+ *  distinct cards instead of one repeated colour. */
+const boardAccents: Record<string, string> = {
+  CBSE: "#17456b",
+  ICSE: "#1c715c",
+  CISCE: "#5a3fa8",
+  IB: "#3f3bad",
+  IGCSE: "#b4551d",
+  CIE: "#b4551d",
+  STATE: "#2b6a86",
+};
+
+const boardAccentFallbacks = [
+  "#17456b",
+  "#3f3bad",
+  "#1c715c",
+  "#b4551d",
+  "#2b6a86",
+  "#8e4b24",
+];
+
+function boardAccent(board: BoardListItem) {
+  const code = board.board_code.trim().toUpperCase();
+  if (boardAccents[code]) return boardAccents[code]!;
+  const key = `${board.board_name} ${code}`;
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) {
+    hash = (hash * 31 + key.charCodeAt(index)) % 9973;
+  }
+  return boardAccentFallbacks[hash % boardAccentFallbacks.length]!;
 }
 
 async function currentLocationPreferences(
@@ -631,11 +665,26 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
     const categoryLabel = category === "day-school" ? "Day Schools" : "Boarding Schools";
+    const oppositeCategory: HomeSchoolCategory =
+      category === "day-school" ? "residential-school" : "day-school";
+    const oppositeLabel = oppositeCategory === "day-school" ? "Day Schools" : "Boarding Schools";
+    // Every board gets its own search chip, and the first few also name the
+    // opposite school type so the block covers both halves of the directory.
     const boardSearches = category
-      ? boards.slice(0, 8).map((item) => ({
-          label: `${item.board_name} ${categoryLabel}`,
-          href: boardListingPath(item.slug, category),
-        }))
+      ? boards.flatMap((item, index) => {
+          const primary = {
+            label: `${item.board_name} ${categoryLabel}`,
+            href: boardListingPath(item.slug, category),
+          };
+          if (index >= 6) return [primary];
+          return [
+            primary,
+            {
+              label: `${item.board_name} ${oppositeLabel}`,
+              href: boardListingPath(item.slug, oppositeCategory),
+            },
+          ];
+        })
       : [];
     const seen = new Set<string>();
     return [...(relatedSearches ?? []), ...boardSearches].filter((item) =>
@@ -664,7 +713,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [queryKey]);
 
   const cityCards = useMemo(() => {
-    const featuredCities = cities.filter((city) => (city.schools_count ?? 0) > 0);
+    // "Top cities" means the cities with the most listed schools, so the row is
+    // ranked by school count instead of the API's default name order.
+    const featuredCities = cities
+      .filter((city) => (city.schools_count ?? 0) > 0)
+      .sort(
+        (left, right) =>
+          (right.schools_count ?? 0) - (left.schools_count ?? 0) ||
+          left.city_name.localeCompare(right.city_name),
+      );
     if (!hoveredCityIds) return featuredCities.slice(0, 10);
     const selectedIds = new Set(hoveredCityIds);
     return featuredCities.filter((city) => selectedIds.has(city.city_id));
@@ -994,7 +1051,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation);
       setSearch("");
       setSearchInput("");
-      setBoard(initialBoardKey ? initialBoardKey.split(",") : []);
+      // A path scope (place, board or school type) still honours an explicit
+      // ?board= scope — this is how footer "CBSE boarding schools in <city>"
+      // links keep their board filter instead of falling back to every board.
+      const scopedBoards = params.getAll("board");
+      setBoard(scopedBoards.length ? scopedBoards : initialBoardKey ? initialBoardKey.split(",") : []);
       setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
       setHomeCategory(initialHomeCategory ?? null);
       setGeoCountry(initialCountry ?? "");
@@ -2154,12 +2215,23 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           />
         </label>
 
+        {!boardsLoading && boards.length > 0 && (
+          <p className="board-meta" role="status">
+            {boardSearch
+              ? `${boardCards.length} ${boardCards.length === 1 ? "board" : "boards"} match your search`
+              : boardsExpanded
+                ? `Showing all ${boards.length} education boards`
+                : `Showing ${boardCards.length} featured boards of ${boards.length}`}
+          </p>
+        )}
+
         <div className="board-grid">
           {boardCards.map((boardItem, index) => (
             <Link
               className={`board-card board-card--${index + 1}`}
               key={boardItem.board_id}
               href={boardListingPath(boardItem.slug)}
+              style={{ "--board-color": boardAccent(boardItem) } as CSSProperties}
               onClick={(event) => {
                 event.preventDefault();
                 openTypePicker({
@@ -2195,7 +2267,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             aria-expanded={boardsExpanded}
             onClick={() => setBoardsExpanded((expanded) => !expanded)}
           >
-            {boardsExpanded ? "Show featured boards" : "Explore all boards"}
+            {boardsExpanded ? (
+              <>Show featured boards <ChevronDown size={15} aria-hidden /></>
+            ) : (
+              <>Explore all boards ({boards.length}) <ArrowRight size={15} aria-hidden /></>
+            )}
           </button>
         )}
       </section>

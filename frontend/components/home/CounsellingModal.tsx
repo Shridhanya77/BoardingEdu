@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LoaderCircle, X } from "lucide-react";
 import {
@@ -13,6 +13,11 @@ import {
   type GradeListItem,
 } from "@/lib/api";
 
+/**
+ * Compact "request a callback" form opened from the navigation bar. It shares the
+ * admissions endpoint with the home-page counselling section but stays deliberately
+ * short: name, phone, email, class and a state-grouped preferred city, nothing else.
+ */
 export default function CounsellingModal({
   onClose,
 }: {
@@ -54,8 +59,8 @@ export default function CounsellingModal({
               .filter((city) => city.status && city.country_code.toUpperCase() === "IN")
               .sort(
                 (left, right) =>
-                  left.city_name.localeCompare(right.city_name) ||
-                  left.state_name.localeCompare(right.state_name),
+                  left.state_name.localeCompare(right.state_name) ||
+                  left.city_name.localeCompare(right.city_name),
               ),
           );
           setGrades(gradeRows.filter((grade) => grade.status));
@@ -82,6 +87,17 @@ export default function CounsellingModal({
     };
   }, [onClose]);
 
+  /** Cities grouped by state so the picker reads "state, then city" in one control. */
+  const citiesByState = useMemo(() => {
+    const groups = new Map<string, CityListItem[]>();
+    for (const city of cities) {
+      const bucket = groups.get(city.state_name);
+      if (bucket) bucket.push(city);
+      else groups.set(city.state_name, [city]);
+    }
+    return [...groups.entries()];
+  }, [cities]);
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -93,8 +109,12 @@ export default function CounsellingModal({
       setError("Enter a phone number with 10 to 15 digits.");
       return;
     }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email address.");
+      return;
+    }
     if (!city || !grade) {
-      setError("Choose a preferred city and the grade your child is applying for.");
+      setError("Choose a preferred city and the class your child is applying for.");
       return;
     }
 
@@ -109,7 +129,7 @@ export default function CounsellingModal({
         preferred_state: city.state_id,
         preferred_cities: [city.city_id],
         grades: [grade.grade_id],
-        message: "Requested free admission counselling from the navigation bar.",
+        message: "Requested a callback from the navigation bar.",
       });
       setReference(result.reference);
       setName("");
@@ -138,7 +158,7 @@ export default function CounsellingModal({
       }}
     >
       <div
-        className="counselling-modal"
+        className="counselling-modal counselling-modal--quick"
         role="dialog"
         aria-modal="true"
         aria-labelledby="counselling-modal-title"
@@ -148,24 +168,24 @@ export default function CounsellingModal({
         <button
           className="counselling-modal__close"
           type="button"
-          aria-label="Close counselling form"
+          aria-label="Close callback form"
           onClick={onClose}
         >
-          <X size={19} aria-hidden />
+          <X size={18} aria-hidden />
         </button>
-        <span className="counselling-modal__eyebrow">FREE, PERSONAL GUIDANCE</span>
-        <h2 id="counselling-modal-title">Talk to a school counsellor</h2>
-        <p>Tell us how to reach you and what you&apos;re looking for. We&apos;ll be in touch.</p>
+        <span className="counselling-modal__eyebrow">FREE CALLBACK</span>
+        <h2 id="counselling-modal-title">Request a callback</h2>
+        <p>Five quick details and a counsellor calls you back.</p>
 
         {loading ? (
           <div className="counselling-modal__loading" role="status">
-            <LoaderCircle className="spin" size={19} /> Loading application options…
+            <LoaderCircle className="spin" size={18} /> Loading options…
           </div>
         ) : optionsError ? (
           <p className="counselling-modal__error" role="alert">{optionsError}</p>
         ) : !cities.length || !grades.length ? (
           <p className="counselling-modal__error" role="alert">
-            Counselling options are not available right now. Please try again later.
+            Callback requests are not available right now. Please try again later.
           </p>
         ) : (
           <form onSubmit={submit}>
@@ -175,16 +195,6 @@ export default function CounsellingModal({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 autoComplete="name"
-                required
-              />
-            </label>
-            <label>
-              Email address
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
                 required
               />
             </label>
@@ -200,33 +210,47 @@ export default function CounsellingModal({
               />
             </label>
             <label>
-              Preferred city
-              <select value={cityId} onChange={(event) => setCityId(event.target.value)} required>
-                <option value="">Choose a city</option>
-                {cities.map((city) => (
-                  <option value={city.city_id} key={city.city_id}>
-                    {city.city_name}, {city.state_name}
-                  </option>
+              Email address
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label>
+              Class applying for
+              <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required>
+                <option value="">Choose a class</option>
+                {grades.map((grade) => (
+                  <option value={grade.grade_id} key={grade.grade_id}>{grade.grade_name}</option>
                 ))}
               </select>
             </label>
-            <label>
-              Applying for grade
-              <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required>
-                <option value="">Choose a grade</option>
-                {grades.map((grade) => (
-                  <option value={grade.grade_id} key={grade.grade_id}>{grade.grade_name}</option>
+            <label className="counselling-modal__wide">
+              Preferred city
+              <select value={cityId} onChange={(event) => setCityId(event.target.value)} required>
+                <option value="">State, then city</option>
+                {citiesByState.map(([stateName, stateCities]) => (
+                  <optgroup label={stateName} key={stateName}>
+                    {stateCities.map((city) => (
+                      <option value={city.city_id} key={city.city_id}>
+                        {city.city_name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
             {error && <p className="counselling-modal__error" role="alert">{error}</p>}
             {reference && (
               <p className="counselling-modal__success" role="status">
-                Request received. Your reference is <strong>{reference}</strong>.
+                Callback requested. Your reference is <strong>{reference}</strong>.
               </p>
             )}
             <button type="submit" disabled={submitting}>
-              {submitting ? "Sending request…" : "Request free counselling"}
+              {submitting ? "Sending request…" : "Request callback"}
             </button>
           </form>
         )}

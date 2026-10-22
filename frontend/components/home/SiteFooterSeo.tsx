@@ -14,7 +14,7 @@ import {
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, placeListingPath } from "@/lib/school-urls";
+import { placeListingPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -26,7 +26,11 @@ type Props = {
 
 const CITY_LINK_LIMIT = 100;
 const STATE_LINK_LIMIT = 100;
-const BOARD_LINK_LIMIT = 40;
+/** How many boards / cities / states feed the combined footer searches. */
+const BOARD_FANOUT = 4;
+const CITY_FANOUT = 3;
+const STATE_FANOUT = 2;
+
 const FOOTER_CATEGORIES: { category: HomeSchoolCategory; label: string }[] = [
   { category: "day-school", label: "Day Schools" },
   { category: "residential-school", label: "Boarding Schools" },
@@ -44,6 +48,12 @@ function uniqueBy<T>(items: T[], keyOf: (item: T) => string): T[] {
   return output;
 }
 
+/**
+ * Footer "popular searches" links. Every entry combines an education board, a
+ * school-type family and a place (board × type × state/city) so the footer
+ * surfaces the long-tail searches parents actually type — without splitting
+ * them into separate sections.
+ */
 export default function SiteFooterSeo({
   cities = [],
   boards = [],
@@ -82,9 +92,16 @@ export default function SiteFooterSeo({
   }, [uniqueCities]);
 
   const topBoards = useMemo(
-    () => uniqueBy(boards, (board) => board.board_id).slice(0, BOARD_LINK_LIMIT),
+    () => uniqueBy(boards, (board) => board.board_id).slice(0, BOARD_FANOUT),
     [boards],
   );
+
+  const topCities = useMemo(
+    () => popularCities.filter((city) => (city.schools_count ?? 0) > 0).slice(0, CITY_FANOUT),
+    [popularCities],
+  );
+
+  const topStates = useMemo(() => stateSearches.slice(0, STATE_FANOUT), [stateSearches]);
 
   const availableCategories = useMemo(
     () =>
@@ -113,121 +130,108 @@ export default function SiteFooterSeo({
       );
   }, [countries, uniqueCities]);
 
-  // Footer is grouped by dimension, mirroring how leading school directories
-  // organise their sitemaps: school type first, then board, then location.
-  const schoolTypeGroups = useMemo(
-    () =>
-      availableCategories.map((category) => ({
-        key: `type-${category.category}`,
-        heading: `${category.label} in States`,
-        links: uniqueBy(
-          stateSearches.slice(0, 12).map(([, state]) => ({
-            label: `${category.label} in ${state.name}`,
-            href: placeListingPath({
+  // One flat list of combined searches: "<Board> <Type> Schools in <Place>",
+  // plus plain place-by-type links for the most popular cities and states.
+  const popularSearches = useMemo(() => {
+    const links: { label: string; href: string }[] = [];
+
+    for (const { category, label } of availableCategories) {
+      const typeLabel = label.replace("Day Schools", "Day").replace("Boarding Schools", "Boarding");
+
+      for (const board of topBoards) {
+        for (const city of topCities) {
+          links.push({
+            label: `${board.board_name} ${typeLabel} Schools in ${city.city_name}`,
+            href: `${placeListingPath({
+              countrySlug: city.country_slug ?? city.country_name,
+              stateSlug: city.state_slug ?? city.state_name,
+              citySlug: city.slug,
+              category,
+            })}?board=${board.board_id}`,
+          });
+        }
+        for (const [, state] of topStates) {
+          links.push({
+            label: `${board.board_name} ${typeLabel} Schools in ${state.name}`,
+            href: `${placeListingPath({
               countrySlug: state.countrySlug,
               stateSlug: state.stateSlug,
-              category: category.category,
-            }),
-          })),
-          (item) => item.href,
-        ),
-      })),
-    [availableCategories, stateSearches],
-  );
+              category,
+            })}?board=${board.board_id}`,
+          });
+        }
+      }
 
-  const boardGroup = useMemo(
-    () => ({
-      key: "boards",
-      heading: "Schools by Education Board",
-      links: uniqueBy(
-        topBoards.slice(0, 12).map((board) => ({
-          label: `${board.board_name} schools`,
-          href: boardListingPath(board.slug),
-        })),
-        (item) => item.href,
-      ),
-    }),
-    [topBoards],
-  );
-
-  const cityGroup = useMemo(
-    () => ({
-      key: "cities",
-      heading: "Popular Cities",
-      links: uniqueBy(
-        popularCities.slice(0, 12).map((city) => ({
-          label: `Schools in ${city.city_name}`,
+      for (const city of topCities) {
+        links.push({
+          label: `${label} in ${city.city_name}`,
           href: placeListingPath({
             countrySlug: city.country_slug ?? city.country_name,
             stateSlug: city.state_slug ?? city.state_name,
             citySlug: city.slug,
+            category,
           }),
-        })),
-        (item) => item.href,
-      ),
-    }),
-    [popularCities],
-  );
-
-  const stateGroup = useMemo(
-    () => ({
-      key: "states",
-      heading: "Popular States",
-      links: uniqueBy(
-        stateSearches.slice(0, 12).map(([, state]) => ({
-          label: `Schools in ${state.name}`,
+        });
+      }
+      for (const [, state] of topStates) {
+        links.push({
+          label: `${label} in ${state.name}`,
           href: placeListingPath({
             countrySlug: state.countrySlug,
             stateSlug: state.stateSlug,
+            category,
           }),
-        })),
-        (item) => item.href,
-      ),
-    }),
-    [stateSearches],
-  );
+        });
+      }
+    }
 
-  const countryGroup = useMemo(
-    () => ({
-      key: "countries",
-      heading: "Browse by Country",
-      links: uniqueBy(
-        countrySearches.slice(0, 8).map((country) => ({
-          label: `Schools in ${country.country_name}`,
-          href: placeListingPath({ countrySlug: country.slug }),
-        })),
-        (item) => item.href,
-      ),
-    }),
-    [countrySearches],
-  );
+    for (const city of popularCities.slice(0, 6)) {
+      links.push({
+        label: `Schools in ${city.city_name}`,
+        href: placeListingPath({
+          countrySlug: city.country_slug ?? city.country_name,
+          stateSlug: city.state_slug ?? city.state_name,
+          citySlug: city.slug,
+        }),
+      });
+    }
 
-  const footerGroups = useMemo(
-    () =>
-      [ ...schoolTypeGroups, boardGroup, cityGroup, stateGroup, countryGroup ].filter(
-        (group) => group.links.length > 0,
-      ),
-    [schoolTypeGroups, boardGroup, cityGroup, stateGroup, countryGroup],
-  );
+    for (const [, state] of stateSearches.slice(0, 6)) {
+      links.push({
+        label: `Schools in ${state.name}`,
+        href: placeListingPath({
+          countrySlug: state.countrySlug,
+          stateSlug: state.stateSlug,
+        }),
+      });
+    }
+
+    for (const country of countrySearches.slice(0, 4)) {
+      links.push({
+        label: `Schools in ${country.country_name}`,
+        href: placeListingPath({ countrySlug: country.slug }),
+      });
+    }
+
+    return uniqueBy(links, (item) => item.href);
+  }, [availableCategories, countrySearches, popularCities, stateSearches, topBoards, topCities, topStates]);
 
   return (
     <footer className="seo-footer" id="sitemap">
-      <nav className="seo-footer__popular" aria-label="School searches by type, board, and location">
+      <nav className="seo-footer__popular" aria-label="Popular school searches">
         {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-        <div className="seo-footer__columns">
-          {footerGroups.map((group) => (
-            <section className="seo-footer__column" key={group.key}>
-              <h3>{group.heading}</h3>
-              <ul>
-                {group.links.map((item) => (
-                  <li key={item.href}>
-                    <Link href={item.href}>{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+        {popularSearches.length > 0 && (
+          <>
+            <h3 className="seo-footer__popular-heading">Popular school searches</h3>
+            <ul className="seo-footer__link-cloud">
+              {popularSearches.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
 
       <div className="seo-footer__grid">
