@@ -103,6 +103,16 @@ class SchoolDashboardView(APIView):
                     "state_slug": school.state.slug,
                     "city_slug": school.city.slug,
                     "location_slug": school.location.slug if school.location_id else None,
+                    "school_types_detail": [
+                        {
+                            "school_type_id": str(school_type.school_type_id),
+                            "type_code": school_type.type_code,
+                            "type_name": school_type.type_name,
+                            "slug": school_type.slug,
+                            "status": school_type.status,
+                        }
+                        for school_type in school.school_types.all()
+                    ],
                     "profile_completeness": completeness,
                 },
                 "stats": {

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Phone } from "lucide-react";
+import CounsellingLink from "@/components/home/CounsellingLink";
 
 export default function CounsellingBanner() {
   return (
@@ -13,10 +13,10 @@ export default function CounsellingBanner() {
           <small>Talk to an admission counsellor and get a personalised shortlist.</small>
         </div>
       </div>
-      <Link className="counselling-banner__action" href="/#counselling">
+      <CounsellingLink className="counselling-banner__action">
         <Phone size={16} aria-hidden />
         Book expert counselling
-      </Link>
+      </CounsellingLink>
     </section>
   );
 }

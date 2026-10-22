@@ -5,7 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
-import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
+import {
+  schoolProfilePathFromSlugs,
+  schoolProfileTypeSegment,
+  schoolTypeLabel,
+} from "@/lib/seo-slugs";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -14,6 +18,7 @@ function schoolHref(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 

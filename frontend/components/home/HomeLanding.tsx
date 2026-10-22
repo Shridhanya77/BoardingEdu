@@ -12,6 +12,7 @@ import {
 import SeoPlaceMarquee, { type SeoPlace } from "@/components/home/SeoPlaceMarquee";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import CounsellingSection from "@/components/home/CounsellingSection";
+import CounsellingLink from "@/components/home/CounsellingLink";
 import { useMemo, useState } from "react";
 
 type Props = {
@@ -100,6 +101,11 @@ export default function HomeLanding({
                 <span>{item.emoji}</span>
                 {item.title}
               </button>
+            ) : "counselling" in item && item.counselling ? (
+              <CounsellingLink className="explore-tile" key={item.title}>
+                <span>{item.emoji}</span>
+                {item.title}
+              </CounsellingLink>
             ) : (
               <Link className="explore-tile" key={item.title} href={item.href}>
                 <span>{item.emoji}</span>

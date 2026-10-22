@@ -1,7 +1,7 @@
 import type { SchoolDetail } from "@/lib/api";
 import { SITE_EMAIL, SITE_NAME, SITE_PHONE, SITE_URL } from "@/lib/site";
 import { absoluteUrl } from "@/lib/seo";
-import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, schoolProfileTypeSegment } from "@/lib/seo-slugs";
 
 export type JsonLd = Record<string, unknown>;
 
@@ -15,6 +15,7 @@ export function schoolCanonicalPath(school: SchoolDetail): string {
     citySlug: school.city_detail.slug,
     localitySlug: school.location_detail?.slug,
     schoolSlug: school.slug,
+    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 

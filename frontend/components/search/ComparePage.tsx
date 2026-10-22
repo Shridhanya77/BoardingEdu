@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, GraduationCap, Plus, Search, X } from "lucide-react";
 import { schools, type SchoolListItem } from "@/lib/api";
-import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, schoolProfileTypeSegment } from "@/lib/seo-slugs";
 import { useSearchExperience } from "@/lib/search-experience";
 import { schoolTypeLabel } from "@/lib/seo-slugs";
 
@@ -265,6 +265,7 @@ export default function ComparePage() {
                         citySlug: school.city_slug,
                         localitySlug: school.location_slug,
                         schoolSlug: school.slug,
+                        typeSegment: schoolProfileTypeSegment(school.school_types_detail),
                       })}
                     >
                       View profile

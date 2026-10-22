@@ -8,7 +8,7 @@ export const exploreItems = [
   { emoji: "🏫", title: "Search Boarding Schools", href: "/#schools", query: "boarding" as const },
   { emoji: "☀️", title: "Search Day Schools", href: "/#schools", query: "day" as const },
   { emoji: "⚖️", title: "Compare Schools", href: "/compare", query: null },
-  { emoji: "🎓", title: "Free Counseling", href: "/#counselling", query: null },
+  { emoji: "🎓", title: "Free Counseling", href: "/", query: null, counselling: true },
   { emoji: "🇮🇳", title: "Boarding Schools PAN India", href: "/#schools", query: "india" as const },
   { emoji: "📚", title: "CBSE Boarding Schools", href: "/#schools", query: "cbse" as const },
   { emoji: "🌍", title: "IB Boarding Schools", href: "/#schools", query: "ib" as const },
@@ -19,7 +19,7 @@ export const exploreItems = [
   { emoji: "🎖️", title: "Military / Sainik Schools", href: "/#schools", query: "sainik" as const },
   { emoji: "⭐", title: "Parent Reviews", href: "/#featured", query: null },
   { emoji: "📝", title: "Apply to Multiple Schools", href: "/signup", query: null },
-  { emoji: "👨‍👩‍👧‍👦", title: "Applicable to multiple child", href: "/#counselling", query: null },
+  { emoji: "👨‍👩‍👧‍👦", title: "Applicable to multiple child", href: "/", query: null, counselling: true },
 ] as const;
 
 export const howItWorksSteps = [

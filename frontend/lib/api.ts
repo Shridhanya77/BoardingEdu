@@ -912,6 +912,7 @@ export type SchoolDashboardData = {
     state_slug: string;
     city_slug: string;
     location_slug: string | null;
+    school_types_detail: SchoolTypeListItem[];
     profile_completeness: number;
   };
   stats: {

@@ -31,7 +31,12 @@ import type {
   SchoolRatingSummary,
 } from "@/lib/api";
 import { reviews, schools } from "@/lib/api";
-import { schoolProfilePathFromSlugs, schoolTypeLabel, toSeoSlug } from "@/lib/seo-slugs";
+import {
+  schoolProfilePathFromSlugs,
+  schoolProfileTypeSegment,
+  schoolTypeLabel,
+  toSeoSlug,
+} from "@/lib/seo-slugs";
 import { schoolJsonLd } from "@/lib/structured-data";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
@@ -94,6 +99,7 @@ export function schoolProfilePath(school: SchoolDetail) {
     citySlug: school.city_detail.slug,
     localitySlug: school.location_detail?.slug,
     schoolSlug: school.slug,
+    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 
@@ -104,6 +110,7 @@ function listItemPath(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 

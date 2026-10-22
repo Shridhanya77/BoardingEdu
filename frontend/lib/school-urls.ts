@@ -1,6 +1,7 @@
 import {
   schoolCategorySegment,
   schoolProfilePathFromSlugs,
+  schoolProfileTypeSegment,
   toSeoSlug,
   withTrailingSlash,
   type HomeSchoolCategory,
@@ -13,6 +14,7 @@ export type SchoolPathFields = {
   city_slug: string;
   location_slug?: string | null;
   slug: string;
+  school_types_detail: { type_code: string; slug: string; type_name: string }[];
 };
 
 export function schoolListPath(school: SchoolPathFields): string {
@@ -22,6 +24,7 @@ export function schoolListPath(school: SchoolPathFields): string {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 

@@ -155,6 +155,16 @@ function splitSchoolSection(segments: string[]): { schoolSegments: string[]; sec
 }
 
 /**
+ * Detect if segments represent the new school detail URL format:
+ * [school-slug, localitySlug?, citySlug, stateSlug, countrySlug, typeSegment]
+ */
+function isNewSchoolPath(segments: string[]): boolean {
+  if (segments.length < 5 || segments.length > 6) return false;
+  const last = segments[segments.length - 1]?.toLowerCase();
+  return last === "boarding-school" || last === "day-school";
+}
+
+/**
  * Request path normalised with a trailing slash. `params.segments` never carries a
  * trailing empty segment, so it must be slashed before comparing against a canonical
  * path — otherwise every school request would redirect onto itself.
@@ -251,6 +261,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     }
   }
   const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
+  if (isNewSchoolPath(schoolSegments)) {
+    try {
+      return schoolPageMetadata(await schools.bySlug(schoolSegments[0]!), schoolSection);
+    } catch {
+      return unavailableMetadata("School profile | BoardingEdu");
+    }
+  }
   if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
       return schoolPageMetadata(await schools.bySlug(schoolSegments[3]!), schoolSection);
@@ -325,6 +342,16 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
   const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
+  if (isNewSchoolPath(schoolSegments)) {
+    try {
+      const school = await schools.bySlug(schoolSegments[0]!);
+      const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+      if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+      return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) throw error;
+    }
+  }
   const boardPathCategory = segments.length === 3 ? homeSchoolCategoryFromValue(segments[2]?.toLowerCase()) : null;
   if (segments[0] === "board" && (segments.length === 2 || (segments.length === 3 && Boolean(boardPathCategory)))) {
     const board = await findActiveBoard(segments[1]);

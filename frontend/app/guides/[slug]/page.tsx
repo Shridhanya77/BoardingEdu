@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import JsonLd from "@/components/JsonLd";
+import CounsellingLink from "@/components/home/CounsellingLink";
 import { getGuide, guides, guidesIndexDescription, relatedGuides } from "@/lib/guides";
 import { absoluteUrl, pageMetadata } from "@/lib/seo";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
@@ -119,9 +120,9 @@ export default function GuidePage({ params }: GuidePageProps) {
               <Link className="guides-cta__primary" href="/schools">
                 Explore schools
               </Link>
-              <Link className="guides-cta__secondary" href="/#counselling">
+              <CounsellingLink className="guides-cta__secondary">
                 Free counselling
-              </Link>
+              </CounsellingLink>
             </div>
           </div>
         </article>

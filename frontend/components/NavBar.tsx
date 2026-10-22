@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import CounsellingModal from "@/components/home/CounsellingModal";
+import CounsellingLink from "@/components/home/CounsellingLink";
+import {
+  counsellingScrollStorageKey,
+  scrollToCounselling,
+} from "@/lib/counselling-navigation";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -56,6 +61,16 @@ export default function NavBar() {
     setMenuOpen(false);
     setMobileNavOpen(false);
   }, [pathname]);
+  useEffect(() => {
+    if (pathname !== "/" || !window.sessionStorage.getItem(counsellingScrollStorageKey)) {
+      return;
+    }
+    window.sessionStorage.removeItem(counsellingScrollStorageKey);
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(scrollToCounselling);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname]);
 
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -78,8 +93,6 @@ export default function NavBar() {
   const onHomePage = pathname === "/" || pathname === "";
   const onGuides = pathname.startsWith("/guides");
   const onExplore = (pathname === "/schools" || (pathname !== "/" && pathname !== "/compare" && pathname !== "/login" && pathname !== "/signup" && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms"))) && !onGuides;
-  const homeHref = (section: string) => (onHomePage ? section : `/${section}`);
-
   useEffect(() => {
     if (!onHomePage) {
       setHasScrolled(false);
@@ -111,7 +124,7 @@ export default function NavBar() {
         <Link className={`site-header__link${onExplore ? " is-active" : ""}`} href="/schools">Explore Schools</Link>
         <Link className={`site-header__link${onGuides ? " is-active" : ""}`} href="/guides">Guides</Link>
         <Link className={`site-header__link${pathname === "/compare" ? " is-active" : ""}`} href="/compare">Compare Schools</Link>
-        <Link className="site-header__link" href={homeHref("#counselling")}>Free Counselling</Link>
+        <CounsellingLink className="site-header__link">Free Counselling</CounsellingLink>
       </nav>
 
       <div className="site-header__actions">
@@ -211,7 +224,7 @@ export default function NavBar() {
             <Link href="/schools" onClick={() => setMobileNavOpen(false)}>Explore Schools</Link>
             <Link href="/guides" onClick={() => setMobileNavOpen(false)}>Guides</Link>
             <Link href="/compare" onClick={() => setMobileNavOpen(false)}>Compare Schools</Link>
-            <Link href={homeHref("#counselling")} onClick={() => setMobileNavOpen(false)}>Free Counselling</Link>
+            <CounsellingLink onClick={() => setMobileNavOpen(false)}>Free Counselling</CounsellingLink>
             <button
               className="mobile-navigation__counselling"
               type="button"

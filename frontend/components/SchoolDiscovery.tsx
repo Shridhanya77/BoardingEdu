@@ -47,7 +47,9 @@ import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
+import CounsellingLink from "@/components/home/CounsellingLink";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
+import HomeBotOnboarding from "@/components/home/HomeBotOnboarding";
 import SchoolTypePickerModal, { type SchoolTypePickerRequest } from "@/components/home/SchoolTypePickerModal";
 import {
   createLocationPreferences,
@@ -62,14 +64,17 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
-import { homeSchoolCategories,
-homeSchoolCategoryForIds,
-homeSchoolCategoryFromValue,
-homeSchoolCategoryPath,
-isDiscoverableSchoolType,
-schoolProfilePathFromSlugs,
-schoolTypeLabel,
-type HomeSchoolCategory, } from "@/lib/seo-slugs";
+import {
+  homeSchoolCategories,
+  homeSchoolCategoryForIds,
+  homeSchoolCategoryFromValue,
+  homeSchoolCategoryPath,
+  isDiscoverableSchoolType,
+  schoolProfilePathFromSlugs,
+  schoolProfileTypeSegment,
+  schoolTypeLabel,
+  type HomeSchoolCategory,
+} from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 import { guideList } from "@/lib/guides";
 
@@ -80,6 +85,7 @@ function schoolHref(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 
@@ -179,6 +185,13 @@ function boardAccent(board: BoardListItem) {
     hash = (hash * 31 + key.charCodeAt(index)) % 9973;
   }
   return boardAccentFallbacks[hash % boardAccentFallbacks.length]!;
+}
+
+function boardGroup(board: BoardListItem): "national" | "international" | "other" {
+  const value = `${board.board_code} ${board.board_name} ${board.slug}`.toLowerCase();
+  if (/\b(ib|igcse|cie)\b|cambridge|international/.test(value)) return "international";
+  if (/\b(cbse|icse|cisce|state)\b|national/.test(value)) return "national";
+  return "other";
 }
 
 async function currentLocationPreferences(
@@ -416,6 +429,31 @@ function withListingFilters(href: string, boards: string[], schoolTypes: string[
   return `${url.pathname}${url.search}`;
 }
 
+function HomeSectionTypeSelector({
+  value,
+  onChange,
+}: {
+  value: HomeSchoolCategory | null;
+  onChange: (value: HomeSchoolCategory | null) => void;
+}) {
+  return (
+    <label className="home-section__type-selector">
+      <span className="sr-only">Filter by school type</span>
+      <select
+        value={value ?? ""}
+        onChange={(event) =>
+          onChange(homeSchoolCategoryFromValue(event.target.value))
+        }
+      >
+        <option value="">Choose school type</option>
+        <option value="day-school">Day school</option>
+        <option value="residential-school">Boarding school</option>
+      </select>
+      <ChevronDown size={14} aria-hidden="true" />
+    </label>
+  );
+}
+
 export default function SchoolDiscovery({ initialFilter, relatedSearches, breadcrumbs }: { initialFilter?: InitialDiscoveryFilter; relatedSearches?: RelatedSearch[]; breadcrumbs?: Breadcrumb[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -484,6 +522,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
+  const comparisonSchools = useMemo(() => {
+    const additionalSchools = featuredSchools.filter(
+      (featured) =>
+        !comparedSchools.some((compared) => compared.school_id === featured.school_id),
+    );
+    return [
+      ...comparedSchools,
+      ...additionalSchools.slice(0, Math.max(0, 3 - comparedSchools.length)),
+    ];
+  }, [comparedSchools, featuredSchools]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
   const [featuredFallback, setFeaturedFallback] = useState(false);
@@ -491,7 +539,23 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [geoState, setGeoState] = useState("");
   const [geoCity, setGeoCity] = useState("");
   const [geoLocation, setGeoLocation] = useState("");
-  const [homeCategory, setHomeCategory] = useState<HomeSchoolCategory | null>(initialFilter?.homeCategory ?? null);
+  const [homeCategory, setHomeCategory] = useState<HomeSchoolCategory | null>(
+    initialFilter?.homeCategory ?? null,
+  );
+  const [statesSectionCategory, setStatesSectionCategory] = useState<HomeSchoolCategory | null>(null);
+  const [citiesSectionCategory, setCitiesSectionCategory] = useState<HomeSchoolCategory | null>(null);
+  const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
+  const [botOnboardingOpen, setBotOnboardingOpen] = useState(false);
+
+  useEffect(() => {
+    if (isHomePage) {
+      const shown = window.sessionStorage.getItem("boardingeu:bot-onboarding-shown");
+      if (!shown) {
+        setBotOnboardingOpen(true);
+        window.sessionStorage.setItem("boardingeu:bot-onboarding-shown", "true");
+      }
+    }
+  }, [isHomePage]);
   const [locationPreferences, setLocationPreferences] =
     useState<LocationPreferences | null>(null);
   const [locationPreferencesLoaded, setLocationPreferencesLoaded] = useState(false);
@@ -740,6 +804,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return match ? [match] : [];
     });
   }, [boardSearch, boards, boardsExpanded]);
+  const boardGroups = useMemo(
+    () =>
+      [
+        { key: "national" as const, label: "Indian boards" },
+        { key: "international" as const, label: "International boards" },
+        { key: "other" as const, label: "Other boards" },
+      ]
+        .map((group) => ({
+          ...group,
+          boards: boardCards.filter((item) => boardGroup(item) === group.key),
+        }))
+        .filter((group) => group.boards.length > 0),
+    [boardCards],
+  );
   /**
    * Top states, ranked by the number of listed schools across their cities.
    * Rendered above Top cities so parents can zoom out before picking a city.
@@ -1959,15 +2037,19 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </span>
         </div>
         <div className="compare-promo__schools">
-          {featuredSchools.slice(0, 3).map((school) => {
+          {comparisonSchools.map((school) => {
             const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
             const boards = school.boards_detail.map((item) => item.board_code).join(" · ") || "Board not listed";
             const type = school.school_types_detail
               .map((item) => schoolTypeLabel(item.type_code, item.slug, item.type_name))
               .join(", ") || "School type not listed";
-            const cover = school.school_image_url || school.school_logo_url || "";
+            const cover =
+              school.school_image_url ||
+              school.school_photos?.[0]?.photo_url ||
+              school.school_logo_url ||
+              "";
             return (
-              <article key={school.school_id}>
+              <article key={school.school_id} className={isCompared ? "is-shortlisted" : ""}>
                 <Link href={schoolHref(school)} className="compare-promo__school-link">
                   <span className="compare-promo__school-image">
                     {cover ? (
@@ -2029,7 +2111,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </article>
             );
           })}
-          {!featuredSchools.length && (
+          {!comparisonSchools.length && (
             <div className="compare-promo__empty">
               <BookOpen size={24} />
               <p>Explore the directory to build your own school shortlist.</p>
@@ -2073,6 +2155,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <div className="section-eyebrow">EXPLORE BY STATE</div>
               <h2>Top states for school search</h2>
             </div>
+            <HomeSectionTypeSelector
+              value={statesSectionCategory}
+              onChange={setStatesSectionCategory}
+            />
           </div>
 
           <div className="city-grid">
@@ -2081,7 +2167,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 placeListingPath({
                   countrySlug: state.country_slug,
                   stateSlug: state.state_slug,
-                  category,
+                  category: category ?? statesSectionCategory,
                 });
               return (
                 <Link
@@ -2089,6 +2175,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   key={state.state_id}
                   href={hrefFor(null)}
                   onClick={(event) => {
+                    if (statesSectionCategory) return;
                     event.preventDefault();
                     openTypePicker({
                       title: `Schools in ${state.state_name}`,
@@ -2118,14 +2205,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <div className="section-eyebrow">SCHOOL LOCATIONS</div>
             <h2>Top cities for school search</h2>
           </div>
-          {citiesError && (
-            <p className="section-error" role="status">
-              Cities unavailable: {citiesError}{" "}
-              <button type="button" onClick={() => setCitiesRetry((count) => count + 1)}>
-                Retry
-              </button>
-            </p>
-          )}
+          <div className="home-section__heading-actions">
+            <HomeSectionTypeSelector
+              value={citiesSectionCategory}
+              onChange={setCitiesSectionCategory}
+            />
+            {citiesError && (
+              <p className="section-error" role="status">
+                Cities unavailable: {citiesError}{" "}
+                <button type="button" onClick={() => setCitiesRetry((count) => count + 1)}>
+                  Retry
+                </button>
+              </p>
+            )}
+          </div>
         </div>
 
         <div
@@ -2149,7 +2242,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 countrySlug: city.country_slug ?? city.country_name,
                 stateSlug: city.state_slug ?? city.state_name,
                 citySlug: city.slug,
-                category,
+                category: category ?? citiesSectionCategory,
               });
             return (
               <Link
@@ -2157,6 +2250,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 key={city.city_id}
                 href={hrefFor(null)}
                 onClick={(event) => {
+                  if (citiesSectionCategory) return;
                   event.preventDefault();
                   openTypePicker({
                     title: `Schools in ${city.city_name}`,
@@ -2193,6 +2287,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <div className="section-eyebrow">EXPLORE CURRICULA</div>
             <h2>Browse by board</h2>
           </div>
+          <HomeSectionTypeSelector
+            value={boardsSectionCategory}
+            onChange={setBoardsSectionCategory}
+          />
 
           {boardsError && (
             <p className="section-error" role="status">
@@ -2225,31 +2323,39 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </p>
         )}
 
-        <div className="board-grid">
-          {boardCards.map((boardItem, index) => (
-            <Link
-              className={`board-card board-card--${index + 1}`}
-              key={boardItem.board_id}
-              href={boardListingPath(boardItem.slug)}
-              style={{ "--board-color": boardAccent(boardItem) } as CSSProperties}
-              onClick={(event) => {
-                event.preventDefault();
-                openTypePicker({
-                  title: `${boardItem.board_name} schools`,
-                  subtitle: "Pick a school type to open the right listings first.",
-                  hrefFor: (category) => boardListingPath(boardItem.slug, category),
-                  allHref: boardListingPath(boardItem.slug),
-                  allLabel: `See every ${boardItem.board_name} school`,
-                });
-              }}
-            >
-              <span className="board-card__mark">{boardItem.board_code}</span>
-              <span className="board-card__name">{boardItem.board_name}</span>
+        <div className="board-groups">
+          {boardGroups.map((group) => (
+            <section className="board-group" key={group.key} aria-label={group.label}>
+              <h3>{group.label}</h3>
+              <div className="board-grid">
+                {group.boards.map((boardItem, index) => (
+                  <Link
+                    className={`board-card board-card--${index + 1}`}
+                    key={boardItem.board_id}
+                    href={boardListingPath(boardItem.slug, boardsSectionCategory)}
+                    style={{ "--board-color": boardAccent(boardItem) } as CSSProperties}
+                    onClick={(event) => {
+                      if (boardsSectionCategory) return;
+                      event.preventDefault();
+                      openTypePicker({
+                        title: `${boardItem.board_name} schools`,
+                        subtitle: "Pick a school type to open the right listings first.",
+                        hrefFor: (category) => boardListingPath(boardItem.slug, category),
+                        allHref: boardListingPath(boardItem.slug),
+                        allLabel: `See every ${boardItem.board_name} school`,
+                      });
+                    }}
+                  >
+                    <span className="board-card__mark">{boardItem.board_code}</span>
+                    <span className="board-card__name">{boardItem.board_name}</span>
 
-              <span className="board-card__action">
-                Browse schools <ArrowRight size={14} />
-              </span>
-            </Link>
+                    <span className="board-card__action">
+                      Browse schools <ArrowRight size={14} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
           ))}
           {boardsLoading && (
             <p className="section-empty" role="status">Loading education boards…</p>
@@ -2328,12 +2434,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <small>+91 80-4611-0000</small>
             <ArrowRight size={16} />
           </a>
-          <Link href="#counselling">
+          <CounsellingLink>
             <span><MessageCircle size={20} /></span>
             <strong>Request free guidance</strong>
             <small>Tell us your child&apos;s needs</small>
             <ArrowRight size={16} />
-          </Link>
+          </CounsellingLink>
         </div>
       </section>
 
@@ -3016,6 +3122,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         onSchoolType={selectSchoolType}
       />
       <SchoolTypePickerModal request={typePicker} onClose={() => setTypePicker(null)} />
+      {isHomePage && botOnboardingOpen && (
+        <HomeBotOnboarding
+          boards={boards}
+          onClose={() => setBotOnboardingOpen(false)}
+        />
+      )}
       {!isHomePage && !filtersOpen && <CompareBar />}
     </main>
   );

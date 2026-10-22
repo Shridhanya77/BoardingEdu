@@ -25,14 +25,16 @@ export function schoolProfilePathFromSlugs({
   citySlug,
   localitySlug,
   schoolSlug,
+  typeSegment,
 }: {
   countrySlug: string;
   stateSlug: string;
   citySlug: string;
   localitySlug?: string | null;
   schoolSlug: string;
+  typeSegment: string;
 }) {
-  return withTrailingSlash(`/${[countrySlug, stateSlug, citySlug, localitySlug, schoolSlug]
+  return withTrailingSlash(`/${[schoolSlug, localitySlug, citySlug, stateSlug, countrySlug, typeSegment]
     .filter((slug): slug is string => Boolean(slug))
     .map(toSeoSlug)
     .join("/")}`);
@@ -129,8 +131,8 @@ export const schoolTypePath = (typeCode: string, slug = "", name = "") =>
 
 export function schoolProfileTypeSegment(types: { type_code: string; slug: string; type_name: string }[]) {
   const categories = types.map((type) => schoolTypeCategory(type.type_code, type.slug, type.type_name));
-  if (categories.includes("boarding-school")) return "boarding";
-  return "dayschool";
+  if (categories.includes("boarding-school")) return "boarding-school";
+  return "day-school";
 }
 
 export function isDiscoverableSchoolType(typeCode: string, slug = "", name = "") {
