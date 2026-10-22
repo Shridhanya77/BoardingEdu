@@ -11,7 +11,6 @@ import type {
 } from "@/lib/api";
 import {
   homeSchoolCategories,
-  homeSchoolCategoryPath,
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
@@ -114,79 +113,121 @@ export default function SiteFooterSeo({
       );
   }, [countries, uniqueCities]);
 
-  const popularSearchGroups = useMemo(
+  // Footer is grouped by dimension, mirroring how leading school directories
+  // organise their sitemaps: school type first, then board, then location.
+  const schoolTypeGroups = useMemo(
     () =>
-      availableCategories.map((category) => {
-        const links: { label: string; href: string }[] = [];
-        const categoryParam = homeSchoolCategoryPath(category.category);
-        links.push({
-          label: category.label,
-          href: `/schools/?home_category=${categoryParam}`,
-        });
-        for (const country of countrySearches.slice(0, 5)) {
-          links.push({
-            label: `${category.label} in ${country.country_name}`,
-            href: placeListingPath({
-              countrySlug: country.slug,
-              category: category.category,
-            }),
-          });
-        }
-        for (const [, state] of stateSearches.slice(0, 10)) {
-          links.push({
+      availableCategories.map((category) => ({
+        key: `type-${category.category}`,
+        heading: `${category.label} in States`,
+        links: uniqueBy(
+          stateSearches.slice(0, 12).map(([, state]) => ({
             label: `${category.label} in ${state.name}`,
             href: placeListingPath({
               countrySlug: state.countrySlug,
               stateSlug: state.stateSlug,
               category: category.category,
             }),
-          });
-        }
-        for (const city of popularCities.slice(0, 10)) {
-          links.push({
-            label: `${category.label} in ${city.city_name}`,
-            href: placeListingPath({
-              countrySlug: city.country_slug ?? city.country_name,
-              stateSlug: city.state_slug ?? city.state_name,
-              citySlug: city.slug,
-              category: category.category,
-            }),
-          });
-        }
-        for (const board of topBoards.slice(0, 8)) {
-          links.push({
-            label: `${board.board_name} ${category.label}`,
-            href: boardListingPath(board.slug, category.category),
-          });
-        }
-        return {
-          label: category.label,
-          links: uniqueBy(links, (item) => item.href),
-        };
-      }),
-    [availableCategories, countrySearches, popularCities, stateSearches, topBoards],
+          })),
+          (item) => item.href,
+        ),
+      })),
+    [availableCategories, stateSearches],
+  );
+
+  const boardGroup = useMemo(
+    () => ({
+      key: "boards",
+      heading: "Schools by Education Board",
+      links: uniqueBy(
+        topBoards.slice(0, 12).map((board) => ({
+          label: `${board.board_name} schools`,
+          href: boardListingPath(board.slug),
+        })),
+        (item) => item.href,
+      ),
+    }),
+    [topBoards],
+  );
+
+  const cityGroup = useMemo(
+    () => ({
+      key: "cities",
+      heading: "Popular Cities",
+      links: uniqueBy(
+        popularCities.slice(0, 12).map((city) => ({
+          label: `Schools in ${city.city_name}`,
+          href: placeListingPath({
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+          }),
+        })),
+        (item) => item.href,
+      ),
+    }),
+    [popularCities],
+  );
+
+  const stateGroup = useMemo(
+    () => ({
+      key: "states",
+      heading: "Popular States",
+      links: uniqueBy(
+        stateSearches.slice(0, 12).map(([, state]) => ({
+          label: `Schools in ${state.name}`,
+          href: placeListingPath({
+            countrySlug: state.countrySlug,
+            stateSlug: state.stateSlug,
+          }),
+        })),
+        (item) => item.href,
+      ),
+    }),
+    [stateSearches],
+  );
+
+  const countryGroup = useMemo(
+    () => ({
+      key: "countries",
+      heading: "Browse by Country",
+      links: uniqueBy(
+        countrySearches.slice(0, 8).map((country) => ({
+          label: `Schools in ${country.country_name}`,
+          href: placeListingPath({ countrySlug: country.slug }),
+        })),
+        (item) => item.href,
+      ),
+    }),
+    [countrySearches],
+  );
+
+  const footerGroups = useMemo(
+    () =>
+      [ ...schoolTypeGroups, boardGroup, cityGroup, stateGroup, countryGroup ].filter(
+        (group) => group.links.length > 0,
+      ),
+    [schoolTypeGroups, boardGroup, cityGroup, stateGroup, countryGroup],
   );
 
   return (
     <footer className="seo-footer" id="sitemap">
       <nav className="seo-footer__popular" aria-label="School searches by type, board, and location">
         {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-        <table className="seo-footer__group-table">
-          <tbody>
-            {popularSearchGroups.map((group) => (
-              <tr key={group.label}>
-                <th className="sr-only" scope="row">{group.label}</th>
-                <td>
-                  <div className="seo-footer__search-cloud">
-                    {group.links.map((item) => (
-                      <Link key={item.href} href={item.href}>{item.label}</Link>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="seo-footer__columns">
+          {footerGroups.map((group) => (
+            <section className="seo-footer__column" key={group.key}>
+              <h3>{group.heading}</h3>
+              <ul>
+                {group.links.map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href}>{item.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
       </nav>
 
       <div className="seo-footer__grid">

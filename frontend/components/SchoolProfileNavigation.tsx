@@ -1,23 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { schoolSectionPath, schoolSections, type SchoolSectionId } from "@/lib/school-sections";
 
-const sections = [
-  { id: "overview", label: "Overview" },
-  { id: "fees", label: "Fees" },
-  { id: "admissions", label: "Admissions" },
-  { id: "facilities", label: "Facilities" },
-  { id: "infrastructure", label: "Infrastructure" },
-  { id: "media", label: "Photos & Videos" },
-  { id: "reviews", label: "Reviews" },
-  { id: "location", label: "Location" },
-];
-
-export default function SchoolProfileNavigation() {
-  const [activeSection, setActiveSection] = useState("overview");
+export default function SchoolProfileNavigation({
+  schoolPath,
+  initialSection = "overview",
+}: {
+  schoolPath: string;
+  initialSection?: SchoolSectionId;
+}) {
+  const [activeSection, setActiveSection] = useState<SchoolSectionId>(initialSection);
 
   useEffect(() => {
-    const targets = sections
+    const targets = schoolSections
       .map(({ id }) => document.getElementById(id))
       .filter((target): target is HTMLElement => target !== null);
     if (!targets.length) return;
@@ -27,7 +23,7 @@ export default function SchoolProfileNavigation() {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) setActiveSection(visible.target.id);
+        if (visible) setActiveSection(visible.target.id as SchoolSectionId);
       },
       { rootMargin: "-150px 0px -65% 0px", threshold: [0, 0.1, 0.35, 0.7] },
     );
@@ -35,22 +31,33 @@ export default function SchoolProfileNavigation() {
     return () => observer.disconnect();
   }, []);
 
+  // Deep-linked section URLs (e.g. /…/school/admissions/) scroll into place on load.
+  useEffect(() => {
+    if (initialSection === "overview") return;
+    const target = document.getElementById(initialSection);
+    if (!target) return;
+    requestAnimationFrame(() => target.scrollIntoView({ block: "start" }));
+  }, [initialSection]);
+
+  function goToSection(id: SchoolSectionId) {
+    setActiveSection(id);
+    const nextPath = schoolSectionPath(schoolPath, id);
+    if (window.location.pathname !== nextPath) {
+      window.history.replaceState(null, "", nextPath);
+    }
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <nav className="school-profile-nav" aria-label="School profile sections">
       <div className="school-profile-nav__inner">
-        {sections.map(({ id, label }) => (
+        {schoolSections.map(({ id, label }) => (
           <button
             type="button"
             className={activeSection === id ? "is-active" : ""}
             key={id}
             aria-current={activeSection === id ? "location" : undefined}
-            onClick={() => {
-              setActiveSection(id);
-              document.getElementById(id)?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-              });
-            }}
+            onClick={() => goToSection(id)}
           >
             {label}
           </button>

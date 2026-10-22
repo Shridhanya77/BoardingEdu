@@ -7,6 +7,7 @@ import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
 import { listingCopy, pageMetadata } from "@/lib/seo";
 import { boardListingPath } from "@/lib/school-urls";
+import { isSchoolSectionId, schoolSectionPath, type SchoolSectionId } from "@/lib/school-sections";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
 
@@ -128,7 +129,25 @@ function relatedSearchesFor(
   return candidates.filter((item) => (seen.has(item.href) ? false : (seen.add(item.href), true)));
 }
 
-function schoolPageMetadata(school: SchoolDetail): Metadata {
+/** Split a trailing school-section slug (…/school/admissions/) off the school path. */
+function splitSchoolSection(segments: string[]): { schoolSegments: string[]; section?: SchoolSectionId } {
+  const candidate = segments[segments.length - 1]?.toLowerCase();
+  if (candidate && isSchoolSectionId(candidate)) {
+    return { schoolSegments: segments.slice(0, -1), section: candidate };
+  }
+  return { schoolSegments: segments };
+}
+
+/**
+ * Request path normalised with a trailing slash. `params.segments` never carries a
+ * trailing empty segment, so it must be slashed before comparing against a canonical
+ * path — otherwise every school request would redirect onto itself.
+ */
+function requestedSchoolPath(segments: string[]): string {
+  return withTrailingSlash(`/${segments.join("/")}`);
+}
+
+function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Metadata {
   const city = school.city_detail.city_name;
   const state = school.state_detail.state_name;
   const boards = school.boards_detail.map((board) => board.board_name);
@@ -139,7 +158,7 @@ function schoolPageMetadata(school: SchoolDetail): Metadata {
   return pageMetadata({
     title: `${school.school_name} | ${city} School | BoardingEdu`,
     description: `Explore ${school.school_name}, ${types.length ? `a ${categoryText}` : "a school"} in ${city}, ${state}${boards.length ? `, following ${boards.join(" and ")}` : ""}. Review its profile, fees, facilities, and admission details.`,
-    path: schoolProfilePath(school),
+    path: schoolSectionPath(schoolProfilePath(school), section),
     image: school.school_image_url,
     keywords: [school.school_name, ...types, city, state, ...boards, "school admissions"],
   });
@@ -200,22 +219,23 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       keywords: ["school directory", "schools in India", "boarding schools", "day schools"],
     });
   }
-  if (segments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(segments[2])) {
+  const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
+  if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
-      return schoolPageMetadata(await schools.bySlug(segments[3]));
+      return schoolPageMetadata(await schools.bySlug(schoolSegments[3]!), schoolSection);
     } catch {
       return unavailableMetadata("School profile | BoardingEdu");
     }
   }
   // Trailing school-type suffixes (…/residential-school, …/day-school) are listings, not school slugs.
-  const isCategorySuffix = ["day-school", "boarding-schools", "residential-school"].includes(segments[segments.length - 1]?.toLowerCase() ?? "");
+  const isCategorySuffix = ["day-school", "boarding-schools", "residential-school"].includes(schoolSegments[schoolSegments.length - 1]?.toLowerCase() ?? "");
   if (
     !isCategorySuffix &&
-    (segments.length === 4 || segments.length === 5) &&
-    !["boarding", "dayschool", "fullboarding"].includes(segments[2])
+    (schoolSegments.length === 4 || schoolSegments.length === 5) &&
+    !["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")
   ) {
     try {
-      return schoolPageMetadata(await schools.bySlug(segments[segments.length - 1]!));
+      return schoolPageMetadata(await schools.bySlug(schoolSegments[schoolSegments.length - 1]!), schoolSection);
     } catch {
       return unavailableMetadata("School profile | BoardingEdu");
     }
@@ -278,6 +298,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
+  const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
   if (segments[0] === "board" && segments.length === 2) {
     const board = await findActiveBoard(segments[1]);
     if (!board) notFound();
@@ -346,25 +367,25 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   }
 
   if (
-    (segments.length === 4 || segments.length === 5) &&
-    !["boarding", "dayschool", "fullboarding"].includes(segments[2])
+    (schoolSegments.length === 4 || schoolSegments.length === 5) &&
+    !["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")
   ) {
     try {
-      const school = await schools.bySlug(segments[segments.length - 1]!);
-      const canonicalPath = schoolProfilePath(school);
-      if (`/${segments.join("/")}` !== canonicalPath) redirect(canonicalPath);
-      return <SchoolProfile school={school} />;
+      const school = await schools.bySlug(schoolSegments[schoolSegments.length - 1]!);
+      const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+      if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+      return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 404)) throw error;
     }
   }
 
-  if (segments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(segments[2])) {
+  if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
-      const school = await schools.bySlug(segments[3]);
-      const path = schoolProfilePath(school);
-      if (`/${segments.join("/")}` !== path) redirect(path);
-      return <SchoolProfile school={school} />;
+      const school = await schools.bySlug(schoolSegments[3]!);
+      const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+      if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+      return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) notFound();
       throw error;
@@ -372,19 +393,19 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   }
 
   // Keep existing /day-school/... and /residential-school/... listing and school URLs.
-  if (["day-school", "residential-school"].includes(segments[0] ?? "") && (segments.length === 4 || segments.length === 5)) {
-    if (segments.length === 5) {
+  if (["day-school", "residential-school"].includes(schoolSegments[0] ?? "") && (schoolSegments.length === 4 || schoolSegments.length === 5)) {
+    if (schoolSegments.length === 5) {
       try {
-        const school: SchoolDetail = await schools.bySlug(segments[4]);
-        const path = schoolProfilePath(school);
-        if (`/${segments.join("/")}` !== path) redirect(path);
-        return <SchoolProfile school={school} />;
+        const school: SchoolDetail = await schools.bySlug(schoolSegments[4]!);
+        const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+        if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+        return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
       } catch (error) {
         if (!(error instanceof ApiError && error.status === 404)) throw error;
       }
     }
-    const place = await resolvePlace(segments.slice(1, 5));
-    const types = await resolveTypes(segments[0]);
+    const place = await resolvePlace(schoolSegments.slice(1, 5));
+    const types = await resolveTypes(schoolSegments[0]);
     const breadcrumbs = placeBreadcrumbs(place, segments[0] === "day-school" ? "Day Schools" : "Boarding Schools");
     return (
       <>

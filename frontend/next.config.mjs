@@ -6,6 +6,18 @@ const apiBase = (
 
 const nextConfig = {
   trailingSlash: true,
+  async redirects() {
+    // Canonical host: send the apex domain to the `www.` host so every public
+    // URL is served from https://www.boardingedu.com/… with a trailing slash.
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "boardingedu.com" }],
+        destination: "https://www.boardingedu.com/:path*/",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

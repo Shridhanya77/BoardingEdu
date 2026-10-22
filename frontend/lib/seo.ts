@@ -26,7 +26,7 @@ export function pageMetadata({
   const url = absoluteUrl(canonicalPath);
   const ogImage = image || `${SITE_URL}/BoardingEdu_LOGO.jpeg`;
   return {
-    title,
+    title: { absolute: title },
     description,
     keywords: keywords.length ? keywords : undefined,
     alternates: { canonical: canonicalPath },

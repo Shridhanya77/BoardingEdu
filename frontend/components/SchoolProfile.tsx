@@ -38,9 +38,9 @@ import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeeSummary from "./SchoolFeeSummary";
 import SchoolEnquiryForm from "./SchoolEnquiryForm";
-import SchoolCallbackModal from "./SchoolCallbackModal";
 import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
 import SchoolReviews from "./SchoolReviews";
+import type { SchoolSectionId } from "@/lib/school-sections";
 
 async function loadReviewData(schoolId: string): Promise<{
   reviews: ReviewListItem[];
@@ -181,8 +181,15 @@ function gradeBadge(gradeName: string, seats: number | null, entryAge: [number |
   );
 }
 
-export default async function SchoolProfile({ school }: { school: SchoolDetail }) {
+export default async function SchoolProfile({
+  school,
+  initialSection = "overview",
+}: {
+  school: SchoolDetail;
+  initialSection?: SchoolSectionId;
+}) {
   const schoolImage = school.school_logo_url || school.school_image_url;
+  const heroBackground = school.school_image_url || school.school_logo_url;
   const [reviewData, nearbySchools] = await Promise.all([
     loadReviewData(school.school_id),
     loadNearbySchools(school),
@@ -193,26 +200,56 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
     school.state_detail.state_name,
     school.country_detail.country_name,
   ].filter(Boolean).join(", ");
-  const relatedSearchLinks = [
-    ...school.boards_detail.map((board) => ({
-      label: `${board.board_name} schools in ${school.city_detail.city_name}`,
-      filters: { board: board.board_id, city: school.city_detail.city_id },
-    })),
-    ...school.school_types_detail.map((type) => ({
-      label: `${schoolTypeLabel(type.type_code, type.slug, type.type_name)} schools in ${school.city_detail.city_name}`,
-      filters: { school_type: type.school_type_id, city: school.city_detail.city_id },
-    })),
+  const cityName = school.city_detail.city_name;
+  const stateName = school.state_detail.state_name;
+  const cityFilters = { city: school.city_detail.city_id };
+  const stateFilters = { state: school.state_detail.state_id };
+  const relatedSearchLinks: { label: string; filters: Record<string, string> }[] = [
+    // Board-driven searches in the same city and state.
+    ...school.boards_detail.flatMap((board) => [
+      {
+        label: `${board.board_name} schools in ${cityName}`,
+        filters: { board: board.board_id, ...cityFilters },
+      },
+      {
+        label: `${board.board_name} schools in ${stateName}`,
+        filters: { board: board.board_id, ...stateFilters },
+      },
+    ]),
+    // School-type searches in the same city and state.
+    ...school.school_types_detail.flatMap((type) => {
+      const label = schoolTypeLabel(type.type_code, type.slug, type.type_name);
+      return [
+        {
+          label: `${label} schools in ${cityName}`,
+          filters: { school_type: type.school_type_id, ...cityFilters },
+        },
+        {
+          label: `${label} schools in ${stateName}`,
+          filters: { school_type: type.school_type_id, ...stateFilters },
+        },
+      ];
+    }),
+    // Board × school-type combinations for the city.
     ...school.boards_detail.flatMap((board) =>
       school.school_types_detail.map((type) => ({
-        label: `${board.board_name} ${schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()} schools`,
+        label: `${board.board_name} ${schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()} schools in ${cityName}`,
         filters: {
           board: board.board_id,
           school_type: type.school_type_id,
-          city: school.city_detail.city_id,
+          ...cityFilters,
         },
       })),
     ),
-  ];
+    // Gender-based and location-wide searches.
+    { label: `Girls schools in ${cityName}`, filters: { gender: "GIRLS" as const, ...cityFilters } },
+    { label: `Boys schools in ${cityName}`, filters: { gender: "BOYS" as const, ...cityFilters } },
+    { label: `All schools in ${cityName}`, filters: { ...cityFilters } },
+    { label: `All schools in ${stateName}`, filters: { ...stateFilters } },
+  ].filter(
+    (item, index, list) =>
+      list.findIndex((candidate) => candidate.label === item.label) === index,
+  );
 
   // Group facilities by category for cleaner grid display
   const facilitiesByCategory = new Map<string, SchoolDetail["facilities_detail"][number][]>();
@@ -312,7 +349,12 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
           <span>/</span><span aria-current="page">{school.school_name}</span>
         </nav>
 
-        <section className="school-detail__hero">
+        <section className={`school-detail__hero${heroBackground ? " school-detail__hero--image" : ""}`}>
+          {heroBackground && (
+            <span className="school-detail__hero-bg" aria-hidden="true">
+              <Image src={heroBackground} alt="" fill sizes="100vw" unoptimized priority />
+            </span>
+          )}
           {schoolImage ? (
             <Image
               className="school-detail__crest"
@@ -379,7 +421,7 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
           </dl>
         )}
 
-        <SchoolProfileNavigation />
+        <SchoolProfileNavigation schoolPath={schoolProfilePath(school)} initialSection={initialSection} />
 
         <div className="school-detail__grid">
           <section className="school-detail__main">
@@ -428,11 +470,9 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
                 <span className="detail-panel__icon"><Star size={18} /></span>
                 <div>
                   <h2>Campus &amp; facilities</h2>
-                  <p>
-                    {school.facilities_detail.length
-                      ? `${school.facilities_detail.length} available amenities at this school.`
-                      : "Facilities have not yet been published for this school."}
-                  </p>
+                  {school.facilities_detail.length === 0 && (
+                    <p>Facilities have not yet been published for this school.</p>
+                  )}
                 </div>
               </div>
               <span id="infrastructure" className="school-detail__section-anchor" />
@@ -551,7 +591,6 @@ export default async function SchoolProfile({ school }: { school: SchoolDetail }
 
           {/* ===== ASIDE ===== */}
           <aside className="school-detail__aside">
-            <SchoolCallbackModal school={school} />
             <div id="school-enquiry"><SchoolEnquiryForm school={school} /></div>
 
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>

@@ -10391,3 +10391,1401 @@ select:focus-visible {
   font-size: var(--text-2xl);
   font-weight: 700;
 }
+
+/* ==========================================================================
+   SCHOOL PROFILE — hero background image + readable foreground.
+   When a school photo is available it sits behind the crest, title, and
+   actions under a dark scrim so the light foreground text stays legible.
+   ========================================================================== */
+
+.school-detail__hero--image {
+  isolation: isolate;
+  overflow: hidden;
+  color: #f2f7fb;
+  background: #0c2438;
+  border-color: rgb(255 255 255 / 18%);
+}
+
+.school-detail__hero--image:hover {
+  border-color: rgb(255 255 255 / 34%);
+}
+
+.school-detail__hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.school-detail__hero-bg img {
+  object-fit: cover;
+  object-position: center;
+}
+
+.school-detail__hero-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg,
+      rgb(5 20 35 / 92%) 0%,
+      rgb(5 20 35 / 80%) 46%,
+      rgb(5 20 35 / 62%) 100%);
+}
+
+/* Lift the real hero content above the background layer. The hero is a grid,
+   so the absolutely-positioned background span must not claim a track. */
+.school-detail__hero--image .school-detail__crest,
+.school-detail__hero--image .school-detail__intro,
+.school-detail__hero--image .school-detail__actions {
+  position: relative;
+  z-index: 1;
+}
+
+/* Foreground colours: dark hero text would vanish on the photo, so both the
+   base tokens and the light-hero overrides are reset to light values. */
+.school-detail__hero--image .school-detail__intro,
+.school-detail__hero--image .school-detail__intro h1,
+.school-detail__hero--image .school-detail__eyebrow,
+.school-detail__hero--image .school-detail__short-name,
+.school-detail__hero--image .school-detail__location {
+  color: #f2f7fb;
+}
+
+.school-detail__hero--image .school-detail__eyebrow {
+  color: #cfe0ef;
+}
+
+.school-detail__hero--image .school-detail__location,
+.school-detail__hero--image .school-detail__short-name {
+  color: #dae7f2;
+}
+
+/* The school name is the focal point of the photo hero, so it gets the
+   strongest weight and a soft shadow to hold up against busy photos. */
+.school-detail__hero--image .school-detail__intro h1 {
+  color: #ffffff;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  text-shadow: 0 2px 18px rgb(3 14 26 / 68%);
+}
+
+.school-detail__hero--image .school-chip {
+  color: #eef5fb;
+  background: rgb(255 255 255 / 12%);
+  border-color: rgb(255 255 255 / 26%);
+}
+
+.school-detail__hero--image .school-chip svg {
+  color: #9fc7e8;
+}
+
+.school-detail__hero--image .featured-badge {
+  color: #2a1400;
+  background: #ffb066;
+}
+
+.school-detail__hero--image .verified-tag {
+  color: #eaf6ee;
+  background: rgb(255 255 255 / 14%);
+  border-color: rgb(255 255 255 / 28%);
+}
+
+/* ==========================================================================
+   HOME GUIDES TEASER — decorative (illustrated) guide cards.
+   ========================================================================== */
+
+.guide-teaser__visual {
+  position: relative;
+  min-height: 150px;
+  margin: -22px -22px 16px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(135deg, #354178, #8273d8);
+}
+
+/* ==========================================================================
+   SEO FOOTER — grouped "popular searches" columns (type / board / city /
+   state / country), mirroring the row-per-dimension layout used on other
+   school discovery sites.
+   ========================================================================== */
+
+.seo-footer__columns {
+  margin-top: 27px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 30px 28px;
+}
+
+.seo-footer__column {
+  min-width: 0;
+}
+
+.seo-footer__column h3 {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #69aaff;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.seo-footer__column ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  list-style: none;
+}
+
+.seo-footer__column li {
+  min-width: 0;
+}
+
+.seo-footer__column a {
+  display: inline-block;
+  color: #9bb0c8;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.seo-footer__column a:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .seo-footer__columns {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 24px;
+  }
+}
+
+@media (max-width: 650px) {
+  .seo-footer__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Restored component styles */
+
+@media (max-width: 430px) {
+  .account-page {
+    padding: 20px 14px 40px;
+  }
+
+  .account-card {
+    padding: 24px 18px;
+  }
+
+  .account-card--wide {
+    padding: 24px 16px;
+  }
+
+  .grades-offered, .facility-group > ul {
+    grid-template-columns: 1fr;
+  }
+
+  .site-header__nav {
+    display: none;
+  }
+
+  .school-chips {
+    gap: 5px;
+  }
+
+  .school-chip {
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+
+}
+.school-profile-nav a {
+  flex: 0 0 auto;
+  padding: 11px 14px;
+  color: #536881;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.school-profile-nav a:hover {
+  color: #102b49;
+  background: #f2f6fb;
+}
+
+.school-profile-nav a.is-active {
+  color: #173b61;
+  background: #edf5ff;
+}
+
+.school-profile-nav a:focus-visible, .school-detail a:focus-visible, .fee-summary button:focus-visible, .fee-summary select:focus-visible {
+  outline: 3px solid #f1a36f;
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .school-profile-nav a {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+}
+@media (max-width: 850px) {
+  .seo-footer__brand {
+    grid-column: 1 / -1;
+  }
+
+}
+.school-profile-nav a {
+  min-height: 44px;
+  border-radius: 9px;
+  font-weight: 650;
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.school-profile-nav a:hover {
+  color: #3730a3;
+  background: #f1f1ff;
+}
+
+.school-profile-nav a.is-active {
+  color: #3730a3;
+  background: #ededff;
+  box-shadow: inset 0 0 0 1px #d9d8ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discovery-page--listing .directory-page-heading > a, .discovery-page--listing .filters-panel, .discovery-page--listing .filters-panel__heading > button, .discovery-page--listing .filter-check, .discovery-page--listing .school-card, .discovery-page--listing .school-card__media-tile img, .discovery-page--listing .school-card__actions a, .discovery-page--listing .load-more, .school-detail__back, .school-detail__hero, .school-detail__actions .detail-button, .school-profile-nav a, .school-detail__main > .detail-panel, .facility {
+    transition: none;
+  }
+
+}
+.discovery-page--home .home-section__heading h2, .discovery-page--home .school-cta h2, .discovery-page--home .final-cta h2 {
+  color: var(--boardingedu-navy);
+}
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.active-filters__label {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.active-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.active-filter:hover, .active-filter:focus-visible {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+  border-color: var(--brand);
+}
+
+.active-filters__clear {
+  margin-left: auto;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--brand-strong);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.type-browse-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+}
+
+.type-browse-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.type-browse-card:hover, .type-browse-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--brand);
+  box-shadow: var(--shadow-md);
+}
+
+.type-browse-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+  border-radius: var(--radius-md);
+}
+
+.type-browse-card h3 {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.type-browse-card p {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.type-browse-card__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.type-browse-note {
+  margin: 18px 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  text-align: center;
+}
+
+.type-browse-note a {
+  color: var(--brand-strong);
+  font-weight: 650;
+}
+
+.review-teaser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+
+.review-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.review-teaser__stars {
+  display: inline-flex;
+  gap: 3px;
+  color: var(--line);
+}
+
+.review-teaser__stars .review-teaser__star--filled {
+  color: var(--gold);
+}
+
+.review-teaser h3 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.review-teaser p {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.review-teaser__byline {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.review-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 26px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.review-invite__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+  border-radius: var(--radius-md);
+}
+
+.review-invite__copy {
+  flex: 1 1 320px;
+}
+
+.review-invite__copy h3 {
+  margin: 0 0 6px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.review-invite__copy p {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.review-invite__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.school-nearby {
+  margin-top: 30px;
+  padding: 26px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.school-nearby__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.school-nearby-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.school-nearby-card:hover, .school-nearby-card:focus-visible {
+  background: var(--card);
+  border-color: var(--brand);
+  transform: translateY(-2px);
+}
+
+.school-nearby-card__media {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+}
+
+.school-nearby-card__media img {
+  object-fit: cover;
+}
+
+.school-nearby-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.school-nearby-card__name {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.school-nearby-card__place {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.school-nearby-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.school-nearby-card__arrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--brand);
+}
+
+@media (max-width: 650px) {
+  .active-filters__clear {
+    margin-left: 0;
+  }
+
+  .school-nearby, .review-invite {
+    padding: 20px;
+  }
+
+}
+.discovery-page--home .home-section--steps {
+  background:
+  radial-gradient(ellipse at 85% 10%, rgb(45 109 161 / 34%), transparent 42%),
+  linear-gradient(125deg, #071321, #102b43);
+}
+
+.discovery-page--home .home-section--steps .home-section__heading h2, .discovery-page--home .home-section--steps .how-step h3 {
+  color: #fff;
+}
+
+.discovery-page--home .home-section--steps .how-step p {
+  color: #d2e0ef;
+}
+
+.discovery-page--home .home-section--blog {
+  padding: clamp(28px, 4vw, 48px);
+  overflow: hidden;
+  background:
+  radial-gradient(ellipse at 90% 8%, rgb(245 131 31 / 14%), transparent 35%),
+  linear-gradient(135deg, #f3f7fb, #fffaf4);
+  border: 1px solid #e1e8f0;
+  border-radius: 24px;
+}
+
+.discovery-page--home .home-section--blog .home-section__heading h2, .discovery-page--home .home-section--blog .guide-teaser h3 {
+  color: #12243a;
+}
+
+.discovery-page--home .home-section--blog .guide-teaser p {
+  color: #465a70;
+}
+
+.discovery-page--home .city-grid {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 3px 14px;
+  scroll-snap-type: x mandatory;
+  scrollbar-color: #c8d3df transparent;
+  scrollbar-width: thin;
+}
+
+.discovery-page--home .city-card {
+  min-width: 108px;
+  min-height: 126px;
+  padding: 13px;
+  flex: 0 0 calc((100% - 90px) / 10);
+  scroll-snap-align: start;
+}
+
+.discovery-page--home .city-card__state {
+  font-size: 10px;
+}
+
+.discovery-page--home .city-card__action {
+  font-size: 8px;
+}
+
+.discovery-page--home .board-card::after {
+  width: 110px;
+  height: 110px;
+  position: absolute;
+  right: -28px;
+  bottom: -36px;
+  content: "";
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 50%;
+  transition: transform 200ms ease;
+}
+
+.discovery-page--home .board-card:hover::after {
+  transform: scale(1.2);
+}
+
+.seo-footer__search-cloud a:hover, .seo-footer__search-cloud a:focus-visible {
+  color: #fff;
+  background: rgb(245 131 31 / 18%);
+  border-color: rgb(245 131 31 / 60%);
+}
+
+.counselling__form input, .counselling__form select, .counselling__form textarea {
+  min-height: 48px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.counselling__state-list > section {
+  overflow: hidden;
+  border: 1px solid #e4eaf1;
+  border-radius: 10px;
+}
+
+.counselling__state-list section > button {
+  border: 0;
+  border-radius: 0;
+}
+
+.counselling__state-chevron {
+  width: 18px;
+  color: #315e83;
+  font-size: 20px;
+  line-height: 1;
+  text-align: center;
+}
+
+.counselling__state-list section > button small {
+  margin-left: auto;
+  color: #63778b;
+  font-size: 12px;
+}
+
+.counselling__city-options > button {
+  background: #fff;
+}
+
+.mobile-navigation__counselling {
+  min-height: 48px;
+  padding: 13px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #fff;
+  background: #e8650f;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.counselling-modal__backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  padding: 20px;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgb(6 18 32 / 68%);
+  backdrop-filter: blur(5px);
+}
+
+.counselling-modal {
+  width: min(100%, 540px);
+  padding: clamp(24px, 5vw, 38px);
+  position: relative;
+  color: #26384c;
+  background:
+  radial-gradient(ellipse at 100% 0%, rgb(245 131 31 / 12%), transparent 34%),
+  #fff;
+  border: 1px solid #e4eaf1;
+  border-radius: 22px;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 28%);
+}
+
+.counselling-modal__close {
+  width: 40px;
+  height: 40px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  color: #516277;
+  background: #f2f5f8;
+  border: 1px solid #e1e7ee;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.counselling-modal__close:hover {
+  color: #142941;
+  background: #e7edf3;
+}
+
+.counselling-modal__eyebrow {
+  color: #b85112;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.counselling-modal h2 {
+  max-width: 390px;
+  margin: 12px 0 8px;
+  color: #12243a;
+  font-family: var(--font-sans);
+  font-size: clamp(25px, 5vw, 32px);
+  line-height: 1.15;
+}
+
+.counselling-modal > p {
+  margin: 0 0 22px;
+  color: #617286;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.counselling-modal form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.counselling-modal label {
+  display: grid;
+  gap: 7px;
+  color: #253a50;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.counselling-modal input, .counselling-modal select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  color: #1b2a3e;
+  background: #fff;
+  border: 1px solid #dce4f1;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+}
+
+.counselling-modal input:focus, .counselling-modal select:focus {
+  border-color: #e8650f;
+  outline: 3px solid rgb(232 101 15 / 13%);
+}
+
+.counselling-modal form > p, .counselling-modal form > button {
+  grid-column: 1 / -1;
+}
+
+.counselling-modal form > button {
+  min-height: 49px;
+  margin-top: 2px;
+  color: #fff;
+  background: linear-gradient(135deg, #f28a28, #df5f0a);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.counselling-modal form > button:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
+.counselling-modal__loading, .counselling-modal__error, .counselling-modal__success {
+  margin: 16px 0 0;
+  color: #617286;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.counselling-modal__loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.counselling-modal__error {
+  color: #9a3024;
+}
+
+.counselling-modal__success {
+  padding: 11px;
+  color: #1c6248;
+  background: #eff8f1;
+  border: 1px solid #d4ead8;
+  border-radius: 9px;
+}
+
+.counselling-modal :focus-visible, .counselling-modal__close:focus-visible {
+  outline: 3px solid #e2ad34;
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .discovery-page--home .city-card {
+    min-width: 130px;
+    flex-basis: 130px;
+  }
+
+}
+@media (max-width: 560px) {
+  .counselling-modal form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+}
+.school-profile-related {
+  margin-top: 28px;
+  padding: clamp(20px, 3vw, 30px);
+  background:
+  radial-gradient(ellipse at 100% 0%, rgb(81 69 229 / 9%), transparent 38%),
+  #f5f7fc;
+  border: 1px solid #e1e6f2;
+  border-radius: 18px;
+}
+
+.school-profile-related h2 {
+  margin: 0 0 15px;
+  color: #172a41;
+  font-family: var(--font-sans);
+  font-size: 21px;
+  font-weight: 750;
+}
+
+.school-profile-related > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.school-profile-related a {
+  min-height: 40px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #354c69;
+  background: #fff;
+  border: 1px solid #dce3ee;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.school-profile-related a:hover, .school-profile-related a:focus-visible {
+  color: #4338ca;
+  background: #f0efff;
+  border-color: #c7c3fa;
+}
+
+.discovery-page--home .city-grid {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 2px 14px;
+  scroll-snap-type: x proximity;
+  scrollbar-color: #c7c8e6 transparent;
+}
+
+.discovery-page--home .city-card {
+  flex: 0 0 188px;
+  scroll-snap-align: start;
+}
+
+.compare-promo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(26px, 5vw, 54px);
+  color: #f9fafb;
+  background:
+  radial-gradient(circle at 100% 0%, rgb(130 127 255 / 30%), transparent 35%),
+  linear-gradient(120deg, #171f43, #29336c 65%, #3d438a);
+  border-radius: 24px;
+}
+
+.compare-promo__intro h2, .talk-to-us__heading h2 {
+  margin: 12px 0;
+  font-size: clamp(26px, 3.4vw, 38px);
+  line-height: 1.15;
+}
+
+.compare-promo__intro > p, .talk-to-us__heading > p {
+  max-width: 560px;
+  color: #d8def1;
+  line-height: 1.65;
+}
+
+.compare-promo__eyebrow {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #c8c6ff;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .08em;
+}
+
+.compare-promo__action {
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #22234f;
+  background: #fff;
+  border-radius: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.compare-promo__status {
+  display: block;
+  margin-top: 12px;
+  color: #d8def1;
+  font-size: 13px;
+}
+
+.compare-promo__schools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.compare-promo__schools article, .compare-promo__empty {
+  min-width: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  color: #e5e8f6;
+  background: rgb(255 255 255 / 9%);
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 15px;
+}
+
+.compare-promo__school-link {
+  display: grid;
+  gap: 9px;
+  color: #fff;
+  text-decoration: none;
+}
+
+.compare-promo__school-link strong {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.compare-promo__school-image {
+  position: relative;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #d2d3ff;
+  background: rgb(255 255 255 / 10%);
+  border-radius: 10px;
+}
+
+.compare-promo__school-image img {
+  object-fit: cover;
+}
+
+.compare-promo__schools article > span {
+  color: #d4d9ee;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.compare-promo__schools article > button, .compare-promo__empty a {
+  min-height: 36px;
+  margin-top: auto;
+  padding: 8px;
+  color: #26254e;
+  background: #fff;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.talk-to-us {
+  padding: clamp(25px, 4vw, 40px);
+  background: linear-gradient(135deg, #f1f5ff, #f7f5ff 55%, #fff7ed);
+  border: 1px solid #e1e7f3;
+  border-radius: 22px;
+}
+
+.talk-to-us__heading h2 {
+  max-width: 680px;
+  color: #1b2d48;
+}
+
+.talk-to-us__heading > p {
+  color: #586b83;
+}
+
+.talk-to-us__options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.talk-to-us__options > a {
+  min-width: 0;
+  min-height: 118px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 18px;
+  gap: 5px 12px;
+  align-items: center;
+  color: #253650;
+  background: #fff;
+  border: 1px solid #e1e6f0;
+  border-radius: 14px;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.talk-to-us__options > a:hover {
+  transform: translateY(-2px);
+  border-color: #c9c8f3;
+  box-shadow: 0 10px 24px rgb(40 45 90 / 8%);
+}
+
+.talk-to-us__options > a > span {
+  width: 40px;
+  height: 40px;
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  color: #5145e5;
+  background: #f0efff;
+  border-radius: 12px;
+}
+
+.talk-to-us__options strong, .talk-to-us__options small {
+  grid-column: 2;
+}
+
+.talk-to-us__options small {
+  color: #718096;
+  overflow-wrap: anywhere;
+}
+
+.talk-to-us__options > a > svg {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  color: #7a78bb;
+}
+
+.listing-place-spotlight, .listing-faq {
+  margin: 24px 0;
+  padding: clamp(18px, 3vw, 30px);
+  background:
+  radial-gradient(ellipse at 100% 0%, rgb(81 69 229 / 7%), transparent 38%),
+  #f8f9fe;
+  border: 1px solid #e3e7f1;
+  border-radius: 18px;
+}
+
+.listing-place-spotlight__heading h2, .listing-place-spotlight__featured h2, .listing-faq__heading h2 {
+  margin: 6px 0 8px;
+  color: #1b2d48;
+  font-size: clamp(21px, 2.4vw, 28px);
+}
+
+.listing-place-spotlight__heading p {
+  margin: 0;
+  color: #5d6f86;
+}
+
+.listing-place-spotlight__places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 18px 0 24px;
+}
+
+.listing-place-spotlight__places a {
+  min-height: 38px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #384d6a;
+  background: #fff;
+  border: 1px solid #dce3ee;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.listing-place-spotlight__places a:hover {
+  color: #4338ca;
+  background: #f0efff;
+  border-color: #c7c3fa;
+}
+
+.listing-place-spotlight__featured .home-section__heading {
+  margin-bottom: 14px;
+}
+
+.listing-place-spotlight__error {
+  color: #9a3024;
+}
+
+.listing-faq {
+  margin-top: 30px;
+}
+
+.listing-faq__heading {
+  margin-bottom: 14px;
+}
+
+.listing-faq .faq-question {
+  min-height: 56px;
+}
+
+.school-load-more {
+  min-height: 68px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #66758b;
+  text-align: center;
+}
+
+.school-load-more > p {
+  margin: 0;
+}
+
+.school-load-more > p[role="alert"] {
+  color: #9a3024;
+}
+
+.school-load-more > p[role="status"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.school-load-more > button {
+  min-height: 44px;
+  padding: 10px 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #3730a3;
+  background: #f4f3ff;
+  border: 1px solid #d8d6fb;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.school-load-more > button:hover {
+  background: #eae9ff;
+}
+
+.reviews-category-ratings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.reviews-category-ratings__item {
+  min-width: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f7f8fc;
+  border: 1px solid #e7eaf2;
+  border-radius: 12px;
+}
+
+.reviews-category-ratings__item > span {
+  color: #566981;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.reviews-category-ratings__item strong {
+  color: #263b59;
+  font-size: 18px;
+}
+
+.reviews-category-ratings__item small {
+  color: #78869a;
+  font-size: 11px;
+}
+
+.guide-teaser__visual--2 {
+  background: linear-gradient(135deg, #28665d, #83b49d);
+}
+
+.guide-teaser__visual--3 {
+  background: linear-gradient(135deg, #a44d3b, #e1a25e);
+}
+
+.guide-teaser__visual > span {
+  position: absolute;
+  top: 13px;
+  left: 16px;
+  z-index: 1;
+  color: rgb(255 255 255 / 80%);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .12em;
+}
+
+.guide-teaser__visual > svg {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 5px 10px rgb(0 0 0 / 20%));
+}
+
+.guide-teaser__visual > i {
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  right: -38px;
+  bottom: -106px;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 50%;
+}
+
+.guide-teaser__visual > i + i {
+  width: 230px;
+  height: 230px;
+  right: -62px;
+  bottom: -148px;
+}
+
+@media (max-width: 900px) {
+  .compare-promo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .talk-to-us__options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reviews-category-ratings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+@media (max-width: 560px) {
+  .compare-promo__schools {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .compare-promo__school-image {
+    height: 150px;
+  }
+
+  .reviews-category-ratings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .listing-place-spotlight__places {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .listing-place-spotlight__places a {
+    flex: 0 0 auto;
+  }
+
+}
+@media (prefers-reduced-motion: reduce) {
+  .discovery-page--home .board-card::after, .discovery-page--home .city-card, .seo-footer__search-cloud a, .school-profile-related a, .talk-to-us__options > a, .listing-place-spotlight__places a {
+    transition: none;
+  }
+
+}
