@@ -64,7 +64,7 @@ export default function SiteFooterSeo({
   const uniqueCities = useMemo(() => uniqueBy(cities, (city) => city.city_id), [cities]);
 
   const popularCities = useMemo(
-    () => uniqueCities.slice(0, CITY_LINK_LIMIT),
+    () => uniqueCities.filter((city) => (city.schools_count ?? 0) > 0).slice(0, CITY_LINK_LIMIT),
     [uniqueCities],
   );
 
@@ -87,6 +87,7 @@ export default function SiteFooterSeo({
       totals.set(key, entry);
     }
     return [...totals.entries()]
+      .filter(([, state]) => state.count > 0)
       .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name))
       .slice(0, STATE_LINK_LIMIT);
   }, [uniqueCities]);
@@ -147,7 +148,7 @@ export default function SiteFooterSeo({
               stateSlug: city.state_slug ?? city.state_name,
               citySlug: city.slug,
               category,
-            })}?board=${board.board_id}`,
+            })}?board=${toSeoSlug(board.slug)}`,
           });
         }
         for (const [, state] of topStates) {
@@ -157,7 +158,7 @@ export default function SiteFooterSeo({
               countrySlug: state.countrySlug,
               stateSlug: state.stateSlug,
               category,
-            })}?board=${board.board_id}`,
+            })}?board=${toSeoSlug(board.slug)}`,
           });
         }
       }

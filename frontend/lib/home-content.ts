@@ -23,49 +23,19 @@ export const exploreItems = [
 ] as const;
 
 export const howItWorksSteps = [
-  {
-    title: "Discover",
-    text: "Explore school listings by location, education board, school type, and other available details.",
-  },
-  {
-    title: "Compare",
-    text: "Compare available school information, including boards, fees, and facilities.",
-  },
-  {
-    title: "Shortlist & Enquire",
-    text: "Save schools to compare later or send an enquiry directly to a school.",
-  },
-  {
-    title: "Get Counselled",
-    text: "Request counselling for help understanding school options and planning your search.",
-  },
+  { title: "Discover", text: "Open a city, board, or school type." },
+  { title: "Compare", text: "Line up fees, boards, and ratings." },
+  { title: "Enquire", text: "Contact the schools on your shortlist." },
+  { title: "Get guidance", text: "Ask for free admission counselling." },
 ];
 
 export const whyUsCards = [
-  {
-    title: "Verified School Profiles",
-    text: "Review the details currently available on each school profile, and contact the school to confirm admissions information.",
-  },
-  {
-    title: "Transparent Fee Information",
-    text: "Compare published fee information where available, and ask schools directly about any missing fee details.",
-  },
-  {
-    title: "Compare Schools Side-by-Side",
-    text: "Compare selected schools using the profile information available in the directory.",
-  },
-  {
-    title: "Free One-on-One Counselling",
-    text: "Request help with school options, education boards, and the next steps in your search.",
-  },
-  {
-    title: "Apply to Multiple Schools",
-    text: "Use school enquiry links to contact the schools you are considering.",
-  },
-  {
-    title: "Pan-India Boarding Coverage",
-    text: "Browse available school listings by country, state, and city.",
-  },
+  { title: "Verified profiles", text: "Check what the school has published, then confirm with them." },
+  { title: "Published fees", text: "Compare the fees that schools have listed." },
+  { title: "Side-by-side compare", text: "Review up to four schools in one view." },
+  { title: "Free counselling", text: "Request help choosing a board or city." },
+  { title: "Direct enquiries", text: "Contact more than one school from its profile." },
+  { title: "Places that have schools", text: "City and state links only open listings that exist." },
 ];
 
 export const faqItems = [

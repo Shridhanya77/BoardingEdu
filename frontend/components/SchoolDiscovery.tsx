@@ -68,6 +68,7 @@ import {
   schoolProfilePathFromSlugs,
   schoolProfileTypeSegment,
   schoolTypeLabel,
+  toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
@@ -560,6 +561,28 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const initialLocationWasInUrl = useRef(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
 
+  const heroSpots = useMemo(() => {
+    const ranked = cities
+      .filter((city) => city.status && (city.schools_count ?? 0) > 0)
+      .slice(0, 4);
+    return ranked.map((city, index) => {
+      const category: HomeSchoolCategory = index % 2 === 0 ? "residential-school" : "day-school";
+      const label = category === "residential-school" ? "Boarding schools" : "Day schools";
+      return {
+        key: city.city_id,
+        title: `${label} in ${city.city_name || "—"}`,
+        place: [city.state_name, city.country_name].filter(Boolean).join(", ") || "—",
+        count: city.schools_count ?? 0,
+        href: placeListingPath({
+          countrySlug: city.country_slug ?? city.country_name,
+          stateSlug: city.state_slug ?? city.state_name,
+          citySlug: city.slug,
+          category,
+        }),
+      };
+    });
+  }, [cities]);
+
   const directoryStats = useMemo(() => {
     const schoolTotal = cities.reduce(
       (total, city) => total + (city.schools_count ?? 0),
@@ -664,7 +687,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     initialFilter?.city,
     initialFilter?.location,
   ]);
-  const listingBoardName = boards.find((item) => board.includes(item.board_id))?.board_name;
+  const listingBoardName = boards.find((item) =>
+    board.some(
+      (value) =>
+        value === item.board_id ||
+        toSeoSlug(item.slug) === toSeoSlug(value) ||
+        item.board_code.toLowerCase() === value.toLowerCase(),
+    ),
+  )?.board_name;
   const selectedListingSchoolType = schoolTypes.find((type) => type.school_type_id === schoolType[0]);
   const listingCategoryLabel = homeCategory === "residential-school"
     ? "Boarding School"
@@ -677,7 +707,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           selectedListingSchoolType?.type_name ?? "",
         )
       : "";
-  const listingPlaceLabel = listingPlaceName || "India";
+  const stillOnInitialPlace =
+    geoCountry === (initialFilter?.country ?? "") &&
+    geoState === (initialFilter?.state ?? "") &&
+    geoCity === (initialFilter?.city ?? "") &&
+    geoLocation === (initialFilter?.location ?? "");
+  const listingPlaceLabel =
+    listingPlaceName ||
+    (stillOnInitialPlace || (!geoCountry && !geoState && !geoCity) ? initialFilter?.placeName : "") ||
+    "India";
   const listingTypeLabel = listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools";
   const listingSubject = listingBoardName ? `${listingBoardName} ${listingTypeLabel}` : listingTypeLabel;
   const listingHeading = `${listingSubject} in ${listingPlaceLabel}`;
@@ -997,6 +1035,23 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
+    const resolvedBoardIds = board.flatMap((value) => {
+      const match = boards.find(
+        (item) =>
+          item.board_id === value ||
+          toSeoSlug(item.slug) === toSeoSlug(value) ||
+          item.board_code.toLowerCase() === value.toLowerCase(),
+      );
+      return match ? [match.board_id] : [];
+    });
+    if (board.length > 0 && boards.length === 0) return;
+    if (board.length > 0 && resolvedBoardIds.length === 0) {
+      setResults([]);
+      setTotalCount(0);
+      setLoading(false);
+      setError("That education board is not in the directory.");
+      return;
+    }
     let cancelled = false;
     const placeScoped = Boolean(initialCity || initialLocation);
     const residentialOnly =
@@ -1016,7 +1071,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       location_group: locationGroups,
       school_type: schoolType,
       home_category: homeCategory ? homeSchoolCategoryPath(homeCategory) : undefined,
-      board,
+      board: resolvedBoardIds,
       min_fee: feeMin,
       max_fee: feeMax,
       gender,
@@ -1064,7 +1119,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, [queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount]);
+  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount]);
 
   useEffect(() => {
     if (isHomePage || loading || !hasMoreResults || error || loadMoreError) return;
@@ -1877,10 +1932,23 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
         </div>
 
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-art__sun" />
-          <div className="hero-art__orbit hero-art__orbit--one" />
-          <div className="hero-art__orbit hero-art__orbit--two" />
+        <div className="hero-art">
+          <div className="hero-art__sun" aria-hidden="true" />
+          <div className="hero-art__orbit hero-art__orbit--one" aria-hidden="true" />
+          <div className="hero-art__orbit hero-art__orbit--two" aria-hidden="true" />
+          {isHomePage && (
+            <div className="hero-spots">
+              {(heroSpots.length ? heroSpots : [
+                { key: "boarding", title: "Boarding schools in —", place: "—", count: 0, href: "/schools/boarding-school/" },
+                { key: "day", title: "Day schools in —", place: "—", count: 0, href: "/schools/day-school/" },
+              ]).map((spot) => (
+                <Link className="hero-spot" href={spot.href} key={spot.key}>
+                  <strong>{spot.title}</strong>
+                  <span>{spot.count > 0 ? `${spot.count} listed · ${spot.place}` : spot.place}</span>
+                </Link>
+              ))}
+            </div>
+          )}
 
           <div className="hero-art__card">
             <div className="hero-art__building">
@@ -1979,10 +2047,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="compare-promo__intro">
           <span className="compare-promo__eyebrow"><BarChart3 size={15} /> YOUR SHORTLIST, SIDE BY SIDE</span>
           <h2>Compare schools on what matters to your family</h2>
-          <p>
-            See boards, school type, fees and parent ratings together before you decide.
-            Category ratings only appear when parents have shared them.
-          </p>
+          <p>Boards, fees, and parent ratings, side by side.</p>
           <ul className="compare-promo__criteria">
             <li><Building2 size={14} aria-hidden /> Board &amp; school type</li>
             <li><MapPin size={14} aria-hidden /> Location &amp; locality</li>

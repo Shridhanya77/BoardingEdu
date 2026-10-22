@@ -13737,6 +13737,116 @@ select:focus-visible {
   }
 }
 
+.hero-art {
+  height: auto;
+  min-height: 360px;
+}
+
+.hero-spots {
+  position: absolute;
+  inset: 8px 0 auto;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.hero-spot {
+  pointer-events: auto;
+  width: min(230px, 78%);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #17324d;
+  box-shadow: 0 12px 28px rgba(8, 24, 48, 0.18);
+  text-decoration: none;
+  animation: hero-spot-in 560ms ease both;
+}
+
+.hero-spot:nth-child(odd) { margin-right: auto; }
+.hero-spot:nth-child(even) { margin-left: auto; }
+.hero-spot:nth-child(2) { animation-delay: 80ms; }
+.hero-spot:nth-child(3) { animation-delay: 140ms; }
+.hero-spot:nth-child(4) { animation-delay: 200ms; }
+
+.hero-spot strong {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.hero-spot span {
+  color: #60758c;
+  font-size: 11px;
+}
+
+.hero-spot:hover {
+  transform: translateY(-2px);
+  background: #fff7f1;
+}
+
+@keyframes hero-spot-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.compare-page--studio {
+  padding: 8px 0 40px;
+}
+
+.compare-page--studio .compare-page__heading {
+  padding: 22px 24px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(232, 101, 15, 0.18), transparent 36%),
+    linear-gradient(135deg, #10243a, #17456b);
+  color: #fff;
+}
+
+.compare-page--studio .compare-page__heading h1,
+.compare-page--studio .compare-page__heading p,
+.compare-page--studio .section-eyebrow {
+  color: #fff;
+}
+
+.compare-page--studio .compare-page__heading > button {
+  color: #17324d;
+}
+
+.compare-page--studio .compare-table-wrap {
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(16, 36, 58, 0.08);
+}
+
+.compare-page--studio .compare-table th,
+.compare-page--studio .compare-table td {
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .hero-spots {
+    position: static;
+    margin-bottom: 12px;
+  }
+
+  .hero-spot,
+  .hero-spot:nth-child(even) {
+    width: 100%;
+    margin: 0;
+  }
+
+  .compare-page--studio .compare-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .compare-page--studio .compare-table {
+    min-width: 640px;
+  }
+}
+
 .bot-onboarding__footer {
   padding: 16px 24px;
   background: #f8fafc;

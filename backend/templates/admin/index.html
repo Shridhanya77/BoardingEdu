@@ -47,6 +47,20 @@
     </div>
   </section>
 
+  <section class="be-panel be-verify-meter">
+    <h3>{% translate "School verification" %}</h3>
+    <div class="be-meter" aria-hidden="true">
+      <span class="be-meter__verified" style="width: {% widthratio s.verification.verified s.verification.total 100 %}%"></span>
+      <span class="be-meter__pending" style="width: {% widthratio s.verification.pending s.verification.total 100 %}%"></span>
+      <span class="be-meter__open" style="width: {% widthratio s.verification.unverified s.verification.total 100 %}%"></span>
+    </div>
+    <ul class="be-chips">
+      <li><span>{% translate "Verified" %}</span><strong>{{ s.verification.verified }}</strong></li>
+      <li><span>{% translate "Pending" %}</span><strong>{{ s.verification.pending }}</strong></li>
+      <li><span>{% translate "Unverified" %}</span><strong>{{ s.verification.unverified }}</strong></li>
+    </ul>
+  </section>
+
   <div class="be-panels">
     <section class="be-panel">
       <h3>{% translate "Enquiries — last 6 months" %}</h3>

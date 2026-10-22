@@ -126,7 +126,7 @@ export default function ComparePage() {
   ];
 
   return (
-    <main className="compare-page">
+    <main className="compare-page compare-page--studio">
       <Link className="school-detail__back" href="/schools">
         <ArrowLeft size={15} /> Back to school search
       </Link>

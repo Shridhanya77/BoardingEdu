@@ -72,6 +72,8 @@ def build_stats():
         featured=Count("pk", filter=Q(is_featured=True)),
         verified=Count("pk", filter=Q(verification_status="VERIFIED")),
         pending_verification=Count("pk", filter=Q(verification_status="PENDING")),
+        unverified=Count("pk", filter=Q(verification_status="UNVERIFIED")),
+        admission_open=Count("pk", filter=Q(admission_open=True, status=True)),
     )
 
     reviews = Review.objects.aggregate(
@@ -86,6 +88,7 @@ def build_stats():
         new=Count("pk", filter=Q(status="NEW")),
         converted=Count("pk", filter=Q(status="CONVERTED")),
         urgent=Count("pk", filter=Q(priority="URGENT")),
+        this_month=Count("pk", filter=Q(created_at__gte=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))),
     )
 
     users = User.objects.aggregate(
@@ -104,6 +107,9 @@ def build_stats():
         _card("Pending Reviews", reviews["pending"], "reviews_review_changelist", "warn", "Awaiting moderation"),
         _card("New Enquiries", enquiries["new"], "admissions_admissionenquiry_changelist", "brand", f"{enquiries['total']} total"),
         _card("Active Users", users["active"], "users_user_changelist", "info", f"{users['total']} registered"),
+        _card("Admissions open", schools["admission_open"], "schools_school_changelist", "brand", "Listed schools accepting enquiries"),
+        _card("Enquiries this month", enquiries["this_month"], "admissions_admissionenquiry_changelist", "info", f"{enquiries['converted']} converted overall"),
+        _card("Unverified schools", schools["unverified"], "schools_school_changelist", "warn", "Not yet submitted or rejected"),
     ]
 
     coverage = [
@@ -168,6 +174,12 @@ def build_stats():
         "quick_links": quick_links,
         "coverage": coverage,
         "roles": roles,
+        "verification": {
+            "verified": schools["verified"],
+            "pending": schools["pending_verification"],
+            "unverified": schools["unverified"],
+            "total": schools["total"] or 1,
+        },
         "months": _enquiry_trend(now),
         "total_reviews": reviews["total"],
         "recent_enquiries": recent_enquiries,

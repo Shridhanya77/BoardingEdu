@@ -178,7 +178,7 @@ export default function HomeBotOnboarding({
                   type="text"
                   autoFocus
                   aria-label="City or state"
-                  placeholder="e.g. Mumbai, Karnataka"
+                  placeholder="e.g. Mumbai, Maharashtra"
                   value={filters.place}
                   onChange={(event) =>
                     setFilters((current) => ({ ...current, place: event.target.value }))
