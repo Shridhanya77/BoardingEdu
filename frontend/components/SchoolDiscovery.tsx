@@ -590,27 +590,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return stats;
   }, [boards.length, cities, schoolTypes.length]);
 
-  /** Show the two parent-facing categories while retaining Day Boarding membership. */
-  const schoolTypeBrowseCards = useMemo(
-    () =>
-      schoolTypeBrowseOrder.flatMap((category) => {
-        const hasTypes = schoolTypes.some((type) =>
-          homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(category),
-        );
-        if (!hasTypes) return [];
-        const copy = schoolTypeBrowseCopy[category];
-        return [
-          {
-            category,
-            slug: homeSchoolCategoryPath(category),
-            label: copy.label,
-            text: copy.text,
-          },
-        ];
-      }),
-    [schoolTypes],
-  );
-
   /**
    * Listing chooser cards are built from the static taxonomy so the section is
    * present in the first paint, before the school type list is fetched.

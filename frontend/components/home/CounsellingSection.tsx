@@ -8,11 +8,8 @@ import {
   fetchAllPages,
   geography,
   schools,
-  type BoardListItem,
   type CityListItem,
   type GradeListItem,
-  type SchoolTypeListItem,
-  type StateListItem,
 } from "@/lib/api";
 import GradeMultiSelect from "./GradeMultiSelect";
 
@@ -22,24 +19,10 @@ export default function CounsellingSection() {
   const [phone, setPhone] = useState("");
   const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
   const [homeCity, setHomeCity] = useState("");
-  const [citySearch, setCitySearch] = useState("");
-  const [preferredCountryId, setPreferredCountryId] = useState("");
-  const [preferredStateId, setPreferredStateId] = useState("");
-  const [states, setStates] = useState<StateListItem[]>([]);
   const [cityChoices, setCityChoices] = useState<CityListItem[]>([]);
-  const [availableCities, setAvailableCities] = useState<CityListItem[]>([]);
-  const [loadingStates, setLoadingStates] = useState(false);
-  const [loadingCities, setLoadingCities] = useState(false);
-  const [citiesOpen, setCitiesOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [preferred, setPreferred] = useState<CityListItem[]>([]);
   const [grades, setGrades] = useState<GradeListItem[]>([]);
-  const [boards, setBoards] = useState<BoardListItem[]>([]);
-  const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
-  const [selectedBoards, setSelectedBoards] = useState<string[]>([]);
-  const [selectedSchoolTypes, setSelectedSchoolTypes] = useState<string[]>([]);
   const [optionsError, setOptionsError] = useState<string | null>(null);
-  const [cityError, setCityError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,34 +31,16 @@ export default function CounsellingSection() {
     let cancelled = false;
     Promise.all([
       schools.grades().then((page) => fetchAllPages(page)),
-      schools.boards().then((page) => fetchAllPages(page)),
-      schools.types().then((page) => fetchAllPages(page)),
-      geography.countries().then((page) => fetchAllPages(page)),
       geography.cities().then((page) => fetchAllPages(page, 1000)),
     ])
-      .then(([gradeRows, boardRows, typeRows, countryRows, cityRows]) => {
-        if (!cancelled) {
-          setGrades(gradeRows.filter((row) => row.status));
-          setBoards(boardRows.filter((row) => row.status));
-          setSchoolTypes(typeRows.filter((row) => row.status));
-          setCityChoices(
-            cityRows
-              .filter((row) => row.status && (row.schools_count ?? 0) >= 0)
-              .sort((left, right) => left.city_name.localeCompare(right.city_name)),
-          );
-          const india = countryRows.find(
-            (country) =>
-              country.status &&
-              (country.country_code.toUpperCase() === "IN" ||
-                country.slug.toLowerCase() === "india" ||
-                country.country_name.toLowerCase() === "india"),
-          );
-          if (india) {
-            setPreferredCountryId(india.country_id);
-          } else {
-            setCityError("India location options are not available right now.");
-          }
-        }
+      .then(([gradeRows, cityRows]) => {
+        if (cancelled) return;
+        setGrades(gradeRows.filter((row) => row.status));
+        setCityChoices(
+          cityRows
+            .filter((row) => row.status)
+            .sort((left, right) => left.city_name.localeCompare(right.city_name)),
+        );
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
@@ -86,72 +51,6 @@ export default function CounsellingSection() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!preferredCountryId) {
-      setStates([]);
-      setLoadingStates(false);
-      return;
-    }
-    let cancelled = false;
-    setStates([]);
-    setLoadingStates(true);
-    geography
-      .statesOf(preferredCountryId)
-      .then((page) => fetchAllPages(page))
-      .then((rows) => {
-        if (!cancelled) {
-          setCityError(null);
-          setStates(rows.filter((state) => state.status && state.country_id === preferredCountryId));
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setStates([]);
-          setCityError(reason instanceof Error ? reason.message : "Could not load states.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingStates(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [preferredCountryId]);
-
-  useEffect(() => {
-    if (!preferredStateId) {
-      setAvailableCities([]);
-      setLoadingCities(false);
-      return;
-    }
-    let cancelled = false;
-    setAvailableCities([]);
-    setLoadingCities(true);
-    geography
-      .citiesOf(preferredStateId)
-      .then(fetchAllPages)
-      .then((rows) => {
-        if (!cancelled) {
-          setCityError(null);
-          setAvailableCities(rows.filter(
-            (city) => city.status && city.state_id === preferredStateId && city.country_id === preferredCountryId,
-          ));
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setAvailableCities([]);
-          setCityError(reason instanceof Error ? reason.message : "Could not load cities for this state.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingCities(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [preferredStateId, preferredCountryId]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -191,9 +90,9 @@ export default function CounsellingSection() {
         preferred_state: allSameState ? preferred[0]!.state_id : undefined,
         preferred_cities: preferred.map((city) => city.city_id),
         grades: selectedGrades,
-        boards: selectedBoards,
-        school_types: selectedSchoolTypes,
-        message: message.trim(),
+        boards: [],
+        school_types: [],
+        message: "",
       });
       setSuccess(result.reference);
       setName("");
@@ -202,11 +101,6 @@ export default function CounsellingSection() {
       setSelectedGrades([]);
       setHomeCity("");
       setPreferred([]);
-      setPreferredStateId("");
-      setCitySearch("");
-      setSelectedBoards([]);
-      setSelectedSchoolTypes([]);
-      setMessage("");
     } catch (reason: unknown) {
       setError(
         reason instanceof ApiError
