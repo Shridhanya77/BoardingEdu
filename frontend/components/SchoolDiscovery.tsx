@@ -27,7 +27,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { CSSProperties, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { fetchAllPages, geography, schools } from "@/lib/api";
 import type {
   BoardListItem,
@@ -150,36 +150,32 @@ function formatRupees(value: number) {
   }).format(value)}`;
 }
 
-/** Recognisable accent per education board, so the board grid reads as a set of
- *  distinct cards instead of one repeated colour. */
-const boardAccents: Record<string, string> = {
-  CBSE: "#17456b",
-  ICSE: "#1c715c",
-  CISCE: "#5a3fa8",
-  IB: "#3f3bad",
-  IGCSE: "#b4551d",
-  CIE: "#b4551d",
-  STATE: "#2b6a86",
+const PLACE_PHOTOS: Record<string, string> = {
+  mumbai: "https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?auto=format&fit=crop&w=640&q=60",
+  maharashtra: "https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?auto=format&fit=crop&w=640&q=60",
+  bengaluru: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=640&q=60",
+  bangalore: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=640&q=60",
+  karnataka: "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=640&q=60",
+  dehradun: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=640&q=60",
+  mussoorie: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=640&q=60",
+  uttarakhand: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=640&q=60",
+  delhi: "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=640&q=60",
+  pune: "https://images.unsplash.com/photo-1567157577867-05ccb1388e66?auto=format&fit=crop&w=640&q=60",
 };
 
-const boardAccentFallbacks = [
-  "#17456b",
-  "#3f3bad",
-  "#1c715c",
-  "#b4551d",
-  "#2b6a86",
-  "#8e4b24",
-];
+const DEFAULT_PLACE_PHOTO = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=640&q=60";
+const CLASSROOM_PHOTO = "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=640&q=60";
+const LIBRARY_PHOTO = "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=640&q=60";
 
-function boardAccent(board: BoardListItem) {
-  const code = board.board_code.trim().toUpperCase();
-  if (boardAccents[code]) return boardAccents[code]!;
-  const key = `${board.board_name} ${code}`;
-  let hash = 0;
-  for (let index = 0; index < key.length; index += 1) {
-    hash = (hash * 31 + key.charCodeAt(index)) % 9973;
-  }
-  return boardAccentFallbacks[hash % boardAccentFallbacks.length]!;
+function placeBackdrop(slug: string) {
+  const photo = PLACE_PHOTOS[slug.toLowerCase()] ?? DEFAULT_PLACE_PHOTO;
+  return `linear-gradient(160deg, rgb(10 24 40 / 78%), rgb(10 24 40 / 38%)), url("${photo}") center / cover no-repeat`;
+}
+
+function boardBackdrop(code: string, name: string) {
+  const value = `${code} ${name}`.toLowerCase();
+  const photo = /ib|cambridge|igcse/.test(value) ? LIBRARY_PHOTO : CLASSROOM_PHOTO;
+  return `linear-gradient(160deg, rgb(10 24 40 / 78%), rgb(10 24 40 / 38%)), url("${photo}") center / cover no-repeat`;
 }
 
 function boardGroup(board: BoardListItem): "national" | "international" | "other" {
@@ -2054,10 +2050,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     )}
                   </span>
                   <strong>{school.school_name}</strong>
-                  <span>
-                    {[school.city_name, school.boards_detail[0]?.board_name].filter(Boolean).join(" · ") || "School"}
-                    {school.annual_fee != null ? ` · ${formatRupees(Number(school.annual_fee))}/yr` : ""}
-                  </span>
                 </Link>
                 <button
                   type="button"
@@ -2092,22 +2084,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           )}
         </div>
-        {comparedSchools.length >= 2 && (
-          <div className="compare-promo__live" aria-label="Schools in your comparison">
-            {comparedSchools.map((school) => (
-              <article key={school.school_id}>
-                <strong>{school.school_name}</strong>
-                <span>{[school.city_name, school.state_name].filter(Boolean).join(", ") || "Location not listed"}</span>
-                <span>{school.boards_detail.map((board) => board.board_name).join(", ") || "Board not listed"}</span>
-                <span>
-                  {school.annual_fee == null
-                    ? "Fee not published"
-                    : `${formatRupees(Number(school.annual_fee))} / year`}
-                </span>
-              </article>
-            ))}
-          </div>
-        )}
       </section>
 
       <section className="home-section home-quick-actions" aria-labelledby="home-quick-actions-heading">
@@ -2197,6 +2173,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   className={`city-card city-card--${index + 1}`}
                   key={state.state_id}
                   href={hrefFor(null)}
+                  style={{ background: placeBackdrop(state.state_slug) }}
                   onClick={(event) => {
                     if (statesSectionCategory) return;
                     event.preventDefault();
@@ -2272,6 +2249,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 className={`city-card city-card--${index + 1}`}
                 key={city.city_id}
                 href={hrefFor(null)}
+                style={{ background: placeBackdrop(city.slug) }}
                 onClick={(event) => {
                   if (citiesSectionCategory) return;
                   event.preventDefault();
@@ -2356,7 +2334,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     className={`board-card board-card--${index + 1}`}
                     key={boardItem.board_id}
                     href={boardListingPath(boardItem.slug, boardsSectionCategory)}
-                    style={{ "--board-color": boardAccent(boardItem) } as CSSProperties}
+                    style={{ background: boardBackdrop(boardItem.board_code, boardItem.board_name) }}
                     onClick={(event) => {
                       if (boardsSectionCategory) return;
                       event.preventDefault();

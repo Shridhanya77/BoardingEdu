@@ -14279,6 +14279,74 @@ select:focus-visible {
   box-shadow: 0 14px 28px rgb(15 90 70 / 22%);
 }
 
+.discovery-page--home .home-section {
+  padding: 32px 0;
+}
+
+.discovery-page--home .home-section--cities,
+.discovery-page--home .home-section--boards {
+  padding-top: 20px;
+}
+
+.discovery-page--home .home-section__heading {
+  margin-bottom: 12px;
+}
+
+.discovery-page--home .city-card,
+.discovery-page--home .home-section--cities .city-card,
+.discovery-page--home .board-card {
+  min-height: 92px;
+  padding: 10px 12px;
+  color: #fff;
+  background-color: #17324f;
+  background-size: cover;
+  background-position: center;
+}
+
+.discovery-page--home .city-card__name,
+.discovery-page--home .city-card__state,
+.discovery-page--home .board-card__name,
+.discovery-page--home .board-card__action {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+}
+
+.discovery-page--home .home-section--boards .board-card__mark {
+  width: auto;
+  min-height: 0;
+  padding: 2px 8px;
+  color: #fff;
+  background: rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.featured-card__tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 4px 8px;
+  color: #3a2508;
+  background: #ffd27a;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.discovery-page--listing .school-card {
+  background: linear-gradient(180deg, #fff8ef 0%, #fff 46%);
+  border-color: #efd3b0;
+}
+
+.discovery-page--listing .school-card:hover {
+  border-color: #e0a15a;
+  box-shadow: 0 14px 28px rgb(140 78 18 / 14%);
+}
+
 .school-detail > .school-faq {
   margin-top: 28px;
 }
@@ -14563,4 +14631,69 @@ select:focus-visible {
   .compare-board {
     overflow-x: auto;
   }
+}
+
+.discovery-page--home .home-section {
+  padding: 32px 0;
+}
+
+.discovery-page--home .home-section--cities,
+.discovery-page--home .home-section--boards {
+  padding-top: 20px;
+}
+
+.discovery-page--home .home-section__heading {
+  margin-bottom: 12px;
+}
+
+.discovery-page--home .city-card,
+.discovery-page--home .home-section--cities .city-card,
+.discovery-page--home .board-card {
+  min-height: 92px;
+  padding: 10px 12px;
+  color: #fff;
+}
+
+.discovery-page--home .city-card__name,
+.discovery-page--home .city-card__state,
+.discovery-page--home .board-card__name,
+.discovery-page--home .board-card__action {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+}
+
+.discovery-page--home .home-section--boards .board-card__mark {
+  width: auto;
+  min-height: 0;
+  padding: 2px 8px;
+  color: #fff;
+  background: rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.featured-card__tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 4px 8px;
+  color: #3a2508;
+  background: #ffd27a;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.discovery-page--listing .school-card {
+  background: linear-gradient(180deg, #fff8ef 0%, #fff 46%);
+  border-color: #efd3b0;
+}
+
+.discovery-page--listing .school-card:hover {
+  border-color: #e0a15a;
+  box-shadow: 0 14px 28px rgb(140 78 18 / 14%);
 }
