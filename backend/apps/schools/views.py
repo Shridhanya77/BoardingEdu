@@ -2,7 +2,7 @@ import re
 import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import (
@@ -16,7 +16,7 @@ from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
 from apps.reviews.models import Review
 from config.pagination import SchoolDirectoryPagination
-from apps.users.permissions import IsStaffAdmin
+from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
 from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
 from .services import SchoolVerificationError, set_school_verification_status
 from .serializers import (
@@ -29,6 +29,7 @@ from .serializers import (
     SchoolGradeDetailSerializer, SchoolGradeListSerializer,
     SchoolFAQSerializer,
     SchoolRegistrationSerializer,
+    SchoolPortalSerializer,
 )
 
 
@@ -439,6 +440,8 @@ class SchoolViewSet(ReadWriteModelViewSet):
     def get_permissions(self):
         if self.action == 'register':
             return [AllowAny()]
+        if self.action == 'mine':
+            return [IsAuthenticated(), IsVerifiedSchoolAdmin()]
         if self.action in {
             'verification_queue',
             'verification_history',
@@ -446,6 +449,21 @@ class SchoolViewSet(ReadWriteModelViewSet):
         }:
             return [IsStaffAdmin()]
         return super().get_permissions()
+
+    @action(detail=False, methods=['get', 'patch'], url_path='mine')
+    def mine(self, request):
+        """Verified school admins read and update their own public profile."""
+        school = request.user.school_admin_profile.school
+        if request.method.lower() == 'patch':
+            serializer = SchoolPortalSerializer(
+                school,
+                data=request.data,
+                partial=True,
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        return Response(SchoolPortalSerializer(school).data)
 
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):

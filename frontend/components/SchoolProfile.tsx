@@ -211,52 +211,24 @@ export default async function SchoolProfile({
   const stateName = school.state_detail.state_name;
   const cityFilters = { city: school.city_detail.city_id };
   const stateFilters = { state: school.state_detail.state_id };
+  const primaryBoard = school.boards_detail[0];
+  const primaryType = school.school_types_detail[0];
   const relatedSearchLinks: { label: string; filters: Record<string, string> }[] = [
-    // Board-driven searches in the same city and state.
-    ...school.boards_detail.flatMap((board) => [
-      {
-        label: `${board.board_name} schools in ${cityName}`,
-        filters: { board: board.board_id, ...cityFilters },
-      },
-      {
-        label: `${board.board_name} schools in ${stateName}`,
-        filters: { board: board.board_id, ...stateFilters },
-      },
-    ]),
-    // School-type searches in the same city and state.
-    ...school.school_types_detail.flatMap((type) => {
-      const label = schoolTypeLabel(type.type_code, type.slug, type.type_name);
-      return [
-        {
-          label: `${label} schools in ${cityName}`,
-          filters: { school_type: type.school_type_id, ...cityFilters },
-        },
-        {
-          label: `${label} schools in ${stateName}`,
-          filters: { school_type: type.school_type_id, ...stateFilters },
-        },
-      ];
-    }),
-    // Board × school-type combinations for the city.
-    ...school.boards_detail.flatMap((board) =>
-      school.school_types_detail.map((type) => ({
-        label: `${board.board_name} ${schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()} schools in ${cityName}`,
-        filters: {
-          board: board.board_id,
-          school_type: type.school_type_id,
-          ...cityFilters,
-        },
-      })),
-    ),
-    // Gender-based and location-wide searches.
-    { label: `Girls schools in ${cityName}`, filters: { gender: "GIRLS" as const, ...cityFilters } },
-    { label: `Boys schools in ${cityName}`, filters: { gender: "BOYS" as const, ...cityFilters } },
-    { label: `All schools in ${cityName}`, filters: { ...cityFilters } },
-    { label: `All schools in ${stateName}`, filters: { ...stateFilters } },
-  ].filter(
-    (item, index, list) =>
-      list.findIndex((candidate) => candidate.label === item.label) === index,
-  );
+    ...(primaryBoard
+      ? [{
+          label: `${primaryBoard.board_name} schools in ${cityName}`,
+          filters: { board: primaryBoard.board_id, ...cityFilters },
+        }]
+      : []),
+    ...(primaryType
+      ? [{
+          label: `${schoolTypeLabel(primaryType.type_code, primaryType.slug, primaryType.type_name)} schools in ${cityName}`,
+          filters: { school_type: primaryType.school_type_id, ...cityFilters },
+        }]
+      : []),
+    { label: `More schools in ${cityName}`, filters: cityFilters },
+    { label: `Schools in ${stateName}`, filters: stateFilters },
+  ];
 
   // Group facilities by category for cleaner grid display
   const facilitiesByCategory = new Map<string, SchoolDetail["facilities_detail"][number][]>();
@@ -382,11 +354,31 @@ export default async function SchoolProfile({
                 <span className="verified-tag"><CheckCircle2 size={14} /> Verified school</span>
               )}
               {school.verification_status.toLowerCase() !== "verified" && <span>{verificationLabel(school.verification_status)}</span>}
+              {school.admission_open !== undefined && (
+                <span className={school.admission_open ? "school-admission-status is-open" : "school-admission-status"}>
+                  {school.admission_open ? "Admissions open" : "Admissions closed"}
+                </span>
+              )}
               {school.established_year && <span>Established {school.established_year}</span>}
             </div>
             <h1>{school.school_name}</h1>
             {school.short_name && <p className="school-detail__short-name">{school.short_name}</p>}
+            {school.tagline && <p className="school-detail__tagline">{school.tagline}</p>}
             <p className="school-detail__location"><MapPin size={16} />{location}</p>
+            <p className="school-detail__summary">
+              {school.school_name} is a{" "}
+              {school.school_types_detail.length
+                ? school.school_types_detail
+                    .map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase())
+                    .join(" and ")
+                : "school"}
+              {" "}in {location}
+              {school.boards_detail.length
+                ? `, affiliated with ${school.boards_detail.map((board) => board.board_name).join(" and ")}`
+                : ""}
+              . This page covers fees, facilities, admissions
+              {school.admission_open ? " (currently open)" : ""} and parent reviews.
+            </p>
 
             <div className="school-chips" role="list">
               {chips.map(({ label, icon: Icon }) => (
@@ -439,6 +431,7 @@ export default async function SchoolProfile({
                 <span className="detail-panel__icon"><Landmark size={18} /></span>
                 <div><h2>About this school</h2><p>Key information to help your family explore.</p></div>
               </div>
+              {school.about && <p className="school-detail__about">{school.about}</p>}
               <dl className="school-facts">
                 <div><dt>Education board</dt><dd>{school.boards_detail.map((board) => board.board_name).join(", ") || "Not provided"}</dd></div>
                 <div><dt>School type</dt><dd>{school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name)).join(", ") || "Not provided"}</dd></div>
@@ -674,6 +667,21 @@ export default async function SchoolProfile({
               ))}
             </div>
           </section>
+        )}
+        {(school.seo_keywords?.length ?? 0) > 0 && (
+          <nav className="school-search-topics" aria-labelledby="school-search-topics-heading">
+            <h2 id="school-search-topics-heading">Searches this profile answers</h2>
+            <p>
+              Each topic is a real directory search, so families can compare other schools for the same query.
+            </p>
+            <div>
+              {school.seo_keywords?.map((keyword) => (
+                <Link key={keyword} href={`/schools?search=${encodeURIComponent(keyword)}`}>
+                  {keyword}
+                </Link>
+              ))}
+            </div>
+          </nav>
         )}
         {relatedSearchLinks.length > 0 && (
           <nav className="school-profile-related" aria-labelledby="school-profile-related-heading">

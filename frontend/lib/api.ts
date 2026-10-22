@@ -275,7 +275,12 @@ export type SchoolListItem = {
   pincode: string | null; address: string | null;
   lat: number | null; lng: number | null;
   phone: string | null; email: string | null;
+  website?: string;
   principal_name: string | null;
+  tagline?: string;
+  about?: string;
+  admission_open?: boolean;
+  seo_keywords?: string[];
   established_year: number | null;
   annual_fee: string | null;
   average_rating: number | null;
@@ -536,6 +541,12 @@ export const schools = {
    * Returns the full SchoolDetail with nested facilities and grades.
    */
   bySlug: (slug: string) => request<SchoolDetail>(`/schools/schools/by-slug/${encodeURIComponent(slug)}/`),
+  mine: () => authRequest<SchoolPortalData>("/schools/schools/mine/"),
+  updateMine: (payload: SchoolPortalUpdate) =>
+    authRequest<SchoolPortalData>("/schools/schools/mine/", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // ---------- Geography (cascading dropdowns) ----------
@@ -899,6 +910,7 @@ export type PendingSchool = {
 };
 
 export type SchoolDashboardData = {
+  panel_access: "admin" | "pending";
   school: {
     school_id: string;
     school_name: string;
@@ -914,6 +926,7 @@ export type SchoolDashboardData = {
     location_slug: string | null;
     school_types_detail: SchoolTypeListItem[];
     profile_completeness: number;
+    profile_gaps: string[];
   };
   stats: {
     enquiries_total: number;
@@ -928,6 +941,43 @@ export type SchoolDashboardData = {
   recent_enquiries: DashboardEnquiry[];
 };
 
+export type SchoolPortalData = {
+  school_id: string;
+  school_name: string;
+  school_code: string;
+  short_name: string;
+  tagline: string;
+  about: string;
+  website: string;
+  phone: string;
+  email: string;
+  principal_name: string;
+  address: string;
+  pincode: string;
+  established_year: number | null;
+  school_logo_url: string;
+  school_image_url: string;
+  admission_open: boolean;
+  verification_status: VerificationStatus;
+};
+
+export type SchoolPortalUpdate = Pick<
+  SchoolPortalData,
+  | "short_name"
+  | "tagline"
+  | "about"
+  | "website"
+  | "phone"
+  | "email"
+  | "principal_name"
+  | "address"
+  | "pincode"
+  | "established_year"
+  | "school_logo_url"
+  | "school_image_url"
+  | "admission_open"
+>;
+
 export type ParentDashboardData = {
   stats: {
     enquiries_total: number;
@@ -935,7 +985,24 @@ export type ParentDashboardData = {
     children: number;
     reviews_total: number;
     reviews_published: number;
+    shortlisted: number;
   };
+  shortlist: {
+    shortlist_id: string;
+    note: string;
+    created_at: string;
+    school_id: string;
+    school_name: string;
+    slug: string;
+    verification_status: VerificationStatus;
+    city_name: string;
+    state_name: string;
+    country_slug: string;
+    state_slug: string;
+    city_slug: string;
+    location_slug: string | null;
+    school_types_detail: SchoolTypeListItem[];
+  }[];
   children: {
     child_id: string;
     name: string;
@@ -1001,7 +1068,24 @@ export type StaffAdminDashboardData = {
 
 export const dashboards = {
   school: () => authRequest<SchoolDashboardData>("/dashboards/school/"),
+  updateEnquiryStatus: (enquiryId: string, status: EnquiryStatus) =>
+    authRequest<DashboardEnquiry>(`/dashboards/school/enquiries/${enquiryId}/status/`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    }),
   parent: () => authRequest<ParentDashboardData>("/dashboards/parent/"),
+  shortlistStatus: (schoolId: string) =>
+    authRequest<{ saved: boolean }>(`/dashboards/parent/shortlist/?school_id=${encodeURIComponent(schoolId)}`),
+  saveShortlist: (schoolId: string) =>
+    authRequest<{ saved: boolean; shortlist_id?: string }>("/dashboards/parent/shortlist/", {
+      method: "POST",
+      body: JSON.stringify({ school_id: schoolId }),
+    }),
+  removeShortlist: (schoolId: string) =>
+    authRequest<{ saved: boolean }>("/dashboards/parent/shortlist/", {
+      method: "DELETE",
+      body: JSON.stringify({ school_id: schoolId }),
+    }),
   admin: () => authRequest<AdminDashboardData>("/dashboards/admin/"),
   staffAdmin: () =>
     authRequest<StaffAdminDashboardData>("/dashboards/staff-admin/"),

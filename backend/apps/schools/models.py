@@ -149,7 +149,21 @@ class School(models.Model):
     lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
+    website = models.URLField(max_length=500, blank=True)
     principal_name = models.CharField(max_length=100, blank=True)
+    tagline = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="One-line summary shown on the public school profile.",
+    )
+    about = models.TextField(
+        blank=True,
+        help_text="School-written overview used on the public profile and in search snippets.",
+    )
+    admission_open = models.BooleanField(
+        default=True,
+        help_text="Whether the school is currently accepting new enquiries.",
+    )
 
     # ENTERPRISE FIELDS
     boarding_required = models.BooleanField(default=False, null=False)

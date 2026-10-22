@@ -11,6 +11,7 @@ Use in ViewSets via permission_classes = [IsAuthenticated & IsSuperAdmin]
 or override get_permissions() per-action.
 """
 from rest_framework.permissions import BasePermission
+from django.core.exceptions import ObjectDoesNotExist
 from .models import User
 
 # ======================================================================
@@ -47,6 +48,21 @@ class IsStaffAdmin(BasePermission):
         if _is_authenticated_role(request, User.ROLE_SUPER_ADMIN):
             return True
         return _is_authenticated_role(request, User.ROLE_STAFF_ADMIN)
+
+class IsVerifiedSchoolAdmin(BasePermission):
+    """School administrators whose school has been approved by platform staff."""
+
+    message = "Your school must be verified by BoardingEdu before you can use the school admin panel."
+
+    def has_permission(self, request, view):
+        if not _is_authenticated_role(request, User.ROLE_SCHOOL_ADMIN):
+            return False
+        try:
+            school = request.user.school_admin_profile.school
+        except ObjectDoesNotExist:
+            return False
+        return school is not None and school.verification_status == "VERIFIED"
+
 
 class IsSchoolAdmin(BasePermission):
     """

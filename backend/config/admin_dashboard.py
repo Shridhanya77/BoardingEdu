@@ -138,9 +138,34 @@ def build_stats():
         .values("review_id", "school__school_name", "rating", "author_name", "created_at")[:6]
     ]
 
+    pending = schools["pending_verification"]
+    quick_links = [
+        {
+            "label": "Verify schools",
+            "hint": f"{pending} waiting" if pending else "Queue is clear",
+            "url": reverse("admin:schools_school_verification_queue"),
+        },
+        {
+            "label": "Review enquiries",
+            "hint": f"{enquiries['new']} new",
+            "url": reverse("admin:admissions_admissionenquiry_changelist"),
+        },
+        {
+            "label": "Moderate reviews",
+            "hint": f"{reviews['pending']} pending",
+            "url": reverse("admin:reviews_review_changelist"),
+        },
+        {
+            "label": "Manage schools",
+            "hint": f"{schools['verified']} verified",
+            "url": reverse("admin:schools_school_changelist"),
+        },
+    ]
+
     return {
         "generated_at": now,
         "cards": cards,
+        "quick_links": quick_links,
         "coverage": coverage,
         "roles": roles,
         "months": _enquiry_trend(now),

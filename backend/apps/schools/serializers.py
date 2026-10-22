@@ -24,6 +24,7 @@ from .models import (
     SchoolGrade,
     SchoolFAQ,
 )
+from .seo import school_seo_keywords
 
 
 # ======================================================================
@@ -325,7 +326,10 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'lng',
             'phone',
             'email',
+            'website',
             'principal_name',
+            'tagline',
+            'admission_open',
             'established_year',
             'boarding_required',
             'is_featured',
@@ -488,6 +492,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
     videos_detail = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
+    seo_keywords = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -528,7 +533,11 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'lng',
             'phone',
             'email',
+            'website',
             'principal_name',
+            'tagline',
+            'about',
+            'admission_open',
             'boarding_required',
             'is_featured',
             'status',
@@ -536,6 +545,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'published_at',
             'created_at',
             'updated_at',
+            'seo_keywords',
 
             'grades_offered_detail',
             'facilities_detail',
@@ -574,6 +584,9 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
         boards = list(obj.boards.all())
         school_types = list(obj.school_types.all())
         return (boards[0] if boards else None, school_types[0] if school_types else None)
+
+    def get_seo_keywords(self, obj):
+        return school_seo_keywords(obj)
 
     def get_board(self, obj):
         board, _ = self._first_classifications(obj)
@@ -1011,3 +1024,35 @@ class SchoolRegistrationSerializer(serializers.Serializer):
             designation=validated_data.get('designation', ''),
         )
         return school
+
+
+class SchoolPortalSerializer(serializers.ModelSerializer):
+    """Fields a verified school admin can maintain on their own profile."""
+
+    class Meta:
+        model = School
+        fields = [
+            "school_id",
+            "school_name",
+            "school_code",
+            "short_name",
+            "tagline",
+            "about",
+            "website",
+            "phone",
+            "email",
+            "principal_name",
+            "address",
+            "pincode",
+            "established_year",
+            "school_logo_url",
+            "school_image_url",
+            "admission_open",
+            "verification_status",
+        ]
+        read_only_fields = [
+            "school_id",
+            "school_name",
+            "school_code",
+            "verification_status",
+        ]

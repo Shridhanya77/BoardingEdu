@@ -87,6 +87,79 @@
   color: var(--body-fg);
 }
 
+/* ---------------- Welcome desk ---------------- */
+.be-welcome {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 22px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: linear-gradient(125deg, #10243a, #17456b 62%, #1f6a96);
+  color: #fff;
+}
+
+.be-welcome__kicker {
+  margin: 0 0 6px;
+  color: #ffc28e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.be-welcome h2 {
+  margin: 0 0 8px;
+  color: #fff;
+  font-size: 22px;
+}
+
+.be-welcome p {
+  margin: 0;
+  max-width: 68ch;
+  color: #d7e6f2;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.be-welcome__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.be-welcome__actions a {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .1);
+  color: #fff;
+  text-decoration: none;
+}
+
+.be-welcome__actions a:hover {
+  background: #e8650f;
+}
+
+.be-welcome__actions strong {
+  font-size: 14px;
+}
+
+.be-welcome__actions span {
+  color: #f3d7c2;
+  font-size: 12px;
+}
+
+.be-welcome__actions a:hover span {
+  color: #fff;
+}
+
+.dashboard .module {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 /* ---------------- Statistics dashboard ---------------- */
 .be-stats__head {
   display: flex;
@@ -301,6 +374,134 @@ a.be-card:hover {
   font-size: 13px;
 }
 
+/* ---------------- School verification queue ---------------- */
+.be-verify-intro {
+  margin: 8px 0 20px;
+  padding: 22px 24px;
+  background: linear-gradient(125deg, #10243a, #17456b 70%, #28739e);
+  border-radius: 14px;
+  color: #ffffff;
+}
+
+.be-verify-kicker {
+  color: #ffc28e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .9px;
+}
+
+.be-verify-intro h1 {
+  margin: 6px 0;
+  color: #ffffff !important;
+  font-size: 24px;
+}
+
+.be-verify-intro p {
+  margin: 0;
+  color: #d8e6f2;
+  font-size: 13px;
+}
+
+.be-verify-table-wrap {
+  overflow-x: auto;
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: 12px;
+}
+
+.be-verify-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+}
+
+.be-verify-table th,
+.be-verify-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--hairline-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.be-verify-table th {
+  color: var(--body-quiet-color);
+  background: var(--darkened-bg);
+  font-size: 11px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.be-verify-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.be-verify-table td:first-child a {
+  font-weight: 700;
+}
+
+.be-verify-table td:first-child small {
+  color: var(--body-quiet-color);
+}
+
+.be-verify-status {
+  display: inline-flex;
+  padding: 4px 9px;
+  color: #80500d;
+  background: #fff4d7;
+  border: 1px solid #f2daa1;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.be-verify-form__fields {
+  min-width: 360px;
+  display: grid;
+  grid-template-columns: minmax(130px, .75fr) minmax(220px, 1.5fr) auto;
+  align-items: end;
+  gap: 9px;
+}
+
+.be-verify-form__fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--body-quiet-color);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.be-verify-form__fields select,
+.be-verify-form__fields textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--hairline-color);
+  border-radius: 7px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  font: inherit;
+}
+
+.be-verify-form__fields select {
+  min-height: 36px;
+  padding: 6px 8px;
+}
+
+.be-verify-form__fields textarea {
+  min-height: 54px;
+  padding: 7px 8px;
+  resize: vertical;
+}
+
+.be-verify-form__fields .button {
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.be-verify-error {
+  border-left: 4px solid var(--be-accent);
+}
+
 /* ---------------- Modules, forms & buttons ---------------- */
 /* .module background is left to Django (var(--body-bg)) so it follows the
    active theme; only the shape is customised here. */
@@ -355,5 +556,9 @@ input[type=submit].default:hover {
   .be-chart {
     height: 140px;
     gap: 6px;
+  }
+
+  .be-verify-intro {
+    padding: 18px;
   }
 }

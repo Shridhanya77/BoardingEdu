@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 
 from .models import School, SchoolVerificationEvent
 
@@ -29,7 +30,18 @@ def set_school_verification_status(*, school_id, actor, new_status, note):
         )
 
     school.verification_status = new_status
-    school.save(update_fields=["verification_status", "updated_at"])
+    update_fields = ["verification_status", "updated_at"]
+    if new_status == "VERIFIED":
+        school.status = True
+        update_fields.append("status")
+        if not school.published_at:
+            school.published_at = timezone.now()
+            update_fields.append("published_at")
+    elif previous_status == "VERIFIED":
+        school.status = False
+        update_fields.append("status")
+
+    school.save(update_fields=update_fields)
     event = SchoolVerificationEvent.objects.create(
         school=school,
         previous_status=previous_status,

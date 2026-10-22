@@ -88,6 +88,37 @@ class SchoolAdminProfile(models.Model):
     def __str__(self):
         return f"School Admin: {self.user.username} → {self.school.school_code}"
 
+class ParentShortlist(models.Model):
+    """Schools a parent has saved while comparing options."""
+
+    shortlist_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parent_profile = models.ForeignKey(
+        ParentProfile,
+        on_delete=models.CASCADE,
+        related_name="shortlist_items",
+    )
+    school = models.ForeignKey(
+        "schools.School",
+        on_delete=models.CASCADE,
+        related_name="parent_shortlists",
+    )
+    note = models.CharField(max_length=240, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "parent_shortlists"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent_profile", "school"],
+                name="uq_parent_shortlist_school",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.parent_profile_id} → {self.school_id}"
+
+
 class StaffAdminProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='staff_admin_profile')
     designation = models.CharField(max_length=100, blank=True, help_text="e.g., CRM Manager, Counsellor")

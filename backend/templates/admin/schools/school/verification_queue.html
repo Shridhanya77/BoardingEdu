@@ -10,10 +10,14 @@
 {% endblock %}
 
 {% block content %}
-  <h1>Pending school verification</h1>
+  <section class="be-verify-intro">
+    <span class="be-verify-kicker">SCHOOL DIRECTORY</span>
+    <h1>Pending school verification</h1>
+    <p>Review each registration, confirm its details, and record the reason for your decision.</p>
+  </section>
 
   {% if error_form %}
-    <div class="errornote">
+    <div class="errornote be-verify-error">
       {% for field, errors in error_form.errors.items %}
         {% for error in errors %}<p>{{ error }}</p>{% endfor %}
       {% endfor %}
@@ -21,7 +25,8 @@
   {% endif %}
 
   {% if schools %}
-    <table>
+    <div class="be-verify-table-wrap">
+    <table class="be-verify-table">
       <thead>
         <tr>
           <th>School</th>
@@ -38,25 +43,34 @@
               <br><small>{{ school.school_code }}</small>
             </td>
             <td>{{ school.city.city_name }}, {{ school.state.state_name }}</td>
-            <td>Pending Verification</td>
+            <td><span class="be-verify-status">Pending review</span></td>
             <td>
-              <form method="post">
+              <form method="post" class="be-verify-form">
                 {% csrf_token %}
                 <input type="hidden" name="school_id" value="{{ school.pk }}">
-                <select name="status" required>
-                  <option value="">Choose status</option>
-                  {% for status, label in verification_statuses %}
-                    <option value="{{ status }}">{{ label }}</option>
-                  {% endfor %}
-                </select>
-                <textarea name="note" rows="2" maxlength="1000" required></textarea>
-                <button type="submit" class="button">Save decision</button>
+                <div class="be-verify-form__fields">
+                  <label>
+                    Decision
+                    <select name="status" required>
+                      <option value="">Choose status</option>
+                      {% for status, label in verification_statuses %}
+                        <option value="{{ status }}">{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Review note
+                    <textarea name="note" rows="2" maxlength="1000" required placeholder="Record what was reviewed or what needs attention."></textarea>
+                  </label>
+                  <button type="submit" class="button">Save decision</button>
+                </div>
               </form>
             </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
 
     {% if page_obj.has_other_pages %}
       <p class="paginator">

@@ -409,9 +409,24 @@ class SchoolAdmin(admin.ModelAdmin):
                 "fields": (
                     "phone",
                     "email",
+                    "website",
                     "principal_name",
                     "established_year",
                 )
+            },
+        ),
+        (
+            "School Profile & Admissions",
+            {
+                "fields": (
+                    "tagline",
+                    "about",
+                    "admission_open",
+                ),
+                "description": (
+                    "Keep the public profile factual and current. This overview "
+                    "appears on the school detail page."
+                ),
             },
         ),
         (

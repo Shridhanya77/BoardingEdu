@@ -6,6 +6,7 @@ Read-only JSON summaries powering the four front-end dashboards:
   /api/dashboards/admin/        → SUPER_ADMIN / STAFF_ADMIN (platform totals)
   /api/dashboards/staff-admin/  → STAFF_ADMIN / SUPER_ADMIN (moderation queues)
 """
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Avg, Count, Q
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
@@ -15,8 +16,8 @@ from rest_framework.views import APIView
 from apps.admissions.models import AdmissionEnquiry, Child, CounsellingRequest
 from apps.reviews.models import Review
 from apps.schools.models import School
-from apps.users.models import User
-from apps.users.permissions import IsStaffAdmin
+from apps.users.models import ParentShortlist, User
+from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
 
 
 def _month_start():
@@ -58,63 +59,124 @@ def _enquiry_row(enquiry):
     }
 
 
+def _school_admin_school(user):
+    if getattr(user, "role", None) != User.ROLE_SCHOOL_ADMIN:
+        return None
+    try:
+        return user.school_admin_profile.school
+    except ObjectDoesNotExist:
+        return None
+
+
+def _school_card(school):
+    checks = [
+        (school.tagline, "Add a one-line tagline"),
+        (school.about, "Write an about section"),
+        (school.phone, "Add a phone number"),
+        (school.email, "Add an email address"),
+        (school.website, "Add the school website"),
+        (school.school_logo_url, "Add a logo"),
+        (school.school_image_url, "Add a campus photo"),
+        (school.principal_name, "Add the principal's name"),
+        (school.established_year, "Add the year established"),
+    ]
+    gaps = [label for value, label in checks if not value]
+    return {
+        "school_id": str(school.school_id),
+        "school_name": school.school_name,
+        "school_code": school.school_code,
+        "slug": school.slug,
+        "verification_status": school.verification_status,
+        "status": school.status,
+        "city_name": school.city.city_name,
+        "state_name": school.state.state_name,
+        "country_slug": school.country.slug,
+        "state_slug": school.state.slug,
+        "city_slug": school.city.slug,
+        "location_slug": school.location.slug if school.location_id else None,
+        "school_types_detail": [
+            {
+                "school_type_id": str(school_type.school_type_id),
+                "type_code": school_type.type_code,
+                "type_name": school_type.type_name,
+                "slug": school_type.slug,
+                "status": school_type.status,
+            }
+            for school_type in school.school_types.all()
+        ],
+        "profile_completeness": round((len(checks) - len(gaps)) / len(checks) * 100),
+        "profile_gaps": gaps,
+    }
+
+
+def _shortlist_row(item):
+    school = item.school
+    return {
+        "shortlist_id": str(item.shortlist_id),
+        "note": item.note,
+        "created_at": item.created_at,
+        "school_id": str(school.school_id),
+        "school_name": school.school_name,
+        "slug": school.slug,
+        "verification_status": school.verification_status,
+        "city_name": school.city.city_name if school.city_id else "",
+        "state_name": school.state.state_name if school.state_id else "",
+        "country_slug": school.country.slug if school.country_id else "",
+        "state_slug": school.state.slug if school.state_id else "",
+        "city_slug": school.city.slug if school.city_id else "",
+        "location_slug": school.location.slug if school.location_id else None,
+        "school_types_detail": [
+            {
+                "school_type_id": str(school_type.school_type_id),
+                "type_code": school_type.type_code,
+                "type_name": school_type.type_name,
+                "slug": school_type.slug,
+                "status": school_type.status,
+            }
+            for school_type in school.school_types.all()
+        ],
+    }
+
+
 class SchoolDashboardView(APIView):
-    """Everything a verified school administrator needs on one screen."""
+    """School administrators see a waiting screen until staff verify the school."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        profile = getattr(request.user, "school_admin_profile", None)
-        if request.user.role != User.SCHOOL_ADMIN or profile is None:
+        school = _school_admin_school(request.user)
+        if school is None:
             return Response(
-                {"detail": "This dashboard is for school administrators."},
+                {"detail": "This dashboard is for school administrator accounts."},
                 status=403,
             )
 
-        school = profile.school
+        if school.verification_status != "VERIFIED":
+            return Response(
+                {
+                    "panel_access": "pending",
+                    "school": _school_card(school),
+                    "stats": {
+                        "enquiries_total": 0,
+                        "enquiries_new": 0,
+                        "enquiries_this_month": 0,
+                        "enquiries_converted": 0,
+                        "reviews_published": 0,
+                        "reviews_pending": 0,
+                        "average_rating": None,
+                    },
+                    "enquiry_status": {},
+                    "recent_enquiries": [],
+                }
+            )
+
         enquiries = AdmissionEnquiry.objects.filter(school=school)
         reviews = Review.objects.filter(school=school)
 
-        profile_fields = [
-            school.school_image_url,
-            school.school_logo_url,
-            school.address,
-            school.phone,
-            school.email,
-            school.pincode,
-            school.established_year,
-        ]
-        completeness = round(
-            sum(1 for value in profile_fields if value) / len(profile_fields) * 100
-        )
-
         return Response(
             {
-                "school": {
-                    "school_id": str(school.school_id),
-                    "school_name": school.school_name,
-                    "school_code": school.school_code,
-                    "slug": school.slug,
-                    "verification_status": school.verification_status,
-                    "status": school.status,
-                    "city_name": school.city.city_name,
-                    "state_name": school.state.state_name,
-                    "country_slug": school.country.slug,
-                    "state_slug": school.state.slug,
-                    "city_slug": school.city.slug,
-                    "location_slug": school.location.slug if school.location_id else None,
-                    "school_types_detail": [
-                        {
-                            "school_type_id": str(school_type.school_type_id),
-                            "type_code": school_type.type_code,
-                            "type_name": school_type.type_name,
-                            "slug": school_type.slug,
-                            "status": school_type.status,
-                        }
-                        for school_type in school.school_types.all()
-                    ],
-                    "profile_completeness": completeness,
-                },
+                "panel_access": "admin",
+                "school": _school_card(school),
                 "stats": {
                     "enquiries_total": enquiries.count(),
                     "enquiries_new": enquiries.filter(status="NEW").count(),
@@ -147,6 +209,84 @@ class SchoolDashboardView(APIView):
         )
 
 
+class SchoolEnquiryStatusView(APIView):
+    """Verified school admins move their own enquiries through the pipeline."""
+
+    permission_classes = [IsVerifiedSchoolAdmin]
+
+    def post(self, request, enquiry_id):
+        status = request.data.get("status")
+        allowed = {code for code, _label in AdmissionEnquiry.STATUS_CHOICES}
+        if status not in allowed:
+            return Response(
+                {"detail": "Choose a valid enquiry status."},
+                status=400,
+            )
+        school = request.user.school_admin_profile.school
+        enquiry = (
+            AdmissionEnquiry.objects.select_related("school", "parent_profile__user")
+            .filter(enquiry_id=enquiry_id, school=school)
+            .first()
+        )
+        if enquiry is None:
+            return Response({"detail": "Enquiry not found."}, status=404)
+        enquiry.status = status
+        enquiry.save(update_fields=["status", "updated_at"])
+        return Response(_enquiry_row(enquiry))
+
+
+class ParentShortlistView(APIView):
+    """Parents save or remove a school from the shortlist on their dashboard."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _profile(self, request):
+        if getattr(request.user, "role", None) != User.ROLE_PARENT:
+            return None
+        return getattr(request.user, "parent_profile", None)
+
+    def get(self, request):
+        profile = self._profile(request)
+        if profile is None:
+            return Response({"detail": "Shortlists are for parent accounts."}, status=403)
+        school_id = request.query_params.get("school_id")
+        saved = ParentShortlist.objects.filter(
+            parent_profile=profile,
+            school_id=school_id,
+        ).exists()
+        return Response({"saved": saved})
+
+    def post(self, request):
+        profile = self._profile(request)
+        if profile is None:
+            return Response({"detail": "Shortlists are for parent accounts."}, status=403)
+        school = School.objects.filter(
+            school_id=request.data.get("school_id"),
+            status=True,
+        ).first()
+        if school is None:
+            return Response({"detail": "School not found."}, status=404)
+        item, created = ParentShortlist.objects.get_or_create(
+            parent_profile=profile,
+            school=school,
+        )
+        return Response(
+            {"saved": True, "shortlist_id": str(item.shortlist_id)},
+            status=201 if created else 200,
+        )
+
+    def delete(self, request):
+        profile = self._profile(request)
+        if profile is None:
+            return Response({"detail": "Shortlists are for parent accounts."}, status=403)
+        school_id = request.data.get("school_id") or request.query_params.get("school_id")
+        ParentShortlist.objects.filter(
+            parent_profile=profile,
+            school_id=school_id,
+        ).delete()
+        return Response({"saved": False})
+
+
 class ParentDashboardView(APIView):
     """A parent's own enquiries, children, reviews and counselling requests."""
 
@@ -162,6 +302,13 @@ class ParentDashboardView(APIView):
         enquiries = AdmissionEnquiry.objects.filter(parent_profile=profile)
         reviews = Review.objects.filter(user=request.user)
         children = Child.objects.filter(parent_profile=profile)
+        shortlist = ParentShortlist.objects.filter(parent_profile=profile).select_related(
+            "school",
+            "school__city",
+            "school__state",
+            "school__country",
+            "school__location",
+        ).prefetch_related("school__school_types")
 
         return Response(
             {
@@ -175,7 +322,9 @@ class ParentDashboardView(APIView):
                     "reviews_published": reviews.filter(
                         status=Review.STATUS_PUBLISHED
                     ).count(),
+                    "shortlisted": shortlist.count(),
                 },
+                "shortlist": [_shortlist_row(item) for item in shortlist[:12]],
                 "children": [
                     {
                         "child_id": str(child.child_id),

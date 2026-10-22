@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeftRight, Check, Share2 } from "lucide-react";
+import { ArrowLeftRight, Bookmark, Check, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { SchoolDetail } from "@/lib/api";
-import { schoolDetailToListItem } from "@/lib/api";
+import { apiErrorMessage, dashboards, schoolDetailToListItem, type SchoolDetail } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
 import { useSchoolEnquiry } from "./SchoolEnquiryDialog";
@@ -28,9 +28,58 @@ export function SchoolEnquiryButton({
 
 export default function SchoolProfileActions({ school }: { school: SchoolDetail }) {
   const router = useRouter();
+  const { status, user } = useAuth();
   const { comparedSchools, hydrated, toggleSchool } = useSearchExperience();
   const [message, setMessage] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const compared = comparedSchools.some((item) => item.school_id === school.school_id);
+
+  useEffect(() => {
+    if (status !== "authenticated" || user?.role !== "PARENT") {
+      setSaved(false);
+      return;
+    }
+    let cancelled = false;
+    dashboards.shortlistStatus(school.school_id)
+      .then((result) => {
+        if (!cancelled) setSaved(result.saved);
+      })
+      .catch(() => {
+        if (!cancelled) setSaved(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [school.school_id, status, user?.role]);
+
+  async function toggleShortlist() {
+    if (status !== "authenticated") {
+      const next = `${window.location.pathname}${window.location.search}`;
+      router.push(`/login/?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    if (user?.role !== "PARENT") {
+      setMessage("Sign in with a parent account to save schools.");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (saved) {
+        await dashboards.removeShortlist(school.school_id);
+        setSaved(false);
+        setMessage("Removed from your shortlist.");
+      } else {
+        await dashboards.saveShortlist(school.school_id);
+        setSaved(true);
+        setMessage("Saved to your parent dashboard.");
+      }
+    } catch (reason) {
+      setMessage(apiErrorMessage(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function toggleCompare() {
     if (!compared && comparedSchools.length >= 4) {
@@ -74,6 +123,16 @@ export default function SchoolProfileActions({ school }: { school: SchoolDetail 
       >
         {compared ? <Check size={16} /> : <ArrowLeftRight size={16} />}
         {compared ? "Added to compare" : "Compare"}
+      </button>
+      <button
+        className="detail-button"
+        type="button"
+        onClick={() => void toggleShortlist()}
+        disabled={saving}
+        aria-pressed={saved}
+      >
+        {saved ? <Check size={16} /> : <Bookmark size={16} />}
+        {saved ? "Shortlisted" : "Shortlist"}
       </button>
       <button className="detail-button" type="button" onClick={shareProfile}>
         <Share2 size={16} /> Share

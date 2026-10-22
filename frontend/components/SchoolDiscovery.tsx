@@ -5,25 +5,22 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
+  CircleDollarSign,
   Building2,
   CheckCircle2,
   ChevronDown,
   GraduationCap,
-  Heart,
   LoaderCircle,
   MapPin,
   Mail,
   MessageCircle,
-  Newspaper,
   Phone,
   Plus,
   Search,
-  SearchCheck,
   ShieldCheck,
   SlidersHorizontal,
   Star,
   House,
-  Users,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -31,12 +28,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { CSSProperties, FormEvent } from "react";
-import { fetchAllPages, geography, reviews, schools } from "@/lib/api";
+import { fetchAllPages, geography, schools } from "@/lib/api";
 import type {
   BoardListItem,
   CityListItem,
   LocationListItem,
-  ReviewListItem,
   SchoolFAQListItem,
   SchoolFilters,
   SchoolListItem,
@@ -60,7 +56,6 @@ import {
 import {
   exploreItems,
   faqItems,
-  howItWorksSteps,
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
@@ -76,7 +71,6 @@ import {
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
-import { guideList } from "@/lib/guides";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -565,10 +559,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const locationRestoreApplied = useRef(false);
   const initialLocationWasInUrl = useRef(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
-  const [latestReviews, setLatestReviews] = useState<ReviewListItem[]>([]);
-  const [reviewsLoaded, setReviewsLoaded] = useState(false);
-
-  const homeGuides = useMemo(() => guideList().slice(0, 3), []);
 
   const directoryStats = useMemo(() => {
     const schoolTotal = cities.reduce(
@@ -620,27 +610,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       })),
     [],
   );
-
-  // Latest published parent reviews — the section hides itself until there are
-  // real reviews, so the home page never shows invented testimonials.
-  useEffect(() => {
-    let cancelled = false;
-    reviews
-      .latest()
-      .then((page) => {
-        if (cancelled) return;
-        setLatestReviews(page.results.slice(0, 3));
-        setReviewsLoaded(true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLatestReviews([]);
-        setReviewsLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isHomePage]);
 
   const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
   const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
@@ -1025,15 +994,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return true;
     });
   }, [schoolFaqs]);
-
-  const whyBoardingEdu = [
-    "Verified school profiles",
-    "Transparent fees",
-    "Side-by-side comparison",
-    "Expert guidance",
-    "Application support",
-    "Pan-India coverage",
-  ];
 
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
@@ -2121,30 +2081,50 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
-      <section className="home-section home-section--steps" id="how-it-works">
-        <div className="home-section__heading home-section__heading--centered">
+      <section className="home-section home-quick-actions" aria-labelledby="home-quick-actions-heading">
+        <div className="home-section__heading">
           <div>
-            <div className="section-eyebrow">HOW IT WORKS</div>
-            <h2>Simple steps to your ideal school</h2>
+            <div className="section-eyebrow">QUICK ACTIONS</div>
+            <h2 id="home-quick-actions-heading">Go straight to what you need</h2>
           </div>
         </div>
-
-        <div className="how-it-works-grid">
-          {howItWorksSteps.map((step, index) => (
-            <article className="how-step" key={step.title}>
-              <div className="how-step__number">0{index + 1}</div>
-
-              <div className="how-step__icon">
-                {index === 0 && <Search size={18} />}
-                {index === 1 && <SlidersHorizontal size={18} />}
-                {index === 2 && <CheckCircle2 size={18} />}
-                {index === 3 && <ArrowRight size={18} />}
-              </div>
-
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
-            </article>
-          ))}
+        <div className="home-quick-actions__grid">
+          <Link className="home-quick-action" href={schoolDirectoryPath()}>
+            <span><Search size={20} aria-hidden /></span>
+            <strong>Browse all schools</strong>
+            <small>Open the complete directory</small>
+            <ArrowRight size={17} aria-hidden />
+          </Link>
+          <Link className="home-quick-action" href="/schools?max_fee=100000">
+            <span><CircleDollarSign size={20} aria-hidden /></span>
+            <strong>Schools under ₹1 lakh</strong>
+            <small>Start with your budget</small>
+            <ArrowRight size={17} aria-hidden />
+          </Link>
+          <Link className="home-quick-action" href="#cities">
+            <span><MapPin size={20} aria-hidden /></span>
+            <strong>Choose a location</strong>
+            <small>Browse popular cities</small>
+            <ArrowRight size={17} aria-hidden />
+          </Link>
+          <Link className="home-quick-action" href="#boards">
+            <span><BookOpen size={20} aria-hidden /></span>
+            <strong>Choose a board</strong>
+            <small>Browse curricula</small>
+            <ArrowRight size={17} aria-hidden />
+          </Link>
+          <Link className="home-quick-action" href="/compare">
+            <span><BarChart3 size={20} aria-hidden /></span>
+            <strong>Compare schools</strong>
+            <small>Review your shortlist</small>
+            <ArrowRight size={17} aria-hidden />
+          </Link>
+          <CounsellingLink className="home-quick-action">
+            <span><MessageCircle size={20} aria-hidden /></span>
+            <strong>Get free counselling</strong>
+            <small>Talk to our school guidance team</small>
+            <ArrowRight size={17} aria-hidden />
+          </CounsellingLink>
         </div>
       </section>
 
@@ -2444,141 +2424,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       </section>
 
       <section
-        className="home-section home-section--testimonials"
-        id="parent-stories"
-      >
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">TRUST, EARNED</div>
-            <h2>What parents say</h2>
-          </div>
-
-          <Link href="/schools">
-            Find your school <ArrowRight size={15} />
-          </Link>
-        </div>
-
-        {reviewsLoaded &&
-          (latestReviews.length > 0 ? (
-          <div className="review-teaser-grid">
-            {latestReviews.map((review) => (
-              <article className="review-teaser" key={review.review_id}>
-                <div
-                  className="review-teaser__stars"
-                  aria-label={`Rated ${review.rating} out of 5`}
-                >
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <Star
-                      key={index}
-                      size={15}
-                      aria-hidden="true"
-                      className={
-                        index < review.rating ? "review-teaser__star--filled" : undefined
-                      }
-                    />
-                  ))}
-                </div>
-
-                {review.title && <h3>{review.title}</h3>}
-                <p>{review.body}</p>
-
-                <span className="review-teaser__byline">
-                  {review.author_name}
-                  {review.school_name ? ` · ${review.school_name}` : ""}
-                </span>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="review-invite">
-            <span className="review-invite__icon" aria-hidden="true">
-              <Heart size={20} />
-            </span>
-
-            <div className="review-invite__copy">
-              <h3>No parent reviews published yet</h3>
-              <p>
-                Reviews appear here as soon as families share their experience.
-                If your child studies at one of these schools, your review helps
-                other parents choose with confidence.
-              </p>
-            </div>
-
-            <div className="review-invite__actions">
-              <Link className="primary-button" href="/signup">
-                Share your experience
-              </Link>
-              <Link className="secondary-button" href="/schools">
-                Browse schools
-              </Link>
-            </div>
-          </div>
-          ))}
-      </section>
-
-      <section className="home-section home-section--blog" id="blog">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">FROM THE GUIDES</div>
-            <h2>Practical guides for parents</h2>
-          </div>
-
-          <Link href="/guides">
-            All guides <ArrowRight size={15} />
-          </Link>
-        </div>
-
-        <div className="guide-teaser-grid">
-          {homeGuides.map((guide, index) => (
-            <article className="guide-teaser" key={guide.slug}>
-              <div className={`guide-teaser__visual guide-teaser__visual--${index + 1}`} aria-hidden="true">
-                <span>GUIDE 0{index + 1}</span>
-                {index === 0 ? <BookOpen size={38} /> : index === 1 ? <GraduationCap size={38} /> : <MapPin size={38} />}
-                <i />
-                <i />
-              </div>
-              <span className="guide-teaser__tag">
-                <Newspaper size={14} aria-hidden /> {guide.category}
-              </span>
-              <h3>
-                <Link href={`/guides/${guide.slug}`}>{guide.title}</Link>
-              </h3>
-              <p>{guide.summary}</p>
-              <span className="guide-teaser__meta">
-                {guide.readingMinutes} min read
-              </span>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-section home-section--benefits" id="about">
-        <div className="home-section__heading home-section__heading--centered">
-          <div>
-            <div className="section-eyebrow">WHY BOARDINGEDU</div>
-            <h2>Everything parents need to choose with confidence</h2>
-          </div>
-        </div>
-
-        <div className="benefit-grid">
-          {whyBoardingEdu.map((benefit, index) => (
-            <article className="benefit-card" key={benefit}>
-              <span className="benefit-card__icon">
-                {index === 0 && <Building2 size={18} />}
-                {index === 1 && <ShieldCheck size={18} />}
-                {index === 2 && <SearchCheck size={18} />}
-                {index === 3 && <CheckCircle2 size={18} />}
-                {index === 4 && <ArrowRight size={18} />}
-                {index === 5 && <Users size={18} />}
-              </span>
-
-              <h3>{benefit}</h3>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section
         className="home-section home-section--school-cta"
         id="for-schools"
       >
@@ -2600,27 +2445,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </Link>
             <Link href="/schools" className="secondary-button">
               Learn More
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="home-section home-section--final-cta">
-        <div className="final-cta">
-          <div>
-            <div className="section-eyebrow">START YOUR SEARCH</div>
-            <h2>Ready to Find the Right School?</h2>
-          </div>
-
-          <div className="final-cta__actions">
-            <Link href="/schools" className="primary-button">
-              Find Schools
-            </Link>
-            <Link
-              href="/signup"
-              className="secondary-button secondary-button--light"
-            >
-              Create Parent Account
             </Link>
           </div>
         </div>

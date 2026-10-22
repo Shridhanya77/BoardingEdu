@@ -180,13 +180,19 @@ function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Me
   const types = school.school_types_detail.map((type) =>
     schoolTypeLabel(type.type_code, type.slug, type.type_name),
   );
-  const categoryText = types.length ? types.join(" and ").toLowerCase() : "school";
+  const schoolSummary = school.tagline || school.about?.replace(/\s+/g, " ").trim();
+  const schoolTypeText = types.length ? types.join(" and ").toLowerCase() : "school";
+  const description = (
+    schoolSummary
+      ? `${school.school_name} is a ${schoolTypeText} in ${city}, ${state}. ${schoolSummary}`
+      : `Explore ${school.school_name}, a ${schoolTypeText} in ${city}, ${state}${boards.length ? `, following ${boards.join(" and ")}` : ""}. View fees, facilities and admissions information.`
+  ).slice(0, 180);
   return pageMetadata({
     title: `${school.school_name} | ${city} School | BoardingEdu`,
-    description: `Explore ${school.school_name}, ${types.length ? `a ${categoryText}` : "a school"} in ${city}, ${state}${boards.length ? `, following ${boards.join(" and ")}` : ""}. Review its profile, fees, facilities, and admission details.`,
+    description,
     path: schoolSectionPath(schoolProfilePath(school), section),
     image: school.school_image_url,
-    keywords: [school.school_name, ...types, city, state, ...boards, "school admissions"],
+    keywords: school.seo_keywords ?? [],
   });
 }
 

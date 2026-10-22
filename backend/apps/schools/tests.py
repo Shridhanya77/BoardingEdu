@@ -19,6 +19,7 @@ from apps.users.models import User
 from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
 from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
+from .seo import school_seo_keywords
 from .views import SchoolFilter, SchoolViewSet
 
 
@@ -66,6 +67,23 @@ class SchoolClassificationTests(TestCase):
             type_name='Full Boarding',
             slug='full-boarding',
         )
+
+    def test_school_keywords_cover_distinct_parent_searches(self):
+        school = self.create_school('SEOKEY')
+        school.school_name = 'Green Valley Academy'
+        school.save(update_fields=['school_name'])
+        school.boards.add(self.cbse)
+        school.school_types.add(self.boarding)
+
+        keywords = school_seo_keywords(school)
+
+        self.assertLessEqual(len(keywords), 12)
+        self.assertEqual(len(keywords), len({item.lower() for item in keywords}))
+        self.assertIn('Green Valley Academy admissions', keywords)
+        self.assertIn('Green Valley Academy fees', keywords)
+        self.assertIn('CBSE schools in Bengaluru', keywords)
+        self.assertIn('Boarding School in Bengaluru', keywords)
+        self.assertFalse(any(keywords.count(item) > 1 for item in keywords))
 
     def test_canonical_school_types_include_day_boarding_as_its_own_type(self):
         self.assertEqual(self.day.type_name, 'Day School')

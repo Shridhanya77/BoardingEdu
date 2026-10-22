@@ -23,11 +23,11 @@ const ROLE_LABELS: Record<UserRole, string> = {
   SUPER_ADMIN: "Super admin",
 };
 
-const NAV_ITEMS: { href: string; label: string; Icon: typeof LayoutDashboard }[] = [
-  { href: "/dashboard/parent/", label: "Parent dashboard", Icon: Users },
-  { href: "/dashboard/school/", label: "School dashboard", Icon: Building2 },
-  { href: "/dashboard/staff-admin/", label: "Staff admin", Icon: ShieldCheck },
-  { href: "/dashboard/admin/", label: "Admin dashboard", Icon: GraduationCap },
+const NAV_ITEMS: { href: string; label: string; Icon: typeof LayoutDashboard; roles: UserRole[] }[] = [
+  { href: "/dashboard/parent/", label: "Parent dashboard", Icon: Users, roles: ["PARENT"] },
+  { href: "/dashboard/school/", label: "School admin panel", Icon: Building2, roles: ["SCHOOL_ADMIN"] },
+  { href: "/dashboard/staff-admin/", label: "Staff admin", Icon: ShieldCheck, roles: ["STAFF_ADMIN", "SUPER_ADMIN"] },
+  { href: "/dashboard/admin/", label: "Platform admin", Icon: GraduationCap, roles: ["STAFF_ADMIN", "SUPER_ADMIN"] },
 ];
 
 /** Fetches a role dashboard payload once auth is ready. */
@@ -198,7 +198,7 @@ export function DashboardShell({
             >
               <LayoutDashboard size={16} aria-hidden /> Overview
             </Link>
-            {NAV_ITEMS.map(({ href, label, Icon }) => (
+            {NAV_ITEMS.filter((item) => item.roles.includes(user.role)).map(({ href, label, Icon }) => (
               <Link
                 className={`dash-sidebar__link${pathname === href ? " is-active" : ""}`}
                 href={href}
@@ -210,8 +210,8 @@ export function DashboardShell({
           </nav>
 
           <div className="dash-sidebar__actions">
-            <Link className="dash-sidebar__link" href={dashboardPathForRole(user.role)}>
-              My dashboard
+            <Link className="dash-sidebar__link" href="/">
+              View public site
             </Link>
             <button
               className="dash-sidebar__link dash-sidebar__link--button"
