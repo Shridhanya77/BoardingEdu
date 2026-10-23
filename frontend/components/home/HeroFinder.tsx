@@ -214,7 +214,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
               : id === "day-boarding-school"
                 ? "Your child returns home each evening."
                 : "Your child stays at school.";
-          return <label key={id} className={`school-type-choice${selected ? " is-selected" : ""}`}>
+          return <label key={id} className={`school-type-choice${id === "day-boarding-school" ? " school-type-choice--day-boarding" : ""}${selected ? " is-selected" : ""}`}>
             <input
               type="radio"
               name={homeSearch ? "homepage-school-category" : "school-category"}

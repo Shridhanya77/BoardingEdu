@@ -15140,6 +15140,10 @@ select:focus-visible {
     line-height: 1.35;
   }
 
+  .discovery-page--home .school-type-choice__copy small {
+    display: none;
+  }
+
   .finder-group__fields:not(.finder-group__fields--regional) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -15579,6 +15583,31 @@ select:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .discovery-page--home .home-section--boards .board-grid {
+    display: flex;
+    gap: 12px;
+    margin-right: -18px;
+    padding: 0 18px 12px 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .discovery-page--home .home-section--boards .board-card {
+    width: min(78vw, 280px);
+    min-width: min(78vw, 280px);
+    scroll-snap-align: start;
+  }
+
+  .discovery-page--listing .school-type-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-type-choice--day-boarding {
+    display: none;
+  }
+
   .discovery-page--home .home-reviews__layout {
     grid-template-columns: 1fr;
   }
@@ -17652,5 +17681,61 @@ select:focus-visible {
 
   .school-travel__distance {
     font-size: 11px;
+  }
+}
+
+@media (max-width: 760px) {
+  .discovery-page--listing .filters-panel.filters-panel--open {
+    max-height: min(88vh, 760px);
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    position: fixed;
+    z-index: 45;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #fff;
+    border: 1px solid #dbe3ed;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 36px rgb(15 23 42 / 18%);
+  }
+
+  .discovery-page--listing .filters-backdrop {
+    position: fixed;
+    z-index: 40;
+    inset: 0;
+    display: block;
+  }
+
+  .discovery-page--listing .listing-faq {
+    min-width: 0;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .discovery-page--listing .listing-faq .faq-question {
+    min-width: 0;
+    padding: 14px;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .discovery-page--listing .listing-faq .faq-question > span:first-child,
+  .discovery-page--listing .listing-faq .faq-answer {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .discovery-page--listing .listing-faq .faq-toggle {
+    flex: 0 0 26px;
+  }
+
+  .discovery-page--listing .listing-faq .faq-answer {
+    padding: 0 14px 16px;
   }
 }

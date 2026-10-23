@@ -18,7 +18,6 @@ import {
   Phone,
   Plus,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
   Star,
   House,
@@ -755,21 +754,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       };
     });
   }, [cities]);
-
-  const directoryStats = useMemo(() => {
-    const schoolTotal = cities.reduce(
-      (total, city) => total + (city.schools_count ?? 0),
-      0,
-    );
-    const stats: { value: number; label: string }[] = [];
-    if (schoolTotal > 0) stats.push({ value: schoolTotal, label: "School listings" });
-    if (cities.length > 0) stats.push({ value: cities.length, label: "Cities covered" });
-    if (boards.length > 0) stats.push({ value: boards.length, label: "Education boards" });
-    if (schoolTypes.length > 0) {
-      stats.push({ value: schoolTypes.length, label: "School types" });
-    }
-    return stats;
-  }, [boards.length, cities, schoolTypes.length]);
 
   /**
    * Listing chooser cards are built from the static taxonomy so the section is
@@ -2268,24 +2252,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
       {isHomePage && (
         <>
-      {directoryStats.length > 0 && (
-        <section className="trust-strip" aria-label="Directory at a glance">
-          <div className="trust-strip__stats">
-            {directoryStats.map((stat) => (
-              <div className="trust-stat" key={stat.label}>
-                <strong>{stat.value.toLocaleString("en-IN")}</strong>
-                <span>{stat.label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="trust-strip__note">
-            <ShieldCheck size={15} aria-hidden />
-            Listings are compiled from school-published information. Always
-            confirm fees, seats and admission dates directly with the school.
-          </p>
-        </section>
-      )}
-
       {!isHomePage && showTypeChooser && (
         <section className="home-section home-section--types" id="school-types">
           <div className="home-section__heading home-section__heading--centered">
