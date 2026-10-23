@@ -103,24 +103,24 @@ export default function HomeBotOnboarding({
         return toSeoSlug(board?.slug || board?.board_code || boardId);
       })
       .filter(Boolean);
+    const selectedPlaceSlug = city
+      ? toSeoSlug(city.slug)
+      : state
+        ? toSeoSlug(state.state_slug ?? state.state_name)
+        : country
+          ? toSeoSlug(country.country_slug ?? country.country_name)
+          : place
+            ? toSeoSlug(placeTerms[0] ?? place)
+            : "";
     const boardPath = boardSlugs.length
-      ? `/${boardSlugs[0]}/`
+      ? `/${[
+          boardSlugs.join(","),
+          selectedPlaceSlug,
+          finalFilters.category ? finalFilters.category === "day-school" ? "day-school" : "boarding-school" : "",
+        ].filter(Boolean).join("/")}/`
       : placePath;
-    const url = new URL(
-      boardPath,
-      window.location.origin,
-    );
+    const url = new URL(boardPath, window.location.origin);
     const filtersInHash = new URLSearchParams();
-    if (place && finalFilters.boards.length) {
-      filtersInHash.set("search", place);
-    }
-    if (finalFilters.boards.length && finalFilters.category) {
-      filtersInHash.set("home_category", finalFilters.category);
-    }
-    finalFilters.boards.forEach((boardId) => {
-      const board = boards.find((item) => item.board_id === boardId);
-      filtersInHash.append("board", toSeoSlug(board?.slug || board?.board_code || boardId));
-    });
     if (finalFilters.feeRange) {
       const [min, max] = finalFilters.feeRange.split("-");
       if (min && max) {
