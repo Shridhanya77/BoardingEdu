@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Bot, Check, X } from "lucide-react";
-import type { BoardListItem } from "@/lib/api";
-import { schoolDirectoryPath } from "@/lib/school-urls";
-import type { HomeSchoolCategory } from "@/lib/seo-slugs";
+import type { BoardListItem, CityListItem } from "@/lib/api";
+import { placeListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
+import { toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 type OnboardingFilters = {
   category: HomeSchoolCategory | null;
@@ -22,9 +22,11 @@ const feeRanges = [
 
 export default function HomeBotOnboarding({
   boards,
+  cities,
   onClose,
 }: {
   boards: BoardListItem[];
+  cities: CityListItem[];
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
@@ -50,9 +52,61 @@ export default function HomeBotOnboarding({
 
   function finish(overrides: Partial<OnboardingFilters> = {}) {
     const finalFilters = { ...filters, ...overrides };
-    const url = new URL(schoolDirectoryPath(finalFilters.category), window.location.origin);
-    finalFilters.boards.forEach((boardId) => url.searchParams.append("board", boardId));
-    if (finalFilters.place.trim()) url.searchParams.set("search", finalFilters.place.trim());
+    const place = finalFilters.place.trim();
+    const placeTerms = place.split(",").map(toSeoSlug).filter(Boolean);
+    const primaryPlace = placeTerms[0] ?? toSeoSlug(place);
+    const city = cities.find(
+      (item) =>
+        item.status &&
+        [item.city_name, item.slug].some((value) => toSeoSlug(value) === primaryPlace),
+    );
+    const state = cities.find(
+      (item) =>
+        item.status &&
+        placeTerms.some((term) =>
+          [item.state_name, item.state_slug ?? ""].some((value) => toSeoSlug(value) === term),
+        ),
+    );
+    const country = cities.find(
+      (item) =>
+        item.status &&
+        placeTerms.some((term) =>
+          [item.country_name, item.country_slug ?? ""].some((value) => toSeoSlug(value) === term),
+        ),
+    );
+    const placePath = city
+      ? placeListingPath({
+          countrySlug: city.country_slug ?? city.country_name,
+          stateSlug: city.state_slug ?? city.state_name,
+          citySlug: city.slug,
+          category: finalFilters.category,
+        })
+      : state
+        ? placeListingPath({
+            countrySlug: state.country_slug ?? state.country_name,
+            stateSlug: state.state_slug ?? state.state_name,
+            category: finalFilters.category,
+          })
+        : country
+          ? placeListingPath({
+              countrySlug: country.country_slug ?? country.country_name,
+              category: finalFilters.category,
+            })
+          : place
+            ? schoolSearchPath(place)
+            : schoolDirectoryPath(finalFilters.category);
+    const url = new URL(
+      placePath,
+      window.location.origin,
+    );
+    if (place && !city && !state && !country && finalFilters.category) {
+      url.searchParams.set("home_category", finalFilters.category);
+    }
+    finalFilters.boards.forEach((boardId) => {
+      const board = boards.find((item) => item.board_id === boardId);
+      const boardSlug = board?.slug || board?.board_code || boardId;
+      url.searchParams.append("board", boardSlug);
+    });
     if (finalFilters.feeRange) {
       const [min, max] = finalFilters.feeRange.split("-");
       if (min && max) {

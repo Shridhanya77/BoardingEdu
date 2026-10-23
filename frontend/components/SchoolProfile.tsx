@@ -16,8 +16,10 @@ import {
   MapPin,
   Monitor,
   Phone,
+  Plane,
   ShieldCheck,
   Star,
+  Train,
   Trophy,
   Utensils,
   Users,
@@ -42,6 +44,7 @@ import { boardListingPath, placeListingPath } from "@/lib/school-urls";
 import { schoolProfileFaqs } from "@/lib/school-faqs";
 import { faqJsonLd, schoolJsonLd } from "@/lib/structured-data";
 import SchoolFaqList from "./SchoolFaqList";
+import FeaturedSchoolCards from "./home/FeaturedSchoolCards";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
@@ -206,6 +209,9 @@ export default async function SchoolProfile({
     loadReviewData(school.school_id),
     loadNearbySchools(school),
   ]);
+  const nearbyFeaturedSchools = nearbySchools?.items
+    .filter((item) => item.is_featured)
+    .slice(0, 4) ?? [];
   const location = [
     school.location_detail?.location_name,
     school.city_detail.city_name,
@@ -222,6 +228,17 @@ export default async function SchoolProfile({
   const mapFrameUrl = hasCoordinates
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01}%2C${latitude - 0.01}%2C${longitude + 0.01}%2C${latitude + 0.01}&layer=mapnik&marker=${latitude}%2C${longitude}`
     : null;
+  const travelOptions = [
+    { label: "Railway station", query: "railway station", Icon: Train },
+    { label: "Airport", query: "airport", Icon: Plane },
+    { label: "Metro station", query: "metro station", Icon: Train },
+    { label: "Major landmark", query: "landmark", Icon: Landmark },
+  ].map((option) => ({
+    ...option,
+    href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      `${option.query} near ${hasCoordinates ? `${latitude},${longitude}` : location}`,
+    )}`,
+  }));
   const cityName = school.city_detail.city_name;
   const stateName = school.state_detail.state_name;
   const primaryBoard = school.boards_detail[0];
@@ -613,6 +630,31 @@ export default async function SchoolProfile({
                 <span className="detail-panel__icon"><MapPin size={18} /></span>
                 <div><h2>Location &amp; address</h2><p>Contact the school to confirm visiting details.</p></div>
               </div>
+              <section className="school-travel" aria-labelledby="school-travel-heading">
+                <div className="school-travel__heading">
+                  <span className="school-location-card__eyebrow">PLAN YOUR VISIT</span>
+                  <h3 id="school-travel-heading">Travel &amp; accessibility</h3>
+                  <p>Find nearby transport and landmarks. Confirm routes and travel times before visiting.</p>
+                </div>
+                <div className="school-travel__grid">
+                  {travelOptions.map(({ label, href, Icon }) => (
+                    <a
+                      className="school-travel__card"
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      key={label}
+                    >
+                      <span className="school-travel__icon"><Icon size={20} aria-hidden /></span>
+                      <span className="school-travel__label">{label}</span>
+                      <strong>Explore nearby</strong>
+                      <span className="school-travel__distance">
+                        {hasCoordinates ? "Open nearby places in Maps" : "Search by school location"}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </section>
               <div className="school-location-card">
                 <div className="school-location-card__details">
                   <span className="school-location-card__eyebrow">SCHOOL ADDRESS</span>
@@ -657,8 +699,8 @@ export default async function SchoolProfile({
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><MessageSquare size={18} /></span>
                 <div>
-                  <h2>Enquire about admissions</h2>
-                  <p>Share a few details and the school will get back to you.</p>
+                  <h2>Send a school enquiry</h2>
+                  <p>Ask the school about fees, availability, facilities, or visits.</p>
                 </div>
               </div>
               <SchoolEnquiryButton className="primary-button">
@@ -671,6 +713,19 @@ export default async function SchoolProfile({
         </div>
 
         {nearbySchools && (
+          <>
+          {nearbyFeaturedSchools.length > 0 && (
+            <section className="school-profile-featured" aria-labelledby="school-profile-featured-heading">
+              <div className="detail-panel__heading">
+                <span className="detail-panel__icon"><Star size={18} /></span>
+                <div>
+                  <h2 id="school-profile-featured-heading">Featured schools nearby</h2>
+                  <p>Explore featured schools around {cityName}.</p>
+                </div>
+              </div>
+              <FeaturedSchoolCards schools={nearbyFeaturedSchools} />
+            </section>
+          )}
           <section className="school-nearby" aria-labelledby="school-nearby-heading">
             <div className="detail-panel__heading">
               <span className="detail-panel__icon"><GraduationCap size={18} /></span>
@@ -728,6 +783,7 @@ export default async function SchoolProfile({
               ))}
             </div>
           </section>
+          </>
         )}
         {relatedSearchLinks.length > 0 && (
           <nav className="school-profile-related" aria-labelledby="school-profile-related-heading">

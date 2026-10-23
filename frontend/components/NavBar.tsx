@@ -14,11 +14,6 @@ import {
 import { useAuth, dashboardPathForRole } from "@/lib/auth";
 import type { UserRole } from "@/lib/api";
 import CounsellingModal from "@/components/home/CounsellingModal";
-import CounsellingLink from "@/components/home/CounsellingLink";
-import {
-  counsellingScrollStorageKey,
-  scrollToCounselling,
-} from "@/lib/counselling-navigation";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -43,7 +38,6 @@ function headerLinks(role: UserRole | null, pathname: string): HeaderLink[] {
       ...shared,
       { href: "/guides/", label: "Guides", active: guides },
       { href: "/compare/", label: "Compare Schools", active: compare },
-      { href: "/counselling/", label: "Free Counselling", active: pathname.startsWith("/counselling") },
     ];
   }
   if (role === "SCHOOL_ADMIN") {
@@ -69,8 +63,8 @@ export default function NavBar() {
   const [counsellingOpen, setCounsellingOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const counsellingTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
+  const counsellingTriggerRef = useRef<HTMLButtonElement>(null);
   const closeCounselling = useCallback(() => {
     setCounsellingOpen(false);
     if (window.matchMedia("(max-width: 900px)").matches) {
@@ -94,17 +88,6 @@ export default function NavBar() {
     setMenuOpen(false);
     setMobileNavOpen(false);
   }, [pathname]);
-  useEffect(() => {
-    if (pathname !== "/" || !window.sessionStorage.getItem(counsellingScrollStorageKey)) {
-      return;
-    }
-    window.sessionStorage.removeItem(counsellingScrollStorageKey);
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(scrollToCounselling);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [pathname]);
-
   useEffect(() => {
     if (!mobileNavOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -155,16 +138,20 @@ export default function NavBar() {
 
       <nav className="site-header__nav" aria-label="Primary">
         {links.map((item) => (
-          item.href === "/counselling/" ? (
-            <CounsellingLink className={`site-header__link${item.active ? " is-active" : ""}`} key={item.href}>
-              {item.label}
-            </CounsellingLink>
-          ) : (
-            <Link className={`site-header__link${item.active ? " is-active" : ""}`} href={item.href} key={item.href}>
-              {item.label}
-            </Link>
-          )
+          <Link className={`site-header__link${item.active ? " is-active" : ""}`} href={item.href} key={item.href}>
+            {item.label}
+          </Link>
         ))}
+        {showCounselling && (
+          <button
+            ref={counsellingTriggerRef}
+            type="button"
+            className="site-header__link site-header__counselling"
+            onClick={() => setCounsellingOpen(true)}
+          >
+            Get counselling
+          </button>
+        )}
       </nav>
 
       <div className="site-header__actions">
@@ -227,16 +214,6 @@ export default function NavBar() {
             </Link>
           </>
         )}
-        {showCounselling && (
-        <button
-          ref={counsellingTriggerRef}
-          type="button"
-          className="header-action header-action--find"
-          onClick={() => setCounsellingOpen(true)}
-        >
-          <Search size={15} /> Get counselling
-        </button>
-        )}
       </div>
       <button
         ref={mobileMenuToggleRef}
@@ -263,27 +240,27 @@ export default function NavBar() {
             aria-label="Mobile primary"
           >
             {links.map((item) => (
-              item.href === "/counselling/" ? (
-                <CounsellingLink key={item.href} onClick={() => setMobileNavOpen(false)}>
-                  {item.label}
-                </CounsellingLink>
-              ) : (
-                <Link href={item.href} key={item.href} onClick={() => setMobileNavOpen(false)}>
-                  {item.label}
-                </Link>
-              )
+              <Link
+                className={`mobile-navigation__link${item.active ? " is-active" : ""}`}
+                href={item.href}
+                key={item.href}
+                onClick={() => setMobileNavOpen(false)}
+                aria-current={item.active ? "page" : undefined}
+              >
+                {item.label}
+              </Link>
             ))}
             {showCounselling && (
-            <button
-              className="mobile-navigation__counselling"
-              type="button"
-              onClick={() => {
-                setMobileNavOpen(false);
-                setCounsellingOpen(true);
-              }}
-            >
-              <Search size={16} aria-hidden /> Get counselling
-            </button>
+              <button
+                className="mobile-navigation__counselling"
+                type="button"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  setCounsellingOpen(true);
+                }}
+              >
+                <Search size={16} aria-hidden /> Get counselling
+              </button>
             )}
             {user ? (
               <>

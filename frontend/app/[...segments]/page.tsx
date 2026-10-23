@@ -6,7 +6,7 @@ import { homeSchoolCategoryFromValue, homeSchoolTypeIds, schoolCategorySegment, 
 import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
 import { listingCopy, pageMetadata } from "@/lib/seo";
-import { boardListingPath, schoolDirectoryPath } from "@/lib/school-urls";
+import { boardListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
 import { isSchoolSectionId, schoolSectionPath, schoolSectionSeo, type SchoolSectionId } from "@/lib/school-sections";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
@@ -14,7 +14,13 @@ import JsonLd from "@/components/JsonLd";
 export const dynamic = "force-dynamic";
 
 type Place = { country: CountryListItem; state?: StateListItem; city?: CityListItem; location?: LocationListItem };
-type Props = { params: { segments?: string[] }; searchParams?: { type?: string; home_category?: string } };
+type Props = {
+  params: { segments?: string[] };
+  searchParams?: Record<string, string | string[] | undefined> & {
+    type?: string;
+    home_category?: string;
+  };
+};
 
 function placeBreadcrumbs(place: Place, category?: HomeSchoolCategory) {
   const country = toSeoSlug(place.country.slug);
@@ -430,6 +436,20 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     redirect(boardListingPath(board.slug));
   }
   if (segments[0] === "schools" && segments.length === 1) {
+    const searchQuery = Array.isArray(searchParams?.search)
+      ? searchParams.search[0]
+      : searchParams?.search;
+    if (searchQuery?.trim()) {
+      const remainingParams = new URLSearchParams();
+      Object.entries(searchParams ?? {}).forEach(([key, value]) => {
+        if (key === "search" || value === undefined) return;
+        (Array.isArray(value) ? value : [value]).forEach((item) => {
+          remainingParams.append(key, item);
+        });
+      });
+      const query = remainingParams.toString();
+      redirect(`${schoolSearchPath(searchQuery)}${query ? `?${query}` : ""}`);
+    }
     // Legacy `?home_category=` directory links fold into the typed path URL.
     const legacyCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
     if (legacyCategory) redirect(schoolDirectoryPath(legacyCategory));

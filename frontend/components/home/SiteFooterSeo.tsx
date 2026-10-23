@@ -8,14 +8,16 @@ import type {
   CityListItem,
   CountryListItem,
   LocationListItem,
+  SchoolListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
 import {
   homeSchoolCategories,
   toSeoSlug,
+  schoolTypeLabel,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
+import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -23,17 +25,13 @@ type Props = {
   countries?: CountryListItem[];
   locations?: LocationListItem[];
   schoolTypes?: SchoolTypeListItem[];
+  topCbseSchools?: SchoolListItem[];
   dataError?: string | null;
 };
 
 const CITY_LINK_LIMIT = 24;
-const STATE_LINK_LIMIT = 12;
+const STATE_LINK_LIMIT = 24;
 const LOCALITY_LINK_LIMIT = 16;
-/** How many boards / cities / states feed the combined footer searches. */
-const BOARD_FANOUT = 12;
-const CITY_FANOUT = 8;
-const STATE_FANOUT = 6;
-
 const FOOTER_CATEGORIES: { category: HomeSchoolCategory; label: string }[] = [
   { category: "day-school", label: "Day Schools" },
   { category: "residential-school", label: "Boarding Schools" },
@@ -63,6 +61,7 @@ export default function SiteFooterSeo({
   countries = [],
   locations = [],
   schoolTypes = [],
+  topCbseSchools = [],
   dataError,
 }: Props) {
   const uniqueCities = useMemo(() => uniqueBy(cities, (city) => city.city_id), [cities]);
@@ -97,16 +96,12 @@ export default function SiteFooterSeo({
   }, [uniqueCities]);
 
   const topBoards = useMemo(
-    () => uniqueBy(boards, (board) => board.board_id).slice(0, BOARD_FANOUT),
+    () =>
+      uniqueBy(boards, (board) => board.board_id)
+        .filter((board) => board.status)
+        .sort((left, right) => left.board_name.localeCompare(right.board_name)),
     [boards],
   );
-
-  const topCities = useMemo(
-    () => popularCities.filter((city) => (city.schools_count ?? 0) > 0).slice(0, CITY_FANOUT),
-    [popularCities],
-  );
-
-  const topStates = useMemo(() => stateSearches.slice(0, STATE_FANOUT), [stateSearches]);
 
   const localitySearches = useMemo(() => {
     const cityById = new Map(uniqueCities.map((city) => [city.city_id, city]));
@@ -163,123 +158,131 @@ export default function SiteFooterSeo({
       );
   }, [countries, uniqueCities]);
 
-  // One flat list of combined searches: "<Board> <Type> Schools in <Place>",
-  // plus plain place-by-type links for the most popular cities and states.
-  const popularSearches = useMemo(() => {
-    const links: { label: string; href: string }[] = [];
+  const locationGroups = useMemo(() => {
+    const locationLinks = (
+      label: string,
+      path: Parameters<typeof placeListingPath>[0],
+    ) => [
+      { label: `All schools in ${label}`, href: placeListingPath(path) },
+      ...availableCategories.map(({ category, label: categoryLabel }) => ({
+        label: `${categoryLabel} in ${label}`,
+        href: placeListingPath({ ...path, category }),
+      })),
+    ];
 
-    for (const { category, label } of availableCategories) {
-      for (const board of topBoards) {
-        links.push({
-          label: `${board.board_name} ${label}`,
-          href: boardListingPath(board.slug, category),
-        });
-      }
-
-      for (const city of topCities) {
-        links.push({
-          label: `${label} in ${city.city_name}`,
-          href: placeListingPath({
+    return [
+      {
+        title: "By country",
+        links: countrySearches.flatMap((country) =>
+          locationLinks(country.country_name, { countrySlug: country.slug }),
+        ),
+      },
+      {
+        title: "By state",
+        links: stateSearches.flatMap(([, state]) =>
+          locationLinks(state.name, {
+            countrySlug: state.countrySlug,
+            stateSlug: state.stateSlug,
+          }),
+        ),
+      },
+      {
+        title: "By city",
+        links: popularCities.flatMap((city) =>
+          locationLinks(city.city_name, {
             countrySlug: city.country_slug ?? city.country_name,
             stateSlug: city.state_slug ?? city.state_name,
             citySlug: city.slug,
-            category,
           }),
-        });
-      }
-      for (const [, state] of topStates) {
-        links.push({
-          label: `${label} in ${state.name}`,
-          href: placeListingPath({
-            countrySlug: state.countrySlug,
-            stateSlug: state.stateSlug,
-            category,
+        ),
+      },
+      {
+        title: "By locality",
+        links: localitySearches.flatMap(({ location, city }) =>
+          locationLinks(location.location_name, {
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+            locationSlug: location.slug,
           }),
-        });
-      }
-      for (const place of localitySearches.slice(0, 8)) {
-        links.push({
-          label: `${label} in ${place.location.location_name}, ${place.city.city_name}`,
-          href: placeListingPath({
-            countrySlug: place.city.country_slug ?? place.city.country_name,
-            stateSlug: place.city.state_slug ?? place.city.state_name,
-            citySlug: place.city.slug,
-            locationSlug: place.location.slug,
-            category,
-          }),
-        });
-      }
-    }
+        ),
+      },
+    ];
+  }, [availableCategories, countrySearches, localitySearches, popularCities, stateSearches]);
 
-    for (const board of topBoards) {
-      links.push({
-        label: `${board.board_name} schools`,
-        href: boardListingPath(board.slug),
-      });
-    }
+  const boardGroups = useMemo(
+    () =>
+      availableCategories.map(({ category, label }) => ({
+        title: `${label} by board`,
+        links: topBoards.map((board) => ({
+          label: `${board.board_name} ${label}`,
+          href: boardListingPath(board.slug, category),
+        })),
+      })),
+    [availableCategories, topBoards],
+  );
 
-    links.push(
+  const boardSchoolTypeLinks = useMemo(
+    () =>
+      uniqueBy(
+        topBoards.flatMap((board) =>
+          schoolTypes
+            .filter((type) => type.status)
+            .flatMap((type) =>
+              homeSchoolCategories(type.type_code, type.slug, type.type_name).map((category) => ({
+                label: `${board.board_name} ${schoolTypeLabel(type.type_code, type.slug, type.type_name)}`,
+                href: `${boardListingPath(board.slug, category)}?school_type=${encodeURIComponent(type.school_type_id)}`,
+              })),
+            ),
+        ),
+        (item) => item.href,
+      ),
+    [schoolTypes, topBoards],
+  );
+
+  const schoolTypeLinks = useMemo(
+    () =>
+      uniqueBy(
+        schoolTypes
+          .filter((type) => type.status)
+          .sort((left, right) => left.type_name.localeCompare(right.type_name))
+          .map((type) => ({
+            label: schoolTypeLabel(type.type_code, type.slug, type.type_name),
+            href: `${schoolDirectoryPath()}?school_type=${encodeURIComponent(type.school_type_id)}`,
+          })),
+        (item) => item.href,
+      ),
+    [schoolTypes],
+  );
+
+  const footerLinks = uniqueBy(
+    [
       { label: "All schools", href: schoolDirectoryPath() },
-      { label: "Day schools", href: schoolDirectoryPath("day-school") },
-      { label: "Boarding schools", href: schoolDirectoryPath("residential-school") },
-    );
-
-    for (const city of popularCities) {
-      links.push({
-        label: `Schools in ${city.city_name}`,
-        href: placeListingPath({
-          countrySlug: city.country_slug ?? city.country_name,
-          stateSlug: city.state_slug ?? city.state_name,
-          citySlug: city.slug,
-        }),
-      });
-    }
-
-    for (const [, state] of stateSearches) {
-      links.push({
-        label: `Schools in ${state.name}`,
-        href: placeListingPath({
-          countrySlug: state.countrySlug,
-          stateSlug: state.stateSlug,
-        }),
-      });
-    }
-
-    for (const country of countrySearches) {
-      links.push({
-        label: `Schools in ${country.country_name}`,
-        href: placeListingPath({ countrySlug: country.slug }),
-      });
-    }
-
-    for (const place of localitySearches) {
-      links.push({
-        label: `Schools in ${place.location.location_name}, ${place.city.city_name}`,
-        href: place.href,
-      });
-    }
-
-    return uniqueBy(links, (item) => item.href);
-  }, [availableCategories, countrySearches, localitySearches, popularCities, stateSearches, topBoards, topCities, topStates]);
+      { label: "Compare schools", href: "/compare/" },
+      { label: "School guides", href: "/guides/" },
+      { label: "List your school", href: "/signup/" },
+      { label: "Log in", href: "/login/" },
+      { label: "Privacy policy", href: "/privacy/" },
+      { label: "Terms of use", href: "/terms/" },
+      ...locationGroups.flatMap((group) => group.links),
+      ...boardGroups.flatMap((group) => group.links),
+      ...schoolTypeLinks,
+      ...boardSchoolTypeLinks,
+      ...(
+        topCbseSchools.length
+          ? topCbseSchools.map((school) => ({
+              label: school.school_name,
+              href: schoolListPath(school),
+            }))
+          : [{ label: "Browse CBSE schools", href: boardListingPath("cbse") }]
+      ),
+    ],
+    (item) => item.href,
+  );
 
   return (
     <footer className="seo-footer" id="sitemap">
-      <nav className="seo-footer__popular" aria-label="Popular school searches">
-        {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-        {popularSearches.length > 0 && (
-          <>
-            <h3 className="seo-footer__popular-heading">Popular school searches</h3>
-            <ul className="seo-footer__link-cloud">
-              {popularSearches.map((item) => (
-                <li key={item.href}>
-                  <Link href={item.href}>{item.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </nav>
-
+      {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
       <div className="seo-footer__grid">
         <div className="seo-footer__brand">
           <Image
@@ -290,37 +293,25 @@ export default function SiteFooterSeo({
             height={48}
           />
           <strong>BoardingEdu</strong>
-          <span>School discovery and admission guidance</span>
-          <p>Find and compare schools across India, then get free guidance for your admission search.</p>
+          <span>Find a school that fits</span>
+          <p>Compare schools by location, board, and fees.</p>
           <a href="mailto:hello@boardingedu.com">hello@boardingedu.com</a>
           <a href="tel:+918046110000">+91 80-4611-0000</a>
         </div>
-        <nav className="seo-footer__utility-links" aria-label="More BoardingEdu links">
-          <Link href="/schools/">All schools</Link>
-          <Link href="/schools/day-school/">Day schools</Link>
-          <Link href="/schools/boarding-school/">Boarding schools</Link>
-          <Link href="/compare/">Compare schools</Link>
-          <Link href="/guides/">School guides</Link>
-          <Link href="/counselling/">Free counselling</Link>
-          <Link href="/signup/">List your school</Link>
-          <Link href="/login/">Log in</Link>
-          <Link href="/privacy/">Privacy policy</Link>
-          <Link href="/terms/">Terms of use</Link>
-        </nav>
-      </div>
 
-      <div className="seo-footer__badges">
-        <span>Free school search</span>
-        <span>Compare education boards</span>
-        <span>Free admission guidance</span>
+        <nav className="seo-footer__columns" aria-label="Explore schools">
+          {footerLinks.map((item) => (
+            <Link href={item.href} key={item.href}>{item.label}</Link>
+          ))}
+        </nav>
       </div>
       <div className="seo-footer__legal">
         <p>© 2026 BoardingEdu Technologies Pvt. Ltd. · All rights reserved.</p>
         <nav aria-label="Legal">
-          <Link href="/privacy/">Privacy Policy</Link>
-          <Link href="/terms/">Terms of Use</Link>
-          <Link href="/cookies/">Cookie Policy</Link>
-          <Link href="/grievance/">Grievance Policy</Link>
+          <Link href="/privacy/">Privacy</Link>
+          <Link href="/terms/">Terms</Link>
+          <Link href="/cookies/">Cookies</Link>
+          <Link href="/grievance/">Grievance</Link>
         </nav>
       </div>
     </footer>

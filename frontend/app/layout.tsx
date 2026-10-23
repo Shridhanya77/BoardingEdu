@@ -30,12 +30,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "Find the Right School for Your Child | BoardingEdu",
   description:
-    "Explore day and boarding schools in India. Compare school locations, boards, fees, and facilities, then contact schools or request free counselling.",
+    "Explore day, day boarding, and boarding schools in India. Compare locations, boards, fees, and facilities, then contact schools directly.",
   keywords: homeSeoKeywords,
   applicationName: SITE_NAME,
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
+  icons: {
+    icon: [{ url: "/BoardingEdu_LOGO.jpeg", type: "image/jpeg" }],
+    shortcut: [{ url: "/BoardingEdu_LOGO.jpeg", type: "image/jpeg" }],
+    apple: [{ url: "/BoardingEdu_LOGO.jpeg", type: "image/jpeg" }],
+  },
   alternates: {
     canonical: "/",
   },

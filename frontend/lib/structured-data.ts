@@ -48,7 +48,7 @@ export function websiteJsonLd(): JsonLd {
     inLanguage: "en",
     potentialAction: {
       "@type": "SearchAction",
-      target: `${SITE_URL}/schools?search={search_term_string}`,
+      target: `${SITE_URL}/schools/search/{search_term_string}/`,
       "query-input": "required name=search_term_string",
     },
   };

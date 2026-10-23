@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, MapPin } from "lucide-react";
+import { ArrowRight, CheckCircle2, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -21,6 +21,10 @@ function schoolHref(school: SchoolListItem) {
   });
 }
 
+function schoolEnquiryHref(school: SchoolListItem) {
+  return `${schoolHref(school)}#school-enquiry`;
+}
+
 function formatFee(value: string | null) {
   if (value == null || value === "") return "Fee on request";
   const amount = Number(value);
@@ -39,7 +43,7 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
 
   return (
     <div className="featured-card__cover">
-      <span className="featured-card__tag">Featured</span>
+      {school.is_featured && <span className="featured-card__tag">Featured</span>}
       {photo && !photoFailed ? (
         <Image
           className="featured-card__photo"
@@ -82,7 +86,7 @@ export default function FeaturedSchoolCards({
 
         return (
           <article className="featured-card featured-card--compact" key={school.school_id}>
-            <Link href={schoolHref(school)}>
+            <Link className="featured-card__details" href={schoolHref(school)}>
               <FeaturedSchoolCover school={school} />
               <h3>{school.school_name}</h3>
               <p className="featured-card__place">
@@ -96,6 +100,14 @@ export default function FeaturedSchoolCards({
                 </span>
               )}
             </Link>
+            <div className="featured-card__actions">
+              <Link className="featured-card__cta" href={schoolHref(school)}>
+                View school <ArrowRight size={14} aria-hidden />
+              </Link>
+              <Link className="featured-card__enquiry" href={schoolEnquiryHref(school)}>
+                Enquire
+              </Link>
+            </div>
           </article>
         );
       })}

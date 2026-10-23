@@ -14012,23 +14012,37 @@ select:focus-visible {
 }
 
 .discovery-page--home .home-quick-actions {
+  width: min(1160px, calc(100% - 56px));
+  max-width: 1160px;
   margin: 8px auto 0;
-  padding: 28px 22px 24px;
+  padding: 28px 0 24px;
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
   border: 0;
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 12% 20%, rgb(255 140 60 / 35%), transparent 28%),
-    radial-gradient(circle at 88% 80%, rgb(80 140 255 / 28%), transparent 32%),
-    linear-gradient(135deg, #10243d 0%, #1a3d66 55%, #12304f 100%);
+  border-radius: 0;
+  background: transparent;
+}
+
+.discovery-page--home .home-quick-actions::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 50%;
+  width: 100vw;
+  content: "";
+  transform: translateX(-50%);
+  background: #fff;
+  border-top: 1px solid #edf0f3;
+  border-bottom: 1px solid #edf0f3;
 }
 
 .discovery-page--home .home-quick-actions .section-eyebrow,
 .discovery-page--home .home-quick-actions h2 {
-  color: #fff;
+  color: #173b5d;
 }
 
 .discovery-page--home .home-quick-action {
-  background: rgb(255 255 255 / 94%);
+  background: #fff;
   cursor: pointer;
 }
 
@@ -15433,6 +15447,159 @@ select:focus-visible {
   color: #8c3131;
 }
 
+.discovery-page--home .home-reviews {
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+.discovery-page--home .home-reviews .home-section__heading {
+  margin-bottom: 14px;
+}
+
+.discovery-page--home .home-reviews__layout {
+  grid-template-columns: minmax(190px, 0.58fr) minmax(0, 2fr);
+  gap: 12px;
+}
+
+.discovery-page--home .home-reviews .review-summary-panel {
+  padding: 18px;
+  gap: 14px;
+  border-radius: 13px;
+}
+
+.discovery-page--home .home-reviews .review-summary-panel__score {
+  gap: 5px;
+}
+
+.discovery-page--home .home-reviews .review-summary-panel__score > strong {
+  font-size: clamp(34px, 4vw, 44px);
+}
+
+.discovery-page--home .home-reviews .review-summary-panel__score > span:last-child {
+  font-size: 12px;
+}
+
+.discovery-page--home .home-reviews .review-summary-panel__distribution {
+  gap: 6px;
+}
+
+.discovery-page--home .home-reviews .review-summary-panel__bar {
+  height: 6px;
+}
+
+.discovery-page--home .home-review-card {
+  min-height: 170px;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.discovery-page--home .home-review-card__avatar {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+}
+
+.discovery-page--home .home-review-card__identity strong {
+  font-size: 13px;
+}
+
+.discovery-page--home .home-review-card__identity small {
+  font-size: 11px;
+}
+
+.discovery-page--home .home-review-card__rating {
+  margin-top: 12px;
+}
+
+.discovery-page--home .home-review-card h3 {
+  margin-top: 9px;
+  font-size: 14px;
+}
+
+.discovery-page--home .home-review-card > p {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-line-clamp: 3;
+}
+
+.discovery-page--home .home-review-card > a {
+  margin-top: auto;
+  padding: 6px 9px;
+  color: #155b4b;
+  background: #edf7f3;
+  border: 1px solid #cce6dc;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
+.discovery-page--home .home-review-card > a:hover,
+.discovery-page--home .home-review-card > a:focus-visible {
+  color: #fff;
+  background: #176d59;
+  border-color: #176d59;
+}
+
+.discovery-page--home .home-review-card > a:focus-visible {
+  outline: 3px solid #e8650f;
+  outline-offset: 2px;
+}
+
+.discovery-page--home .home-quick-action small {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 7px;
+  color: #8d481c;
+  background: #fff2e8;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.discovery-page--home .featured-card__cta {
+  min-height: 32px;
+  margin: auto 12px 0;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff;
+  background: #176d59;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.discovery-page--home .featured-card--compact:hover .featured-card__cta,
+.discovery-page--home .featured-card--compact:focus-within .featured-card__cta {
+  background: #115443;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 760px) {
+  .discovery-page--home .home-reviews__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .discovery-page--home .home-reviews .review-summary-panel {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .discovery-page--home .home-reviews {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  .discovery-page--home .home-review-card {
+    min-height: 0;
+    padding: 14px;
+  }
+}
+
 .discovery-page--home .home-section--boards .board-card {
   isolation: isolate;
   background-size: cover !important;
@@ -15872,5 +16039,1610 @@ select:focus-visible {
   .home-review-card,
   .reviews-list .review-card {
     padding: 17px;
+  }
+}
+
+/* Navigation uses a compact pill menu that stays legible over the hero. */
+.site-header__nav {
+  padding: 6px;
+  gap: 4px;
+  background: #f3f6f9;
+  border: 1px solid #e1e8ef;
+  border-radius: 999px;
+}
+
+.site-header__link {
+  min-height: 38px;
+  padding: 9px 13px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font: 650 12px/1 var(--font-sans);
+  text-decoration: none;
+}
+
+.site-header__counselling {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.site-header__counselling:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.site-header__link.is-active {
+  color: #fff;
+  background: #17456b;
+  box-shadow: 0 3px 8px rgb(23 69 107 / 18%);
+}
+
+.site-header__link.is-active:hover {
+  color: #fff;
+}
+
+.site-header--hero .site-header__nav {
+  padding: 6px;
+  gap: 3px;
+  background: rgb(9 25 42 / 58%);
+  border-color: rgb(255 255 255 / 19%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  backdrop-filter: blur(14px);
+}
+
+.site-header--hero .site-header__link {
+  color: rgb(255 255 255 / 88%);
+}
+
+.site-header--hero .site-header__link.is-active {
+  color: #17324d;
+  background: #fff;
+}
+
+.site-header--hero.site-header--scrolled .site-header__nav {
+  background: #f3f6f9;
+  border-color: #e1e8ef;
+  box-shadow: none;
+}
+
+.site-header--hero.site-header--scrolled .site-header__link {
+  color: #344b63;
+}
+
+.site-header--hero.site-header--scrolled .site-header__link.is-active {
+  color: #fff;
+  background: #17456b;
+}
+
+.mobile-navigation {
+  padding: 14px;
+  gap: 6px;
+  background: rgb(255 255 255 / 97%);
+  border: 1px solid #e3eaf0;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 22px 42px rgb(10 24 39 / 20%);
+  backdrop-filter: blur(16px);
+}
+
+.mobile-navigation .mobile-navigation__link {
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.mobile-navigation .mobile-navigation__link.is-active {
+  color: #17456b;
+  background: #edf5fb;
+  border-color: #d7e8f5;
+}
+
+.mobile-navigation .mobile-navigation__link:hover {
+  color: #a64e12;
+  background: #fff4e9;
+}
+
+.mobile-menu-toggle {
+  border-radius: 13px;
+  box-shadow: 0 5px 16px rgb(12 31 52 / 12%);
+}
+
+.site-header--hero .mobile-menu-toggle {
+  background: rgb(9 25 42 / 76%);
+  backdrop-filter: blur(10px);
+}
+
+.hero-quick-links {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero-quick-links a {
+  min-height: 34px;
+  padding: 7px 11px;
+  display: inline-flex;
+  align-items: center;
+  color: #173b5d;
+  background: #fff;
+  border: 1px solid #d6e3ed;
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgb(12 31 52 / 7%);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.hero-quick-links a:hover,
+.hero-quick-links a:focus-visible {
+  color: #fff;
+  background: #17456b;
+  border-color: #17456b;
+  transform: translateY(-1px);
+}
+
+.hero-quick-links a:focus-visible {
+  outline: 3px solid #e8650f;
+  outline-offset: 2px;
+}
+
+.hero-spot__mobile-title {
+  display: none;
+}
+
+.home-section--states .home-section__heading p {
+  margin: 8px 0 0;
+  color: #66778b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.state-city-trigger {
+  width: 100%;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.state-city-trigger:focus-visible {
+  outline: 3px solid #f1a15c;
+  outline-offset: 3px;
+}
+
+.state-explorer {
+  position: fixed;
+  z-index: 1100;
+  inset: 0;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.state-explorer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(8 21 36 / 62%);
+  border: 0;
+  backdrop-filter: blur(5px);
+}
+
+.state-explorer__dialog {
+  width: min(920px, 100%);
+  max-height: min(82dvh, 820px);
+  padding: 26px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 96% 0%, rgb(232 101 15 / 9%), transparent 34%),
+    #fff;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 28%);
+}
+
+.state-explorer__header {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.state-explorer__header h2 {
+  margin: 7px 0 6px;
+  color: #12243a;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 760;
+  letter-spacing: -0.035em;
+}
+
+.state-explorer__header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.state-explorer__close {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #41556c;
+  background: #f3f6f9;
+  border: 1px solid #e1e8ef;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.state-explorer__close:hover {
+  color: #a64e12;
+  background: #fff4e9;
+  border-color: #f0cfb0;
+}
+
+.state-explorer__search {
+  min-height: 46px;
+  margin-bottom: 14px;
+  padding: 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #718096;
+  background: #f7f9fb;
+  border: 1px solid #dfe7ee;
+  border-radius: 12px;
+}
+
+.state-explorer__search:focus-within {
+  border-color: #79aaca;
+  box-shadow: 0 0 0 3px rgb(23 69 107 / 10%);
+}
+
+.state-explorer__search input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 0;
+  color: #17324d;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 13px;
+}
+
+.state-explorer__cities {
+  min-height: 120px;
+  padding: 2px 4px 2px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.state-city-card {
+  min-width: 0;
+  padding: 15px;
+  background: linear-gradient(145deg, #fff 0%, #f7fafc 100%);
+  border: 1px solid #e1e8ef;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgb(18 36 58 / 4%);
+}
+
+.state-city-card__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.state-city-card__icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #176d59;
+  background: #e8f5ef;
+  border-radius: 11px;
+}
+
+.state-city-card__heading > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.state-city-card__heading strong {
+  overflow: hidden;
+  color: #17324d;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state-city-card__heading small {
+  color: #75869a;
+  font-size: 11px;
+}
+
+.state-city-card__links {
+  margin-top: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.state-city-card__links a {
+  min-height: 30px;
+  padding: 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #17456b;
+  background: #edf5fb;
+  border: 1px solid #d7e8f5;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.state-city-card__links a:hover,
+.state-city-card__links a:focus-visible {
+  color: #fff;
+  background: #17456b;
+  border-color: #17456b;
+}
+
+.state-city-card__links a:focus-visible,
+.state-explorer__close:focus-visible {
+  outline: 3px solid #e8650f;
+  outline-offset: 2px;
+}
+
+.state-explorer__empty {
+  margin: 0;
+  padding: 26px 16px;
+  grid-column: 1 / -1;
+  color: #64748b;
+  background: #f7f9fb;
+  border: 1px dashed #d4dee8;
+  border-radius: 12px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Account pages get a subtle display face while controls stay highly legible. */
+:root {
+  --font-account: "Trebuchet MS", "Aptos", Arial, sans-serif;
+  --font-account-display: Georgia, "Times New Roman", serif;
+}
+
+.account-page {
+  font-family: var(--font-account);
+}
+
+.account-card__intro h1,
+.account-card__section-title {
+  font-family: var(--font-account-display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.account-form,
+.account-role-choice,
+.account-page__back,
+.account-card__hint {
+  font-family: var(--font-account);
+}
+
+@media (max-width: 760px) {
+  .hero-spots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .hero-spot,
+  .hero-spot:nth-child(even) {
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 9px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .hero-spot:nth-child(n + 3) {
+    display: none;
+  }
+
+  .hero-spot__title,
+  .hero-spot__details {
+    display: none;
+  }
+
+  .hero-spot .hero-spot__mobile-title {
+    display: block;
+    color: #17324d;
+    font-size: 12px;
+  }
+
+  .hero-quick-links {
+    gap: 6px;
+  }
+
+  .hero-quick-links a {
+    min-height: 32px;
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  .state-explorer {
+    padding: 10px;
+    align-items: end;
+  }
+
+  .state-explorer__dialog {
+    max-height: 88dvh;
+    padding: 19px 15px 14px;
+    border-radius: 20px 20px 12px 12px;
+  }
+
+  .state-explorer__header {
+    margin-bottom: 13px;
+  }
+
+  .state-explorer__header p {
+    font-size: 12px;
+  }
+
+  .state-explorer__cities {
+    grid-template-columns: 1fr;
+  }
+
+  .state-city-card {
+    padding: 13px;
+  }
+
+  .home-section--states .home-section__heading {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-quick-links a,
+  .site-header__link {
+    transition: none;
+  }
+}
+
+.results-layout {
+  grid-template-columns: minmax(205px, 230px) minmax(0, 1fr) minmax(220px, 260px);
+  gap: 18px;
+}
+
+.school-results__toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.school-view-toggle {
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.school-view-toggle button {
+  min-height: 34px;
+  padding: 6px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #526278;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.school-view-toggle button:hover,
+.school-view-toggle button:focus-visible {
+  color: #17324d;
+  background: #fff;
+}
+
+.school-view-toggle button.is-active {
+  color: #fff;
+  background: #17456b;
+  box-shadow: 0 2px 6px rgb(23 69 107 / 20%);
+}
+
+.school-list--grid:not(.school-list--skeleton) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.discovery-page--listing .school-list--grid .school-card {
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.discovery-page--listing .school-list--grid .school-card__media {
+  width: 100%;
+  height: 142px;
+  min-height: 0;
+  margin: 0;
+  border-radius: 0;
+}
+
+.school-card__featured {
+  padding: 6px 9px;
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #fff;
+  background: #b85c12;
+  border: 1px solid rgb(255 255 255 / 50%);
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 18%);
+  font-size: 11px;
+  font-weight: 750;
+  pointer-events: none;
+}
+
+.discovery-page--listing .school-list--grid .school-card__body {
+  width: 100%;
+  min-width: 0;
+  padding: 14px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.discovery-page--listing .school-list--grid .school-card__top {
+  padding: 0;
+  gap: 9px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__title h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.discovery-page--listing .school-list--grid .school-card__location {
+  gap: 4px;
+  font-size: 12px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__tags {
+  margin: 12px 0;
+  gap: 6px;
+}
+
+.discovery-page--listing .school-list--grid .school-tag {
+  min-height: 30px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__footer {
+  min-height: 0;
+  margin: auto 0 0;
+  padding-top: 11px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__footer > p {
+  width: 100%;
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.discovery-page--listing .school-list--grid .school-card__actions {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.discovery-page--listing .school-list--grid .school-card__actions a:not(.school-card__email) {
+  min-height: 36px;
+  padding: 7px 9px;
+  flex: 1 1 auto;
+  font-size: 12px;
+}
+
+.discovery-page--listing .school-list--list:not(.school-list--skeleton) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.discovery-page--listing .school-list--list .school-card {
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+}
+
+.discovery-page--listing .school-list--list .school-card__media {
+  height: 100%;
+  min-height: 220px;
+  margin: 0;
+  border-radius: 0;
+}
+
+.discovery-page--listing .school-list--list .school-card__body {
+  min-width: 0;
+  padding: 18px;
+}
+
+.discovery-page--listing .school-list--list .school-card__top {
+  padding: 0;
+}
+
+.discovery-page--listing .school-list--list .school-card__tags {
+  margin: 15px 0;
+}
+
+.discovery-page--listing .school-list--list .school-card__footer {
+  margin: auto 0 0;
+}
+
+.top-boarding-schools {
+  min-width: 0;
+  position: sticky;
+  top: 96px;
+  padding: 18px 15px;
+  background: linear-gradient(160deg, #f1f7fb, #fff 60%);
+  border: 1px solid #dce8f0;
+  border-radius: 15px;
+}
+
+.top-boarding-schools__heading h2 {
+  margin: 5px 0;
+  color: #14243a;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.top-boarding-schools__heading p,
+.top-boarding-schools__status {
+  margin: 0;
+  color: #63768a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.top-boarding-schools ul {
+  margin: 15px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  list-style: none;
+}
+
+.top-boarding-schools li {
+  min-width: 0;
+  padding: 0;
+  border-top: 1px solid #e4edf2;
+}
+
+.top-boarding-schools li a {
+  min-width: 0;
+  padding: 9px 0;
+  display: block;
+  color: #23405a;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.top-boarding-schools li a:hover,
+.top-boarding-schools li a:focus-visible {
+  color: #a24e11;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.school-list--skeleton {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.related-searches ul {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.seo-footer__grid {
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 2.2fr);
+  align-items: start;
+  gap: 36px;
+}
+
+.seo-footer__columns {
+  margin-top: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px 20px;
+}
+
+.seo-footer__columns > a {
+  min-width: 0;
+  color: #b9c9d8;
+  font-size: 13px;
+  line-height: 1.5;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.seo-footer__columns > a:hover,
+.seo-footer__columns > a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transform: translateX(2px);
+}
+
+.seo-footer__column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.seo-footer__column a {
+  overflow-wrap: anywhere;
+}
+
+.seo-footer__column a:hover,
+.seo-footer__column a:focus-visible,
+.seo-footer__brand a:hover,
+.seo-footer__brand a:focus-visible,
+.seo-footer__legal a:hover,
+.seo-footer__legal a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.seo-footer__legal {
+  padding-right: max(28px, calc((100% - 1300px) / 2));
+  padding-left: max(28px, calc((100% - 1300px) / 2));
+}
+
+.discovery-page--home .hero {
+  width: 100vw;
+  max-width: none;
+  margin-left: calc(50% - 50vw);
+  padding-right: max(28px, calc((100% - 1160px) / 2));
+  padding-left: max(28px, calc((100% - 1160px) / 2));
+}
+
+.discovery-page--home .trust-strip {
+  width: min(1160px, calc(100% - 56px));
+  max-width: 1160px;
+  margin: -34px auto 0;
+  padding: 18px 0;
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  color: #eaf2f8;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.discovery-page--home .trust-strip::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 50%;
+  width: 100vw;
+  content: "";
+  transform: translateX(-50%);
+  background:
+    radial-gradient(ellipse at 80% 0%, rgb(42 106 162 / 23%), transparent 45%),
+    linear-gradient(125deg, #0b1a29 0%, #10243a 58%, #142d45 100%);
+}
+
+.discovery-page--home .trust-stat strong {
+  color: #fff;
+}
+
+.discovery-page--home .trust-stat span,
+.discovery-page--home .trust-strip__note {
+  color: #c4d2df;
+}
+
+.discovery-page--home .trust-strip__note svg {
+  color: #f5831f;
+}
+
+@media (max-width: 900px) {
+  .discovery-page--home .trust-strip {
+    margin-top: 0;
+    width: calc(100% - 32px);
+  }
+
+  .discovery-page--home .home-quick-actions {
+    width: calc(100% - 32px);
+  }
+}
+
+@media (max-width: 560px) {
+  .discovery-page--home .hero {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .discovery-page--home .trust-strip {
+    width: calc(100% - 32px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seo-footer__columns > a {
+    transition: none;
+  }
+}
+
+.featured-card--compact {
+  display: flex;
+  flex-direction: column;
+}
+
+.featured-card--compact > .featured-card__details,
+.discovery-page--home .featured-card--compact > .featured-card__details {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-decoration: none;
+}
+
+.featured-card--compact > .featured-card__details:hover {
+  background: transparent;
+}
+
+.featured-card--compact .featured-card__actions {
+  margin-top: auto;
+  padding: 0 12px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.featured-card--compact .featured-card__actions > a {
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 8px 10px;
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff;
+  background: #17456b;
+  border: 1px solid #17456b;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.featured-card--compact .featured-card__actions > a:hover,
+.featured-card--compact .featured-card__actions > a:focus-visible {
+  color: #fff;
+  background: #103551;
+  border-color: #103551;
+  transform: translateY(-1px);
+}
+
+.featured-card--compact .featured-card__actions > .featured-card__enquiry {
+  color: #17456b;
+  background: #fff;
+}
+
+.featured-card--compact .featured-card__actions > .featured-card__enquiry:hover,
+.featured-card--compact .featured-card__actions > .featured-card__enquiry:focus-visible {
+  color: #103551;
+  background: #edf6fb;
+  border-color: #93b8d0;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 14px;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__details {
+  flex: 1;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card h3 {
+  min-height: 34px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__meta {
+  min-height: 30px;
+  overflow-wrap: anywhere;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__actions {
+  padding: 8px;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__actions > a {
+  font-size: 11px;
+}
+
+.school-profile-featured .featured-card--compact > .featured-card__details {
+  flex: 1;
+}
+
+.school-profile-featured .featured-card__actions {
+  padding: 0 12px 12px;
+}
+
+.school-profile-featured .featured-card__cta {
+  display: inline-flex;
+}
+
+@media (max-width: 1000px) {
+  .discovery-page--listing .listing-place-spotlight__featured .featured-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .featured-card--compact .featured-card__actions {
+    padding: 0 8px 8px;
+    gap: 6px;
+  }
+
+  .featured-card--compact .featured-card__actions > a {
+    min-height: 34px;
+    padding: 7px 6px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .featured-card--compact .featured-card__actions > a,
+  .top-boarding-schools li a {
+    transition: none;
+  }
+}
+@media (min-width: 1080px) {
+  .school-list--grid:not(.school-list--skeleton) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .related-searches ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1550px) {
+  .school-list--grid:not(.school-list--skeleton) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .related-searches ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1200px) {
+  .results-layout {
+    grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+  }
+
+  .top-boarding-schools {
+    grid-column: 2;
+    position: static;
+  }
+
+  .seo-footer__grid {
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+
+  .seo-footer__columns {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .results-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .top-boarding-schools {
+    grid-column: 1;
+  }
+
+  .school-list--grid:not(.school-list--skeleton) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-list--list .school-card {
+    grid-template-columns: minmax(160px, 0.42fr) minmax(0, 1fr);
+  }
+
+  .discovery-page--listing .school-list--list .school-card__media {
+    height: 100%;
+    min-height: 205px;
+  }
+
+  .seo-footer__columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .school-results__toolbar {
+    justify-content: space-between;
+  }
+
+  .school-results__label {
+    flex: 1 1 55%;
+    font-size: 10px;
+  }
+
+  .sort-control {
+    order: 3;
+  }
+
+  .school-view-toggle {
+    order: 4;
+  }
+
+  .school-view-toggle button {
+    min-height: 34px;
+    padding: 6px 8px;
+  }
+
+  .school-view-toggle button span {
+    display: none;
+  }
+
+  .school-list--grid:not(.school-list--skeleton) {
+    gap: 9px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__media {
+    height: 112px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__body {
+    padding: 10px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__avatar {
+    display: none;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__eyebrow {
+    min-height: 0;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__title h3 {
+    font-size: 14px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__location {
+    font-size: 10px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__tags {
+    margin: 9px 0;
+    gap: 4px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-tag {
+    min-height: 26px;
+    padding: 5px 6px;
+    font-size: 10px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__footer > p {
+    display: none;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__actions {
+    gap: 4px;
+  }
+
+  .discovery-page--listing .school-list--grid .school-card__actions a:not(.school-card__email) {
+    min-height: 32px;
+    padding: 5px 6px;
+    font-size: 10px;
+  }
+
+  .discovery-page--listing .school-list--list .school-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discovery-page--listing .school-list--list .school-card__media {
+    height: 150px;
+    min-height: 0;
+  }
+
+  .discovery-page--listing .school-list--list .school-card__body {
+    padding: 13px;
+  }
+
+  .school-list--skeleton {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .related-searches {
+    padding: 18px 14px;
+  }
+
+  .related-searches ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .related-searches a {
+    padding: 8px;
+    font-size: 11px;
+  }
+
+  .seo-footer__columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 14px;
+  }
+
+  .seo-footer__legal {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .compare-promo__schools {
+    grid-auto-columns: minmax(220px, 76%);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    justify-content: start;
+    overflow-x: auto;
+    padding: 0 2px 10px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .compare-promo__schools article {
+    scroll-snap-align: start;
+  }
+
+  .compare-promo__school-image {
+    height: 112px;
+  }
+
+  .talk-to-us__options > a {
+    transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  }
+
+  .talk-to-us__options > a:hover,
+  .talk-to-us__options > a:focus-visible {
+    color: #124d3d;
+    background: #eaf7f1;
+    border-color: #8bc8ae;
+    transform: translateY(-2px);
+  }
+
+  .seo-footer__column a,
+  .seo-footer__brand a {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+.seo-footer__columns {
+  align-items: start;
+}
+
+.seo-footer__browse-group {
+  min-width: 0;
+  padding: 10px 12px;
+  background: rgb(11 29 49 / 45%);
+  border: 1px solid #1b3551;
+  border-radius: 10px;
+}
+
+.seo-footer__browse-group summary {
+  color: #d9e7f3;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.seo-footer__browse-group summary:hover,
+.seo-footer__browse-group summary:focus-visible {
+  color: #fff;
+}
+
+.seo-footer__browse-group ul {
+  max-height: 270px;
+  margin: 10px 0 0;
+  padding: 8px 0 0;
+  display: grid;
+  gap: 4px;
+  overflow-y: auto;
+  border-top: 1px solid #28435f;
+  list-style: none;
+}
+
+.seo-footer__browse-group li {
+  min-width: 0;
+}
+
+.seo-footer__browse-group li a {
+  width: 100%;
+  padding: 5px 3px;
+  display: block;
+  color: #a9bdd5;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.seo-footer__browse-group li a:hover,
+.seo-footer__browse-group li a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.school-profile-featured {
+  margin: 24px 0;
+  padding: clamp(16px, 2.5vw, 28px);
+  background: #f6f8fc;
+  border: 1px solid #e5eaf1;
+  border-radius: 18px;
+}
+
+.school-profile-featured > .detail-panel__heading {
+  margin-bottom: 16px;
+}
+
+.school-profile-featured .featured-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 420px));
+  align-items: stretch;
+  gap: 14px;
+}
+
+.school-profile-featured .featured-card {
+  min-width: 0;
+  overflow: hidden;
+  background: #e7f6f3;
+  border: 1px solid #7ec9be;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(18 36 58 / 7%);
+}
+
+.school-profile-featured .featured-card > a {
+  min-width: 0;
+  min-height: 100%;
+  padding: 0 0 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  color: #123f3a;
+  text-decoration: none;
+}
+
+.school-profile-featured .featured-card > a:hover {
+  background: transparent;
+}
+
+.school-profile-featured .featured-card__cover,
+.school-profile-featured .featured-card:nth-child(n) .featured-card__cover {
+  min-height: 128px;
+  padding: 12px;
+  position: relative;
+  align-items: flex-end;
+  justify-content: flex-start;
+  background: linear-gradient(135deg, #0c5c54, #1aa394);
+}
+
+.school-profile-featured .featured-card__cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(10 20 28 / 8%), rgb(10 20 28 / 48%));
+  pointer-events: none;
+}
+
+.school-profile-featured .featured-card__photo {
+  object-fit: cover;
+}
+
+.school-profile-featured .featured-card__logo {
+  width: 52px;
+  height: 52px;
+  position: relative;
+  z-index: 1;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 20%);
+}
+
+.school-profile-featured .featured-card__tag {
+  top: 9px;
+  right: 9px;
+  z-index: 2;
+}
+
+.school-profile-featured .featured-card h3,
+.school-profile-featured .featured-card__place,
+.school-profile-featured .featured-card__meta,
+.school-profile-featured .featured-card__rating {
+  margin-right: 12px;
+  margin-left: 12px;
+  color: #123f3a;
+}
+
+.school-profile-featured .featured-card h3 {
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.school-profile-featured .featured-card__place,
+.school-profile-featured .featured-card__meta {
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.school-profile-featured .featured-card__rating {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.school-profile-featured .featured-card__cta {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .school-profile-featured {
+    padding: 16px 12px;
+    border-radius: 14px;
+  }
+
+  .school-profile-featured .featured-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .school-profile-featured .featured-card {
+    width: min(100%, 440px);
+  }
+
+  .school-profile-featured .featured-card__cover,
+  .school-profile-featured .featured-card:nth-child(n) .featured-card__cover {
+    min-height: 116px;
+  }
+
+  .seo-footer__columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .seo-footer__browse-group {
+    padding: 9px;
+  }
+}
+
+.school-travel {
+  margin: 20px 0;
+}
+
+.school-travel__heading h3 {
+  margin: 5px 0 6px;
+  color: #14243a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+}
+
+.school-travel__heading p {
+  margin: 0 0 18px;
+  color: #647c93;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.school-travel__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.school-travel__card {
+  min-width: 0;
+  min-height: 190px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  color: #14243a;
+  background: #fff;
+  border: 1px solid #e4ebf1;
+  border-radius: 17px;
+  box-shadow: 0 2px 7px rgb(17 35 56 / 8%);
+  text-decoration: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.school-travel__card:hover,
+.school-travel__card:focus-visible {
+  border-color: #b9cfe1;
+  box-shadow: 0 10px 25px rgb(17 35 56 / 12%);
+  transform: translateY(-2px);
+}
+
+.school-travel__card:focus-visible {
+  outline: 3px solid #e8650f;
+  outline-offset: 2px;
+}
+
+.school-travel__icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  color: #17456b;
+  background: #edf5ff;
+  border-radius: 15px;
+}
+
+.school-travel__label {
+  margin-top: 8px;
+  color: #8398ae;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.school-travel__card strong {
+  color: #14243a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.school-travel__distance {
+  margin-top: auto;
+  color: #c45b0a;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .school-travel__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .school-travel {
+    margin: 16px 0;
+  }
+
+  .school-travel__heading p {
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+
+  .school-travel__grid {
+    gap: 9px;
+  }
+
+  .school-travel__card {
+    min-height: 160px;
+    padding: 13px;
+    gap: 7px;
+    border-radius: 13px;
+  }
+
+  .school-travel__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .school-travel__label {
+    margin-top: 4px;
+    font-size: 10px;
+  }
+
+  .school-travel__card strong {
+    font-size: 15px;
+  }
+
+  .school-travel__distance {
+    font-size: 11px;
   }
 }

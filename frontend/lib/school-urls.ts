@@ -56,7 +56,7 @@ export function schoolDirectoryPath(category?: HomeSchoolCategory | null): strin
 }
 
 export function schoolSearchPath(query: string): string {
-  const slug = toSeoSlug(query);
+  const slug = toSeoSlug(query.replace(/[?#]/g, " "));
   return slug ? withTrailingSlash(`/schools/search/${slug}`) : schoolDirectoryPath();
 }
 

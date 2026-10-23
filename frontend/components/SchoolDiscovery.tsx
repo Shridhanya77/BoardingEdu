@@ -5,12 +5,15 @@ import {
   ArrowRight,
   BarChart3,
   BookOpen,
+  Bot,
   CircleDollarSign,
   Building2,
   CheckCircle2,
   ChevronDown,
   GraduationCap,
+  LayoutGrid,
   LoaderCircle,
+  List as ListView,
   MapPin,
   Mail,
   MessageCircle,
@@ -67,6 +70,7 @@ import {
   homeSchoolCategoryForIds,
   homeSchoolCategoryFromValue,
   homeSchoolCategoryPath,
+  homeSchoolTypeIds,
   isDiscoverableSchoolType,
   schoolProfilePathFromSlugs,
   schoolProfileTypeSegment,
@@ -96,6 +100,14 @@ const genderOptions: {
   { label: "Boys", value: "BOYS" },
   { label: "Girls", value: "GIRLS" },
 ];
+
+type StateBrowseItem = {
+  state_id: string;
+  state_name: string;
+  state_slug: string;
+  country_slug: string;
+  count: number;
+};
 
 const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
 
@@ -249,6 +261,12 @@ function SchoolCard({
       />
 
       <div className="school-card__media">
+        {school.is_featured && (
+          <span className="school-card__featured">
+            <Star size={12} fill="currentColor" aria-hidden />
+            Featured
+          </span>
+        )}
         {coverImage ? (
           <Image
             className="school-card__media-image"
@@ -423,6 +441,11 @@ function withListingFilters(href: string, boards: string[], schoolTypes: string[
   return `${url.pathname}${url.search}`;
 }
 
+function boardSearchPath(board: BoardListItem, category?: HomeSchoolCategory | null) {
+  const params = new URLSearchParams({ board: toSeoSlug(board.board_code || board.slug) });
+  return `${schoolDirectoryPath(category)}?${params.toString()}`;
+}
+
 function HomeSectionTypeSelector({
   value,
   onChange,
@@ -468,6 +491,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       document.getElementById("schools")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }, [pathname]);
+  useEffect(() => {
+    if (!isHomePage) return;
+    const onboardingSeenKey = "boardingeu:school-discovery-onboarding-seen";
+    if (window.sessionStorage.getItem(onboardingSeenKey)) return;
+    window.sessionStorage.setItem(onboardingSeenKey, "true");
+    setBotOnboardingOpen(true);
+  }, [isHomePage]);
   useEffect(() => {
     if (!isHomePage) return;
     let cancelled = false;
@@ -524,7 +554,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [schoolFaqsError, setSchoolFaqsError] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [boardSearch, setBoardSearch] = useState("");
-  const [boardsExpanded, setBoardsExpanded] = useState(false);
   const [board, setBoard] = useState<string[]>([]);
   const [feeRange, setFeeRange] = useState<[number, number]>([
     0,
@@ -549,6 +578,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [results, setResults] = useState<SchoolListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [schoolView, setSchoolView] = useState<"grid" | "list">("grid");
+  const [topBoardingSchools, setTopBoardingSchools] = useState<SchoolListItem[]>([]);
+  const [topDaySchools, setTopDaySchools] = useState<SchoolListItem[]>([]);
+  const [topBoardingSchoolsError, setTopBoardingSchoolsError] = useState<string | null>(null);
+  const [topBoardingSchoolsLoading, setTopBoardingSchoolsLoading] = useState(true);
+  const [topSchoolsCategory, setTopSchoolsCategory] = useState<HomeSchoolCategory>(
+    initialFilter?.homeCategory ?? "residential-school",
+  );
+  const [topSchoolsBoardId, setTopSchoolsBoardId] = useState("");
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -573,9 +611,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [homeCategory, setHomeCategory] = useState<HomeSchoolCategory | null>(
     initialFilter?.homeCategory ?? null,
   );
-  const [statesSectionCategory, setStatesSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [citiesSectionCategory, setCitiesSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
+  const [selectedState, setSelectedState] = useState<StateBrowseItem | null>(null);
+  const [stateCitySearch, setStateCitySearch] = useState("");
   const [botOnboardingOpen, setBotOnboardingOpen] = useState(false);
 
   const [locationPreferences, setLocationPreferences] =
@@ -587,6 +626,115 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const locationRestoreApplied = useRef(false);
   const initialLocationWasInUrl = useRef(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
+  const selectedTopBoard = boards.find((item) => item.board_id === topSchoolsBoardId);
+  const selectedTopBoardName = selectedTopBoard?.board_name;
+  const boardingSchoolTypeIds = useMemo(
+    () => homeSchoolTypeIds(schoolTypes, "residential-school"),
+    [schoolTypes],
+  );
+  const daySchoolTypeIds = useMemo(
+    () => homeSchoolTypeIds(schoolTypes, "day-school"),
+    [schoolTypes],
+  );
+
+  useEffect(() => {
+    const selectedCategory =
+      homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
+    if (selectedCategory) setTopSchoolsCategory(selectedCategory);
+  }, [homeCategory, schoolType, schoolTypes]);
+
+  useEffect(() => {
+    if (!board.length || !boards.length) return;
+    const selected = boards.find((item) =>
+      board.some(
+        (value) =>
+          item.board_id === value ||
+          toSeoSlug(item.slug) === toSeoSlug(value) ||
+          toSeoSlug(item.board_code) === toSeoSlug(value),
+      ),
+    );
+    if (selected && selected.board_id !== topSchoolsBoardId) {
+      setTopSchoolsBoardId(selected.board_id);
+    }
+  }, [board, boards, topSchoolsBoardId]);
+
+  useEffect(() => {
+    if (isHomePage || !schoolTypesLoaded) return;
+    if (boardingSchoolTypeIds.length === 0 && daySchoolTypeIds.length === 0) {
+      setTopBoardingSchools([]);
+      setTopDaySchools([]);
+      setTopBoardingSchoolsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setTopBoardingSchoolsLoading(true);
+    const activeCountry = geoCountry || initialFilter?.country;
+    const activeState = geoState || initialFilter?.state;
+    const activeCity = geoCity || initialFilter?.city;
+
+    const sharedFilters: SchoolFilters = {
+      status: true,
+      ordering: "-average_rating",
+      page_size: 10,
+      country: activeCountry || undefined,
+      state: activeState || undefined,
+      city: activeCity || undefined,
+      board: topSchoolsBoardId ? [topSchoolsBoardId] : undefined,
+    };
+    Promise.all([
+      boardingSchoolTypeIds.length
+        ? schools.list({ ...sharedFilters, school_type: boardingSchoolTypeIds })
+        : Promise.resolve({ results: [] as SchoolListItem[] }),
+      daySchoolTypeIds.length
+        ? schools.list({ ...sharedFilters, school_type: daySchoolTypeIds })
+        : Promise.resolve({ results: [] as SchoolListItem[] }),
+    ]).then(([boardingResponse, dayResponse]) => {
+      if (!cancelled) {
+        setTopBoardingSchools(boardingResponse.results.slice(0, 10));
+        setTopDaySchools(dayResponse.results.slice(0, 10));
+        setTopBoardingSchoolsError(null);
+      }
+    }).catch((reason: unknown) => {
+      if (!cancelled) {
+        setTopBoardingSchools([]);
+        setTopDaySchools([]);
+        setTopBoardingSchoolsError(
+          reason instanceof Error ? reason.message : "Top school recommendations are temporarily unavailable.",
+        );
+      }
+    }).finally(() => {
+      if (!cancelled) setTopBoardingSchoolsLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    boardingSchoolTypeIds,
+    daySchoolTypeIds,
+    topSchoolsBoardId,
+    geoCity,
+    geoCountry,
+    geoState,
+    initialFilter?.city,
+    initialFilter?.country,
+    initialFilter?.state,
+    isHomePage,
+    schoolTypesLoaded,
+  ]);
+  useEffect(() => {
+    if (!selectedState) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setSelectedState(null);
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [selectedState]);
 
   const heroSpots = useMemo(() => {
     const ranked = cities
@@ -734,8 +882,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       ? "boarding schools and day boarding schools"
       : null;
   const listingDescription = listingFamilyTypes
-    ? `Explore ${listingFamilyTypes} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`
-    : `Explore ${listingSubject} in ${listingPlaceLabel}. Compare available school boards, fees, facilities, and admission information, then contact schools or request counselling.`;
+    ? `Browse ${listingFamilyTypes} in ${listingPlaceLabel}. Compare fees, boards, and facilities.`
+    : `Browse ${listingSubject} in ${listingPlaceLabel}. Compare fees, boards, and facilities.`;
   const firstResultIndex = totalCount === 0 ? 0 : 1;
   const lastResultIndex = results.length;
   const resultsHeading = `${listingSubject} in ${listingPlaceLabel}`;
@@ -746,10 +894,31 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const oppositeCategory: HomeSchoolCategory =
       category === "day-school" ? "residential-school" : "day-school";
     const oppositeLabel = oppositeCategory === "day-school" ? "Day Schools" : "Boarding Schools";
-    // Every board gets its own search chip, and the first few also name the
-    // opposite school type so the block covers both halves of the directory.
+    const currentBoard = boards.find(
+      (item) =>
+        initialFilter?.boardIds?.includes(item.board_id) ||
+        (initialFilter?.boardSlug && toSeoSlug(item.slug) === toSeoSlug(initialFilter.boardSlug)) ||
+        board.some(
+          (value) =>
+            item.board_id === value ||
+            toSeoSlug(item.slug) === toSeoSlug(value) ||
+            toSeoSlug(item.board_code) === toSeoSlug(value),
+        ),
+    );
+    const categorySearches: RelatedSearch[] = (
+      category
+        ? [oppositeCategory]
+        : ["day-school", "residential-school"] as const
+    ).map((itemCategory) => ({
+          label: currentBoard
+            ? `${itemCategory === "day-school" ? "Day" : "Boarding"} ${currentBoard.board_name} schools`
+            : itemCategory === "day-school" ? "Day schools" : "Boarding schools",
+          href: currentBoard
+            ? boardListingPath(currentBoard.slug, itemCategory)
+            : withListingFilters(schoolDirectoryPath(itemCategory), board, []),
+        }));
     const boardSearches = category
-      ? boards.flatMap((item, index) => {
+      ? boards.slice(0, 8).flatMap((item, index) => {
           const primary = {
             label: `${item.board_name} ${categoryLabel}`,
             href: boardListingPath(item.slug, category),
@@ -763,12 +932,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             },
           ];
         })
-      : [];
+      : currentBoard
+        ? []
+        : boards.slice(0, 6).map((item) => ({
+            label: `${item.board_name} schools`,
+            href: boardListingPath(item.slug),
+          }));
     const seen = new Set<string>();
-    return [...(relatedSearches ?? []), ...boardSearches].filter((item) =>
+    return [...(relatedSearches ?? []), ...categorySearches, ...boardSearches].filter((item) =>
       seen.has(item.href) ? false : (seen.add(item.href), true),
     );
-  }, [boards, homeCategory, relatedSearches, schoolType, schoolTypes]);
+  }, [board, boards, homeCategory, initialFilter?.boardIds, initialFilter?.boardSlug, relatedSearches, schoolType, schoolTypes]);
   /**
    * Family implied by the school-type checkboxes. Only the opposite extreme is
    * hidden in the filter panel, because Day Boarding belongs to both families.
@@ -806,18 +980,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [cities, hoveredCityIds]);
   const boardCards = useMemo(() => {
     const query = boardSearch.trim().toLocaleLowerCase();
-    const matchingBoards = boards.filter((item) =>
+    return boards.filter((item) =>
       `${item.board_name} ${item.board_code}`.toLocaleLowerCase().includes(query),
     );
-    if (query || boardsExpanded) return matchingBoards;
-    const featuredCodes = ["CBSE", "IB", "ICSE", "IGCSE"];
-    return featuredCodes.flatMap((code) => {
-      const match = matchingBoards.find(
-        (item) => item.board_code.trim().toUpperCase() === code,
-      );
-      return match ? [match] : [];
-    });
-  }, [boardSearch, boards, boardsExpanded]);
+  }, [boardSearch, boards]);
   const boardGroups = useMemo(
     () =>
       [
@@ -837,10 +1003,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
    * Rendered above Top cities so parents can zoom out before picking a city.
    */
   const stateCards = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { state_id: string; state_name: string; state_slug: string; country_slug: string; count: number }
-    >();
+    const grouped = new Map<string, StateBrowseItem>();
     for (const city of cities) {
       const count = city.schools_count ?? 0;
       if (count <= 0) continue;
@@ -858,6 +1021,22 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       .sort((left, right) => right.count - left.count || left.state_name.localeCompare(right.state_name))
       .slice(0, 10);
   }, [cities]);
+  const stateModalCities = useMemo(() => {
+    if (!selectedState) return [];
+    const query = stateCitySearch.trim().toLocaleLowerCase();
+    return cities
+      .filter(
+        (city) =>
+          city.state_id === selectedState.state_id &&
+          (city.schools_count ?? 0) > 0 &&
+          city.city_name.toLocaleLowerCase().includes(query),
+      )
+      .sort(
+        (left, right) =>
+          (right.schools_count ?? 0) - (left.schools_count ?? 0) ||
+          left.city_name.localeCompare(right.city_name),
+      );
+  }, [cities, selectedState, stateCitySearch]);
   const activeCountryId = geoCountry || initialCountry || "";
   const activeStateId = geoState || initialState || "";
   const activeCityId = geoCity || initialCity || "";
@@ -1741,7 +1920,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       ),
     );
     if (board) {
-      router.push(boardListingPath(board.slug));
+      router.push(boardSearchPath(
+        board,
+        homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes),
+      ));
       return;
     }
 
@@ -1778,8 +1960,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   function selectBoard(selectedBoard: BoardListItem) {
     if (isHomePage) {
-      router.push(boardListingPath(
-        selectedBoard.slug,
+      router.push(boardSearchPath(
+        selectedBoard,
         homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes),
       ));
       return;
@@ -1960,7 +2142,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
           <p>
             {isHomePage
-              ? "Discover schools, compare fees and facilities, shortlist favourites, and connect with schools—all in one place."
+              ? "Compare school fees, boards, and facilities. Find the right fit for your child."
               : listingDescription}
           </p>
 
@@ -1990,6 +2172,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             onChange={handleFinderChange}
             onSubmit={handleFinderSubmit}
           />
+
+          {isHomePage && (
+            <nav className="hero-quick-links" aria-label="Popular school searches">
+              <Link href={schoolDirectoryPath("day-school")}>Day schools</Link>
+              <Link href={schoolDirectoryPath("residential-school")}>Boarding schools</Link>
+              <Link href="/compare/">Compare schools</Link>
+              {boards[0] && <Link href={boardListingPath(boards[0].slug)}>{boards[0].board_name} schools</Link>}
+            </nav>
+          )}
 
           <div className="hero-search__shortcuts">
             <button
@@ -2023,8 +2214,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 .filter((spot) => !homeCategory || spot.category === homeCategory)
                 .map((spot) => (
                 <Link className="hero-spot" href={spot.href} key={spot.key}>
-                  <strong>{spot.title}</strong>
-                  <span>{spot.count > 0 ? `${spot.count} listed · ${spot.place}` : spot.place}</span>
+                  <strong className="hero-spot__title">{spot.title}</strong>
+                  <strong className="hero-spot__mobile-title">
+                    {spot.category === "day-school" ? "Day schools" : "Boarding schools"}
+                  </strong>
+                  <span className="hero-spot__details">
+                    {spot.count > 0 ? `${spot.count} listed · ${spot.place}` : spot.place}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -2180,82 +2376,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
-      <section className="home-section home-reviews" aria-labelledby="home-reviews-heading">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">PARENT VOICES</div>
-            <h2 id="home-reviews-heading">Reviews from school communities</h2>
-            <p>Read published feedback shared by parents about their school experiences.</p>
-          </div>
-          <Link href={schoolDirectoryPath()} className="home-reviews__browse">
-            Explore schools <ArrowRight size={15} aria-hidden />
-          </Link>
-        </div>
-        {homeReviewsLoading ? (
-          <p className="home-reviews__status" role="status">Loading published reviews…</p>
-        ) : homeReviewsError ? (
-          <p className="home-reviews__status home-reviews__status--error" role="alert">
-            Reviews are temporarily unavailable. Please try again later.
-          </p>
-        ) : homeReviewSummary ? (
-          <div className="home-reviews__layout">
-            <ReviewSummaryPanel summary={homeReviewSummary} />
-            {homeReviews.length > 0 ? (
-              <div className="home-reviews__grid">
-                {homeReviews.map((review) => (
-                  <article className="home-review-card" key={review.review_id}>
-                    <div className="home-review-card__head">
-                      <span className="home-review-card__avatar" aria-hidden="true">
-                        {review.author_name.trim().charAt(0).toUpperCase() || "P"}
-                      </span>
-                      <span className="home-review-card__identity">
-                        <strong>{review.author_name}</strong>
-                        <small>
-                          {new Date(review.created_at).toLocaleDateString("en-IN", {
-                            month: "long",
-                            year: "numeric",
-                            timeZone: "UTC",
-                          })} · Published review
-                        </small>
-                      </span>
-                      {review.is_verified && <span className="home-review-card__verified">Verified</span>}
-                    </div>
-                    <div className="home-review-card__rating" aria-label={`${review.rating} out of 5 stars`}>
-                      {Array.from({ length: 5 }, (_, index) => (
-                        <Star
-                          key={index}
-                          size={15}
-                          fill={index < review.rating ? "currentColor" : "none"}
-                          aria-hidden
-                        />
-                      ))}
-                      <strong>{review.rating.toFixed(1)} / 5</strong>
-                    </div>
-                    {review.title && <h3>{review.title}</h3>}
-                    {review.body && <p>{review.body}</p>}
-                    <Link href={`/schools/${toSeoSlug(review.school_slug)}/`}>
-                      {review.school_name} <ArrowRight size={14} aria-hidden />
-                    </Link>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="home-reviews__status">
-                {homeReviewSummary.review_count > 0
-                  ? "Recent review cards are temporarily unavailable."
-                  : "No published parent reviews yet. Check back as school communities share their experiences."}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="home-reviews__status">
-            {homeReviewsError
-              ? "Published reviews are temporarily unavailable. Please try again later."
-              : "No published parent reviews yet. Check back as school communities share their experiences."}
-          </p>
-        )}
-      </section>
-
       <section className="home-section home-quick-actions" aria-labelledby="home-quick-actions-heading">
         <div className="home-section__heading">
           <div>
@@ -2267,53 +2387,37 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <Link className="home-quick-action" href={schoolDirectoryPath()}>
             <span><Search size={20} aria-hidden /></span>
             <strong>Browse all schools</strong>
-            <small>Open the complete directory</small>
+            <small>Open school directory</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
           <Link className="home-quick-action" href="/schools/?max_fee=100000">
             <span><CircleDollarSign size={20} aria-hidden /></span>
             <strong>Schools under ₹1 lakh</strong>
-            <small>Start with your budget</small>
-            <ArrowRight size={17} aria-hidden />
-          </Link>
-          <Link
-            className="home-quick-action"
-            href={
-              cityCards[0]
-                ? placeListingPath({
-                    countrySlug: cityCards[0].country_slug ?? cityCards[0].country_name,
-                    stateSlug: cityCards[0].state_slug ?? cityCards[0].state_name,
-                    citySlug: cityCards[0].slug,
-                  })
-                : schoolDirectoryPath()
-            }
-          >
-            <span><MapPin size={20} aria-hidden /></span>
-            <strong>Choose a location</strong>
-            <small>{cityCards[0]?.city_name ?? "Browse popular cities"}</small>
-            <ArrowRight size={17} aria-hidden />
-          </Link>
-          <Link
-            className="home-quick-action"
-            href={boards[0] ? boardListingPath(boards[0].slug) : schoolDirectoryPath()}
-          >
-            <span><BookOpen size={20} aria-hidden /></span>
-            <strong>Choose a board</strong>
-            <small>{boards[0]?.board_name ?? "Browse curricula"}</small>
+            <small>Browse schools by budget</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
           <Link className="home-quick-action" href="/compare/">
             <span><BarChart3 size={20} aria-hidden /></span>
             <strong>Compare schools</strong>
-            <small>Review your shortlist</small>
+            <small>Open school comparison</small>
             <ArrowRight size={17} aria-hidden />
           </Link>
           <CounsellingLink className="home-quick-action">
             <span><MessageCircle size={20} aria-hidden /></span>
             <strong>Get free counselling</strong>
-            <small>Talk to our school guidance team</small>
+            <small>Talk to our guidance team</small>
             <ArrowRight size={17} aria-hidden />
           </CounsellingLink>
+          <button
+            className="home-quick-action home-quick-action--assistant"
+            type="button"
+            onClick={() => setBotOnboardingOpen(true)}
+          >
+            <span><Bot size={20} aria-hidden /></span>
+            <strong>School discovery assistant</strong>
+            <small>Build a shortlist in a few steps</small>
+            <ArrowRight size={17} aria-hidden />
+          </button>
         </div>
       </section>
 
@@ -2323,50 +2427,125 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <div>
               <div className="section-eyebrow">EXPLORE BY STATE</div>
               <h2>Top states for school search</h2>
+              <p>Choose a state to explore its cities and school listings.</p>
             </div>
-            <HomeSectionTypeSelector
-              value={statesSectionCategory}
-              onChange={setStatesSectionCategory}
-            />
           </div>
 
           <div className="city-grid">
-            {stateCards.map((state, index) => {
-              const hrefFor = (category?: HomeSchoolCategory | null) =>
-                placeListingPath({
-                  countrySlug: state.country_slug,
-                  stateSlug: state.state_slug,
-                  category: category ?? statesSectionCategory,
-                });
-              return (
-                <Link
-                  className={`city-card city-card--${index + 1}`}
-                  key={state.state_id}
-                  href={hrefFor(null)}
-                  style={{ background: placeBackdrop(state.state_slug) }}
-                  onClick={(event) => {
-                    if (statesSectionCategory) return;
-                    event.preventDefault();
-                    openTypePicker({
-                      title: `Schools in ${state.state_name}`,
-                      subtitle: "Pick a school type to open the right listings first.",
-                      hrefFor: (category) => hrefFor(category),
-                      allHref: hrefFor(null),
-                      allLabel: `See every school in ${state.state_name}`,
-                    });
-                  }}
-                >
-                  <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="city-card__name">{state.state_name}</span>
-                  <span className="city-card__state">{state.count} schools listed</span>
-                  <span className="city-card__action">
-                    Explore schools <ArrowRight size={14} />
-                  </span>
-                </Link>
-              );
-            })}
+            {stateCards.map((state, index) => (
+              <button
+                className={`city-card state-city-trigger city-card--${index + 1}`}
+                key={state.state_id}
+                type="button"
+                style={{ background: placeBackdrop(state.state_slug) }}
+                onClick={() => {
+                  setStateCitySearch("");
+                  setSelectedState(state);
+                }}
+                aria-label={`Explore cities in ${state.state_name}, ${state.count} schools listed`}
+                aria-haspopup="dialog"
+                aria-expanded={selectedState?.state_id === state.state_id}
+              >
+                <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
+                <span className="city-card__name">{state.state_name}</span>
+                <span className="city-card__state">{state.count} schools listed</span>
+                <span className="city-card__action">
+                  Explore cities <ArrowRight size={14} aria-hidden />
+                </span>
+              </button>
+            ))}
           </div>
         </section>
+      )}
+
+      {selectedState && (
+        <div className="state-explorer" role="presentation">
+          <button
+            className="state-explorer__backdrop"
+            type="button"
+            aria-label="Close state city explorer"
+            onClick={() => setSelectedState(null)}
+          />
+          <section
+            className="state-explorer__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="state-explorer-title"
+            aria-describedby="state-explorer-description"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setSelectedState(null);
+            }}
+          >
+            <div className="state-explorer__header">
+              <div>
+                <span className="section-eyebrow">EXPLORE BY CITY</span>
+                <h2 id="state-explorer-title">Schools in {selectedState.state_name}</h2>
+                <p id="state-explorer-description">
+                  Choose a city, then open all schools, day schools, or boarding schools.
+                </p>
+              </div>
+              <button
+                className="state-explorer__close"
+                type="button"
+                aria-label="Close city explorer"
+                onClick={() => setSelectedState(null)}
+                autoFocus
+              >
+                <X size={19} aria-hidden />
+              </button>
+            </div>
+
+            <label className="state-explorer__search">
+              <Search size={17} aria-hidden />
+              <span className="sr-only">Search cities in {selectedState.state_name}</span>
+              <input
+                type="search"
+                value={stateCitySearch}
+                onChange={(event) => setStateCitySearch(event.target.value)}
+                placeholder="Search cities"
+              />
+            </label>
+
+            <div className="state-explorer__cities">
+              {stateModalCities.map((city) => {
+                const place = {
+                  countrySlug: city.country_slug ?? city.country_name,
+                  stateSlug: city.state_slug ?? city.state_name,
+                  citySlug: city.slug,
+                };
+                return (
+                  <article className="state-city-card" key={city.city_id}>
+                    <div className="state-city-card__heading">
+                      <span className="state-city-card__icon"><MapPin size={17} aria-hidden /></span>
+                      <span>
+                        <strong>{city.city_name}</strong>
+                        <small>{city.schools_count ?? 0} listed schools</small>
+                      </span>
+                    </div>
+                    <div className="state-city-card__links" aria-label={`School types in ${city.city_name}`}>
+                      <Link href={placeListingPath(place)} onClick={() => setSelectedState(null)}>
+                        All schools <ArrowRight size={13} aria-hidden />
+                      </Link>
+                      <Link href={placeListingPath({ ...place, category: "day-school" })} onClick={() => setSelectedState(null)}>
+                        Day schools <ArrowRight size={13} aria-hidden />
+                      </Link>
+                      <Link href={placeListingPath({ ...place, category: "residential-school" })} onClick={() => setSelectedState(null)}>
+                        Boarding schools <ArrowRight size={13} aria-hidden />
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+              {!stateModalCities.length && (
+                <p className="state-explorer__empty">
+                  {stateCitySearch
+                    ? "No cities match your search. Try another city name."
+                    : "No cities with published school listings are available for this state yet."}
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
       )}
 
       <section className="home-section home-section--cities" id="cities">
@@ -2488,9 +2667,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <p className="board-meta" role="status">
             {boardSearch
               ? `${boardCards.length} ${boardCards.length === 1 ? "board" : "boards"} match your search`
-              : boardsExpanded
-                ? `Showing all ${boards.length} education boards`
-                : `Showing ${boardCards.length} featured boards of ${boards.length}`}
+              : `Showing all ${boardCards.length} education boards`}
           </p>
         )}
 
@@ -2537,20 +2714,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </p>
           )}
         </div>
-        {!boardsLoading && boards.length > 4 && !boardSearch && (
-          <button
-            className="home-directory-toggle"
-            type="button"
-            aria-expanded={boardsExpanded}
-            onClick={() => setBoardsExpanded((expanded) => !expanded)}
-          >
-            {boardsExpanded ? (
-              <>Show featured boards <ChevronDown size={15} aria-hidden /></>
-            ) : (
-              <>Explore all boards ({boards.length}) <ArrowRight size={15} aria-hidden /></>
-            )}
-          </button>
-        )}
       </section>
 
       <section className="home-section home-section--featured" id="featured">
@@ -2588,9 +2751,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
       <section className="home-section talk-to-us" id="talk-to-us">
         <div className="talk-to-us__heading">
-          <span className="section-eyebrow">HERE WHEN YOU NEED US</span>
-          <h2>Talk to a real person about your school search</h2>
-          <p>Get clear answers from our team—whether you&apos;re just starting out or ready to shortlist.</p>
+          <span className="section-eyebrow">NEED A HAND?</span>
+          <h2>Talk to our team</h2>
+          <p>Questions about your school search? We&apos;re happy to help.</p>
         </div>
         <div className="talk-to-us__options">
           <a href="mailto:hello@boardingedu.com">
@@ -2605,12 +2768,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <small>+91 80-4611-0000</small>
             <ArrowRight size={16} />
           </a>
-          <CounsellingLink>
-            <span><MessageCircle size={20} /></span>
-            <strong>Request free guidance</strong>
-            <small>Tell us your child&apos;s needs</small>
-            <ArrowRight size={16} />
-          </CounsellingLink>
         </div>
       </section>
 
@@ -2672,6 +2829,82 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             );
           })}
         </div>
+      </section>
+
+      <section className="home-section home-reviews" aria-labelledby="home-reviews-heading">
+        <div className="home-section__heading">
+          <div>
+            <div className="section-eyebrow">PARENT VOICES</div>
+            <h2 id="home-reviews-heading">Reviews from school communities</h2>
+            <p>Read published feedback shared by parents about their school experiences.</p>
+          </div>
+          <Link href={schoolDirectoryPath()} className="home-reviews__browse">
+            Explore schools <ArrowRight size={15} aria-hidden />
+          </Link>
+        </div>
+        {homeReviewsLoading ? (
+          <p className="home-reviews__status" role="status">Loading published reviews…</p>
+        ) : homeReviewsError ? (
+          <p className="home-reviews__status home-reviews__status--error" role="alert">
+            Reviews are temporarily unavailable. Please try again later.
+          </p>
+        ) : homeReviewSummary ? (
+          <div className="home-reviews__layout">
+            <ReviewSummaryPanel summary={homeReviewSummary} />
+            {homeReviews.length > 0 ? (
+              <div className="home-reviews__grid">
+                {homeReviews.map((review) => (
+                  <article className="home-review-card" key={review.review_id}>
+                    <div className="home-review-card__head">
+                      <span className="home-review-card__avatar" aria-hidden="true">
+                        {review.author_name.trim().charAt(0).toUpperCase() || "P"}
+                      </span>
+                      <span className="home-review-card__identity">
+                        <strong>{review.author_name}</strong>
+                        <small>
+                          {new Date(review.created_at).toLocaleDateString("en-IN", {
+                            month: "long",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          })} · Published review
+                        </small>
+                      </span>
+                      {review.is_verified && <span className="home-review-card__verified">Verified</span>}
+                    </div>
+                    <div className="home-review-card__rating" aria-label={`${review.rating} out of 5 stars`}>
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <Star
+                          key={index}
+                          size={15}
+                          fill={index < review.rating ? "currentColor" : "none"}
+                          aria-hidden
+                        />
+                      ))}
+                      <strong>{review.rating.toFixed(1)} / 5</strong>
+                    </div>
+                    {review.title && <h3>{review.title}</h3>}
+                    {review.body && <p>{review.body}</p>}
+                    <Link href={`/schools/${toSeoSlug(review.school_slug)}/`}>
+                      {review.school_name} <ArrowRight size={14} aria-hidden />
+                    </Link>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="home-reviews__status">
+                {homeReviewSummary.review_count > 0
+                  ? "Recent review cards are temporarily unavailable."
+                  : "No published parent reviews yet. Check back as school communities share their experiences."}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="home-reviews__status">
+            {homeReviewsError
+              ? "Published reviews are temporarily unavailable. Please try again later."
+              : "No published parent reviews yet. Check back as school communities share their experiences."}
+          </p>
+        )}
       </section>
 
         </>
@@ -2741,8 +2974,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <div className="section-eyebrow">SCHOOL DIRECTORY</div>
             <h2>{resultsHeading}</h2>
             <p>
-              Compare boards, fees, and facilities, then contact schools
-              directly or request free counselling.
+              Compare fees, boards, facilities, and admission details, then contact schools directly.
             </p>
           </div>
         </div>
@@ -2969,6 +3201,28 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   ))}
                 </select>
               </label>
+              <div className="school-view-toggle" role="group" aria-label="School result layout">
+                <button
+                  type="button"
+                  className={schoolView === "grid" ? "is-active" : ""}
+                  aria-label="Show schools in grid view"
+                  aria-pressed={schoolView === "grid"}
+                  onClick={() => setSchoolView("grid")}
+                >
+                  <LayoutGrid size={16} aria-hidden />
+                  <span>Grid</span>
+                </button>
+                <button
+                  type="button"
+                  className={schoolView === "list" ? "is-active" : ""}
+                  aria-label="Show schools in list view"
+                  aria-pressed={schoolView === "list"}
+                  onClick={() => setSchoolView("list")}
+                >
+                  <ListView size={16} aria-hidden />
+                  <span>List</span>
+                </button>
+              </div>
             </div>
 
             {activeFilters.length > 0 && (
@@ -3047,7 +3301,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
             {!error && results.length > 0 && (
               <>
-                <div className="school-list">
+                <div className={`school-list school-list--${schoolView}`}>
                   {results.map((school) => (
                     <SchoolCard
                       key={school.school_id}
@@ -3078,6 +3332,38 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </>
             )}
           </div>
+          <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading">
+            <div className="top-boarding-schools__heading">
+              <span className="section-eyebrow">TOP PICKS</span>
+              <h2 id="top-boarding-schools-heading">
+                Top 10{selectedTopBoardName ? ` ${selectedTopBoardName}` : ""}{" "}
+                {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools
+              </h2>
+            </div>
+            {topBoardingSchoolsLoading ? (
+              <p className="top-boarding-schools__status" role="status">
+                Loading schools…
+              </p>
+            ) : topBoardingSchoolsError ? (
+              <p className="top-boarding-schools__status" role="status">
+                {topBoardingSchoolsError}
+              </p>
+            ) : (topSchoolsCategory === "residential-school" ? topBoardingSchools : topDaySchools).length ? (
+              <ul>
+                {(topSchoolsCategory === "residential-school" ? topBoardingSchools : topDaySchools).map((school) => (
+                  <li key={school.school_id}>
+                    <Link href={schoolHref(school)}>
+                      {school.school_name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="top-boarding-schools__status" role="status">
+                Top {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools will appear as listings are available.
+              </p>
+            )}
+          </aside>
         </div>
 
         <section className="listing-faq" aria-labelledby="listing-faq-heading">
@@ -3136,6 +3422,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       {isHomePage && botOnboardingOpen && (
         <HomeBotOnboarding
           boards={boards}
+          cities={cities}
           onClose={() => setBotOnboardingOpen(false)}
         />
       )}
