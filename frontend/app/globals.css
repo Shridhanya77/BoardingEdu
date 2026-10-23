@@ -14697,3 +14697,79 @@ select:focus-visible {
   border-color: #e0a15a;
   box-shadow: 0 14px 28px rgb(140 78 18 / 14%);
 }
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card {
+  background: #e7f6f3;
+  border-color: #7ec9be;
+  border-radius: 12px;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card > a {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  margin: 0;
+  padding: 0 0 8px;
+  color: #123f3a;
+  background: transparent;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card > a:hover {
+  background: transparent;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__cover,
+.discovery-page--listing .listing-place-spotlight__featured .featured-card:nth-child(n) .featured-card__cover {
+  min-height: 72px;
+  padding: 8px;
+  background: linear-gradient(135deg, #0c5c54, #1aa394);
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__logo {
+  width: 36px;
+  height: 36px;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card h3,
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__place,
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__meta,
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__rating {
+  margin: 0;
+  padding: 0 8px;
+  color: #123f3a;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card h3 {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__place,
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__meta {
+  font-size: 11px;
+}
+
+.discovery-page--listing .listing-place-spotlight__featured .featured-card__tag {
+  top: 6px;
+  right: 6px;
+  padding: 2px 6px;
+  font-size: 9px;
+}
+
+@media (max-width: 800px) {
+  .discovery-page--listing .listing-place-spotlight__featured .featured-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

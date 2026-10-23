@@ -553,7 +553,7 @@ class SchoolViewSet(ReadWriteModelViewSet):
         Frontend previously called list({search: slug}) -> loop -> retrieve(uuid).
         Usage: GET /api/schools/schools/by-slug/doon-public-school/
         """
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).filter(status=True)
         school = get_object_or_404(queryset, slug=slug)
         serializer = self.get_serializer(school)
         return Response(serializer.data)

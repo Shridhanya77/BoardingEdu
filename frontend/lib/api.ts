@@ -294,6 +294,7 @@ export type SchoolListItem = {
   is_featured: boolean;
   status: boolean;
   published_at: string | null;
+  updated_at: string;
 };
 
 export type PaginatedResponse<T> = {
@@ -399,6 +400,7 @@ export type BoardListItem = {
   board_name: string;
   slug: string;
   status: boolean;
+  updated_at: string;
 };
 export type GradeListItem = {
   grade_id: string;
@@ -822,6 +824,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     is_featured: school.is_featured,
     status: school.status,
     published_at: school.published_at,
+    updated_at: school.updated_at,
   };
 }
 

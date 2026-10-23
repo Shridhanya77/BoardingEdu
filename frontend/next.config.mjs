@@ -4,8 +4,11 @@ const apiBase = (
   "https://boardingedu-production-ac84.up.railway.app/api"
 ).replace(/\/+$/, "");
 
-// Canonical public host. Set NEXT_PUBLIC_SITE_HOST when the domain changes.
-const siteHost = (process.env.NEXT_PUBLIC_SITE_HOST ?? "boardingedu.com").replace(/^www\./, "");
+// Canonical public host. Set NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_SITE_HOST when it changes.
+const configuredSiteHost = process.env.NEXT_PUBLIC_SITE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname
+  : process.env.NEXT_PUBLIC_SITE_HOST ?? "boardingedu.com";
+const siteHost = configuredSiteHost.replace(/^www\./i, "");
 
 const nextConfig = {
   trailingSlash: true,

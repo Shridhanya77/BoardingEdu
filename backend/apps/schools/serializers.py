@@ -40,6 +40,7 @@ class BoardListSerializer(serializers.ModelSerializer):
             'board_name',
             'slug',
             'status',
+            'updated_at',
         ]
 
 
@@ -335,6 +336,7 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'is_featured',
             'status',
             'published_at',
+            'updated_at',
         ]
 
         read_only_fields = [

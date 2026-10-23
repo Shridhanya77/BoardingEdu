@@ -1,7 +1,11 @@
 import type { MetadataRoute } from "next";
+import { getSitemapPageCount } from "@/lib/sitemap-data";
 import { SITE_URL } from "@/lib/site";
 
-export default function robots(): MetadataRoute.Robots {
+export const dynamic = "force-dynamic";
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const sitemapCount = await getSitemapPageCount();
   return {
     rules: [
       {
@@ -14,7 +18,12 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: [
+      `${SITE_URL}/sitemap.xml`,
+      ...Array.from({ length: sitemapCount - 1 }, (_, index) =>
+        `${SITE_URL}/sitemaps/${index + 1}.xml`,
+      ),
+    ],
     host: SITE_URL,
   };
 }

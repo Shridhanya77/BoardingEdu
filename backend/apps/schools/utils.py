@@ -2,6 +2,7 @@
 # backend/apps/schools/utils.py
 import re
 import unicodedata
+from uuid import UUID
 
 def slugify_url(text: str, max_length: int = 75) -> str:
     """
@@ -18,7 +19,7 @@ def slugify_url(text: str, max_length: int = 75) -> str:
     text = text.strip('-')
     return text[:max_length].rstrip('-')
 
-def unique_school_slug(base: str, school_id: int | None = None, max_attempts: int = 100) -> str:
+def unique_school_slug(base: str, school_id: UUID | None = None, max_attempts: int = 100) -> str:
     """Auto-generates unique slug: 'st-marys', 'st-marys-2', 'st-marys-3', ..."""
     from .models import School
     base_slug = slugify_url(base)
@@ -26,7 +27,7 @@ def unique_school_slug(base: str, school_id: int | None = None, max_attempts: in
         raise ValueError(f"Cannot generate slug from empty name: {base}")
     qs = School.objects.all()
     if school_id:
-        qs = qs.exclude(id=school_id)
+        qs = qs.exclude(pk=school_id)
     if not qs.filter(slug=base_slug).exists():
         return base_slug
     for i in range(2, max_attempts + 1):

@@ -20,6 +20,7 @@ from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
 from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .seo import school_seo_keywords
+from .utils import unique_school_slug
 from .views import SchoolFilter, SchoolViewSet
 
 
@@ -84,6 +85,25 @@ class SchoolClassificationTests(TestCase):
         self.assertIn('CBSE schools in Bengaluru', keywords)
         self.assertIn('Boarding School in Bengaluru', keywords)
         self.assertFalse(any(keywords.count(item) > 1 for item in keywords))
+
+    def test_unique_school_slug_excludes_the_school_being_updated(self):
+        school = self.create_school('EXISTING')
+
+        self.assertEqual(
+            unique_school_slug(school.school_name, school.school_id),
+            'existing-school',
+        )
+
+    def test_inactive_school_is_not_available_by_public_slug(self):
+        school = self.create_school('INACTIVE')
+        school.status = False
+        school.save(update_fields=['status'])
+
+        response = self.client.get(
+            f'/api/schools/schools/by-slug/{school.slug}/'
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_canonical_school_types_include_day_boarding_as_its_own_type(self):
         self.assertEqual(self.day.type_name, 'Day School')
@@ -295,6 +315,7 @@ class SchoolClassificationTests(TestCase):
         self.assertEqual(len(detail_response.data['videos_detail']), 1)
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.data['results'][0]['videos_count'], 1)
+        self.assertIn('updated_at', list_response.data['results'][0])
         self.assertEqual(
             list_response.data['results'][0]['school_photos'][0]['photo_id'],
             str(photo.photo_id),
