@@ -93,27 +93,42 @@ export default function HomeBotOnboarding({
               category: finalFilters.category,
             })
           : place
-            ? schoolSearchPath(place)
-            : schoolDirectoryPath(finalFilters.category);
+          ? finalFilters.boards.length
+            ? "/"
+            : schoolSearchPath(place)
+          : schoolDirectoryPath(finalFilters.category);
+    const boardSlugs = finalFilters.boards
+      .map((boardId) => {
+        const board = boards.find((item) => item.board_id === boardId);
+        return toSeoSlug(board?.slug || board?.board_code || boardId);
+      })
+      .filter(Boolean);
+    const boardPath = boardSlugs.length
+      ? `/${boardSlugs[0]}/`
+      : placePath;
     const url = new URL(
-      placePath,
+      boardPath,
       window.location.origin,
     );
-    if (place && !city && !state && !country && finalFilters.category) {
-      url.searchParams.set("home_category", finalFilters.category);
+    const filtersInHash = new URLSearchParams();
+    if (place && finalFilters.boards.length) {
+      filtersInHash.set("search", place);
+    }
+    if (finalFilters.boards.length && finalFilters.category) {
+      filtersInHash.set("home_category", finalFilters.category);
     }
     finalFilters.boards.forEach((boardId) => {
       const board = boards.find((item) => item.board_id === boardId);
-      const boardSlug = board?.slug || board?.board_code || boardId;
-      url.searchParams.append("board", boardSlug);
+      filtersInHash.append("board", toSeoSlug(board?.slug || board?.board_code || boardId));
     });
     if (finalFilters.feeRange) {
       const [min, max] = finalFilters.feeRange.split("-");
       if (min && max) {
-        url.searchParams.set("min_fee", min);
-        url.searchParams.set("max_fee", max);
+        filtersInHash.set("min_fee", min);
+        filtersInHash.set("max_fee", max);
       }
     }
+    url.hash = filtersInHash.toString();
     window.location.assign(url.toString());
   }
 

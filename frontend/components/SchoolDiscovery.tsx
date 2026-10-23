@@ -6,7 +6,6 @@ import {
   BarChart3,
   BookOpen,
   Bot,
-  CircleDollarSign,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -16,7 +15,6 @@ import {
   List as ListView,
   MapPin,
   Mail,
-  MessageCircle,
   Phone,
   Plus,
   Search,
@@ -48,7 +46,6 @@ import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
-import CounsellingLink from "@/components/home/CounsellingLink";
 import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import HomeBotOnboarding from "@/components/home/HomeBotOnboarding";
@@ -1326,22 +1323,33 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    for (const key of new Set(hashParams.keys())) {
+      params.delete(key);
+      hashParams.getAll(key).forEach((item) => params.append(key, item));
+    }
     if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey || initialBoardKey || initialHomeCategory) {
       initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation);
-      setSearch("");
-      setSearchInput("");
+      const scopedSearch = initialFilter?.search ?? params.get("search") ?? "";
+      setSearch(scopedSearch);
+      setSearchInput(scopedSearch);
       // A path scope (place, board or school type) still honours an explicit
       // ?board= scope — this is how footer "CBSE boarding schools in <city>"
       // links keep their board filter instead of falling back to every board.
       const scopedBoards = params.getAll("board");
       setBoard(scopedBoards.length ? scopedBoards : initialBoardKey ? initialBoardKey.split(",") : []);
       setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
-      setHomeCategory(initialHomeCategory ?? null);
+      setHomeCategory(initialHomeCategory ?? homeSchoolCategoryFromValue(params.get("home_category")));
       setGeoCountry(initialCountry ?? "");
       setGeoState(initialState ?? "");
       setGeoCity(initialCity ?? "");
       setGeoLocation(initialLocation ?? "");
       setLocationGroups([]);
+      const min = Number(params.get("min_fee") ?? 0);
+      const max = Number(params.get("max_fee") ?? 3_000_000);
+      if (Number.isFinite(min) && Number.isFinite(max) && min < max) {
+        setFeeRange([min, max]);
+      }
       setQueryRestored(true);
       return;
     }
@@ -2179,6 +2187,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <Link href={schoolDirectoryPath("residential-school")}>Boarding schools</Link>
               <Link href="/compare/">Compare schools</Link>
               {boards[0] && <Link href={boardListingPath(boards[0].slug)}>{boards[0].board_name} schools</Link>}
+              <button type="button" onClick={() => setBotOnboardingOpen(true)}>
+                <Bot size={14} aria-hidden /> School discovery assistant
+              </button>
             </nav>
           )}
 
@@ -2373,51 +2384,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <Link href="/schools">Browse schools</Link>
             </div>
           )}
-        </div>
-      </section>
-
-      <section className="home-section home-quick-actions" aria-labelledby="home-quick-actions-heading">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">QUICK ACTIONS</div>
-            <h2 id="home-quick-actions-heading">Go straight to what you need</h2>
-          </div>
-        </div>
-        <div className="home-quick-actions__grid">
-          <Link className="home-quick-action" href={schoolDirectoryPath()}>
-            <span><Search size={20} aria-hidden /></span>
-            <strong>Browse all schools</strong>
-            <small>Open school directory</small>
-            <ArrowRight size={17} aria-hidden />
-          </Link>
-          <Link className="home-quick-action" href="/schools/?max_fee=100000">
-            <span><CircleDollarSign size={20} aria-hidden /></span>
-            <strong>Schools under ₹1 lakh</strong>
-            <small>Browse schools by budget</small>
-            <ArrowRight size={17} aria-hidden />
-          </Link>
-          <Link className="home-quick-action" href="/compare/">
-            <span><BarChart3 size={20} aria-hidden /></span>
-            <strong>Compare schools</strong>
-            <small>Open school comparison</small>
-            <ArrowRight size={17} aria-hidden />
-          </Link>
-          <CounsellingLink className="home-quick-action">
-            <span><MessageCircle size={20} aria-hidden /></span>
-            <strong>Get free counselling</strong>
-            <small>Talk to our guidance team</small>
-            <ArrowRight size={17} aria-hidden />
-          </CounsellingLink>
-          <button
-            className="home-quick-action home-quick-action--assistant"
-            type="button"
-            onClick={() => setBotOnboardingOpen(true)}
-          >
-            <span><Bot size={20} aria-hidden /></span>
-            <strong>School discovery assistant</strong>
-            <small>Build a shortlist in a few steps</small>
-            <ArrowRight size={17} aria-hidden />
-          </button>
         </div>
       </section>
 

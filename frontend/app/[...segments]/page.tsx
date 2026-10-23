@@ -100,7 +100,13 @@ async function resolveHomeTypes(category: HomeSchoolCategory): Promise<SchoolTyp
 
 async function findActiveBoard(slug: string): Promise<BoardListItem | undefined> {
   const boards = await fetchAllPages(await schools.boards());
-  return boards.find((row) => row.status && toSeoSlug(row.slug) === toSeoSlug(slug));
+  return boards.find(
+    (row) =>
+      row.status &&
+      [row.slug, row.board_code, row.board_name].some(
+        (value) => toSeoSlug(value) === toSeoSlug(slug),
+      ),
+  );
 }
 
 function legacyBoardSlug(segment: string | undefined): string | undefined {
@@ -246,23 +252,34 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     }
     return unavailableMetadata("Education board not found | BoardingEdu");
   }
-  const oldBoardSlug = segments.length === 1 ? legacyBoardSlug(segments[0]) : undefined;
+  const oldBoardSegment = segments.length === 1 ? segments[0] : undefined;
+  const oldBoardSlug = oldBoardSegment
+    ? legacyBoardSlug(oldBoardSegment) ?? oldBoardSegment
+    : undefined;
   if (oldBoardSlug !== undefined) {
     try {
       const board = await findActiveBoard(oldBoardSlug);
       if (board) {
-        const copy = listingCopy({ boardName: board.board_name, place: "India" });
+        const homeCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
+        const categoryLabel = homeCategory === "day-school"
+          ? "Day School"
+          : homeCategory
+            ? "Boarding School"
+            : undefined;
+        const copy = listingCopy({ boardName: board.board_name, categoryLabel, place: "India" });
         return pageMetadata({
           title: copy.title,
           description: copy.description,
-          path: boardListingPath(board.slug),
+          path: `/${board.slug}`,
           keywords: [board.board_name, `${board.board_name} schools in India`],
         });
       }
     } catch {
       return unavailableMetadata("School directory | BoardingEdu");
     }
-    return unavailableMetadata("Education board not found | BoardingEdu");
+    if (legacyBoardSlug(oldBoardSegment)) {
+      return unavailableMetadata("Education board not found | BoardingEdu");
+    }
   }
   if (segments[0] === "schools" && segments.length === 1) {
     return pageMetadata({
@@ -429,11 +446,39 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       </>
     );
   }
-  const oldBoardSlug = segments.length === 1 ? legacyBoardSlug(segments[0]) : undefined;
+  const legacyBoardSegment = segments.length === 1 ? segments[0] : undefined;
+  const oldBoardSlug = legacyBoardSegment
+    ? legacyBoardSlug(legacyBoardSegment) ?? legacyBoardSegment
+    : undefined;
   if (oldBoardSlug !== undefined) {
     const board = await findActiveBoard(oldBoardSlug);
-    if (!board) notFound();
-    redirect(boardListingPath(board.slug));
+    if (board) {
+      const category = homeSchoolCategoryFromValue(searchParams?.home_category);
+      const types = category ? await resolveHomeTypes(category) : [];
+      const breadcrumbs = [
+        { name: "Home", url: "/" },
+        { name: "School directory", url: schoolDirectoryPath(category) },
+        {
+          name: `${board.board_name} ${category === "day-school" ? "Day" : category ? "Boarding" : ""} schools`.replace(/\s+/g, " ").trim(),
+          url: `/${legacyBoardSegment}/`,
+        },
+      ];
+      return (
+        <>
+          <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
+          <SchoolDiscovery
+            initialFilter={{
+              boardIds: [board.board_id],
+              boardSlug: board.slug,
+              schoolTypes: types.map((type) => type.school_type_id),
+              homeCategory: category ?? undefined,
+            }}
+            breadcrumbs={breadcrumbs}
+          />
+        </>
+      );
+    }
+    if (legacyBoardSlug(legacyBoardSegment)) notFound();
   }
   if (segments[0] === "schools" && segments.length === 1) {
     const searchQuery = Array.isArray(searchParams?.search)

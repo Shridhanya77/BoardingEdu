@@ -16164,32 +16164,39 @@ select:focus-visible {
   gap: 8px;
 }
 
-.hero-quick-links a {
+.hero-quick-links a,
+.hero-quick-links button {
   min-height: 34px;
   padding: 7px 11px;
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   color: #173b5d;
   background: #fff;
   border: 1px solid #d6e3ed;
   border-radius: 999px;
   box-shadow: 0 3px 10px rgb(12 31 52 / 7%);
+  font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   line-height: 1.25;
   text-decoration: none;
+  cursor: pointer;
   transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
 .hero-quick-links a:hover,
-.hero-quick-links a:focus-visible {
+.hero-quick-links a:focus-visible,
+.hero-quick-links button:hover,
+.hero-quick-links button:focus-visible {
   color: #fff;
   background: #17456b;
   border-color: #17456b;
   transform: translateY(-1px);
 }
 
-.hero-quick-links a:focus-visible {
+.hero-quick-links a:focus-visible,
+.hero-quick-links button:focus-visible {
   outline: 3px solid #e8650f;
   outline-offset: 2px;
 }
@@ -16485,7 +16492,8 @@ select:focus-visible {
     gap: 6px;
   }
 
-  .hero-quick-links a {
+  .hero-quick-links a,
+  .hero-quick-links button {
     min-height: 32px;
     padding: 6px 9px;
     font-size: 10px;
