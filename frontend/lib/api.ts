@@ -743,6 +743,12 @@ export type SchoolRatingSummary = {
   >;
 };
 
+export type PublicRatingSummary = {
+  average_rating: number | null;
+  review_count: number;
+  distribution: Record<string, number>;
+};
+
 export type ReviewInput = {
   school: string;
   rating: number;
@@ -769,6 +775,9 @@ export const reviews = {
     request<SchoolRatingSummary>(
       `/reviews/summary/?school=${encodeURIComponent(schoolId)}`,
     ),
+  /** Aggregate rating across all published directory reviews (public). */
+  publicSummary: () =>
+    request<PublicRatingSummary>("/reviews/public-summary/"),
   /** Submit a review. Requires authentication. */
   create: (payload: ReviewInput) =>
     authRequest<ReviewListItem>("/reviews/", {

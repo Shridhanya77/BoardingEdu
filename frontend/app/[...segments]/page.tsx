@@ -208,6 +208,14 @@ function unavailableMetadata(title: string): Metadata {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const segments = params.segments ?? [];
+  if (segments[0] === "schools" && segments[1] === "search" && segments.length === 3) {
+    return {
+      title: `School search: ${segments[2]?.replace(/-/g, " ")} | BoardingEdu`,
+      description: "Search schools by name, location, board, and other details.",
+      robots: { index: false, follow: true },
+      alternates: { canonical: `/schools/search/${toSeoSlug(segments[2] ?? "")}/` },
+    };
+  }
   const boardMetaCategory = homeSchoolCategoryFromValue(segments[2]?.toLowerCase());
   if (segments[0] === "board" && (segments.length === 2 || (segments.length === 3 && Boolean(boardMetaCategory)))) {
     try {
@@ -391,6 +399,25 @@ export default async function LocationRoute({ params, searchParams }: Props) {
             schoolTypes: types.map((type) => type.school_type_id),
             homeCategory: homeCategory ?? undefined,
           }}
+          breadcrumbs={breadcrumbs}
+        />
+      </>
+    );
+  }
+  if (segments[0] === "schools" && segments[1] === "search" && segments.length === 3) {
+    const searchSlug = toSeoSlug(segments[2] ?? "");
+    if (!searchSlug) redirect(schoolDirectoryPath());
+    const searchQuery = searchSlug.replace(/-/g, " ");
+    const breadcrumbs = [
+      { name: "Home", url: "/" },
+      { name: "School directory", url: schoolDirectoryPath() },
+      { name: `Search: ${searchQuery}`, url: `/schools/search/${searchSlug}/` },
+    ];
+    return (
+      <>
+        <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
+        <SchoolDiscovery
+          initialFilter={{ search: searchQuery }}
           breadcrumbs={breadcrumbs}
         />
       </>

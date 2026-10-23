@@ -55,6 +55,11 @@ export function schoolDirectoryPath(category?: HomeSchoolCategory | null): strin
     : withTrailingSlash("/schools");
 }
 
+export function schoolSearchPath(query: string): string {
+  const slug = toSeoSlug(query);
+  return slug ? withTrailingSlash(`/schools/search/${slug}`) : schoolDirectoryPath();
+}
+
 /**
  * Hierarchical listing URL. Without a category it is the place landing page
  * that asks for a school type first:

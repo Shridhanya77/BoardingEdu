@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CheckCircle2, Loader2, Send, Star } from "lucide-react";
 import { reviews, ApiError, type ReviewListItem, type SchoolRatingSummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import ReviewSummaryPanel from "./ReviewSummaryPanel";
 
 type Props = {
   schoolId: string;
@@ -55,7 +56,6 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const hasReviews = (summary?.review_count ?? 0) > 0;
   const ratingCategories = [
     { field: "academics_rating", label: "Academics & teaching" },
     { field: "facilities_rating", label: "Facilities & campus" },
@@ -102,33 +102,46 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
 
   return (
     <>
-      <div className="reviews-summary">
-        <div className="reviews-summary__score">
-          <strong>{summary?.average_rating != null ? summary.average_rating.toFixed(1) : "—"}</strong>
-          <Stars value={summary?.average_rating ?? 0} size={18} />
-          <span>
-            {hasReviews
-              ? `${summary?.review_count} parent review${summary?.review_count === 1 ? "" : "s"}`
-              : "No reviews yet"}
-          </span>
-        </div>
-        {hasReviews && summary && (
-          <ul className="reviews-distribution">
-            {[5, 4, 3, 2, 1].map((star) => {
-              const count = summary.distribution[String(star)] ?? 0;
-              const pct = summary.review_count ? Math.round((count / summary.review_count) * 100) : 0;
-              return (
-                <li key={star}>
-                  <span className="reviews-distribution__label">{star}★</span>
-                  <span className="reviews-distribution__bar">
-                    <span style={{ width: `${pct}%` }} />
-                  </span>
-                  <span className="reviews-distribution__count">{count}</span>
-                </li>
-              );
-            })}
-          </ul>
+      <div className="reviews-showcase">
+        {summary && (
+          <ReviewSummaryPanel
+            summary={{
+              average_rating: summary.average_rating,
+              review_count: summary.review_count,
+              distribution: summary.distribution,
+            }}
+          />
         )}
+
+        <div className="reviews-showcase__entries">
+          {list.length === 0 ? (
+            <p className="empty-state"><Star size={16} /> Be the first to review {schoolName}.</p>
+          ) : (
+            <ul className="reviews-list">
+              {list.map((review) => (
+                <li key={review.review_id} className="review-card">
+                  <div className="review-card__head">
+                    <span className="review-card__avatar" aria-hidden="true">
+                      {review.author_name.trim().charAt(0).toUpperCase() || "P"}
+                    </span>
+                    <span className="review-card__author">
+                      <strong>{review.author_name}</strong>
+                      <small>{formatDate(review.created_at)} · {review.status === "PUBLISHED" ? "Published review" : "Awaiting moderation"}</small>
+                    </span>
+                    {review.is_verified && <span className="review-card__verified"><CheckCircle2 size={13} /> Verified</span>}
+                  </div>
+                  <div className="review-card__rating">
+                    <Stars value={review.rating} />
+                    <strong>{review.rating.toFixed(1)} / 5</strong>
+                  </div>
+                  {review.title && <h3 className="review-card__title">{review.title}</h3>}
+                  {review.body && <p className="review-card__body">{review.body}</p>}
+                  {review.status === "PENDING" && <p className="review-card__pending">Awaiting moderation</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       {summary && (
@@ -150,28 +163,6 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
             );
           })}
         </div>
-      )}
-
-      {list.length === 0 ? (
-        <p className="empty-state"><Star size={16} /> Be the first to review {schoolName}.</p>
-      ) : (
-        <ul className="reviews-list">
-          {list.map((review) => (
-            <li key={review.review_id} className="review-card">
-              <div className="review-card__head">
-                <span className="review-card__author">
-                  {review.author_name}
-                  {review.is_verified && <span className="review-card__verified"><CheckCircle2 size={13} /> Verified</span>}
-                </span>
-                <span className="review-card__date">{formatDate(review.created_at)}</span>
-              </div>
-              <Stars value={review.rating} />
-              {review.title && <h3 className="review-card__title">{review.title}</h3>}
-              {review.body && <p className="review-card__body">{review.body}</p>}
-              {review.status === "PENDING" && <p className="review-card__pending">Awaiting moderation</p>}
-            </li>
-          ))}
-        </ul>
       )}
 
       <div className="review-form">

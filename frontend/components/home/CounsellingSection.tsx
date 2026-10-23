@@ -11,16 +11,14 @@ import {
   type CityListItem,
   type GradeListItem,
 } from "@/lib/api";
-import GradeMultiSelect from "./GradeMultiSelect";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [selectedGrades, setSelectedGrades] = useState<string[]>([]);
-  const [homeCity, setHomeCity] = useState("");
+  const [gradeId, setGradeId] = useState("");
   const [cityChoices, setCityChoices] = useState<CityListItem[]>([]);
-  const [preferred, setPreferred] = useState<CityListItem[]>([]);
+  const [cityId, setCityId] = useState("");
   const [grades, setGrades] = useState<GradeListItem[]>([]);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,27 +67,26 @@ export default function CounsellingSection() {
       setError("Please enter a valid email address.");
       return;
     }
-    if (!selectedGrades.length) {
-      setError("Please select at least one grade/class.");
+    if (!gradeId) {
+      setError("Please select the class your child is applying for.");
       return;
     }
-    if (preferred.length === 0) {
+    const city = cityChoices.find((item) => item.city_id === cityId);
+    if (!city) {
       setError("Please select at least one preferred city.");
       return;
     }
     setSubmitting(true);
     try {
-      const allSameCountry = preferred.every((city) => city.country_id === preferred[0]!.country_id);
-      const allSameState = preferred.every((city) => city.state_id === preferred[0]!.state_id);
       const result = await admissions.submitCounselling({
         parent_name: name.trim(),
         email: email.trim(),
         phone: digits,
-        home_city: homeCity.trim(),
-        preferred_country: allSameCountry ? preferred[0]!.country_id : undefined,
-        preferred_state: allSameState ? preferred[0]!.state_id : undefined,
-        preferred_cities: preferred.map((city) => city.city_id),
-        grades: selectedGrades,
+        home_city: city.city_name,
+        preferred_country: city.country_id,
+        preferred_state: city.state_id,
+        preferred_cities: [city.city_id],
+        grades: [gradeId],
         boards: [],
         school_types: [],
         message: "",
@@ -98,9 +95,8 @@ export default function CounsellingSection() {
       setName("");
       setEmail("");
       setPhone("");
-      setSelectedGrades([]);
-      setHomeCity("");
-      setPreferred([]);
+      setGradeId("");
+      setCityId("");
     } catch (reason: unknown) {
       setError(
         reason instanceof ApiError
@@ -119,7 +115,7 @@ export default function CounsellingSection() {
       <div className="counselling__intro">
         <div className="section-eyebrow">100% FREE SERVICE</div>
         <h2>Free admission counselling</h2>
-        <p>Tell us the class and city. A counsellor will call you back.</p>
+        <p>Share your contact details, preferred city, and class. Our team will call you back.</p>
       </div>
 
       <form className="counselling__form" onSubmit={onSubmit}>
@@ -157,24 +153,28 @@ export default function CounsellingSection() {
             required
           />
         </label>
-        <GradeMultiSelect
-          grades={grades}
-          selectedIds={selectedGrades}
-          onChange={setSelectedGrades}
-          disabled={submitting}
-        />
+        <label>
+          Class applying for
+          <select
+            value={gradeId}
+            required
+            disabled={submitting || !grades.length}
+            onChange={(event) => setGradeId(event.target.value)}
+          >
+            <option value="">{grades.length ? "Choose a class" : "Loading classes…"}</option>
+            {grades.map((grade) => (
+              <option key={grade.grade_id} value={grade.grade_id}>{grade.grade_name}</option>
+            ))}
+          </select>
+        </label>
         {optionsError && <p className="counselling__error" role="alert">{optionsError}</p>}
         <label>
           City
           <select
-            value={preferred[0]?.city_id ?? ""}
+            value={cityId}
             required
-            disabled={submitting}
-            onChange={(event) => {
-              const city = cityChoices.find((item) => item.city_id === event.target.value);
-              setPreferred(city ? [city] : []);
-              setHomeCity(city?.city_name ?? "");
-            }}
+            disabled={submitting || !cityChoices.length}
+            onChange={(event) => setCityId(event.target.value)}
           >
             <option value="">{cityChoices.length ? "Choose a city" : "Loading cities…"}</option>
             {cityChoices.map((city) => (
@@ -195,7 +195,7 @@ export default function CounsellingSection() {
           {submitting ? "Sending…" : "Get Free Counselling →"}
         </button>
         <p className="counselling__lock">
-          🔒 Your information is private and never shared without consent.
+          We use your details only to respond to this counselling request.
         </p>
       </form>
     </section>

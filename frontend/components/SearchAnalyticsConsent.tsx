@@ -8,12 +8,13 @@ import {
 
 export default function SearchAnalyticsConsent() {
   const [visible, setVisible] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       setVisible(getSearchAnalyticsConsent() === null);
     } catch {
-      setVisible(false);
+      setVisible(true);
     }
   }, []);
 
@@ -21,8 +22,9 @@ export default function SearchAnalyticsConsent() {
     try {
       setSearchAnalyticsConsent(value);
       setVisible(false);
+      setSaveError(null);
     } catch {
-      setVisible(false);
+      setSaveError("Your preference could not be saved. Please allow site storage and try again.");
     }
   }
 
@@ -34,6 +36,7 @@ export default function SearchAnalyticsConsent() {
         Allow anonymous search-usage analytics? Search terms and personal
         details are not included.
       </p>
+      {saveError && <p className="search-consent__error" role="alert">{saveError}</p>}
       <div>
         <button type="button" onClick={() => choose("declined")}>
           Decline

@@ -14773,3 +14773,1104 @@ select:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Responsive discovery and account polish */
+.account-role-choice {
+  margin: 18px 0 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.account-role-choice > button,
+.account-role-choice > a {
+  min-width: 0;
+  min-height: 84px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  color: #26384c;
+  background: #fff;
+  border: 1px solid #dce4ed;
+  border-radius: 11px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.account-role-choice > button.is-active,
+.account-role-choice > button:hover,
+.account-role-choice > a:hover {
+  border-color: #3677a5;
+  background: #f1f8fc;
+  box-shadow: 0 4px 14px rgb(31 95 139 / 10%);
+}
+
+.account-role-choice strong {
+  color: #17314b;
+  font-size: 13px;
+}
+
+.account-role-choice span {
+  color: #64758a;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.account-role-choice--signup {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.account-role-choice--signup > button,
+.account-role-choice--signup > a {
+  min-height: 150px;
+  padding: 18px;
+}
+
+.account-role-choice--signup svg {
+  margin-bottom: 5px;
+  color: #1b7181;
+}
+
+.account-role-back {
+  margin: 0 0 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #52657a;
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.account-role-back:hover {
+  color: #145846;
+}
+
+.account-card--role-picker {
+  width: min(100%, 600px);
+}
+
+.school-location-card {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dce6e7;
+  border-radius: 14px;
+}
+
+.school-location-card__details {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.school-location-card__eyebrow {
+  color: #28756d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.school-location-card .school-address {
+  color: #354c5d;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.school-location-card .school-address span {
+  color: #64788a;
+}
+
+.school-location-card .map-link {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.school-location-card__map {
+  width: 100%;
+  min-height: 250px;
+  display: block;
+  border: 0;
+  background: #e8f0ec;
+}
+
+.school-location-card__unavailable {
+  min-height: 230px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #315d59;
+  background:
+    linear-gradient(30deg, transparent 48%, rgb(255 255 255 / 78%) 49% 52%, transparent 53%),
+    linear-gradient(150deg, transparent 48%, rgb(255 255 255 / 72%) 49% 52%, transparent 53%),
+    #e8f0ec;
+  text-align: center;
+}
+
+.school-location-card__unavailable span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.school-location-card__unavailable small {
+  max-width: 28ch;
+  color: #5e716f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.review-card {
+  border-color: #e0e7ed;
+  box-shadow: 0 3px 12px rgb(23 49 75 / 4%);
+}
+
+.review-card__head {
+  align-items: flex-start;
+}
+
+.review-card__author {
+  flex-wrap: wrap;
+}
+
+.school-detail-page #reviews .reviews-summary {
+  background: linear-gradient(135deg, #f3f8fa, #f8fafc);
+  border: 1px solid #e1eaef;
+  border-radius: 14px;
+}
+
+.school-detail-page #reviews .reviews-summary__score strong {
+  color: #173d58;
+}
+
+.school-detail-page #reviews .reviews-distribution__bar {
+  background: #e3ebef;
+}
+
+.school-detail-page #reviews .reviews-distribution__bar > span {
+  background: #e79835;
+}
+
+.school-detail-page #reviews .reviews-category-ratings__item {
+  border-color: #e0e7ed;
+  border-radius: 10px;
+}
+
+.board-card {
+  background-position: center 45% !important;
+  background-size: cover !important;
+}
+
+.search-consent {
+  background: #fff;
+  backdrop-filter: none;
+}
+
+.search-consent__error {
+  margin: 0 0 10px !important;
+  color: #9f2828;
+}
+
+.filters-panel--open {
+  background: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.filters-backdrop {
+  background: rgb(7 17 30 / 54%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.compare-bar {
+  background: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-color: #cbd8e4;
+}
+
+.compare-bar__school button {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  color: #273c51;
+  background: #e4ebf1;
+  border-radius: 50%;
+}
+
+.compare-bar__school button:hover {
+  color: #fff;
+  background: #a8323a;
+}
+
+.compare-bar__school button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.related-searches ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.related-searches li,
+.related-searches a {
+  min-width: 0;
+}
+
+.related-searches a {
+  height: 100%;
+  padding: 8px 12px;
+  line-height: 1.35;
+}
+
+.counselling.home-section {
+  padding-top: 38px;
+  padding-bottom: 38px;
+}
+
+.counselling__intro,
+.counselling__form {
+  padding: clamp(22px, 3vw, 38px);
+}
+
+.counselling__intro h2 {
+  font-size: clamp(26px, 3vw, 36px);
+}
+
+.counselling__form {
+  gap: 12px;
+}
+
+.counselling__form label {
+  gap: 6px;
+  font-size: 13px;
+}
+
+.counselling__form input,
+.counselling__form select {
+  min-height: 46px;
+}
+
+.seo-footer__utility-links {
+  max-width: 560px;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    min-height: auto;
+    padding: 112px 18px 40px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 0;
+    overflow: hidden;
+  }
+
+  .hero__copy {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
+    align-self: start;
+  }
+
+  .hero__copy > p {
+    max-width: 58ch;
+  }
+
+  .hero-art {
+    display: none;
+  }
+
+  .hero-scroll {
+    display: none;
+  }
+
+  .hero-finder {
+    width: 100%;
+    margin-top: 18px;
+    padding: 15px;
+    box-shadow: 0 10px 28px rgb(0 0 0 / 20%);
+  }
+
+  .school-type-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .school-type-choice {
+    min-height: 90px;
+    padding: 11px;
+    align-items: flex-start;
+  }
+
+  .school-type-choice__copy small {
+    line-height: 1.35;
+  }
+
+  .finder-group__fields:not(.finder-group__fields--regional) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finder-group__fields:not(.finder-group__fields--regional) > .finder-field:first-child,
+  .finder-group__fields:not(.finder-group__fields--regional) > .finder-field:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+
+  .school-location-card {
+    grid-template-columns: 1fr;
+  }
+
+  .school-location-card__map,
+  .school-location-card__unavailable {
+    min-height: 210px;
+  }
+
+  .seo-footer__popular,
+  .seo-footer__grid,
+  .seo-footer__badges,
+  .seo-footer__legal {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .seo-footer__link-cloud {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px 8px;
+  }
+
+  .seo-footer__link-cloud a {
+    padding: 7px 6px;
+    font-size: 11px;
+    white-space: normal;
+  }
+
+  .seo-footer__grid {
+    gap: 22px;
+  }
+
+  .seo-footer__utility-links {
+    width: 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .seo-footer__utility-links a {
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    overflow-wrap: anywhere;
+  }
+
+  .seo-footer__badges {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .seo-footer__legal nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .counselling.home-section {
+    width: min(100% - 32px, 1300px);
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .counselling__intro,
+  .counselling__form {
+    padding: 22px 18px;
+  }
+
+  .counselling__intro h2 {
+    font-size: 28px;
+  }
+
+  .compare-bar {
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    left: 8px;
+    padding: 10px;
+    gap: 8px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 22%);
+  }
+
+  .compare-bar__schools {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .compare-bar__schools > strong {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    padding: 4px 6px 4px 0;
+    background: #fff;
+    white-space: nowrap;
+  }
+
+  .compare-bar__school {
+    max-width: min(58vw, 210px);
+    flex: 0 0 auto;
+  }
+
+  .compare-bar__actions {
+    width: 100%;
+  }
+
+  .search-consent {
+    right: 8px;
+    bottom: calc(118px + env(safe-area-inset-bottom));
+    left: 8px;
+    max-width: none;
+    padding: 13px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgb(15 23 42 / 22%);
+  }
+
+  .search-consent p {
+    font-size: 13px;
+  }
+
+  .search-consent button {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .account-role-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .account-role-choice > button,
+  .account-role-choice > a {
+    min-height: 72px;
+  }
+
+  .account-role-choice--signup {
+    grid-template-columns: 1fr;
+  }
+
+  .account-role-choice--signup > button,
+  .account-role-choice--signup > a {
+    min-height: 120px;
+  }
+
+  .related-searches {
+    padding: 16px 14px;
+  }
+
+  .related-searches ul {
+    gap: 7px;
+  }
+
+  .related-searches a {
+    padding: 7px 8px;
+    font-size: 11px;
+  }
+
+  .seo-footer__brand p {
+    max-width: 36ch;
+  }
+}
+
+/* Home reviews and role forms: match the counselling split-card treatment. */
+.home-reviews {
+  padding: 38px 0;
+}
+
+.home-reviews .home-section__heading {
+  margin-bottom: 20px;
+}
+
+.home-reviews .home-section__heading p {
+  margin: 8px 0 0;
+  color: #66778b;
+  font-size: 14px;
+}
+
+.home-reviews__browse {
+  min-height: 42px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #fff;
+  background: #176d59;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.home-reviews__browse:hover {
+  background: #115443;
+}
+
+.home-reviews__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.home-review-card {
+  min-width: 0;
+  min-height: 220px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid #dfe8e8;
+  border-radius: 14px;
+  box-shadow: 0 7px 22px rgb(18 49 59 / 6%);
+}
+
+.home-review-card__rating {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #df9a27;
+}
+
+.home-review-card__rating strong {
+  margin-left: 6px;
+  color: #274458;
+  font-size: 13px;
+}
+
+.home-review-card h3 {
+  margin: 13px 0 5px;
+  color: #1b354a;
+  font-size: 16px;
+}
+
+.home-review-card > p {
+  margin: 9px 0 16px;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #566a79;
+  font-size: 13px;
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.home-review-card__byline {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #253e50;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.home-review-card__verified {
+  padding: 3px 7px;
+  color: #226a54;
+  background: #e9f5ee;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.home-review-card > a {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #176d59;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.home-review-card > a:hover {
+  color: #104c40;
+}
+
+.home-reviews__status {
+  margin: 0;
+  padding: 20px;
+  color: #586c7c;
+  background: #f5f8f8;
+  border: 1px solid #e1e9e9;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.home-reviews__status--error {
+  color: #8c3131;
+}
+
+.discovery-page--home .home-section--boards .board-card {
+  isolation: isolate;
+  background-size: cover !important;
+  background-position: center !important;
+}
+
+.discovery-page--home .home-section--boards .board-card__mark {
+  width: auto;
+  min-height: 56px;
+  margin: 14px 14px 0;
+  padding: 12px 16px;
+  flex: 0 0 auto;
+  color: #fff;
+  background: rgb(9 27 43 / 58%) !important;
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 10px;
+  backdrop-filter: blur(2px);
+}
+
+.discovery-page--home .home-section--boards .board-card__name {
+  min-height: 54px;
+  padding: 22px 14px 12px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  color: #fff;
+  background: linear-gradient(transparent, rgb(4 16 31 / 90%)) !important;
+  text-align: left;
+}
+
+.account-card:has(.account-card__intro) {
+  width: min(880px, 100%);
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1fr);
+  overflow: hidden;
+  background: #fff;
+  border-color: #dce8e5;
+  border-radius: 18px;
+  box-shadow: 0 20px 56px rgb(17 51 54 / 12%);
+}
+
+.account-card--wide:has(.account-card__intro) {
+  width: min(980px, 100%);
+}
+
+.account-card__intro {
+  min-width: 0;
+  padding: 36px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgb(255 255 255 / 15%), transparent 50%),
+    linear-gradient(150deg, #0d3d3a, #176d59 62%, #225d67);
+}
+
+.account-card__intro .section-eyebrow {
+  color: #b6ded0;
+}
+
+.account-card__intro h1 {
+  margin: 2px 0;
+  color: #fff;
+  font-size: clamp(26px, 3vw, 34px);
+  line-height: 1.12;
+}
+
+.account-card__intro > p {
+  margin: 0;
+  color: rgb(240 250 247 / 84%);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.account-card__content {
+  min-width: 0;
+  padding: 30px;
+  align-self: center;
+}
+
+.account-card__section-title {
+  margin: 0 0 14px;
+  color: #20384b;
+  font-size: 18px;
+}
+
+.account-card__content .account-role-choice {
+  margin-top: 0;
+}
+
+.account-card__content .account-role-choice--signup {
+  margin: 0;
+}
+
+.account-card__content .account-card__hint {
+  margin-bottom: 0;
+}
+
+.account-card__content .account-form .account-card__hint {
+  text-align: left;
+}
+
+.account-card__content .account-role-choice {
+  grid-template-columns: 1fr;
+}
+
+.account-card__content .account-role-choice > button,
+.account-card__content .account-role-choice > a {
+  min-height: 60px;
+  padding: 10px 12px;
+}
+
+.account-card__content .account-role-choice--signup {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.account-card__content .account-role-choice--signup > button,
+.account-card__content .account-role-choice--signup > a {
+  min-height: 144px;
+  padding: 16px;
+}
+
+.school-detail-page .school-detail__main > .detail-panel {
+  padding: clamp(18px, 2vw, 26px);
+  background: #fff;
+  border: 1px solid #dce5ec;
+  border-radius: 14px;
+  box-shadow: 0 7px 20px rgb(18 36 58 / 5%);
+}
+
+.school-detail-page .school-detail__main > .detail-panel + .detail-panel {
+  margin-top: 2px;
+}
+
+.school-detail-page .detail-panel__heading {
+  margin: 0 0 18px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+@media (max-width: 760px) {
+  .home-reviews__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-card:has(.account-card__intro) {
+    grid-template-columns: 1fr;
+  }
+
+  .account-card__intro {
+    padding: 25px 22px;
+  }
+
+  .account-card__content {
+    padding: 22px;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-reviews__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-reviews .home-section__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-review-card {
+    min-height: 0;
+  }
+
+  .account-card__content .account-role-choice--signup {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Shared, data-backed review presentation used on home and school profiles. */
+.review-summary-panel {
+  min-width: 0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+  color: #f8fafc;
+  background: #0b1729;
+  border-radius: 16px;
+}
+
+.review-summary-panel__score {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.review-summary-panel__score > strong {
+  color: #fff;
+  font-size: clamp(42px, 5vw, 58px);
+  font-weight: 750;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.review-summary-panel__score > span:last-child {
+  color: #a8d5ff;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.review-summary-panel__stars {
+  display: inline-flex;
+  gap: 3px;
+  color: #ff8b22;
+}
+
+.review-summary-panel__distribution {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+.review-summary-panel__distribution li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 9px;
+  color: #f4f7fb;
+  font-size: 12px;
+}
+
+.review-summary-panel__distribution li > span:last-child {
+  color: #78baff;
+  text-align: right;
+}
+
+.review-summary-panel__bar {
+  height: 8px;
+  overflow: hidden;
+  background: #344155;
+  border-radius: 999px;
+}
+
+.review-summary-panel__bar > span {
+  height: 100%;
+  display: block;
+  background: #ff851f;
+  border-radius: inherit;
+}
+
+.home-reviews__layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 2fr);
+  align-items: stretch;
+  gap: 16px;
+}
+
+.home-reviews__grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-review-card {
+  min-height: 0;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 2px 5px rgb(16 36 58 / 8%);
+}
+
+.home-review-card__head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-review-card__avatar,
+.review-card__avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #15518a;
+  background: #deedff;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.home-review-card__identity {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.home-review-card__identity strong {
+  color: #10243a;
+  font-size: 14px;
+}
+
+.home-review-card__identity small {
+  color: #7c91a9;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.home-review-card__rating {
+  margin-top: 20px;
+  color: #ff851f;
+}
+
+.home-review-card h3 {
+  margin-top: 16px;
+}
+
+.home-review-card > p {
+  margin: 8px 0 16px;
+  display: block;
+  color: #43566e;
+  font-size: 14px;
+  -webkit-line-clamp: 5;
+}
+
+.home-review-card > a {
+  margin-top: auto;
+}
+
+.reviews-showcase {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 2fr);
+  align-items: stretch;
+  gap: 16px;
+}
+
+.reviews-showcase .review-summary-panel {
+  min-height: 100%;
+}
+
+.reviews-showcase__entries,
+.reviews-list {
+  min-width: 0;
+}
+
+.reviews-list {
+  height: 100%;
+  margin-bottom: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.reviews-list .review-card {
+  min-width: 0;
+  padding: 20px;
+  border-color: #e5eaf0;
+  border-radius: 16px;
+  box-shadow: 0 2px 5px rgb(16 36 58 / 8%);
+}
+
+.review-card__head {
+  justify-content: flex-start;
+}
+
+.review-card__author {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.review-card__author strong {
+  color: #10243a;
+  font-size: 14px;
+}
+
+.review-card__author small {
+  color: #7c91a9;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.review-card__verified {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.review-card__rating {
+  margin: 18px 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.review-card__rating > strong {
+  color: #d96c13;
+  font-size: 13px;
+}
+
+.review-card__title {
+  margin-top: 8px;
+}
+
+.school-detail-page #reviews .reviews-summary {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .home-reviews__layout,
+  .reviews-showcase {
+    grid-template-columns: 1fr;
+  }
+
+  .review-summary-panel {
+    padding: 21px;
+  }
+
+  .review-summary-panel__distribution {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 560px) {
+  .home-reviews__grid,
+  .reviews-list {
+    grid-template-columns: 1fr;
+  }
+
+  .home-review-card,
+  .reviews-list .review-card {
+    padding: 17px;
+  }
+}

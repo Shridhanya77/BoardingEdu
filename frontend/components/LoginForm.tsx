@@ -11,8 +11,9 @@ export default function LoginForm() {
   const params = useSearchParams();
   const redirectTo = params.get("next") ?? "";
 
-  const { login, error, clearError, status } = useAuth();
+  const { login, logout, error, clearError, status } = useAuth();
 
+  const [accountType, setAccountType] = useState<"parent" | "school" | "admin">("parent");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -29,6 +30,22 @@ export default function LoginForm() {
     setSubmitting(true);
     try {
       const me = await login(username.trim(), password);
+      const roleMatches = accountType === "parent"
+        ? me.role === "PARENT"
+        : accountType === "school"
+          ? me.role === "SCHOOL_ADMIN"
+          : me.role === "STAFF_ADMIN" || me.role === "SUPER_ADMIN";
+      if (!roleMatches) {
+        await logout();
+        setFormError(
+          accountType === "parent"
+            ? "This account is not a parent account. Choose School admin or Staff / platform admin."
+            : accountType === "school"
+              ? "This account is not a school-admin account. Choose Parent or Staff / platform admin."
+              : "This account is not a staff or platform-admin account. Choose Parent or School admin.",
+        );
+        return;
+      }
       // Each role lands on its own dashboard unless a specific page was requested.
       router.push(redirectTo || dashboardPathForRole(me.role));
     } catch (err) {
@@ -57,68 +74,90 @@ export default function LoginForm() {
       </Link>
 
       <section className="account-card">
-        <span className="section-eyebrow">BOARDINGEDU LOGIN</span>
-        <h1>Welcome back.</h1>
-        <p className="account-card__hint">
-          Parents, school admins, staff admins, and platform admins sign in here. Each role opens its own dashboard.
-        </p>
+        <aside className="account-card__intro">
+          <span className="section-eyebrow">BOARDINGEDU LOGIN</span>
+          <h1>Welcome back.</h1>
+          <p>Sign in to continue your school journey. Choose the account type you registered with.</p>
+        </aside>
+        <div className="account-card__content">
+          <div className="account-role-choice" role="group" aria-label="Choose account type">
+            {([
+              ["parent", "Parent", "Find and compare schools"],
+              ["school", "School admin", "Manage your school profile"],
+              ["admin", "Staff / platform admin", "Manage BoardingEdu"],
+            ] as const).map(([value, label, description]) => (
+              <button
+                key={value}
+                type="button"
+                className={accountType === value ? "is-active" : ""}
+                aria-pressed={accountType === value}
+                onClick={() => {
+                  setAccountType(value);
+                  setFormError(null);
+                }}
+              >
+                <strong>{label}</strong>
+                <span>{description}</span>
+              </button>
+            ))}
+          </div>
 
+          <form className="account-form" onSubmit={onSubmit} noValidate>
+            {finalError && (
+              <div className="form-error" role="alert">{finalError}</div>
+            )}
 
-        <form className="account-form" onSubmit={onSubmit} noValidate>
-          {finalError && (
-            <div className="form-error" role="alert">{finalError}</div>
-          )}
+            <label className="field">
+              <span className="field__label">Email or username</span>
+              <span className="field__wrap">
+                <UserRound size={18} className="field__icon" aria-hidden />
+                <input
+                  type="text"
+                  autoComplete="username"
+                  autoFocus
+                  placeholder="you@example.com or your_username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={busy}
+                  required
+                />
+              </span>
+            </label>
 
-          <label className="field">
-            <span className="field__label">Email or username</span>
-            <span className="field__wrap">
-              <UserRound size={18} className="field__icon" aria-hidden />
-              <input
-                type="text"
-                autoComplete="username"
-                autoFocus
-                placeholder="you@example.com or your_username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={busy}
-                required
-              />
-            </span>
-          </label>
+            <label className="field">
+              <span className="field__label">Password</span>
+              <span className="field__wrap">
+                <Lock size={18} className="field__icon" aria-hidden />
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="8+ characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={busy}
+                  required
+                />
+              </span>
+            </label>
 
-          <label className="field">
-            <span className="field__label">Password</span>
-            <span className="field__wrap">
-              <Lock size={18} className="field__icon" aria-hidden />
-              <input
-                type="password"
-                autoComplete="current-password"
-                placeholder="8+ characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={busy}
-                required
-              />
-            </span>
-          </label>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={busy}
+            >
+              <LogIn size={16} />
+              {busy ? "Signing you in…" : "Log in"}
+            </button>
 
-          <button
-            type="submit"
-            className="primary-button"
-            disabled={busy}
-          >
-            <LogIn size={16} />
-            {busy ? "Signing you in…" : "Log in"}
-          </button>
-
-          <p className="account-card__hint">
-            Don&apos;t have a parent account? <Link href="/signup">Sign up here</Link>.
-          </p>
-          <p className="account-card__hint">
-            Run a school? <Link href="/signup/school">Register your school</Link> — our team
-            verifies every school before the dashboard unlocks.
-          </p>
-        </form>
+            <p className="account-card__hint">
+              {accountType === "parent"
+                ? <>New to BoardingEdu? <Link href="/signup">Create a parent account</Link>.</>
+                : accountType === "school"
+                  ? <>New school admin? <Link href="/signup/school">Register your school</Link>.</>
+                  : "Staff and platform-admin accounts are created by the BoardingEdu team."}
+            </p>
+          </form>
+        </div>
       </section>
     </main>
   );

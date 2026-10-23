@@ -11,19 +11,43 @@ export type SearchEventName =
 
 const CONSENT_KEY = "boardingeu:search-analytics-consent";
 const SESSION_KEY = "boardingeu:search-analytics-session";
+const CONSENT_COOKIE = "boardingeu_analytics_consent";
 
 export function getSearchAnalyticsConsent(): "accepted" | "declined" | null {
   if (typeof window === "undefined") return null;
+  const readCookie = () => {
+    const cookie = document.cookie
+      .split("; ")
+      .find((part) => part.startsWith(`${CONSENT_COOKIE}=`))
+      ?.slice(CONSENT_COOKIE.length + 1);
+    return cookie === "accepted" || cookie === "declined" ? cookie : null;
+  };
   try {
     const value = window.localStorage.getItem(CONSENT_KEY);
-    return value === "accepted" || value === "declined" ? value : null;
+    return value === "accepted" || value === "declined" ? value : readCookie();
   } catch {
-    return null;
+    return readCookie();
   }
 }
 
 export function setSearchAnalyticsConsent(value: "accepted" | "declined") {
-  window.localStorage.setItem(CONSENT_KEY, value);
+  if (typeof window === "undefined") return;
+  let persisted = false;
+  try {
+    window.localStorage.setItem(CONSENT_KEY, value);
+    persisted = true;
+  } catch {
+    // Use the first-party cookie below when mobile/private browsing blocks storage.
+  }
+  try {
+    document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=31536000; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
+    persisted = document.cookie
+      .split("; ")
+      .some((part) => part === `${CONSENT_COOKIE}=${value}`) || persisted;
+  } catch {
+    if (!persisted) throw new Error("Your analytics preference could not be saved in this browser.");
+  }
+  if (!persisted) throw new Error("Your analytics preference could not be saved in this browser.");
 }
 
 export function trackSearchEvent(

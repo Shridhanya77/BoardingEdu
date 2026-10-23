@@ -200,3 +200,29 @@ class ReviewApiTests(TestCase):
     def test_summary_requires_school_param(self):
         response = self.client.get("/api/reviews/summary/")
         self.assertEqual(response.status_code, 400)
+
+    def test_public_summary_aggregates_only_published_reviews(self):
+        Review.objects.create(
+            school=self.school,
+            user=self.parent,
+            rating=5,
+            status=Review.STATUS_PUBLISHED,
+        )
+        Review.objects.create(
+            school=self.school,
+            user=self.other_parent,
+            rating=3,
+            status=Review.STATUS_PUBLISHED,
+        )
+        Review.objects.create(
+            school=self.school,
+            rating=1,
+            status=Review.STATUS_PENDING,
+        )
+        response = self.client.get("/api/reviews/public-summary/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["review_count"], 2)
+        self.assertEqual(response.data["average_rating"], 4.0)
+        self.assertEqual(response.data["distribution"]["5"], 1)
+        self.assertEqual(response.data["distribution"]["3"], 1)
+        self.assertEqual(response.data["distribution"]["1"], 0)

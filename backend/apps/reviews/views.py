@@ -21,6 +21,7 @@ from .serializers import (
     ReviewCreateSerializer,
     ReviewDetailSerializer,
     ReviewListSerializer,
+    PublicRatingSummarySerializer,
     SchoolRatingSummarySerializer,
 )
 
@@ -98,7 +99,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def get_permissions(self):
-        if self.action in ("list", "retrieve", "summary"):
+        if self.action in ("list", "retrieve", "summary", "public_summary"):
             return [AllowAny()]
         if self.action == "create":
             return [IsAuthenticated()]
@@ -184,3 +185,30 @@ class ReviewViewSet(viewsets.ModelViewSet):
             },
         }
         return Response(SchoolRatingSummarySerializer(payload).data)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="public-summary",
+        name="Public school review summary",
+    )
+    def public_summary(self, request):
+        """Aggregate rating across all published reviews."""
+        published = Review.objects.published()
+        aggregate = published.aggregate(
+            average_rating=Avg("rating"),
+            review_count=Count("review_id"),
+        )
+        distribution = {str(star): 0 for star in range(1, 6)}
+        for row in published.values("rating").annotate(count=Count("review_id")):
+            distribution[str(row["rating"])] = row["count"]
+        payload = {
+            "average_rating": (
+                round(aggregate["average_rating"], 2)
+                if aggregate["average_rating"] is not None
+                else None
+            ),
+            "review_count": aggregate["review_count"],
+            "distribution": distribution,
+        }
+        return Response(PublicRatingSummarySerializer(payload).data)

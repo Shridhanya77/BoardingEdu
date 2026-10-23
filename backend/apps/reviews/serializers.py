@@ -92,3 +92,14 @@ class SchoolRatingSummarySerializer(serializers.Serializer):
         child=serializers.DictField(),
         help_text="Average and response count for each parent rating category.",
     )
+
+
+class PublicRatingSummarySerializer(serializers.Serializer):
+    """Read-only aggregate rating across all published school reviews."""
+
+    average_rating = serializers.FloatField(allow_null=True)
+    review_count = serializers.IntegerField()
+    distribution = serializers.DictField(
+        child=serializers.IntegerField(),
+        help_text="Mapping of star value (1-5) to review count.",
+    )

@@ -212,6 +212,16 @@ export default async function SchoolProfile({
     school.state_detail.state_name,
     school.country_detail.country_name,
   ].filter(Boolean).join(", ");
+  const latitude = school.lat ?? Number.NaN;
+  const longitude = school.lng ?? Number.NaN;
+  const hasCoordinates =
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180;
+  const mapFrameUrl = hasCoordinates
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01}%2C${latitude - 0.01}%2C${longitude + 0.01}%2C${latitude + 0.01}&layer=mapnik&marker=${latitude}%2C${longitude}`
+    : null;
   const cityName = school.city_detail.city_name;
   const stateName = school.state_detail.state_name;
   const primaryBoard = school.boards_detail[0];
@@ -603,21 +613,41 @@ export default async function SchoolProfile({
                 <span className="detail-panel__icon"><MapPin size={18} /></span>
                 <div><h2>Location &amp; address</h2><p>Contact the school to confirm visiting details.</p></div>
               </div>
-              <address className="school-address">
-                {school.address}
-                {school.pincode && <span>{school.pincode}</span>}
-                <span>{location}</span>
-              </address>
-              {school.lat && school.lng && (
-                <a
-                  className="map-link"
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${school.lat},${school.lng}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open location in Maps
-                </a>
-              )}
+              <div className="school-location-card">
+                <div className="school-location-card__details">
+                  <span className="school-location-card__eyebrow">SCHOOL ADDRESS</span>
+                  <address className="school-address">
+                    {school.address || "The school has not published a street address."}
+                    {school.pincode && <span>PIN code: {school.pincode}</span>}
+                    <span>{location}</span>
+                  </address>
+                  {hasCoordinates && (
+                    <a
+                      className="map-link"
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open in Google Maps <ArrowRight size={15} aria-hidden />
+                    </a>
+                  )}
+                </div>
+                {mapFrameUrl ? (
+                  <iframe
+                    className="school-location-card__map"
+                    src={mapFrameUrl}
+                    title={`Map showing ${school.school_name}`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="school-location-card__unavailable">
+                    <MapPin size={22} aria-hidden />
+                    <span>Map preview unavailable</span>
+                    <small>Accurate coordinates have not been provided.</small>
+                  </div>
+                )}
+              </div>
             </article>
           </section>
 

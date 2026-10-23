@@ -28,6 +28,7 @@ function fieldErrors(err: unknown, field: string): string[] | null {
 export default function SignupForm() {
   const router = useRouter();
   const { register, error, clearError, status } = useAuth();
+  const [accountType, setAccountType] = useState<"parent" | null>(null);
 
   const [form, setForm] = useState({
     username: "",
@@ -95,6 +96,39 @@ export default function SignupForm() {
 
   const finalTopError = formError ?? error ?? null;
 
+  if (!accountType) {
+    return (
+      <main className="account-page">
+        <Link className="account-page__back" href="/">
+          <ArrowLeft size={16} /> Back to BoardingEdu
+        </Link>
+        <section className="account-card account-card--role-picker">
+          <aside className="account-card__intro">
+            <span className="section-eyebrow">JOIN BOARDINGEDU</span>
+            <h1>Start your school journey.</h1>
+            <p>Create an account to discover schools, compare options, and connect with the right school community.</p>
+          </aside>
+          <div className="account-card__content">
+            <h2 className="account-card__section-title">Who are you joining as?</h2>
+            <div className="account-role-choice account-role-choice--signup">
+              <button type="button" onClick={() => setAccountType("parent")}>
+                <UserRoundPlus size={22} aria-hidden />
+                <strong>Parent or guardian</strong>
+                <span>Discover schools, compare options, and request counselling.</span>
+              </button>
+              <Link href="/signup/school">
+                <Building2 size={22} aria-hidden />
+                <strong>School administrator</strong>
+                <span>Register your school for review and manage its public profile.</span>
+              </Link>
+            </div>
+            <p className="account-card__hint">Already registered? <Link href="/login">Log in</Link>.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="account-page">
       <Link className="account-page__back" href="/">
@@ -102,11 +136,17 @@ export default function SignupForm() {
       </Link>
 
       <section className="account-card account-card--wide">
-        <span className="section-eyebrow">CREATE A PARENT ACCOUNT</span>
-        <h1>Join BoardingEdu.</h1>
+        <aside className="account-card__intro">
+          <span className="section-eyebrow">CREATE A PARENT ACCOUNT</span>
+          <h1>Join BoardingEdu.</h1>
+          <p>Build your parent profile to shortlist schools, compare options, and get admission guidance.</p>
+        </aside>
+        <div className="account-card__content">
+          <button className="account-role-back" type="button" onClick={() => setAccountType(null)}>
+            <ArrowLeft size={15} aria-hidden /> Choose a different account type
+          </button>
 
-
-        <form className="account-form account-form--grid" onSubmit={onSubmit} noValidate>
+          <form className="account-form account-form--grid" onSubmit={onSubmit} noValidate>
           {finalTopError && (
             <div className="form-error" role="alert">{finalTopError}</div>
           )}
@@ -308,7 +348,8 @@ export default function SignupForm() {
           <p className="account-card__hint">
             Already have an account? <Link href="/login">Log in here</Link>.
           </p>
-        </form>
+          </form>
+        </div>
       </section>
     </main>
   );
