@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.contact_validation import normalize_phone_number
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, School, SchoolType
@@ -95,6 +96,9 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
             except Exception:
                 return None
         return obj.guest_child_name or None
+
+    def validate_parent_phone(self, value):
+        return normalize_phone_number(value)
 
     def validate(self, attrs):
         request = self.context.get('request')
@@ -230,10 +234,7 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
         read_only_fields = ["request_id", "reference", "status", "created_at"]
 
     def validate_phone(self, value):
-        digits = "".join(character for character in value if character.isdigit())
-        if len(digits) < 10 or len(digits) > 15:
-            raise serializers.ValidationError("Enter a valid phone number with 10 to 15 digits.")
-        return digits
+        return normalize_phone_number(value)
 
     def validate(self, attrs):
         country = attrs.get("preferred_country")

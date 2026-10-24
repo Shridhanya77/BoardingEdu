@@ -3,6 +3,7 @@ from rest_framework.test import APITestCase
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, SchoolType
 
+from .serializers import AdmissionEnquirySerializer
 from .models import CounsellingRequest
 
 
@@ -91,3 +92,56 @@ class CounsellingRequestApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("preferred_country", response.data)
+
+    def test_counselling_rejects_phone_without_a_country_code(self):
+        invalid_phone = self.get_payload()
+        invalid_phone["phone"] = "9876543210"
+        response = self.client.post(
+            "/api/admissions/counselling-requests/",
+            invalid_phone,
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("phone", response.data)
+
+    def test_counselling_rejects_invalid_email(self):
+        invalid_email = self.get_payload()
+        invalid_email["email"] = "not-an-email"
+        response = self.client.post(
+            "/api/admissions/counselling-requests/",
+            invalid_email,
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("email", response.data)
+
+    def test_guest_enquiry_phone_is_validated_and_normalized(self):
+        invalid = AdmissionEnquirySerializer(
+            data={"parent_phone": "12345"},
+            partial=True,
+        )
+        self.assertFalse(invalid.is_valid())
+        self.assertIn("parent_phone", invalid.errors)
+
+        valid = AdmissionEnquirySerializer(
+            data={
+                "parent_full_name": "Parent Name",
+                "parent_email": "parent@example.com",
+                "parent_phone": "+91 (98765) 43210",
+            },
+            partial=True,
+        )
+        self.assertTrue(valid.is_valid(), valid.errors)
+        self.assertEqual(valid.validated_data["parent_phone"], "919876543210")
+
+    def test_guest_enquiry_rejects_invalid_email(self):
+        serializer = AdmissionEnquirySerializer(
+            data={
+                "parent_full_name": "Parent Name",
+                "parent_email": "not-an-email",
+                "parent_phone": "9876543210",
+            },
+            partial=True,
+        )
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("parent_email", serializer.errors)

@@ -15,7 +15,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 
 import django_filters
 
-from apps.schools.models import School, SchoolType
+from apps.geography.models import City, Country, Location, State
+from apps.schools.models import Board, School, SchoolType
 from apps.users.models import User
 
 from .models import Review
@@ -33,10 +34,39 @@ class ReviewFilter(django_filters.FilterSet):
         field_name="school__school_types",
         queryset=SchoolType.objects.all(),
     )
+    country = django_filters.ModelChoiceFilter(
+        field_name="school__country",
+        queryset=Country.objects.all(),
+    )
+    state = django_filters.ModelChoiceFilter(
+        field_name="school__state",
+        queryset=State.objects.all(),
+    )
+    city = django_filters.ModelChoiceFilter(
+        field_name="school__city",
+        queryset=City.objects.all(),
+    )
+    location = django_filters.ModelChoiceFilter(
+        field_name="school__location",
+        queryset=Location.objects.all(),
+    )
+    board = django_filters.ModelMultipleChoiceFilter(
+        field_name="school__boards",
+        queryset=Board.objects.all(),
+    )
 
     class Meta:
         model = Review
-        fields = ["school", "rating", "status", "is_verified"]
+        fields = [
+            "school",
+            "rating",
+            "status",
+            "is_verified",
+            "country",
+            "state",
+            "city",
+            "location",
+        ]
 
 
 class IsReviewOwnerOrHigher(BasePermission):
@@ -79,8 +109,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Review.objects.select_related(
             "school",
+            "school__country",
             "school__city",
             "school__state",
+            "school__location",
             "user",
         )
         user = getattr(self.request, "user", None)

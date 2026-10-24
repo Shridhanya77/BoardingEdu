@@ -72,6 +72,11 @@ class ReviewApiTests(TestCase):
         cls.city = City.objects.create(
             state=cls.state, city_code="BLR", city_name="Bengaluru", slug="bengaluru"
         )
+        cls.board = Board.objects.create(
+            board_code="REV-BOARD",
+            board_name="Review Board",
+            slug="review-board",
+        )
         cls.school_type = SchoolType.objects.get(type_code="DAY")
         cls.boarding_school_type, _ = SchoolType.objects.get_or_create(
             type_code="FULL-BOARDING",
@@ -92,6 +97,7 @@ class ReviewApiTests(TestCase):
             address="Bengaluru",
         )
         cls.school.school_types.add(cls.school_type, cls.day_boarding_school_type)
+        cls.school.boards.add(cls.board)
         cls.boarding_school = School.objects.create(
             school_code="REV003",
             school_name="Boarding Review School",
@@ -288,3 +294,31 @@ class ReviewApiTests(TestCase):
         self.assertEqual(day_reviews.data["results"][0]["school_city_name"], "Bengaluru")
         day_summary = self.client.get("/api/reviews/public-summary/", day_params)
         self.assertEqual(day_summary.data["review_count"], 1)
+
+    def test_reviews_and_public_summary_filter_by_location_and_board(self):
+        Review.objects.create(
+            school=self.school,
+            user=self.parent,
+            rating=5,
+            status=Review.STATUS_PUBLISHED,
+        )
+        Review.objects.create(
+            school=self.boarding_school,
+            user=self.other_parent,
+            rating=3,
+            status=Review.STATUS_PUBLISHED,
+        )
+
+        params = {
+            "state": str(self.state.pk),
+            "city": str(self.city.pk),
+            "board": str(self.board.pk),
+        }
+        response = self.client.get("/api/reviews/", params)
+        summary = self.client.get("/api/reviews/public-summary/", params)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["school_name"], "API Review School")
+        self.assertEqual(response.data["results"][0]["school_city_slug"], "bengaluru")
+        self.assertEqual(summary.data["review_count"], 1)

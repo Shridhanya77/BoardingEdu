@@ -46,6 +46,8 @@ import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
 import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
+import PublicReviewCard from "@/components/PublicReviewCard";
+import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import HomeBotOnboarding from "@/components/home/HomeBotOnboarding";
 import SchoolTypePickerModal, { type SchoolTypePickerRequest } from "@/components/home/SchoolTypePickerModal";
@@ -400,8 +402,8 @@ function SchoolCard({
               />
               Compare
             </label>
-            <Link href={href}>View school</Link>
-            <Link href={schoolEnquiryPath(school)}>Enquire</Link>
+            <Link className="school-card__view" href={href}>View school</Link>
+            <Link className="school-card__enquire" href={schoolEnquiryPath(school)}>Enquire</Link>
 
             {school.phone && (
               <a href={`tel:${school.phone}`}>Call school</a>
@@ -491,12 +493,14 @@ function HomeSectionTypeSelector({
 export default function SchoolDiscovery({ initialFilter, relatedSearches, breadcrumbs }: { initialFilter?: InitialDiscoveryFilter; relatedSearches?: RelatedSearch[]; breadcrumbs?: Breadcrumb[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
-  const isHomePage = pathname === "/";
+  const [reviewsDialogOpen, setReviewsDialogOpen] = useState(false);
+  const isHomePage = pathname === "/" || (pathname === "/reviews/" && reviewsDialogOpen);
   const { comparedSchools, toggleSchool } = useSearchExperience();
   const [comparePromoMessage, setComparePromoMessage] = useState("");
   const [homeReviews, setHomeReviews] = useState<ReviewListItem[]>([]);
   const [homeReviewSummary, setHomeReviewSummary] = useState<PublicRatingSummary | null>(null);
   const [homeReviewsError, setHomeReviewsError] = useState<string | null>(null);
+  const [homeReviewSummaryError, setHomeReviewSummaryError] = useState<string | null>(null);
   const [homeReviewsLoading, setHomeReviewsLoading] = useState(true);
   const [typePicker, setTypePicker] = useState<SchoolTypePickerRequest | null>(null);
   useEffect(() => {
@@ -604,21 +608,28 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     [reviewCategory, schoolTypes, schoolTypesLoaded],
   );
   useEffect(() => {
-    if (!isHomePage) return;
+    if (!isHomePage || !schoolTypesLoaded) return;
     let cancelled = false;
     setHomeReviewsLoading(true);
     setHomeReviewsError(null);
+    setHomeReviewSummaryError(null);
     Promise.allSettled([
       reviews.latest(reviewSchoolTypeIds),
       reviews.publicSummary(reviewSchoolTypeIds),
     ]).then(([reviewResult, summaryResult]) => {
       if (cancelled) return;
       if (reviewResult.status === "fulfilled") {
-        setHomeReviews(
-          reviewResult.value.results
-            .filter((review) => review.status === "PUBLISHED")
-            .slice(0, 2),
+        const publishedReviews = reviewResult.value.results.filter(
+          (review) => review.status === "PUBLISHED",
         );
+        for (let index = publishedReviews.length - 1; index > 0; index -= 1) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          [publishedReviews[index], publishedReviews[swapIndex]] = [
+            publishedReviews[swapIndex],
+            publishedReviews[index],
+          ];
+        }
+        setHomeReviews(publishedReviews.slice(0, 2 + Math.floor(Math.random() * 2)));
       } else {
         setHomeReviewsError(
           reviewResult.reason instanceof Error
@@ -629,7 +640,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       if (summaryResult.status === "fulfilled") {
         setHomeReviewSummary(summaryResult.value);
       } else {
-        setHomeReviewsError(
+        setHomeReviewSummary(null);
+        setHomeReviewSummaryError(
           summaryResult.reason instanceof Error
             ? summaryResult.reason.message
             : "Review ratings are temporarily unavailable.",
@@ -640,7 +652,30 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, [isHomePage, reviewSchoolTypeIds]);
+  }, [isHomePage, reviewSchoolTypeIds, schoolTypesLoaded]);
+  useEffect(() => {
+    const syncReviewsDialog = () => {
+      setReviewsDialogOpen(window.location.pathname === "/reviews/");
+    };
+    window.addEventListener("popstate", syncReviewsDialog);
+    return () => window.removeEventListener("popstate", syncReviewsDialog);
+  }, []);
+  const openReviewsDialog = () => {
+    if (typeof window === "undefined") return;
+    setReviewsDialogOpen(true);
+    window.history.pushState(
+      { boardingEduReviewsDialog: true },
+      "",
+      "/reviews/",
+    );
+  };
+  const closeReviewsDialog = () => {
+    if (typeof window !== "undefined" && window.history.state?.boardingEduReviewsDialog) {
+      window.history.back();
+      return;
+    }
+    setReviewsDialogOpen(false);
+  };
   const [citiesSectionCategory, setCitiesSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [selectedState, setSelectedState] = useState<StateBrowseItem | null>(null);
@@ -2878,96 +2913,59 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 : "Read published feedback shared by parents about their school experiences."}
             </p>
           </div>
-          <Link href={schoolDirectoryPath()} className="home-reviews__browse">
-            Explore schools <ArrowRight size={15} aria-hidden />
-          </Link>
+          <button
+            type="button"
+            className="home-reviews__browse"
+            onClick={openReviewsDialog}
+          >
+            Explore more reviews <ArrowRight size={15} aria-hidden />
+          </button>
         </div>
         {homeReviewsLoading ? (
           <p className="home-reviews__status" role="status">Loading published reviews…</p>
-        ) : homeReviewsError ? (
-          <p className="home-reviews__status home-reviews__status--error" role="alert">
-            Reviews are temporarily unavailable. Please try again later.
-          </p>
-        ) : homeReviewSummary ? (
+        ) : homeReviewSummary || homeReviews.length > 0 ? (
           <div className="home-reviews__layout">
-            <ReviewSummaryPanel summary={homeReviewSummary} />
+            {homeReviewSummary && <ReviewSummaryPanel summary={homeReviewSummary} />}
             {homeReviews.length > 0 ? (
               <div className="home-reviews__grid">
                 {homeReviews.map((review) => (
-                  <article className="home-review-card" key={review.review_id}>
-                    <div className="home-review-card__head">
-                      <span className="home-review-card__avatar" aria-hidden="true">
-                        {review.author_name.trim().charAt(0).toUpperCase() || "P"}
-                      </span>
-                      <span className="home-review-card__identity">
-                        <strong>{review.author_name}</strong>
-                        <small>
-                          {new Date(review.created_at).toLocaleDateString("en-IN", {
-                            month: "long",
-                            year: "numeric",
-                            timeZone: "UTC",
-                          })} · Published review
-                        </small>
-                      </span>
-                      {review.is_verified && <span className="home-review-card__verified">Verified</span>}
-                    </div>
-                    <div className="home-review-card__rating" aria-label={`${review.rating} out of 5 stars`}>
-                      {Array.from({ length: 5 }, (_, index) => (
-                        <Star
-                          key={index}
-                          size={15}
-                          fill={index < review.rating ? "currentColor" : "none"}
-                          aria-hidden
-                        />
-                      ))}
-                      <strong>{review.rating.toFixed(1)} / 5</strong>
-                    </div>
-                    {review.title && <h3>{review.title}</h3>}
-                    {review.body && <p>{review.body}</p>}
-                    <Link
-                      className="home-review-card__school"
-                      href={`/schools/${toSeoSlug(review.school_slug)}/`}
-                    >
-                      <span className="home-review-card__school-image">
-                        {review.school_image_url || review.school_logo_url ? (
-                          <Image
-                            src={review.school_image_url || review.school_logo_url || ""}
-                            alt=""
-                            width={48}
-                            height={48}
-                            unoptimized
-                          />
-                        ) : (
-                          <Building2 size={20} aria-hidden />
-                        )}
-                      </span>
-                      <span>
-                        <strong>{review.school_name}</strong>
-                        <small>
-                          {[review.school_city_name, review.school_state_name]
-                            .filter(Boolean)
-                            .join(", ") || "View school profile"}
-                        </small>
-                      </span>
-                      <ArrowRight size={15} aria-hidden />
-                    </Link>
-                  </article>
+                  <PublicReviewCard key={review.review_id} review={review} />
                 ))}
               </div>
             ) : (
               <p className="home-reviews__status">
-                {homeReviewSummary.review_count > 0
+                {(homeReviewSummary?.review_count ?? 0) > 0
                   ? "Recent review cards are temporarily unavailable."
                   : "No published parent reviews yet. Check back as school communities share their experiences."}
+              </p>
+            )}
+            {(homeReviewsError || homeReviewSummaryError) && (
+              <p className="home-reviews__status" role="status">
+                {homeReviewsError || homeReviewSummaryError}
               </p>
             )}
           </div>
         ) : (
           <p className="home-reviews__status">
-            {homeReviewsError
-              ? "Published reviews are temporarily unavailable. Please try again later."
+            {homeReviewsError || homeReviewSummaryError
+              ? "Published reviews and ratings are temporarily unavailable. Please try again later."
               : "No published parent reviews yet. Check back as school communities share their experiences."}
           </p>
+        )}
+        {reviewsDialogOpen && (
+          <ReviewsCollection
+            mode="dialog"
+            heading={
+              reviewCategory === "day-school"
+                ? "Day school parent reviews"
+                : reviewCategory === "residential-school"
+                  ? "Boarding school parent reviews"
+                  : "Reviews from school communities"
+            }
+            description="Browse published parent reviews and ratings from school communities."
+            schoolTypes={reviewSchoolTypeIds}
+            onClose={closeReviewsDialog}
+          />
         )}
       </section>
 
@@ -3435,6 +3433,26 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             )}
           </aside>
         </div>
+
+        <ReviewsCollection
+          mode="section"
+          heading={
+            activeCountryId || activeStateId || activeCityId
+              ? `Parent reviews for ${listingTypeLabel} in ${listingPlaceLabel}`
+              : `Parent reviews for ${listingTypeLabel} schools`
+          }
+          description="Ratings and published reviews are filtered to match the school type, location, and board selected in this listing."
+          schoolTypes={schoolType}
+          filters={{
+            ...(activeCountryId ? { country: activeCountryId } : {}),
+            ...(activeStateId ? { state: activeStateId } : {}),
+            ...(activeCityId ? { city: activeCityId } : {}),
+            ...(geoLocation || initialLocation
+              ? { location: geoLocation || initialLocation }
+              : {}),
+            boards: board,
+          }}
+        />
 
         <section className="listing-faq" aria-labelledby="listing-faq-heading">
           <div className="listing-faq__heading">

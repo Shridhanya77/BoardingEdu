@@ -3,6 +3,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
+from apps.contact_validation import normalize_phone_number
 from .models import (
     User,
     ParentProfile,
@@ -85,6 +86,12 @@ class UserListSerializer(serializers.ModelSerializer):
 class UserDetailSerializer(serializers.ModelSerializer):
     """Detailed user information with role-specific profile summaries."""
 
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=50,
+    )
+
     role_display = serializers.CharField(
         source="get_role_display",
         read_only=True,
@@ -151,6 +158,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
                 profile.preferred_contact_method
             ),
         }
+
+    def validate_phone(self, value):
+        return normalize_phone_number(value) if value.strip() else value
 
     def get_school_admin_profile(self, obj):
         if obj.role != UserModel.ROLE_SCHOOL_ADMIN:
@@ -248,6 +258,8 @@ UserSerializer = UserDetailSerializer
 class UserRegisterSerializer(serializers.ModelSerializer):
     """Public registration serializer. Only parent registration is allowed."""
 
+    phone = serializers.CharField(max_length=50)
+
     password = serializers.CharField(
         write_only=True,
         min_length=8,
@@ -302,6 +314,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
                 "An account with this email address already exists."
             )
         return value
+
+    def validate_phone(self, value):
+        return normalize_phone_number(value)
 
     def validate(self, data):
         if data["password"] != data["password_confirm"]:

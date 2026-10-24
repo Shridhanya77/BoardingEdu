@@ -2,14 +2,12 @@ from datetime import date
 from decimal import Decimal
 from importlib import import_module
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
-
 from django.apps import apps
 from django.db import connection
 from django.http import QueryDict
 from django.urls import reverse
 from django.test import SimpleTestCase, TestCase
-from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from apps.admissions.models import CounsellingRequest
@@ -17,13 +15,53 @@ from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.fees.admin import FeeItemInline
 from apps.geography.models import City, Country, Location, State
 from apps.users.models import User
-from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
-from .admin import SchoolGradeInline
+from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
 from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
-from .serializers import SchoolDetailSerializer, SchoolListSerializer
+from .serializers import (
+    SchoolDetailSerializer,
+    SchoolListSerializer,
+    SchoolPortalSerializer,
+    SchoolRegistrationSerializer,
+)
 from .seo import school_seo_keywords
 from .utils import unique_school_slug
 from .views import SchoolFilter, SchoolViewSet
+
+
+class SchoolRegistrationContactValidationTests(SimpleTestCase):
+    def test_login_phone_requires_country_code_and_exactly_ten_digits(self):
+        serializer = SchoolRegistrationSerializer()
+
+        with self.assertRaises(ValidationError):
+            serializer.validate_phone("9876543210")
+
+        with self.assertRaises(ValidationError):
+            serializer.validate_phone("+91 98765 4321099")
+
+        self.assertEqual(
+            serializer.validate_phone("+91 98765 43210"),
+            "919876543210",
+        )
+
+    def test_optional_school_phone_uses_the_same_validation(self):
+        serializer = SchoolRegistrationSerializer()
+
+        with self.assertRaises(ValidationError):
+            serializer.validate_school_phone("9876543210")
+
+        self.assertEqual(
+            serializer.validate_school_phone("+91 135 123 4567"),
+            "911351234567",
+        )
+
+    def test_school_portal_validates_phone_and_email(self):
+        serializer = SchoolPortalSerializer()
+
+        with self.assertRaises(ValidationError):
+            serializer.validate_phone("9876543210")
+
+        with self.assertRaises(ValidationError):
+            serializer.fields["email"].run_validation("not-an-email")
 
 
 class SchoolBulkEntryAdminTests(SimpleTestCase):
@@ -33,6 +71,17 @@ class SchoolBulkEntryAdminTests(SimpleTestCase):
         self.assertIn("seats_available", SchoolGradeInline.fields)
         self.assertIn("amount", FeeItemInline.fields)
         self.assertIn("grade", FeeItemInline.fields)
+
+
+class SchoolImageAdminTests(SimpleTestCase):
+    def test_school_images_are_entered_as_urls_without_upload_fields(self):
+        identity_fields = SchoolAdmin.fieldsets[0][1]["fields"]
+        self.assertIn("school_logo_url", identity_fields)
+        self.assertIn("school_image_url", identity_fields)
+        self.assertNotIn("school_logo_upload", identity_fields)
+        self.assertNotIn("school_image_upload", identity_fields)
+        self.assertIn("photo_url", SchoolPhotoInline.fields)
+        self.assertNotIn("photo_upload", SchoolPhotoInline.fields)
 
 
 class SchoolClassificationTests(TestCase):
@@ -956,71 +1005,6 @@ class SchoolClassificationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
-
-
-class CloudinaryUploadTests(SimpleTestCase):
-    @patch.dict(
-        'os.environ',
-        {
-            'CLOUDINARY_CLOUD_NAME': 'boardingedu',
-            'CLOUDINARY_API_KEY': 'test-key',
-            'CLOUDINARY_API_SECRET': 'test-secret',
-            'SCHOOL_IMAGE_HOST': 'images.boardingedu.com',
-        },
-    )
-    @patch('apps.schools.cloudinary_uploads.requests.post')
-    def test_upload_returns_configured_https_image_host(self, post):
-        response = Mock()
-        response.ok = True
-        response.json.return_value = {
-            'secure_url': (
-                'https://res.cloudinary.com/boardingedu/image/upload/'
-                'v123/boardingedu/schools/school-id/campus-image.jpg'
-            ),
-        }
-        post.return_value = response
-        image = SimpleUploadedFile(
-            'campus.jpg',
-            b'\xff\xd8\xff' + b'valid-image-data',
-            content_type='image/jpeg',
-        )
-
-        image_url = upload_school_image(
-            image,
-            school_id='school-id',
-            image_kind='campus',
-        )
-
-        self.assertEqual(
-            image_url,
-            'https://images.boardingedu.com/image/upload/'
-            'v123/boardingedu/schools/school-id/campus-image.jpg',
-        )
-        post.assert_called_once()
-
-    @patch('apps.schools.cloudinary_uploads.requests.post')
-    def test_invalid_image_is_rejected_without_calling_cloudinary(self, post):
-        image = SimpleUploadedFile(
-            'campus.png',
-            b'not-an-image',
-            content_type='image/png',
-        )
-
-        with self.assertRaisesRegex(CloudinaryUploadError, 'not a valid'):
-            upload_school_image(image, school_id='school-id', image_kind='campus')
-
-        post.assert_not_called()
-
-    @patch.dict('os.environ', {}, clear=True)
-    def test_missing_credentials_raise_a_clear_configuration_error(self):
-        image = SimpleUploadedFile(
-            'campus.png',
-            b'\x89PNG\r\n\x1a\n' + b'valid-image-data',
-            content_type='image/png',
-        )
-
-        with self.assertRaisesRegex(CloudinaryUploadError, 'CLOUDINARY_CLOUD_NAME'):
-            upload_school_image(image, school_id='school-id', image_kind='campus')
 
 
 class SchoolFAQApiTests(TestCase):

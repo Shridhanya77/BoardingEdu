@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { admissions, ApiError, type NewEnquiryInput, type SchoolDetail } from "@/lib/api";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { useAuth } from "@/lib/auth";
 import { schoolEnquiryPath, schoolListPath } from "@/lib/school-urls";
 
@@ -164,9 +165,12 @@ function SchoolEnquiryDialog({
         setError("Please add your name, email and phone number so the school can reach you.");
         return;
       }
-      const digits = form.parent_phone.replace(/\D/g, "");
-      if (digits.length < 10 || digits.length > 15) {
-        setError("Enter a phone number with 10 to 15 digits.");
+      if (!isValidEmailAddress(form.parent_email)) {
+        setError("Enter a valid email address.");
+        return;
+      }
+      if (!normalizePhoneNumber(form.parent_phone)) {
+        setError("Enter your country code followed by exactly 10 phone number digits.");
         return;
       }
     }
@@ -182,6 +186,11 @@ function SchoolEnquiryDialog({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    const phoneDigits = normalizePhoneNumber(form.parent_phone);
+    if (!isValidEmailAddress(form.parent_email) || !phoneDigits) {
+      setError("Please check that your email and phone number are valid.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -191,7 +200,7 @@ function SchoolEnquiryDialog({
         priority: "MEDIUM",
         parent_full_name: form.parent_full_name.trim(),
         parent_email: form.parent_email.trim(),
-        parent_phone: form.parent_phone.trim(),
+        parent_phone: phoneDigits,
         child_name: form.child_name.trim(),
         child_dob: form.child_dob || undefined,
         child_gender: form.child_gender || undefined,
@@ -470,6 +479,7 @@ function SchoolEnquiryDialog({
                   type="button"
                   onClick={back}
                   disabled={submitting}
+                  aria-label={`Back to ${STEPS[step - 1]}`}
                 >
                   <ArrowLeft size={15} aria-hidden /> Back
                 </button>

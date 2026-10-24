@@ -2,8 +2,8 @@ import { withTrailingSlash } from "@/lib/seo-slugs";
 
 /**
  * Single source of truth for the section navigation on a school profile page.
- * The `id` doubles as the URL segment appended after the school slug, so
- * `/india/uttarakhand/dehradun/krishna-nagar/the-doon-school/admissions/`
+ * The `id` follows the school slug before the geographic segments, so
+ * `/the-doon-school/admissions/krishna-nagar/dehradun/uttarakhand/india/`
  * deep-links straight to the admissions panel.
  */
 export const schoolSections = [
@@ -26,11 +26,14 @@ export function isSchoolSectionId(value?: string | null): value is SchoolSection
   return typeof value === "string" && SCHOOL_SECTION_IDS.includes(value.toLowerCase());
 }
 
-/** Base profile path for a section, e.g. `/…/the-doon-school/admissions/`. */
+/** Base profile path for a section, e.g. `/the-doon-school/admissions/…/`. */
 export function schoolSectionPath(basePath: string, section?: string | null) {
   const normalizedBase = withTrailingSlash(basePath);
   if (!section || section === "overview") return normalizedBase;
-  return `${normalizedBase}${section.toLowerCase()}/`;
+  const segments = normalizedBase.split("/").filter(Boolean);
+  return withTrailingSlash(
+    `/${segments[0]}/${section.toLowerCase()}/${segments.slice(1).join("/")}`,
+  );
 }
 
 const SECTION_DESCRIPTION: Record<Exclude<SchoolSectionId, "overview">, (school: string, city: string) => string> = {

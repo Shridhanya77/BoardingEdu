@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, LoaderCircle } from "lucide-react";
 import { admissions, ApiError, type SchoolDetail } from "@/lib/api";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 
 function callbackErrorMessage(reason: unknown) {
   if (reason instanceof ApiError) {
@@ -43,9 +44,13 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
     event.preventDefault();
     setError(null);
     setReference(null);
-    const phoneDigits = phone.replace(/\D/g, "");
-    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-      setError("Enter a phone number with 10 to 15 digits.");
+    const phoneDigits = normalizePhoneNumber(phone);
+    if (!phoneDigits) {
+      setError("Enter your country code followed by exactly 10 phone number digits.");
+      return;
+    }
+    if (!isValidEmailAddress(email)) {
+      setError("Enter a valid email address.");
       return;
     }
     if (!grades.some((grade) => grade.grade_id === gradeId)) {
@@ -100,7 +105,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
           </label>
           <label>
             Phone number
-            <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" autoComplete="tel" required />
+            <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210" required />
           </label>
           <label>
             Grade

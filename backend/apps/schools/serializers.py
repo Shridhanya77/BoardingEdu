@@ -1,9 +1,8 @@
-import re
-
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
+from apps.contact_validation import normalize_phone_number
 from apps.geography.models import City
 from apps.geography.serializers import (
     CountryListSerializer,
@@ -920,7 +919,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
     designation = serializers.CharField(max_length=100, required=False, allow_blank=True)
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    phone = serializers.CharField(max_length=17)
+    phone = serializers.CharField(max_length=50)
     password = serializers.CharField(min_length=8, write_only=True)
     password_confirm = serializers.CharField(min_length=8, write_only=True)
 
@@ -932,6 +931,12 @@ class SchoolRegistrationSerializer(serializers.Serializer):
             )
         return value
 
+    def validate_school_email(self, value):
+        return value.strip()
+
+    def validate_school_phone(self, value):
+        return normalize_phone_number(value) if value.strip() else value
+
     def validate_username(self, value):
         User = get_user_model()
         if User.objects.filter(username__iexact=value).exists():
@@ -939,12 +944,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
         return value
 
     def validate_phone(self, value):
-        digits = re.sub(r'\D', '', value or '')
-        if not 9 <= len(digits) <= 15:
-            raise serializers.ValidationError(
-                'Enter a phone number with 9 to 15 digits, e.g. +919999999999.'
-            )
-        return value
+        return normalize_phone_number(value)
 
     def validate_city(self, value):
         try:
@@ -1031,6 +1031,13 @@ class SchoolRegistrationSerializer(serializers.Serializer):
 class SchoolPortalSerializer(serializers.ModelSerializer):
     """Fields a verified school admin can maintain on their own profile."""
 
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=50,
+    )
+    email = serializers.EmailField(required=False, allow_blank=True)
+
     class Meta:
         model = School
         fields = [
@@ -1052,6 +1059,9 @@ class SchoolPortalSerializer(serializers.ModelSerializer):
             "admission_open",
             "verification_status",
         ]
+
+    def validate_phone(self, value):
+        return normalize_phone_number(value) if value.strip() else value
         read_only_fields = [
             "school_id",
             "school_name",

@@ -8,7 +8,6 @@ from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 
 from apps.users.models import User
-from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
 from .services import SchoolVerificationError, set_school_verification_status
 from .models import (
     Board,
@@ -213,57 +212,17 @@ class SchoolGradeInline(admin.TabularInline):
     verbose_name = "Grade offered"
     verbose_name_plural = "Grades offered (add multiple grades, then save once)"
 
-class SchoolPhotoInlineForm(forms.ModelForm):
-    photo_upload = forms.FileField(
-        required=False,
-        label="Upload photo to Cloudinary",
-        help_text="JPG, PNG, or WebP; maximum 10 MB.",
-    )
-
-    class Meta:
-        model = SchoolPhoto
-        fields = (
-            "photo_url",
-            "caption",
-            "alt_text",
-            "category",
-            "sort_order",
-            "status",
-        )
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if self.errors:
-            return cleaned_data
-        uploaded_file = cleaned_data.get("photo_upload")
-        if uploaded_file:
-            try:
-                self.instance.photo_url = upload_school_image(
-                    uploaded_file,
-                    school_id=self.instance.school_id,
-                    image_kind="gallery",
-                )
-            except CloudinaryUploadError as error:
-                self.add_error("photo_upload", str(error))
-        elif self.instance._state.adding and self.has_changed():
-            self.add_error("photo_upload", "Upload a photo for each new gallery entry.")
-        return cleaned_data
-
-
 class SchoolPhotoInline(admin.TabularInline):
     model = SchoolPhoto
-    form = SchoolPhotoInlineForm
     extra = 1
     fields = (
         "photo_url",
-        "photo_upload",
         "caption",
         "alt_text",
         "category",
         "sort_order",
         "status",
     )
-    readonly_fields = ("photo_url",)
 
 class SchoolVideoInline(admin.TabularInline):
     model = SchoolVideo
@@ -271,50 +230,8 @@ class SchoolVideoInline(admin.TabularInline):
     fields = ("video_url", "thumbnail_url", "caption", "category", "sort_order", "status")
 
 
-class SchoolAdminForm(forms.ModelForm):
-    school_logo_upload = forms.FileField(
-        required=False,
-        label="Upload school logo to Cloudinary",
-        help_text="JPG, PNG, or WebP; maximum 10 MB.",
-    )
-    school_image_upload = forms.FileField(
-        required=False,
-        label="Upload campus image to Cloudinary",
-        help_text="JPG, PNG, or WebP; maximum 10 MB.",
-    )
-
-    class Meta:
-        model = School
-        fields = "__all__"
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if self.errors:
-            return cleaned_data
-        for field_name, image_kind, model_field in (
-            ("school_logo_upload", "logo", "school_logo_url"),
-            ("school_image_upload", "campus", "school_image_url"),
-        ):
-            uploaded_file = cleaned_data.get(field_name)
-            if uploaded_file:
-                try:
-                    setattr(
-                        self.instance,
-                        model_field,
-                        upload_school_image(
-                            uploaded_file,
-                            school_id=self.instance.pk,
-                            image_kind=image_kind,
-                        ),
-                    )
-                except CloudinaryUploadError as error:
-                    self.add_error(field_name, str(error))
-        return cleaned_data
-
-
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    form = SchoolAdminForm
     change_list_template = "admin/schools/school/change_list.html"
     list_display = (
         "school_code",
@@ -374,8 +291,6 @@ class SchoolAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "verification_status",
-        "school_logo_url",
-        "school_image_url",
         "fee_structures_panel",
     )
 
@@ -388,8 +303,6 @@ class SchoolAdmin(admin.ModelAdmin):
                     "school_name",
                     "short_name",
                     "slug",
-                    "school_logo_upload",
-                    "school_image_upload",
                     "school_logo_url",
                     "school_image_url",
                 )

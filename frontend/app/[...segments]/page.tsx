@@ -167,8 +167,16 @@ function relatedSearchesFor(
   return candidates.filter((item) => (seen.has(item.href) ? false : (seen.add(item.href), true)));
 }
 
-/** Split a trailing school-section slug (…/school/admissions/) off the school path. */
+/** Accept section-first canonical paths and trailing-section legacy URLs. */
 function splitSchoolSection(segments: string[]): { schoolSegments: string[]; section?: SchoolSectionId } {
+  const canonicalSection = segments[1]?.toLowerCase();
+  if (canonicalSection && isSchoolSectionId(canonicalSection)) {
+    return {
+      schoolSegments: [segments[0]!, ...segments.slice(2)],
+      section: canonicalSection,
+    };
+  }
+
   const candidate = segments[segments.length - 1]?.toLowerCase();
   if (candidate && isSchoolSectionId(candidate)) {
     return { schoolSegments: segments.slice(0, -1), section: candidate };

@@ -11,6 +11,7 @@ import {
   type SchoolPortalData,
   type SchoolPortalUpdate,
 } from "@/lib/api";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import {
   DashboardPanel,
   DashboardShell,
@@ -87,6 +88,18 @@ export default function SchoolDashboardPage() {
   async function savePortalProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!portalProfile) return;
+    const email = portalProfile.email.trim();
+    if (email && !isValidEmailAddress(email)) {
+      setPortalError("Enter a valid school email address.");
+      return;
+    }
+    const phone = portalProfile.phone.trim()
+      ? normalizePhoneNumber(portalProfile.phone)
+      : "";
+    if (phone === null) {
+      setPortalError("Enter the school country code followed by exactly 10 phone number digits.");
+      return;
+    }
     setPortalSaving(true);
     setPortalError(null);
     setPortalSuccess(null);
@@ -95,8 +108,8 @@ export default function SchoolDashboardPage() {
       tagline: portalProfile.tagline,
       about: portalProfile.about,
       website: portalProfile.website,
-      phone: portalProfile.phone,
-      email: portalProfile.email,
+      phone,
+      email,
       principal_name: portalProfile.principal_name,
       address: portalProfile.address,
       pincode: portalProfile.pincode,
@@ -299,6 +312,7 @@ export default function SchoolDashboardPage() {
                       <input
                         type="tel"
                         value={portalProfile.phone}
+                        placeholder="+91 98765 43210"
                         onChange={(event) => updatePortalField("phone", event.target.value)}
                       />
                     </label>

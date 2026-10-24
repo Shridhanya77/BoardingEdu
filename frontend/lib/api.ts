@@ -719,6 +719,10 @@ export type ReviewListItem = {
   school_slug: string;
   school_image_url?: string;
   school_logo_url?: string;
+  school_country_slug?: string;
+  school_state_slug?: string;
+  school_city_slug?: string;
+  school_location_slug?: string | null;
   school_city_name?: string;
   school_state_name?: string;
   user: number | null;
@@ -765,6 +769,14 @@ export type ReviewInput = {
   author_name?: string;
 };
 
+export type ReviewFilters = {
+  country?: string;
+  state?: string;
+  city?: string;
+  location?: string;
+  boards?: string[];
+};
+
 export const reviews = {
   /** Published reviews for a school (public). */
   forSchool: (schoolId: string) =>
@@ -772,20 +784,31 @@ export const reviews = {
       `/reviews/?school=${encodeURIComponent(schoolId)}&ordering=-created_at`,
     ),
   /** Most recent published reviews across the whole directory (public). */
-  latest: (schoolTypes: string[] = []) => {
+  latest: (schoolTypes: string[] = [], filters: ReviewFilters = {}) => {
     const params = new URLSearchParams({ ordering: "-created_at" });
     schoolTypes.forEach((schoolType) => params.append("school_type", schoolType));
+    if (filters.country) params.set("country", filters.country);
+    if (filters.state) params.set("state", filters.state);
+    if (filters.city) params.set("city", filters.city);
+    if (filters.location) params.set("location", filters.location);
+    filters.boards?.forEach((board) => params.append("board", board));
     return request<PaginatedResponse<ReviewListItem>>(`/reviews/?${params.toString()}`);
   },
+  page: (url: string) => request<PaginatedResponse<ReviewListItem>>(url),
   /** Aggregate rating for a school (public). */
   summary: (schoolId: string) =>
     request<SchoolRatingSummary>(
       `/reviews/summary/?school=${encodeURIComponent(schoolId)}`,
     ),
   /** Aggregate rating across all published directory reviews (public). */
-  publicSummary: (schoolTypes: string[] = []) => {
+  publicSummary: (schoolTypes: string[] = [], filters: ReviewFilters = {}) => {
     const params = new URLSearchParams();
     schoolTypes.forEach((schoolType) => params.append("school_type", schoolType));
+    if (filters.country) params.set("country", filters.country);
+    if (filters.state) params.set("state", filters.state);
+    if (filters.city) params.set("city", filters.city);
+    if (filters.location) params.set("location", filters.location);
+    filters.boards?.forEach((board) => params.append("board", board));
     const query = params.toString();
     return request<PublicRatingSummary>(
       `/reviews/public-summary/${query ? `?${query}` : ""}`,

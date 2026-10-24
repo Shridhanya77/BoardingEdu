@@ -26,6 +26,7 @@ import {
   type SchoolTypeListItem,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 
 type FormState = {
   school_name: string;
@@ -154,6 +155,22 @@ export default function SchoolSignupForm() {
       setFormError("Username, email and phone are required for the school login.");
       return;
     }
+    if (
+      !isValidEmailAddress(form.email) ||
+      (form.school_email.trim() && !isValidEmailAddress(form.school_email))
+    ) {
+      setFormError("Enter a valid email address for the school account and contact.");
+      return;
+    }
+    const normalizedPhone = normalizePhoneNumber(form.phone);
+    if (!normalizedPhone) {
+      setFormError("Enter your country code followed by exactly 10 phone number digits.");
+      return;
+    }
+    if (form.school_phone.trim() && !normalizePhoneNumber(form.school_phone)) {
+      setFormError("Enter the school country code followed by exactly 10 phone number digits.");
+      return;
+    }
     if (form.password.length < 8) {
       setFormError("Password must be at least 8 characters.");
       return;
@@ -179,7 +196,7 @@ export default function SchoolSignupForm() {
         designation: form.designation.trim() || undefined,
         username: form.username.trim(),
         email: form.email.trim(),
-        phone: form.phone.replace(/[\s()-]/g, ""),
+        phone: normalizedPhone,
         password: form.password,
         password_confirm: form.password_confirm,
       });

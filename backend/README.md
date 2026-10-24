@@ -21,19 +21,9 @@ and timestamp. Generic school edits cannot change the verification status.
 The Django admin has a paginated pending-verification queue linked from the
 school list, and exposes the audit history as read-only.
 
-## School image uploads
+## School images
 
-School logos, campus images, and gallery photos uploaded through the Django
-admin are sent to Cloudinary. Configure these server-side environment
-variables; do not commit the credentials:
-
-- `CLOUDINARY_CLOUD_NAME`
-- `CLOUDINARY_API_KEY`
-- `CLOUDINARY_API_SECRET`
-- `SCHOOL_IMAGE_HOST` (defaults to `images.boardingedu.com`)
-
-Configure `SCHOOL_IMAGE_HOST` as a Cloudinary custom delivery domain and add
-the corresponding DNS/CNAME record before enabling uploads. The upload flow
-rejects files other than JPG, PNG, or WebP and limits files to 10 MB. Missing
-credentials or provider errors are surfaced to the admin; files are not stored
-locally as a fallback.
+School logo, campus image, and gallery image fields in the Django admin accept
+public image URLs. Upload files to a storage provider of your choice and paste
+the resulting URL into the corresponding field. This project does not upload,
+store, or serve school image files.

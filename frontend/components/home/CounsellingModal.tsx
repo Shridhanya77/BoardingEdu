@@ -12,6 +12,7 @@ import {
   type CityListItem,
   type GradeListItem,
 } from "@/lib/api";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 
 /**
  * Compact "request a callback" form opened from the navigation bar. It shares the
@@ -104,12 +105,12 @@ export default function CounsellingModal({
     setReference(null);
     const city = cities.find((item) => item.city_id === cityId);
     const grade = grades.find((item) => item.grade_id === gradeId);
-    const digits = phone.replace(/\D/g, "");
-    if (digits.length < 10 || digits.length > 15) {
-      setError("Enter a phone number with 10 to 15 digits.");
+    const digits = normalizePhoneNumber(phone);
+    if (!digits) {
+      setError("Enter your country code followed by exactly 10 phone number digits.");
       return;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!isValidEmailAddress(email)) {
       setError("Enter a valid email address.");
       return;
     }
@@ -206,6 +207,7 @@ export default function CounsellingModal({
                 onChange={(event) => setPhone(event.target.value)}
                 inputMode="tel"
                 autoComplete="tel"
+                placeholder="+91 98765 43210"
                 required
               />
             </label>

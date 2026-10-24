@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 
 function fieldErrors(err: unknown, field: string): string[] | null {
   if (!(err instanceof ApiError)) return null;
@@ -73,14 +74,18 @@ export default function SignupForm() {
       setFormError("Passwords do not match.");
       return;
     }
-    const normalizedPhone = form.phone.replace(/[\s()-]/g, "");
-    if (!/^\+?[1-9]\d{8,14}$/.test(normalizedPhone)) {
-      setFormError("Enter a valid phone number with 9 to 15 digits, including country code if needed.");
+    if (!isValidEmailAddress(form.email)) {
+      setFormError("Enter a valid email address.");
+      return;
+    }
+    const normalizedPhone = normalizePhoneNumber(form.phone);
+    if (!normalizedPhone) {
+      setFormError("Enter your country code followed by exactly 10 phone number digits.");
       return;
     }
     setSubmitting(true);
     try {
-      await register({ ...form, phone: normalizedPhone });
+      await register({ ...form, email: form.email.trim(), phone: normalizedPhone });
       router.push("/");
     } catch (err) {
       if (err instanceof ApiError) setApiErr(err);

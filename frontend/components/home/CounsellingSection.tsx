@@ -11,6 +11,7 @@ import {
   type CityListItem,
   type GradeListItem,
 } from "@/lib/api";
+import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
@@ -58,12 +59,12 @@ export default function CounsellingSection() {
       setError("Please enter your name.");
       return;
     }
-    const digits = phone.replace(/\D/g, "");
-    if (digits.length < 10) {
-      setError("Please enter a valid WhatsApp number.");
+    const digits = normalizePhoneNumber(phone);
+    if (!digits) {
+      setError("Enter your country code followed by exactly 10 phone number digits.");
       return;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!isValidEmailAddress(email)) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -147,7 +148,7 @@ export default function CounsellingSection() {
           <input
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
-            placeholder="98765 43210"
+            placeholder="+91 98765 43210"
             inputMode="tel"
             autoComplete="tel"
             required
