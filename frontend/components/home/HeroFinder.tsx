@@ -10,7 +10,7 @@ import { schoolDirectoryPath } from "@/lib/school-urls";
 
 export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
-type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
+type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; mobileCategory?: HomeSchoolCategory | null; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
 type LocationOption = { id: string; name: string };
 
 function LocationCombobox({
@@ -86,7 +86,7 @@ const schoolTypeCategories: { id: SchoolTypeCategory; label: string }[] = [
   { id: "boarding-school", label: "Boarding School" },
 ];
 
-export default function HeroFinder({ value, schoolTypes, locationMessage, locationError, homeSearch = true, onChange, onSubmit }: Props) {
+export default function HeroFinder({ value, schoolTypes, locationMessage, locationError, homeSearch = true, mobileCategory = null, onChange, onSubmit }: Props) {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [states, setStates] = useState<StateListItem[]>([]);
   const [cities, setCities] = useState<CityListItem[]>([]);
@@ -197,8 +197,8 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   }
   const apiError = countryError ?? stateError ?? cityError ?? localityError;
 
-  return <form className="hero-finder" onSubmit={submit} role="search">
-    <fieldset className="finder-group">
+  return <form className={`hero-finder${mobileCategory ? " hero-finder--mobile-category" : ""}`} onSubmit={submit} role="search">
+    <fieldset className="finder-group finder-group--school-type">
       <legend><span>01</span> Select a school type</legend>
       <div className={`school-type-choices${homeSearch ? " school-type-choices--cards" : ""}`} role="radiogroup" aria-label="School type">
         {categories.map(({ id, label }) => {
@@ -238,8 +238,13 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       <p className="finder-instruction" role="status">
         Choose Day Schools or Boarding Schools to continue to location selection.
       </p>
-    ) : <fieldset className="finder-group">
+    ) : <fieldset className="finder-group finder-group--location">
       <legend><span>02</span> Select a location</legend>
+      {mobileCategory && (
+        <p className="finder-selected-category">
+          Showing {mobileCategory === "day-school" ? "Day Schools" : "Boarding Schools"}
+        </p>
+      )}
       <div className={`finder-group__fields${residential ? " finder-group__fields--regional" : ""}`}>
         <LocationCombobox
           id="hero-country"

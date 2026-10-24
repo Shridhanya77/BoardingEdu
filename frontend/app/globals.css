@@ -6261,8 +6261,11 @@ select:focus-visible {
   }
 
   .search-consent {
+    right: 12px;
     bottom: calc(106px + env(safe-area-inset-bottom));
-    left: 8px;
+    left: 12px;
+    z-index: 1000;
+    max-width: none;
   }
 }
 
@@ -13221,6 +13224,10 @@ select:focus-visible {
   margin: 0;
 }
 
+.enquiry-dialog__back {
+  white-space: nowrap;
+}
+
 .enquiry-dialog__success {
   padding: 34px 26px 30px;
   display: flex;
@@ -15068,8 +15075,10 @@ select:focus-visible {
 }
 
 .search-consent {
+  box-sizing: border-box;
   background: #fff;
   backdrop-filter: none;
+  z-index: 1000;
 }
 
 .search-consent__error {
@@ -15339,10 +15348,9 @@ select:focus-visible {
   }
 
   .search-consent {
-    right: 8px;
+    right: 12px;
     bottom: calc(118px + env(safe-area-inset-bottom));
-    left: 8px;
-    max-width: none;
+    left: 12px;
     padding: 13px;
     background: #fff;
     box-shadow: 0 8px 24px rgb(15 23 42 / 22%);
@@ -15670,8 +15678,8 @@ select:focus-visible {
   }
 
   .discovery-page--home .home-section--boards .board-card {
-    width: min(78vw, 280px);
-    min-width: min(78vw, 280px);
+    width: min(66vw, 240px);
+    min-width: min(66vw, 240px);
     scroll-snap-align: start;
   }
 
@@ -15876,6 +15884,14 @@ select:focus-visible {
   .home-reviews .home-section__heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .home-reviews .home-reviews__browse {
+    width: fit-content;
+    margin-top: 4px;
+    display: inline-flex;
+    align-self: flex-start;
+    white-space: nowrap;
   }
 
   .home-review-card {
@@ -17726,6 +17742,29 @@ select:focus-visible {
   margin-top: clamp(32px, 4.5vw, 52px);
 }
 
+.finder-selected-category {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .hero-finder--mobile-category .finder-group--school-type {
+    display: none;
+  }
+
+  .hero-finder--mobile-category .finder-selected-category {
+    width: fit-content;
+    margin: 0 0 12px;
+    padding: 6px 10px;
+    display: block;
+    color: #176d59;
+    background: #eaf5f1;
+    border: 1px solid #cfe6dc;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+}
+
 .discovery-page--listing .section-heading {
   margin-bottom: 24px;
 }
@@ -18286,14 +18325,38 @@ select:focus-visible {
 
   .enquiry-dialog__actions > button {
     min-height: 46px;
-    flex: 1 1 0;
     justify-content: center;
+  }
+
+  .enquiry-dialog__actions > .enquiry-dialog__back {
+    min-width: 104px;
+    flex: 0 0 auto;
+    margin-right: auto;
+    white-space: nowrap;
+  }
+
+  .enquiry-dialog__actions > .primary-button {
+    min-width: 0;
+    flex: 1 1 auto;
   }
 }
 
+.discovery-page--home .compare-promo__schools {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row;
+  overflow: visible;
+}
+
 @media (max-width: 640px) {
-  .discovery-page--home .compare-promo__schools > article:nth-of-type(n + 3) {
-    display: none;
+  .discovery-page--home .compare-promo__schools {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-columns: auto;
+    overflow: visible;
+  }
+
+  .discovery-page--home .compare-promo__schools > article {
+    width: 100%;
+    scroll-snap-align: none;
   }
 }
 
@@ -18318,4 +18381,46 @@ select:focus-visible {
   color: #fff;
   background: #115443;
   border-color: #115443;
+}
+
+.discovery-page--home .home-section--states .city-grid,
+.discovery-page--home .home-section--cities .city-grid {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 14px;
+  scroll-padding-inline: 2px;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.discovery-page--home .home-section--states .city-card,
+.discovery-page--home .home-section--cities .city-card {
+  min-width: 0;
+  flex: 0 0 220px;
+  scroll-snap-align: start;
+}
+
+.discovery-page--home .home-section--states .city-grid:focus-visible,
+.discovery-page--home .home-section--cities .city-grid:focus-visible {
+  outline: 3px solid rgb(23 69 107 / 35%);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .discovery-page--home .home-section--states .city-grid,
+  .discovery-page--home .home-section--cities .city-grid {
+    gap: 12px;
+    margin-right: -18px;
+    padding-right: 18px;
+    scroll-padding-inline: 0 18px;
+  }
+
+  .discovery-page--home .home-section--states .city-card,
+  .discovery-page--home .home-section--cities .city-card {
+    flex-basis: min(76vw, 290px);
+  }
 }

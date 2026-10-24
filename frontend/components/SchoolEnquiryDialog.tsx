@@ -475,7 +475,7 @@ function SchoolEnquiryDialog({
             <div className="enquiry-dialog__actions">
               {step > 0 && (
                 <button
-                  className="detail-button"
+                  className="detail-button enquiry-dialog__back"
                   type="button"
                   onClick={back}
                   disabled={submitting}

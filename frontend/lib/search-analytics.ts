@@ -17,7 +17,8 @@ export function getSearchAnalyticsConsent(): "accepted" | "declined" | null {
   if (typeof window === "undefined") return null;
   const readCookie = () => {
     const cookie = document.cookie
-      .split("; ")
+      .split(";")
+      .map((part) => part.trim())
       .find((part) => part.startsWith(`${CONSENT_COOKIE}=`))
       ?.slice(CONSENT_COOKIE.length + 1);
     return cookie === "accepted" || cookie === "declined" ? cookie : null;
@@ -42,7 +43,8 @@ export function setSearchAnalyticsConsent(value: "accepted" | "declined") {
   try {
     document.cookie = `${CONSENT_COOKIE}=${value}; Path=/; Max-Age=31536000; SameSite=Lax${window.location.protocol === "https:" ? "; Secure" : ""}`;
     persisted = document.cookie
-      .split("; ")
+      .split(";")
+      .map((part) => part.trim())
       .some((part) => part === `${CONSENT_COOKIE}=${value}`) || persisted;
   } catch {
     if (!persisted) throw new Error("Your analytics preference could not be saved in this browser.");

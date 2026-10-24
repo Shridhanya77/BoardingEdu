@@ -581,13 +581,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [retryCount, setRetryCount] = useState(0);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
   const comparisonSchools = useMemo(() => {
+    const selectedSchools = comparedSchools.slice(0, 2);
     const additionalSchools = featuredSchools.filter(
       (featured) =>
         !comparedSchools.some((compared) => compared.school_id === featured.school_id),
     );
     return [
-      ...comparedSchools,
-      ...additionalSchools.slice(0, Math.max(0, 3 - comparedSchools.length)),
+      ...selectedSchools,
+      ...additionalSchools.slice(0, Math.max(0, 2 - selectedSchools.length)),
     ];
   }, [comparedSchools, featuredSchools]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
@@ -2294,6 +2295,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             locationMessage={locationMessage}
             locationError={locationError}
             homeSearch={homeSearchEnabled}
+            mobileCategory={!isHomePage ? initialHomeCategory : null}
             onChange={handleFinderChange}
             onSubmit={handleFinderSubmit}
           />
@@ -2486,6 +2488,79 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
+      <section className="home-section home-reviews" id="home-reviews" aria-labelledby="home-reviews-heading">
+        <div className="home-section__heading">
+          <div>
+            <div className="section-eyebrow">PARENT VOICES</div>
+            <h2 id="home-reviews-heading">
+              {reviewCategory === "day-school"
+                ? "Day school parent reviews"
+                : reviewCategory === "residential-school"
+                  ? "Boarding school parent reviews"
+                  : "Reviews from school communities"}
+            </h2>
+            <p>
+              {reviewCategory
+                ? `Read published feedback from parents about ${reviewCategory === "day-school" ? "day" : "boarding"} schools.`
+                : "Read published feedback shared by parents about their school experiences."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="home-reviews__browse"
+            onClick={openReviewsDialog}
+          >
+            Explore more reviews <ArrowRight size={15} aria-hidden />
+          </button>
+        </div>
+        {homeReviewsLoading ? (
+          <p className="home-reviews__status" role="status">Loading published reviews…</p>
+        ) : homeReviewSummary || homeReviews.length > 0 ? (
+          <div className="home-reviews__layout">
+            {homeReviewSummary && <ReviewSummaryPanel summary={homeReviewSummary} />}
+            {homeReviews.length > 0 ? (
+              <div className="home-reviews__grid">
+                {homeReviews.map((review) => (
+                  <PublicReviewCard key={review.review_id} review={review} />
+                ))}
+              </div>
+            ) : (
+              <p className="home-reviews__status">
+                {(homeReviewSummary?.review_count ?? 0) > 0
+                  ? "Recent review cards are temporarily unavailable."
+                  : "No published parent reviews yet. Check back as school communities share their experiences."}
+              </p>
+            )}
+            {(homeReviewsError || homeReviewSummaryError) && (
+              <p className="home-reviews__status" role="status">
+                {homeReviewsError || homeReviewSummaryError}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="home-reviews__status">
+            {homeReviewsError || homeReviewSummaryError
+              ? "Published reviews and ratings are temporarily unavailable. Please try again later."
+              : "No published parent reviews yet. Check back as school communities share their experiences."}
+          </p>
+        )}
+        {reviewsDialogOpen && (
+          <ReviewsCollection
+            mode="dialog"
+            heading={
+              reviewCategory === "day-school"
+                ? "Day school parent reviews"
+                : reviewCategory === "residential-school"
+                  ? "Boarding school parent reviews"
+                  : "Reviews from school communities"
+            }
+            description="Browse published parent reviews and ratings from school communities."
+            schoolTypes={reviewSchoolTypeIds}
+            onClose={closeReviewsDialog}
+          />
+        )}
+      </section>
+
       {stateCards.length > 0 && (
         <section className="home-section home-section--states" id="states">
           <div className="home-section__heading">
@@ -2496,7 +2571,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           </div>
 
-          <div className="city-grid">
+          <div
+            className="city-grid"
+            role="region"
+            aria-label="Top states, scroll horizontally to see more"
+            tabIndex={0}
+          >
             {stateCards.map((state, index) => (
               <button
                 className={`city-card state-city-trigger city-card--${index + 1}`}
@@ -2637,6 +2717,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
         <div
           className="city-grid"
+          role="region"
+          aria-label="Top cities, scroll horizontally to see more"
+          tabIndex={0}
           onMouseEnter={() => {
             const candidates = cities.filter((city) => (city.schools_count ?? 0) > 0);
             for (let index = candidates.length - 1; index > 0; index -= 1) {
@@ -2894,79 +2977,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             );
           })}
         </div>
-      </section>
-
-      <section className="home-section home-reviews" aria-labelledby="home-reviews-heading">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">PARENT VOICES</div>
-            <h2 id="home-reviews-heading">
-              {reviewCategory === "day-school"
-                ? "Day school parent reviews"
-                : reviewCategory === "residential-school"
-                  ? "Boarding school parent reviews"
-                  : "Reviews from school communities"}
-            </h2>
-            <p>
-              {reviewCategory
-                ? `Read published feedback from parents about ${reviewCategory === "day-school" ? "day" : "boarding"} schools.`
-                : "Read published feedback shared by parents about their school experiences."}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="home-reviews__browse"
-            onClick={openReviewsDialog}
-          >
-            Explore more reviews <ArrowRight size={15} aria-hidden />
-          </button>
-        </div>
-        {homeReviewsLoading ? (
-          <p className="home-reviews__status" role="status">Loading published reviews…</p>
-        ) : homeReviewSummary || homeReviews.length > 0 ? (
-          <div className="home-reviews__layout">
-            {homeReviewSummary && <ReviewSummaryPanel summary={homeReviewSummary} />}
-            {homeReviews.length > 0 ? (
-              <div className="home-reviews__grid">
-                {homeReviews.map((review) => (
-                  <PublicReviewCard key={review.review_id} review={review} />
-                ))}
-              </div>
-            ) : (
-              <p className="home-reviews__status">
-                {(homeReviewSummary?.review_count ?? 0) > 0
-                  ? "Recent review cards are temporarily unavailable."
-                  : "No published parent reviews yet. Check back as school communities share their experiences."}
-              </p>
-            )}
-            {(homeReviewsError || homeReviewSummaryError) && (
-              <p className="home-reviews__status" role="status">
-                {homeReviewsError || homeReviewSummaryError}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="home-reviews__status">
-            {homeReviewsError || homeReviewSummaryError
-              ? "Published reviews and ratings are temporarily unavailable. Please try again later."
-              : "No published parent reviews yet. Check back as school communities share their experiences."}
-          </p>
-        )}
-        {reviewsDialogOpen && (
-          <ReviewsCollection
-            mode="dialog"
-            heading={
-              reviewCategory === "day-school"
-                ? "Day school parent reviews"
-                : reviewCategory === "residential-school"
-                  ? "Boarding school parent reviews"
-                  : "Reviews from school communities"
-            }
-            description="Browse published parent reviews and ratings from school communities."
-            schoolTypes={reviewSchoolTypeIds}
-            onClose={closeReviewsDialog}
-          />
-        )}
       </section>
 
         </>
