@@ -22,12 +22,14 @@ export function pageMetadata({
   index?: boolean;
   image?: string | null;
 }): Metadata {
+  const boundedTitle = title.slice(0, 300);
+  const boundedDescription = description.slice(0, 10_000);
   const canonicalPath = path.startsWith("http") ? path : withTrailingSlash(path);
   const url = absoluteUrl(canonicalPath);
   const ogImage = image || `${SITE_URL}/BoardingEdu_LOGO.jpeg`;
   return {
-    title: { absolute: title },
-    description,
+    title: { absolute: boundedTitle },
+    description: boundedDescription,
     keywords: keywords.length ? keywords : undefined,
     alternates: { canonical: canonicalPath },
     robots: index
@@ -46,15 +48,15 @@ export function pageMetadata({
     openGraph: {
       type: "website",
       siteName: SITE_NAME,
-      title,
-      description,
+      title: boundedTitle,
+      description: boundedDescription,
       url,
       images: [{ url: ogImage }],
     },
     twitter: {
       card: "summary_large_image",
-      title,
-      description,
+      title: boundedTitle,
+      description: boundedDescription,
       images: [ogImage],
     },
   };

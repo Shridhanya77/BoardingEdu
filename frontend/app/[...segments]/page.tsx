@@ -109,6 +109,16 @@ async function findActiveBoard(slug: string): Promise<BoardListItem | undefined>
   );
 }
 
+function schoolRoutePath(
+  school: SchoolDetail,
+  section?: SchoolSectionId,
+  enquiry = false,
+) {
+  const profilePath = schoolProfilePath(school);
+  if (enquiry) return `${profilePath}enquiry/`;
+  return schoolSectionPath(profilePath, section);
+}
+
 function legacyBoardSlug(segment: string | undefined): string | undefined {
   if (!segment) return undefined;
   const prefix = /^board(?:=|%3d)/i;
@@ -138,6 +148,7 @@ function relatedSearchesFor(
   place: Place,
   options: { currentCategory?: HomeSchoolCategory | null; includeBase?: boolean },
 ) {
+  if (options.currentCategory) return [];
   const label = placeLabel(place);
   const base = place.state ? `/${placePath(place)}` : `/home/${toSeoSlug(place.country.slug)}`;
   const candidates: { label: string; href: string }[] = [];
@@ -147,7 +158,6 @@ function relatedSearchesFor(
     { category: "residential-school", label: "Boarding Schools" },
   ];
   for (const option of categories) {
-    if (option.category === options.currentCategory) continue;
     candidates.push({
       label: `${option.label} in ${label}`,
       href: withTrailingSlash(`/${placePath(place)}/${schoolCategorySegment(option.category)}`),
@@ -167,13 +177,13 @@ function splitSchoolSection(segments: string[]): { schoolSegments: string[]; sec
 }
 
 /**
- * Detect if segments represent the new school detail URL format:
- * [school-slug, localitySlug?, citySlug, stateSlug, countrySlug, typeSegment]
+ * School profiles use [school-slug, localitySlug?, citySlug, stateSlug, countrySlug].
+ * Six-segment paths with a type suffix are accepted only to redirect old URLs.
  */
 function isNewSchoolPath(segments: string[]): boolean {
-  if (segments.length < 5 || segments.length > 6) return false;
+  if (segments.length === 4 || segments.length === 5) return true;
   const last = segments[segments.length - 1]?.toLowerCase();
-  return last === "boarding-school" || last === "day-school";
+  return segments.length === 6 && (last === "boarding-school" || last === "day-school");
 }
 
 /**
@@ -198,7 +208,7 @@ function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Me
     schoolSummary
       ? `${school.school_name} is a ${schoolTypeText} in ${city}, ${state}. ${schoolSummary}`
       : `Explore ${school.school_name}, a ${schoolTypeText} in ${city}, ${state}${boards.length ? `, following ${boards.join(" and ")}` : ""}. View fees, facilities and admissions information.`
-  ).slice(0, 180);
+  );
   const sectionCopy = schoolSectionSeo({
     schoolName: school.school_name,
     city,
@@ -210,7 +220,12 @@ function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Me
     description: sectionCopy.description,
     path: schoolSectionPath(schoolProfilePath(school), section),
     image: school.school_image_url,
-    keywords: school.seo_keywords ?? [],
+    keywords: [
+      ...(school.seo_keywords ?? []),
+      ...sectionCopy.keywords,
+      ...boards.map((board) => `${board} schools in ${city}`),
+      ...types.map((type) => `${type} in ${city}`),
+    ],
   });
 }
 
@@ -220,6 +235,7 @@ function unavailableMetadata(title: string): Metadata {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const segments = params.segments ?? [];
+  const enquiryRoute = segments[segments.length - 1]?.toLowerCase() === "enquiry";
   if (segments[segments.length - 1]?.toLowerCase() === "sitemap.xml") {
     return { title: "Sitemap | BoardingEdu", robots: { index: false, follow: true } };
   }
@@ -326,12 +342,15 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       });
     }
   }
-  const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
+  const schoolRouteSegments = enquiryRoute ? segments.slice(0, -1) : segments;
+  const { schoolSegments, section: schoolSection } = splitSchoolSection(schoolRouteSegments);
   if (isNewSchoolPath(schoolSegments)) {
     try {
       return schoolPageMetadata(await schools.bySlug(schoolSegments[0]!), schoolSection);
-    } catch {
-      return unavailableMetadata("School profile | BoardingEdu");
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 404)) {
+        return unavailableMetadata("School profile | BoardingEdu");
+      }
     }
   }
   if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
@@ -407,10 +426,12 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
 export default async function LocationRoute({ params, searchParams }: Props) {
   const segments = params.segments ?? [];
+  const enquiryRoute = segments[segments.length - 1]?.toLowerCase() === "enquiry";
   if (segments[segments.length - 1]?.toLowerCase() === "sitemap.xml") {
     redirect("/sitemap.xml");
   }
-  const { schoolSegments, section: schoolSection } = splitSchoolSection(segments);
+  const schoolRouteSegments = enquiryRoute ? segments.slice(0, -1) : segments;
+  const { schoolSegments, section: schoolSection } = splitSchoolSection(schoolRouteSegments);
   if (segments.length > 1) {
     const requestedBoards = segments[0]!.split(",").filter(Boolean);
     const matchedBoards = await Promise.all(requestedBoards.map(findActiveBoard));
@@ -491,9 +512,15 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   if (isNewSchoolPath(schoolSegments)) {
     try {
       const school = await schools.bySlug(schoolSegments[0]!);
-      const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+      const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
       if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
-      return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
+      return (
+        <SchoolProfile
+          school={school}
+          initialSection={schoolSection ?? "overview"}
+          initialEnquiryOpen={enquiryRoute}
+        />
+      );
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 404)) throw error;
     }
@@ -663,9 +690,15 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   ) {
     try {
       const school = await schools.bySlug(schoolSegments[schoolSegments.length - 1]!);
-      const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+      const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
       if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
-      return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
+      return (
+        <SchoolProfile
+          school={school}
+          initialSection={schoolSection ?? "overview"}
+          initialEnquiryOpen={enquiryRoute}
+        />
+      );
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 404)) throw error;
     }
@@ -674,9 +707,15 @@ export default async function LocationRoute({ params, searchParams }: Props) {
   if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
       const school = await schools.bySlug(schoolSegments[3]!);
-      const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+      const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
       if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
-      return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
+      return (
+        <SchoolProfile
+          school={school}
+          initialSection={schoolSection ?? "overview"}
+          initialEnquiryOpen={enquiryRoute}
+        />
+      );
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) notFound();
       throw error;
@@ -689,9 +728,15 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     if (schoolSegments.length === 5) {
       try {
         const school: SchoolDetail = await schools.bySlug(schoolSegments[4]!);
-        const expectedPath = schoolSectionPath(schoolProfilePath(school), schoolSection);
+        const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
         if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
-        return <SchoolProfile school={school} initialSection={schoolSection ?? "overview"} />;
+        return (
+          <SchoolProfile
+            school={school}
+            initialSection={schoolSection ?? "overview"}
+            initialEnquiryOpen={enquiryRoute}
+          />
+        );
       } catch (error) {
         if (!(error instanceof ApiError && error.status === 404)) throw error;
       }

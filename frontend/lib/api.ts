@@ -717,6 +717,10 @@ export type ReviewListItem = {
   school_id: string;
   school_name: string;
   school_slug: string;
+  school_image_url?: string;
+  school_logo_url?: string;
+  school_city_name?: string;
+  school_state_name?: string;
   user: number | null;
   author_name: string;
   rating: number;
@@ -768,16 +772,25 @@ export const reviews = {
       `/reviews/?school=${encodeURIComponent(schoolId)}&ordering=-created_at`,
     ),
   /** Most recent published reviews across the whole directory (public). */
-  latest: () =>
-    request<PaginatedResponse<ReviewListItem>>("/reviews/?ordering=-created_at"),
+  latest: (schoolTypes: string[] = []) => {
+    const params = new URLSearchParams({ ordering: "-created_at" });
+    schoolTypes.forEach((schoolType) => params.append("school_type", schoolType));
+    return request<PaginatedResponse<ReviewListItem>>(`/reviews/?${params.toString()}`);
+  },
   /** Aggregate rating for a school (public). */
   summary: (schoolId: string) =>
     request<SchoolRatingSummary>(
       `/reviews/summary/?school=${encodeURIComponent(schoolId)}`,
     ),
   /** Aggregate rating across all published directory reviews (public). */
-  publicSummary: () =>
-    request<PublicRatingSummary>("/reviews/public-summary/"),
+  publicSummary: (schoolTypes: string[] = []) => {
+    const params = new URLSearchParams();
+    schoolTypes.forEach((schoolType) => params.append("school_type", schoolType));
+    const query = params.toString();
+    return request<PublicRatingSummary>(
+      `/reviews/public-summary/${query ? `?${query}` : ""}`,
+    );
+  },
   /** Submit a review. Requires authentication. */
   create: (payload: ReviewInput) =>
     authRequest<ReviewListItem>("/reviews/", {

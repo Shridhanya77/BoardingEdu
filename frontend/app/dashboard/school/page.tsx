@@ -19,7 +19,7 @@ import {
   StatCard,
   useDashboardData,
 } from "@/components/dashboard/DashboardShell";
-import { schoolProfilePathFromSlugs, schoolProfileTypeSegment } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: "New",
@@ -195,7 +195,6 @@ export default function SchoolDashboardPage() {
                       citySlug: data.school.city_slug,
                       localitySlug: data.school.location_slug,
                       schoolSlug: data.school.slug,
-                      typeSegment: schoolProfileTypeSegment(data.school.school_types_detail),
                     })}
                   >
                     View public profile

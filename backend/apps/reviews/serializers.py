@@ -9,6 +9,10 @@ class ReviewListSerializer(serializers.ModelSerializer):
     school_id = serializers.UUIDField(source="school.school_id", read_only=True)
     school_name = serializers.CharField(source="school.school_name", read_only=True)
     school_slug = serializers.SlugField(source="school.slug", read_only=True)
+    school_image_url = serializers.CharField(source="school.school_image_url", read_only=True)
+    school_logo_url = serializers.CharField(source="school.school_logo_url", read_only=True)
+    school_city_name = serializers.CharField(source="school.city.city_name", read_only=True)
+    school_state_name = serializers.CharField(source="school.state.state_name", read_only=True)
     author_name = serializers.CharField(source="display_name", read_only=True)
 
     class Meta:
@@ -18,6 +22,10 @@ class ReviewListSerializer(serializers.ModelSerializer):
             "school_id",
             "school_name",
             "school_slug",
+            "school_image_url",
+            "school_logo_url",
+            "school_city_name",
+            "school_state_name",
             "user",
             "author_name",
             "rating",

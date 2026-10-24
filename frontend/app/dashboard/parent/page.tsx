@@ -12,7 +12,7 @@ import {
   StatCard,
   useDashboardData,
 } from "@/components/dashboard/DashboardShell";
-import { schoolProfilePathFromSlugs, schoolProfileTypeSegment } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: "New",
@@ -100,7 +100,6 @@ export default function ParentDashboardPage() {
                             citySlug: item.city_slug,
                             localitySlug: item.location_slug,
                             schoolSlug: item.slug,
-                            typeSegment: schoolProfileTypeSegment(item.school_types_detail),
                           })}
                         >
                           {item.school_name}

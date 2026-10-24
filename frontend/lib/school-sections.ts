@@ -44,6 +44,18 @@ const SECTION_DESCRIPTION: Record<Exclude<SchoolSectionId, "overview">, (school:
   faq: (school, city) => `Answers to common questions about ${school} in ${city}, including board, fees, grades and admissions.`,
 };
 
+const SECTION_KEYWORDS: Record<SchoolSectionId, (school: string, city: string) => string[]> = {
+  overview: (school, city) => [`${school} overview`, `${school} school`, `schools in ${city}`],
+  fees: (school, city) => [`${school} fees`, `${school} school fees`, `school fees in ${city}`],
+  admissions: (school, city) => [`${school} admissions`, `${school} admission process`, `school admissions in ${city}`],
+  facilities: (school, city) => [`${school} facilities`, `${school} school facilities`, `school facilities in ${city}`],
+  infrastructure: (school, city) => [`${school} infrastructure`, `${school} campus`, `school infrastructure in ${city}`],
+  media: (school, city) => [`${school} photos`, `${school} videos`, `${school} campus photos in ${city}`],
+  reviews: (school, city) => [`${school} reviews`, `${school} parent reviews`, `school reviews in ${city}`],
+  location: (school, city) => [`${school} location`, `${school} address`, `schools in ${city}`],
+  faq: (school) => [`${school} FAQs`, `${school} questions`, `${school} fees and admissions`],
+};
+
 /** Title and meta description for one school profile section. */
 export function schoolSectionSeo({
   schoolName,
@@ -60,11 +72,13 @@ export function schoolSectionSeo({
     return {
       title: `${schoolName} | ${city} School | BoardingEdu`,
       description: overviewDescription,
+      keywords: SECTION_KEYWORDS.overview(schoolName, city),
     };
   }
   const label = schoolSections.find((item) => item.id === section)?.label ?? "Overview";
   return {
     title: `${schoolName} ${label} | ${city} School | BoardingEdu`,
     description: SECTION_DESCRIPTION[section](schoolName, city),
+    keywords: SECTION_KEYWORDS[section](schoolName, city),
   };
 }

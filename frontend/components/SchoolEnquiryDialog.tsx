@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { admissions, ApiError, type NewEnquiryInput, type SchoolDetail } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { schoolEnquiryPath, schoolListPath } from "@/lib/school-urls";
 
 type EnquiryContextValue = { open: () => void };
 
@@ -59,14 +61,38 @@ const STEPS = ["Student details", "How to reach you", "Finish"] as const;
 export default function SchoolEnquiryProvider({
   school,
   children,
+  initialOpen = false,
 }: {
   school: SchoolDetail;
   children: ReactNode;
+  initialOpen?: boolean;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const open = useCallback(() => setIsOpen(true), []);
-  const close = useCallback(() => setIsOpen(false), []);
+  const pathname = usePathname();
+  const router = useRouter();
+  const schoolPathFields = {
+    country_slug: school.country_detail.slug,
+    state_slug: school.state_detail.slug,
+    city_slug: school.city_detail.slug,
+    location_slug: school.location_detail?.slug,
+    slug: school.slug,
+    school_types_detail: school.school_types_detail,
+  };
+  const enquiryPath = schoolEnquiryPath(schoolPathFields);
+  const profilePath = schoolListPath(schoolPathFields);
+  const [isOpen, setIsOpen] = useState(initialOpen);
+  const open = useCallback(() => {
+    setIsOpen(true);
+    if (pathname !== enquiryPath) router.push(enquiryPath, { scroll: false });
+  }, [enquiryPath, pathname, router]);
+  const close = useCallback(() => {
+    setIsOpen(false);
+    if (pathname === enquiryPath) router.replace(profilePath, { scroll: false });
+  }, [enquiryPath, pathname, profilePath, router]);
   const value = useMemo(() => ({ open }), [open]);
+
+  useEffect(() => {
+    setIsOpen(pathname === enquiryPath);
+  }, [enquiryPath, pathname]);
 
   return (
     <SchoolEnquiryContext.Provider value={value}>

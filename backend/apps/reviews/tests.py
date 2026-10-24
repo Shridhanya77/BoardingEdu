@@ -73,16 +73,35 @@ class ReviewApiTests(TestCase):
             state=cls.state, city_code="BLR", city_name="Bengaluru", slug="bengaluru"
         )
         cls.school_type = SchoolType.objects.get(type_code="DAY")
+        cls.boarding_school_type, _ = SchoolType.objects.get_or_create(
+            type_code="FULL-BOARDING",
+            defaults={"type_name": "Full Boarding", "slug": "full-boarding"},
+        )
+        cls.day_boarding_school_type, _ = SchoolType.objects.get_or_create(
+            type_code="DAY-BOARDING",
+            defaults={"type_name": "Day Boarding", "slug": "day-boarding"},
+        )
         cls.school = School.objects.create(
             school_code="REV002",
             school_name="API Review School",
             slug="api-review-school",
+            school_image_url="https://example.com/api-review-school.jpg",
             country=cls.country,
             state=cls.state,
             city=cls.city,
             address="Bengaluru",
         )
-        cls.school.school_types.add(cls.school_type)
+        cls.school.school_types.add(cls.school_type, cls.day_boarding_school_type)
+        cls.boarding_school = School.objects.create(
+            school_code="REV003",
+            school_name="Boarding Review School",
+            slug="boarding-review-school",
+            country=cls.country,
+            state=cls.state,
+            city=cls.city,
+            address="Bengaluru",
+        )
+        cls.boarding_school.school_types.add(cls.boarding_school_type)
         cls.parent = User.objects.create_user(
             username="parent2", password="testpass123", role=User.ROLE_PARENT
         )
@@ -226,3 +245,46 @@ class ReviewApiTests(TestCase):
         self.assertEqual(response.data["distribution"]["5"], 1)
         self.assertEqual(response.data["distribution"]["3"], 1)
         self.assertEqual(response.data["distribution"]["1"], 0)
+
+    def test_reviews_and_public_summary_filter_by_school_type(self):
+        Review.objects.create(
+            school=self.school,
+            user=self.parent,
+            rating=5,
+            status=Review.STATUS_PUBLISHED,
+        )
+        Review.objects.create(
+            school=self.boarding_school,
+            user=self.other_parent,
+            rating=3,
+            status=Review.STATUS_PUBLISHED,
+        )
+
+        params = {"school_type": str(self.boarding_school_type.pk)}
+        response = self.client.get("/api/reviews/", params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["school_name"], "Boarding Review School")
+
+        summary = self.client.get("/api/reviews/public-summary/", params)
+        self.assertEqual(summary.status_code, 200)
+        self.assertEqual(summary.data["review_count"], 1)
+        self.assertEqual(summary.data["average_rating"], 3.0)
+        self.assertEqual(summary.data["distribution"]["3"], 1)
+
+        day_params = {
+            "school_type": [
+                str(self.school_type.pk),
+                str(self.day_boarding_school_type.pk),
+            ]
+        }
+        day_reviews = self.client.get("/api/reviews/", day_params)
+        self.assertEqual(len(day_reviews.data["results"]), 1)
+        self.assertEqual(day_reviews.data["results"][0]["school_name"], "API Review School")
+        self.assertEqual(
+            day_reviews.data["results"][0]["school_image_url"],
+            "https://example.com/api-review-school.jpg",
+        )
+        self.assertEqual(day_reviews.data["results"][0]["school_city_name"], "Bengaluru")
+        day_summary = self.client.get("/api/reviews/public-summary/", day_params)
+        self.assertEqual(day_summary.data["review_count"], 1)

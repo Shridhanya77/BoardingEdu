@@ -20,7 +20,7 @@ export default function PublicSiteFooter() {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [locations, setLocations] = useState<LocationListItem[]>([]);
-  const [topCbseSchools, setTopCbseSchools] = useState<SchoolListItem[]>([]);
+  const [topSchools, setTopSchools] = useState<SchoolListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,8 @@ export default function PublicSiteFooter() {
       geography.countries().then((page) => fetchAllPages(page)),
       schools.types().then((page) => fetchAllPages(page)),
       geography.locations().then((page) => fetchAllPages(page, 1000)),
-    ]).then(async ([cityResult, boardResult, countryResult, typeResult, locationResult]) => {
+      schools.list({ status: true, ordering: "-average_rating", page_size: 10 }),
+    ]).then(([cityResult, boardResult, countryResult, typeResult, locationResult, schoolsResult]) => {
       if (cancelled) return;
 
       if (cityResult.status === "fulfilled") {
@@ -50,27 +51,6 @@ export default function PublicSiteFooter() {
       if (boardResult.status === "fulfilled") {
         const activeBoards = boardResult.value.filter((board) => board.status);
         setBoards(activeBoards);
-        const cbse = activeBoards.find((board) =>
-          `${board.board_code} ${board.board_name} ${board.slug}`.toLowerCase().includes("cbse"),
-        );
-        if (cbse) {
-          try {
-            const response = await schools.list({
-              board: cbse.board_id,
-              status: true,
-              ordering: "-average_rating",
-              page_size: 10,
-            });
-            if (!cancelled) setTopCbseSchools(response.results.slice(0, 10));
-          } catch (reason: unknown) {
-            if (!cancelled) {
-              setTopCbseSchools([]);
-              setError(
-                reason instanceof Error ? reason.message : "Top CBSE schools are temporarily unavailable.",
-              );
-            }
-          }
-        }
       }
 
       if (countryResult.status === "fulfilled") {
@@ -85,7 +65,20 @@ export default function PublicSiteFooter() {
         setLocations(locationResult.value.filter((location) => location.status && location.slug));
       }
 
-      const rejected = [cityResult, boardResult, countryResult, typeResult, locationResult].filter(
+      if (schoolsResult.status === "fulfilled") {
+        setTopSchools(schoolsResult.value.results.slice(0, 10));
+      } else {
+        setTopSchools([]);
+      }
+
+      const rejected = [
+        cityResult,
+        boardResult,
+        countryResult,
+        typeResult,
+        locationResult,
+        schoolsResult,
+      ].filter(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
 
@@ -119,7 +112,7 @@ export default function PublicSiteFooter() {
       schoolTypes={schoolTypes}
       locations={locations}
       dataError={error}
-      topCbseSchools={topCbseSchools}
+      topSchools={topSchools}
     />
   );
 }

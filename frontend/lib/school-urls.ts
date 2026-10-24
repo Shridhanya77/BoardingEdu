@@ -1,7 +1,6 @@
 import {
   schoolCategorySegment,
   schoolProfilePathFromSlugs,
-  schoolProfileTypeSegment,
   toSeoSlug,
   withTrailingSlash,
   type HomeSchoolCategory,
@@ -24,8 +23,11 @@ export function schoolListPath(school: SchoolPathFields): string {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
-    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
+}
+
+export function schoolEnquiryPath(school: SchoolPathFields): string {
+  return `${schoolListPath(school)}enquiry/`;
 }
 
 /**
@@ -74,15 +76,17 @@ export function placeListingPath(parts: {
   locationSlug?: string | null;
   category?: HomeSchoolCategory | null;
 }): string {
-  const path = `/${[
+  const slugs = [
     parts.countrySlug,
     parts.stateSlug,
     parts.citySlug,
     parts.locationSlug,
-  ]
-    .filter((slug): slug is string => Boolean(slug))
-    .map(toSeoSlug)
-    .join("/")}`;
+  ].filter((slug): slug is string => Boolean(slug)).map(toSeoSlug);
+  const path = !parts.stateSlug && !parts.citySlug && !parts.locationSlug
+    ? parts.category
+      ? `/${slugs[0]}`
+      : `/home/${slugs[0]}`
+    : `/${slugs.join("/")}`;
   const categoryPath = parts.category
     ? `${path}/${schoolCategorySegment(parts.category)}`
     : path;

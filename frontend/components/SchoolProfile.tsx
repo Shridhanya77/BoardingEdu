@@ -36,7 +36,6 @@ import { reviews, schools } from "@/lib/api";
 import {
   homeSchoolCategory,
   schoolProfilePathFromSlugs,
-  schoolProfileTypeSegment,
   schoolTypeLabel,
   toSeoSlug,
 } from "@/lib/seo-slugs";
@@ -107,7 +106,6 @@ export function schoolProfilePath(school: SchoolDetail) {
     citySlug: school.city_detail.slug,
     localitySlug: school.location_detail?.slug,
     schoolSlug: school.slug,
-    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 
@@ -118,7 +116,6 @@ function listItemPath(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
-    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 
@@ -199,9 +196,11 @@ function gradeBadge(gradeName: string, seats: number | null, entryAge: [number |
 export default async function SchoolProfile({
   school,
   initialSection = "overview",
+  initialEnquiryOpen = false,
 }: {
   school: SchoolDetail;
   initialSection?: SchoolSectionId;
+  initialEnquiryOpen?: boolean;
 }) {
   const schoolImage = school.school_logo_url || school.school_image_url;
   const heroBackground = school.school_image_url || school.school_logo_url;
@@ -373,7 +372,7 @@ export default async function SchoolProfile({
     <main className="school-detail-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
-      <SchoolEnquiryProvider school={school}>
+      <SchoolEnquiryProvider school={school} initialOpen={initialEnquiryOpen}>
       <div className="school-detail">
         <Link className="school-detail__back" href="/schools"><ArrowLeft size={15} /> Back to schools</Link>
 

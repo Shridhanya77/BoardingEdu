@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, GraduationCap, Plus, Search, X } from "lucide-react";
 import { schools, type SchoolListItem } from "@/lib/api";
-import { schoolProfilePathFromSlugs, schoolProfileTypeSegment } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 import { useSearchExperience } from "@/lib/search-experience";
 import { schoolTypeLabel } from "@/lib/seo-slugs";
 
@@ -203,8 +203,8 @@ export default function ComparePage() {
           <h1>Compare schools</h1>
           <p>
             {comparedSchools.length < 2
-              ? "Choose another school to compare side by side."
-              : "Review the details that matter side by side."}
+              ? "Choose another school to compare side by side. Missing details are shown as not listed rather than estimated."
+              : "Review published school details, parent ratings, and fees side by side. Missing information is clearly labeled."}
           </p>
         </div>
         {comparedSchools.length > 0 && (
@@ -349,7 +349,6 @@ export default function ComparePage() {
                       citySlug: school.city_slug,
                       localitySlug: school.location_slug,
                       schoolSlug: school.slug,
-                      typeSegment: schoolProfileTypeSegment(school.school_types_detail),
                     })}
                   >
                     View profile

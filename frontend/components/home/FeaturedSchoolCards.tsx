@@ -5,10 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
-import {
-  schoolProfilePathFromSlugs,
-  schoolProfileTypeSegment,
-} from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { schoolEnquiryPath } from "@/lib/school-urls";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -17,12 +15,11 @@ function schoolHref(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
-    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 
 function schoolEnquiryHref(school: SchoolListItem) {
-  return `${schoolHref(school)}#school-enquiry`;
+  return schoolEnquiryPath(school);
 }
 
 function formatFee(value: string | null) {

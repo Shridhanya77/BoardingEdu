@@ -13,7 +13,9 @@ from rest_framework.response import Response
 
 from django_filters.rest_framework import DjangoFilterBackend
 
-from apps.schools.models import School
+import django_filters
+
+from apps.schools.models import School, SchoolType
 from apps.users.models import User
 
 from .models import Review
@@ -24,6 +26,17 @@ from .serializers import (
     PublicRatingSummarySerializer,
     SchoolRatingSummarySerializer,
 )
+
+
+class ReviewFilter(django_filters.FilterSet):
+    school_type = django_filters.ModelMultipleChoiceFilter(
+        field_name="school__school_types",
+        queryset=SchoolType.objects.all(),
+    )
+
+    class Meta:
+        model = Review
+        fields = ["school", "rating", "status", "is_verified"]
 
 
 class IsReviewOwnerOrHigher(BasePermission):
@@ -58,13 +71,18 @@ class ReviewViewSet(viewsets.ModelViewSet):
     list_serializer_class = ReviewListSerializer
     lookup_field = "review_id"
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["school", "rating", "status", "is_verified"]
+    filterset_class = ReviewFilter
     search_fields = ["title", "body", "author_name", "school__school_name"]
     ordering_fields = ["created_at", "rating"]
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        qs = Review.objects.select_related("school", "user")
+        qs = Review.objects.select_related(
+            "school",
+            "school__city",
+            "school__state",
+            "user",
+        )
         user = getattr(self.request, "user", None)
 
         if user is None or not user.is_authenticated:
@@ -194,7 +212,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
     )
     def public_summary(self, request):
         """Aggregate rating across all published reviews."""
-        published = Review.objects.published()
+        published = self.filter_queryset(Review.objects.published()).distinct()
         aggregate = published.aggregate(
             average_rating=Avg("rating"),
             review_count=Count("review_id"),

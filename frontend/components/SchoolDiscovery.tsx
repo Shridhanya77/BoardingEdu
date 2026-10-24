@@ -69,12 +69,11 @@ import {
   homeSchoolTypeIds,
   isDiscoverableSchoolType,
   schoolProfilePathFromSlugs,
-  schoolProfileTypeSegment,
   schoolTypeLabel,
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
+import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolEnquiryPath, schoolSearchPath } from "@/lib/school-urls";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -83,7 +82,6 @@ function schoolHref(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
-    typeSegment: schoolProfileTypeSegment(school.school_types_detail),
   });
 }
 
@@ -403,6 +401,7 @@ function SchoolCard({
               Compare
             </label>
             <Link href={href}>View school</Link>
+            <Link href={schoolEnquiryPath(school)}>Enquire</Link>
 
             {school.phone && (
               <a href={`tel:${school.phone}`}>Call school</a>
@@ -440,6 +439,27 @@ function withListingFilters(href: string, boards: string[], schoolTypes: string[
 function boardSearchPath(board: BoardListItem, category?: HomeSchoolCategory | null) {
   const params = new URLSearchParams({ board: toSeoSlug(board.board_code || board.slug) });
   return `${schoolDirectoryPath(category)}?${params.toString()}`;
+}
+
+function randomFeaturedSelection(
+  schools: SchoolListItem[],
+  requiredSchoolIds: ReadonlySet<string> = new Set(),
+) {
+  const shuffled = [...schools];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex]!, shuffled[index]!];
+  }
+  const selected = shuffled.slice(0, Math.min(shuffled.length, 4 + Math.floor(Math.random() * 2)));
+  const required = shuffled.find((school) => requiredSchoolIds.has(school.school_id));
+  if (required && !selected.some((school) => school.school_id === required.school_id)) {
+    selected[selected.length - 1] = required;
+    for (let index = selected.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [selected[index], selected[randomIndex]] = [selected[randomIndex]!, selected[index]!];
+    }
+  }
+  return selected;
 }
 
 function HomeSectionTypeSelector({
@@ -493,39 +513,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     if (window.sessionStorage.getItem(onboardingSeenKey)) return;
     window.sessionStorage.setItem(onboardingSeenKey, "true");
     setBotOnboardingOpen(true);
-  }, [isHomePage]);
-  useEffect(() => {
-    if (!isHomePage) return;
-    let cancelled = false;
-    Promise.allSettled([reviews.latest(), reviews.publicSummary()]).then(
-      ([reviewResult, summaryResult]) => {
-        if (cancelled) return;
-        if (reviewResult.status === "fulfilled") {
-          setHomeReviews(reviewResult.value.results
-            .filter((review) => review.status === "PUBLISHED")
-            .slice(0, 2));
-        } else {
-          setHomeReviewsError(
-            reviewResult.reason instanceof Error
-              ? reviewResult.reason.message
-              : "Parent reviews are temporarily unavailable.",
-          );
-        }
-        if (summaryResult.status === "fulfilled") {
-          setHomeReviewSummary(summaryResult.value);
-        } else {
-          setHomeReviewsError(
-            summaryResult.reason instanceof Error
-              ? summaryResult.reason.message
-              : "Review ratings are temporarily unavailable.",
-          );
-        }
-        setHomeReviewsLoading(false);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
   }, [isHomePage]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -607,6 +594,51 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [homeCategory, setHomeCategory] = useState<HomeSchoolCategory | null>(
     initialFilter?.homeCategory ?? null,
   );
+  const reviewCategory = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
+  const reviewSchoolTypeIds = useMemo(
+    () => schoolTypesLoaded && reviewCategory
+      ? homeSchoolTypeIds(schoolTypes, reviewCategory)
+      : [],
+    [reviewCategory, schoolTypes, schoolTypesLoaded],
+  );
+  useEffect(() => {
+    if (!isHomePage) return;
+    let cancelled = false;
+    setHomeReviewsLoading(true);
+    setHomeReviewsError(null);
+    Promise.allSettled([
+      reviews.latest(reviewSchoolTypeIds),
+      reviews.publicSummary(reviewSchoolTypeIds),
+    ]).then(([reviewResult, summaryResult]) => {
+      if (cancelled) return;
+      if (reviewResult.status === "fulfilled") {
+        setHomeReviews(
+          reviewResult.value.results
+            .filter((review) => review.status === "PUBLISHED")
+            .slice(0, 2),
+        );
+      } else {
+        setHomeReviewsError(
+          reviewResult.reason instanceof Error
+            ? reviewResult.reason.message
+            : "Parent reviews are temporarily unavailable.",
+        );
+      }
+      if (summaryResult.status === "fulfilled") {
+        setHomeReviewSummary(summaryResult.value);
+      } else {
+        setHomeReviewsError(
+          summaryResult.reason instanceof Error
+            ? summaryResult.reason.message
+            : "Review ratings are temporarily unavailable.",
+        );
+      }
+      setHomeReviewsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isHomePage, reviewSchoolTypeIds]);
   const [citiesSectionCategory, setCitiesSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [selectedState, setSelectedState] = useState<StateBrowseItem | null>(null);
@@ -872,9 +904,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
     const categoryLabel = category === "day-school" ? "Day Schools" : "Boarding Schools";
-    const oppositeCategory: HomeSchoolCategory =
-      category === "day-school" ? "residential-school" : "day-school";
-    const oppositeLabel = oppositeCategory === "day-school" ? "Day Schools" : "Boarding Schools";
     const currentBoard = boards.find(
       (item) =>
         initialFilter?.boardIds?.includes(item.board_id) ||
@@ -886,11 +915,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             toSeoSlug(item.board_code) === toSeoSlug(value),
         ),
     );
-    const categorySearches: RelatedSearch[] = (
-      category
-        ? [oppositeCategory]
-        : ["day-school", "residential-school"] as const
-    ).map((itemCategory) => ({
+    const categorySearches: RelatedSearch[] = category
+      ? []
+      : (["day-school", "residential-school"] as const).map((itemCategory) => ({
           label: currentBoard
             ? `${itemCategory === "day-school" ? "Day" : "Boarding"} ${currentBoard.board_name} schools`
             : itemCategory === "day-school" ? "Day schools" : "Boarding schools",
@@ -899,20 +926,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             : withListingFilters(schoolDirectoryPath(itemCategory), board, []),
         }));
     const boardSearches = category
-      ? boards.slice(0, 8).flatMap((item, index) => {
-          const primary = {
+      ? boards.slice(0, 8).map((item) => ({
             label: `${item.board_name} ${categoryLabel}`,
             href: boardListingPath(item.slug, category),
-          };
-          if (index >= 6) return [primary];
-          return [
-            primary,
-            {
-              label: `${item.board_name} ${oppositeLabel}`,
-              href: boardListingPath(item.slug, oppositeCategory),
-            },
-          ];
-        })
+          }))
       : currentBoard
         ? []
         : boards.slice(0, 6).map((item) => ({
@@ -1663,7 +1680,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const featuredFilters: SchoolFilters = {
       is_featured: true,
       ordering: "-average_rating",
-      page_size: 4,
+      page_size: 10,
       country: isHomePage ? undefined : activeCountry || undefined,
       state: isHomePage ? undefined : activeState || undefined,
       city: isHomePage || boardingOnly ? undefined : activeCity || undefined,
@@ -1679,8 +1696,38 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       try {
         const featuredResponse = await schools.list(featuredFilters);
         if (cancelled) return;
-        if (featuredResponse.results.length > 0) {
-          setFeaturedSchools(featuredResponse.results.slice(0, 4));
+        let featuredCandidates = featuredResponse.results;
+        let otherLocationIds = new Set<string>();
+        if (!isHomePage && (activeCountry || activeState || activeCity || activeLocation)) {
+          const globalResponse = await schools.list({
+            ...featuredFilters,
+            country: undefined,
+            state: undefined,
+            city: undefined,
+            location: undefined,
+            page_size: 20,
+          });
+          if (cancelled) return;
+          const candidateIds = new Set(featuredCandidates.map((school) => school.school_id));
+          const isOutsideListingArea = (school: SchoolListItem) => {
+            if (featuredFilters.location) return school.location_id !== featuredFilters.location;
+            if (featuredFilters.city) return school.city_id !== featuredFilters.city;
+            if (featuredFilters.state) return school.state_id !== featuredFilters.state;
+            if (featuredFilters.country) return school.country_id !== featuredFilters.country;
+            return true;
+          };
+          otherLocationIds = new Set(
+            globalResponse.results
+              .filter((school) => !candidateIds.has(school.school_id) && isOutsideListingArea(school))
+              .map((school) => school.school_id),
+          );
+          featuredCandidates = [
+            ...featuredCandidates,
+            ...globalResponse.results.filter((school) => otherLocationIds.has(school.school_id)),
+          ];
+        }
+        if (featuredCandidates.length > 0) {
+          setFeaturedSchools(randomFeaturedSelection(featuredCandidates, otherLocationIds));
           return;
         }
 
@@ -1698,7 +1745,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           status: true,
         });
         if (cancelled) return;
-        setFeaturedSchools(localResponse.results.slice(0, 4));
+        setFeaturedSchools(randomFeaturedSelection(localResponse.results));
         setFeaturedFallback(localResponse.results.length > 0);
       } catch (reason: unknown) {
         if (!cancelled) {
@@ -2767,8 +2814,18 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="home-section__heading">
           <div>
             <div className="section-eyebrow">PARENT VOICES</div>
-            <h2 id="home-reviews-heading">Reviews from school communities</h2>
-            <p>Read published feedback shared by parents about their school experiences.</p>
+            <h2 id="home-reviews-heading">
+              {reviewCategory === "day-school"
+                ? "Day school parent reviews"
+                : reviewCategory === "residential-school"
+                  ? "Boarding school parent reviews"
+                  : "Reviews from school communities"}
+            </h2>
+            <p>
+              {reviewCategory
+                ? `Read published feedback from parents about ${reviewCategory === "day-school" ? "day" : "boarding"} schools.`
+                : "Read published feedback shared by parents about their school experiences."}
+            </p>
           </div>
           <Link href={schoolDirectoryPath()} className="home-reviews__browse">
             Explore schools <ArrowRight size={15} aria-hidden />
@@ -2816,8 +2873,32 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     </div>
                     {review.title && <h3>{review.title}</h3>}
                     {review.body && <p>{review.body}</p>}
-                    <Link href={`/schools/${toSeoSlug(review.school_slug)}/`}>
-                      {review.school_name} <ArrowRight size={14} aria-hidden />
+                    <Link
+                      className="home-review-card__school"
+                      href={`/schools/${toSeoSlug(review.school_slug)}/`}
+                    >
+                      <span className="home-review-card__school-image">
+                        {review.school_image_url || review.school_logo_url ? (
+                          <Image
+                            src={review.school_image_url || review.school_logo_url || ""}
+                            alt=""
+                            width={48}
+                            height={48}
+                            unoptimized
+                          />
+                        ) : (
+                          <Building2 size={20} aria-hidden />
+                        )}
+                      </span>
+                      <span>
+                        <strong>{review.school_name}</strong>
+                        <small>
+                          {[review.school_city_name, review.school_state_name]
+                            .filter(Boolean)
+                            .join(", ") || "View school profile"}
+                        </small>
+                      </span>
+                      <ArrowRight size={15} aria-hidden />
                     </Link>
                   </article>
                 ))}

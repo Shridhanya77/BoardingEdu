@@ -14,7 +14,6 @@ import type {
 import {
   homeSchoolCategories,
   toSeoSlug,
-  schoolTypeLabel,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
@@ -25,7 +24,7 @@ type Props = {
   countries?: CountryListItem[];
   locations?: LocationListItem[];
   schoolTypes?: SchoolTypeListItem[];
-  topCbseSchools?: SchoolListItem[];
+  topSchools?: SchoolListItem[];
   dataError?: string | null;
 };
 
@@ -49,19 +48,13 @@ function uniqueBy<T>(items: T[], keyOf: (item: T) => string): T[] {
   return output;
 }
 
-/**
- * Footer "popular searches" links. Every entry combines an education board, a
- * school-type family and a place (board × type × state/city) so the footer
- * surfaces the long-tail searches parents actually type — without splitting
- * them into separate sections.
- */
 export default function SiteFooterSeo({
   cities = [],
   boards = [],
   countries = [],
   locations = [],
   schoolTypes = [],
-  topCbseSchools = [],
+  topSchools = [],
   dataError,
 }: Props) {
   const uniqueCities = useMemo(() => uniqueBy(cities, (city) => city.city_id), [cities]);
@@ -222,63 +215,39 @@ export default function SiteFooterSeo({
     [availableCategories, topBoards],
   );
 
-  const boardSchoolTypeLinks = useMemo(
-    () =>
-      uniqueBy(
-        topBoards.flatMap((board) =>
-          schoolTypes
-            .filter((type) => type.status)
-            .flatMap((type) =>
-              homeSchoolCategories(type.type_code, type.slug, type.type_name).map((category) => ({
-                label: `${board.board_name} ${schoolTypeLabel(type.type_code, type.slug, type.type_name)}`,
-                href: `${boardListingPath(board.slug, category)}?school_type=${encodeURIComponent(type.school_type_id)}`,
-              })),
-            ),
-        ),
-        (item) => item.href,
-      ),
-    [schoolTypes, topBoards],
-  );
-
   const schoolTypeLinks = useMemo(
     () =>
-      uniqueBy(
-        schoolTypes
-          .filter((type) => type.status)
-          .sort((left, right) => left.type_name.localeCompare(right.type_name))
-          .map((type) => ({
-            label: schoolTypeLabel(type.type_code, type.slug, type.type_name),
-            href: `${schoolDirectoryPath()}?school_type=${encodeURIComponent(type.school_type_id)}`,
-          })),
-        (item) => item.href,
-      ),
-    [schoolTypes],
+      availableCategories.map(({ category, label }) => ({
+        label,
+        href: schoolDirectoryPath(category),
+      })),
+    [availableCategories],
   );
 
-  const footerLinks = uniqueBy(
-    [
-      { label: "All schools", href: schoolDirectoryPath() },
-      { label: "Compare schools", href: "/compare/" },
-      { label: "School guides", href: "/guides/" },
-      { label: "List your school", href: "/signup/" },
-      { label: "Log in", href: "/login/" },
-      { label: "Privacy policy", href: "/privacy/" },
-      { label: "Terms of use", href: "/terms/" },
-      ...locationGroups.flatMap((group) => group.links),
-      ...boardGroups.flatMap((group) => group.links),
-      ...schoolTypeLinks,
-      ...boardSchoolTypeLinks,
-      ...(
-        topCbseSchools.length
-          ? topCbseSchools.map((school) => ({
-              label: school.school_name,
-              href: schoolListPath(school),
-            }))
-          : [{ label: "Browse CBSE schools", href: boardListingPath("cbse") }]
-      ),
-    ],
-    (item) => item.href,
-  );
+  const footerGroups = [
+    { title: "By school type", links: schoolTypeLinks },
+    ...boardGroups.map((group) => ({ ...group, links: group.links.slice(0, 12) })),
+    ...locationGroups.map((group) => ({ ...group, links: group.links.slice(0, 18) })),
+    {
+      title: "Top 10 schools",
+      links: topSchools.length
+        ? topSchools.slice(0, 10).map((school) => ({
+            label: school.school_name,
+            href: schoolListPath(school),
+          }))
+        : [{ label: "Browse all schools", href: schoolDirectoryPath() }],
+    },
+    {
+      title: "More from BoardingEdu",
+      links: [
+        { label: "All schools", href: schoolDirectoryPath() },
+        { label: "Compare schools", href: "/compare/" },
+        { label: "School guides", href: "/guides/" },
+        { label: "List your school", href: "/signup/" },
+        { label: "Log in", href: "/login/" },
+      ],
+    },
+  ];
 
   return (
     <footer className="seo-footer" id="sitemap">
@@ -300,8 +269,17 @@ export default function SiteFooterSeo({
         </div>
 
         <nav className="seo-footer__columns" aria-label="Explore schools">
-          {footerLinks.map((item) => (
-            <Link href={item.href} key={item.href}>{item.label}</Link>
+          {footerGroups.map((group) => (
+            <details className="seo-footer__column seo-footer__browse-group" key={group.title}>
+              <summary>{group.title}</summary>
+              <ul>
+                {uniqueBy(group.links, (item) => item.href).map((item) => (
+                  <li key={item.href}>
+                    <Link href={item.href}>{item.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </details>
           ))}
         </nav>
       </div>
