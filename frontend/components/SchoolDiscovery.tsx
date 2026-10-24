@@ -1710,6 +1710,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const activeCity = geoCity || initialCity;
     const activeLocation = geoLocation || initialLocation;
     const boardingOnly = isBoardingOnlySelection(schoolType, schoolTypes);
+    const featuredCategory = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
+    if (isHomePage && schoolType.length > 0 && !schoolTypesLoaded) {
+      setFeaturedLoading(true);
+      return () => {
+        cancelled = true;
+      };
+    }
     setFeaturedLoading(true);
     setFeaturedError(null);
     setFeaturedFallback(false);
@@ -1723,10 +1730,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       city: isHomePage || boardingOnly ? undefined : activeCity || undefined,
       location: isHomePage || boardingOnly ? undefined : activeLocation || undefined,
       board: isHomePage ? undefined : board,
-      school_type: isHomePage ? undefined : schoolType,
-      home_category: isHomePage || !homeCategory
-        ? undefined
-        : homeSchoolCategoryPath(homeCategory),
+      school_type: isHomePage
+        ? featuredCategory
+          ? homeSchoolTypeIds(schoolTypes, featuredCategory)
+          : schoolType
+        : schoolType,
+      home_category: featuredCategory
+        ? homeSchoolCategoryPath(featuredCategory)
+        : undefined,
     };
 
     async function loadFeaturedSchools() {
@@ -1818,6 +1829,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     isHomePage,
     schoolType,
     schoolTypes,
+    schoolTypesLoaded,
   ]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {

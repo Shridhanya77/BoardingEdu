@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
-import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
 import { schoolEnquiryPath } from "@/lib/school-urls";
 
 function schoolHref(school: SchoolListItem) {
@@ -80,12 +80,22 @@ export default function FeaturedSchoolCards({
       {schools.map((school) => {
         const boards = school.boards_detail.map((item) => item.board_name).join("/") || "Board on request";
         const location = [school.city_name, school.state_name].filter(Boolean).join(", ");
+        const types = Array.from(new Set(
+          school.school_types_detail
+            .map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name))
+            .filter(Boolean),
+        ));
 
         return (
           <article className="featured-card featured-card--compact" key={school.school_id}>
             <Link className="featured-card__details" href={schoolHref(school)}>
               <FeaturedSchoolCover school={school} />
               <h3>{school.school_name}</h3>
+              {types.length > 0 && (
+                <p className="featured-card__types" aria-label={`School type: ${types.join(", ")}`}>
+                  {types.map((type) => <span key={type}>{type}</span>)}
+                </p>
+              )}
               <p className="featured-card__place">
                 <MapPin size={13} />
                 {location || "Location on request"}

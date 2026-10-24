@@ -1,11 +1,104 @@
+import re
+
+from django import forms
 from django.contrib import admin
+from django.forms.models import BaseInlineFormSet
 from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
+
+
+class FeeItemInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        seen = set()
+        for form in self.forms:
+            data = form.cleaned_data
+            if not data or data.get("DELETE"):
+                continue
+
+            item_code = (data.get("item_code") or "").strip()
+            if not item_code:
+                continue
+
+            grade = data.get("grade")
+            school_type = data.get("school_type")
+            scope = (
+                item_code,
+                grade.pk if grade else None,
+                school_type.pk if school_type else None,
+            )
+            if scope in seen:
+                form.add_error(
+                    "item_code",
+                    "This fee code is already used for the same grade and school type in this fee structure.",
+                )
+                continue
+            seen.add(scope)
+
+            existing_items = FeeItem.objects.filter(
+                fee_structure=self.instance,
+                item_code=item_code,
+                grade=grade,
+                school_type=school_type,
+            )
+            if form.instance.pk:
+                existing_items = existing_items.exclude(pk=form.instance.pk)
+            if existing_items.exists():
+                form.add_error(
+                    "item_code",
+                    "This fee code is already used for the same grade and school type in this fee structure.",
+                )
+
+
+class FeeStructureAdminForm(forms.ModelForm):
+    structure_code = forms.CharField(
+        max_length=40,
+        required=False,
+        help_text="Must be unique. Leave blank to generate a code from the school and academic year.",
+    )
+
+    class Meta:
+        model = FeeStructure
+        fields = "__all__"
+
+    def clean_structure_code(self):
+        code = (self.cleaned_data.get("structure_code") or "").strip()
+        if code and FeeStructure.objects.filter(structure_code=code).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError(
+                "This structure code is already in use. Enter a different code or leave it blank to generate one."
+            )
+        return code
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("structure_code"):
+            return cleaned_data
+
+        school = cleaned_data.get("school")
+        academic_year = cleaned_data.get("academic_year")
+        if not school or not academic_year:
+            return cleaned_data
+
+        base_code = re.sub(
+            r"[^A-Za-z0-9]+",
+            "-",
+            f"{school.school_code}-{academic_year.year_code}",
+        ).strip("-").upper()[:40].rstrip("-")
+        code = base_code
+        suffix_number = 2
+        while FeeStructure.objects.filter(structure_code=code).exclude(pk=self.instance.pk).exists():
+            suffix = f"-{suffix_number}"
+            code = f"{base_code[:40 - len(suffix)].rstrip('-')}{suffix}"
+            suffix_number += 1
+        cleaned_data["structure_code"] = code
+        return cleaned_data
 
 
 class FeeItemInline(admin.TabularInline):
     """Allows entering several grade-specific fee rows in one save."""
 
     model = FeeItem
+    formset = FeeItemInlineFormSet
     extra = 5
     autocomplete_fields = ("grade", "school_type")
     verbose_name = "Fee item"
@@ -70,6 +163,7 @@ class FeeTermAdmin(admin.ModelAdmin):
 
 @admin.register(FeeStructure)
 class FeeStructureAdmin(admin.ModelAdmin):
+    form = FeeStructureAdminForm
     list_display = (
         "structure_code",
         "structure_name",
