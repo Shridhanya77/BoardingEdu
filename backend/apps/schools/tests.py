@@ -14,14 +14,25 @@ from rest_framework.test import APIClient
 
 from apps.admissions.models import CounsellingRequest
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
+from apps.fees.admin import FeeItemInline
 from apps.geography.models import City, Country, Location, State
 from apps.users.models import User
 from .cloudinary_uploads import CloudinaryUploadError, upload_school_image
+from .admin import SchoolGradeInline
 from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
 from .serializers import SchoolDetailSerializer, SchoolListSerializer
 from .seo import school_seo_keywords
 from .utils import unique_school_slug
 from .views import SchoolFilter, SchoolViewSet
+
+
+class SchoolBulkEntryAdminTests(SimpleTestCase):
+    def test_school_and_fee_inlines_offer_multiple_rows_per_save(self):
+        self.assertEqual(SchoolGradeInline.extra, 5)
+        self.assertEqual(FeeItemInline.extra, 5)
+        self.assertIn("seats_available", SchoolGradeInline.fields)
+        self.assertIn("amount", FeeItemInline.fields)
+        self.assertIn("grade", FeeItemInline.fields)
 
 
 class SchoolClassificationTests(TestCase):

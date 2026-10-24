@@ -201,9 +201,17 @@ class SchoolFacilityInline(admin.TabularInline):
 
 class SchoolGradeInline(admin.TabularInline):
     model = SchoolGrade
-    extra = 1
+    extra = 5
     autocomplete_fields = ("grade",)
-    list_display_links = ("grade",)
+    fields = (
+        "grade",
+        "seats_available",
+        "entry_age_min",
+        "entry_age_max",
+        "is_active",
+    )
+    verbose_name = "Grade offered"
+    verbose_name_plural = "Grades offered (add multiple grades, then save once)"
 
 class SchoolPhotoInlineForm(forms.ModelForm):
     photo_upload = forms.FileField(

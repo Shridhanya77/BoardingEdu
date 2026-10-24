@@ -3,11 +3,13 @@ from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
 
 
 class FeeItemInline(admin.TabularInline):
-    """Allows editing fee line items directly inside a FeeStructure."""
+    """Allows entering several grade-specific fee rows in one save."""
 
     model = FeeItem
-    extra = 1
+    extra = 5
     autocomplete_fields = ("grade", "school_type")
+    verbose_name = "Fee item"
+    verbose_name_plural = "Fee items (enter a separate row and amount for each grade)"
     fields = (
         "item_code",
         "item_name",

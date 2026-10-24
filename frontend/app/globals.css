@@ -17419,6 +17419,67 @@ select:focus-visible {
   color: #fff;
 }
 
+@media (max-width: 900px) {
+  .discovery-page--home .compare-promo {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+    gap: 20px;
+    padding: clamp(22px, 4vw, 36px);
+  }
+
+  .discovery-page--home .compare-promo__schools {
+    min-width: 0;
+    grid-auto-columns: minmax(0, 78%);
+    gap: 10px;
+  }
+
+  .discovery-page--home .compare-promo__schools article {
+    min-height: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .discovery-page--home .compare-promo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 22px 18px;
+    border-radius: 18px;
+  }
+
+  .discovery-page--home .compare-promo__intro h2 {
+    font-size: clamp(26px, 8vw, 34px);
+  }
+
+  .discovery-page--home .compare-promo__intro > p {
+    margin-bottom: 10px;
+    font-size: 14px;
+  }
+
+  .discovery-page--home .compare-promo__schools {
+    width: 100%;
+    grid-auto-columns: minmax(0, 100%);
+    gap: 12px;
+    padding: 0 0 10px;
+    scroll-padding-inline: 0;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .discovery-page--home .compare-promo__schools article {
+    width: 100%;
+    padding: 14px;
+    scroll-snap-align: center;
+  }
+
+  .discovery-page--home .compare-promo__school-image {
+    height: clamp(150px, 48vw, 210px);
+  }
+
+  .discovery-page--home .compare-promo__schools article > button {
+    min-height: 44px;
+    font-size: 13px;
+  }
+}
+
 .seo-footer__browse-group ul {
   max-height: 270px;
   margin: 10px 0 0;

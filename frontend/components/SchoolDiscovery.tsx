@@ -444,13 +444,14 @@ function boardSearchPath(board: BoardListItem, category?: HomeSchoolCategory | n
 function randomFeaturedSelection(
   schools: SchoolListItem[],
   requiredSchoolIds: ReadonlySet<string> = new Set(),
+  count = 4 + Math.floor(Math.random() * 2),
 ) {
   const shuffled = [...schools];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.floor(Math.random() * (index + 1));
     [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex]!, shuffled[index]!];
   }
-  const selected = shuffled.slice(0, Math.min(shuffled.length, 4 + Math.floor(Math.random() * 2)));
+  const selected = shuffled.slice(0, Math.min(shuffled.length, count));
   const required = shuffled.find((school) => requiredSchoolIds.has(school.school_id));
   if (required && !selected.some((school) => school.school_id === required.school_id)) {
     selected[selected.length - 1] = required;
@@ -560,6 +561,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [page, setPage] = useState(1);
   const [results, setResults] = useState<SchoolListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [listingFeaturedError, setListingFeaturedError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [schoolView, setSchoolView] = useState<"grid" | "list">("grid");
   const [topBoardingSchools, setTopBoardingSchools] = useState<SchoolListItem[]>([]);
@@ -1238,6 +1240,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     }
     let cancelled = false;
     const placeScoped = Boolean(initialCity || initialLocation);
+    const locationScoped = !isHomePage && Boolean(
+      geoCountry || geoState || geoCity || geoLocation ||
+      initialCountry || initialState || initialCity || initialLocation,
+    );
     const residentialOnly =
       !placeScoped &&
       !geoCity &&
@@ -1260,31 +1266,60 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       max_fee: feeMax,
       gender,
       ordering,
+      is_featured: locationScoped ? false : undefined,
       page: page > 1 ? page : undefined,
-      page_size: PAGE_SIZE,
+      page_size: locationScoped ? PAGE_SIZE - 1 : PAGE_SIZE,
     };
 
     activeQuery.current = queryKey;
     setLoading(true);
     setError(null);
     setLoadMoreError(null);
+    if (page === 1) setListingFeaturedError(null);
 
-    schools
-      .list(filters)
-      .then((response) => {
+    async function loadListingSchools() {
+      try {
+        const response = await schools.list(filters);
         if (cancelled) return;
 
+        let localFeaturedSchool: SchoolListItem | undefined;
+        let featuredError: string | null = null;
+        if (locationScoped && page === 1) {
+          try {
+            const candidates = await fetchAllPages(await schools.list({
+              ...filters,
+              is_featured: true,
+              page: undefined,
+              page_size: 100,
+              ordering: "-average_rating",
+            }));
+            if (cancelled) return;
+            localFeaturedSchool = candidates[
+              Math.floor(Math.random() * candidates.length)
+            ];
+          } catch (reason: unknown) {
+            featuredError = reason instanceof Error
+              ? reason.message
+              : "Could not load a featured school for this location.";
+          }
+        }
+
+        setListingFeaturedError(featuredError);
+        const pageResults = localFeaturedSchool
+          ? [localFeaturedSchool, ...response.results]
+          : response.results;
         setResults((current) => {
-          if (page === 1) return response.results;
+          if (page === 1) return pageResults;
           const existingIds = new Set(current.map((school) => school.school_id));
           return [
             ...current,
-            ...response.results.filter((school) => !existingIds.has(school.school_id)),
+            ...pageResults.filter((school) => !existingIds.has(school.school_id)),
           ];
         });
-        setTotalCount(response.count ?? response.results.length);
-      })
-      .catch((reason: unknown) => {
+        if (page === 1) {
+          setTotalCount((response.count ?? response.results.length) + Number(Boolean(localFeaturedSchool)));
+        }
+      } catch (reason: unknown) {
         if (cancelled) return;
 
         const message = reason instanceof Error ? reason.message : "Could not load schools.";
@@ -1295,15 +1330,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         } else {
           setLoadMoreError(message);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    void loadListingSchools();
 
     return () => {
       cancelled = true;
     };
-  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount]);
+  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, initialCountry, initialState, initialCity, initialLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount, isHomePage]);
 
   useEffect(() => {
     if (isHomePage || loading || !hasMoreResults || error || loadMoreError) return;
@@ -1680,7 +1717,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const featuredFilters: SchoolFilters = {
       is_featured: true,
       ordering: "-average_rating",
-      page_size: 10,
+      page_size: isHomePage ? 10 : 100,
       country: isHomePage ? undefined : activeCountry || undefined,
       state: isHomePage ? undefined : activeState || undefined,
       city: isHomePage || boardingOnly ? undefined : activeCity || undefined,
@@ -1705,7 +1742,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             state: undefined,
             city: undefined,
             location: undefined,
-            page_size: 20,
+            page_size: 100,
           });
           if (cancelled) return;
           const candidateIds = new Set(featuredCandidates.map((school) => school.school_id));
@@ -1727,7 +1764,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           ];
         }
         if (featuredCandidates.length > 0) {
-          setFeaturedSchools(randomFeaturedSelection(featuredCandidates, otherLocationIds));
+          setFeaturedSchools(
+            randomFeaturedSelection(featuredCandidates, otherLocationIds, 4),
+          );
           return;
         }
 
@@ -1745,7 +1784,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           status: true,
         });
         if (cancelled) return;
-        setFeaturedSchools(randomFeaturedSelection(localResponse.results));
+        setFeaturedSchools(randomFeaturedSelection(localResponse.results, new Set(), 4));
         setFeaturedFallback(localResponse.results.length > 0);
       } catch (reason: unknown) {
         if (!cancelled) {
@@ -3263,6 +3302,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   Clear all
                 </button>
               </div>
+            )}
+
+            {listingFeaturedError && (
+              <p className="listing-place-spotlight__error" role="status">
+                A featured school for this location could not be loaded. The remaining schools are still available below.
+              </p>
             )}
 
             {error && (
