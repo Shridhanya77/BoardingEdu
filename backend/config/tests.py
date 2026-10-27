@@ -1,4 +1,34 @@
-from django.test import TestCase
+from datetime import datetime, timezone as datetime_timezone
+from unittest.mock import MagicMock, patch
+
+from django.test import SimpleTestCase, TestCase
+
+from config.admin_dashboard import _enquiry_trend
+
+
+class AdminDashboardTrendTests(SimpleTestCase):
+    def test_trend_includes_current_month_in_six_month_window(self):
+        query = MagicMock()
+        query.annotate.return_value = query
+        query.values.return_value = query
+        query.order_by.return_value = [
+            {"bucket": datetime(2026, 1, 1, tzinfo=datetime_timezone.utc), "n": 3}
+        ]
+
+        with patch(
+            "apps.admissions.models.AdmissionEnquiry.objects.filter",
+            return_value=query,
+        ):
+            months = _enquiry_trend(
+                datetime(2026, 1, 15, 12, tzinfo=datetime_timezone.utc)
+            )
+
+        self.assertEqual(
+            [month["label"] for month in months],
+            ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan"],
+        )
+        self.assertEqual(months[-1]["value"], 3)
+        self.assertEqual(len(months), 6)
 
 
 class HealthProbeTests(TestCase):

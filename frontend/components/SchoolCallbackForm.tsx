@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CalendarDays, LoaderCircle } from "lucide-react";
 import { admissions, ApiError, type SchoolDetail } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 
 function callbackErrorMessage(reason: unknown) {
   if (reason instanceof ApiError) {
@@ -101,12 +102,9 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
           </label>
           <label>
             Email address
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required />
           </label>
-          <label>
-            Phone number
-            <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210" required />
-          </label>
+          <CountryPhoneInput id="school-callback-phone" label="Phone number" value={phone} onChange={setPhone} />
           <label>
             Grade
             <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required>

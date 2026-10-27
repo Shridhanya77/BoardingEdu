@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block bodyclass %}{{ block.super }} be-history-page{% endblock %}
+
+{% block content %}
+<div class="be-history">
+  <header class="be-history__heading">
+    <div>
+      <h1>{% blocktrans with object=object_repr %}History for {{ object }}{% endblocktrans %}</h1>
+      <p>{% blocktrans with model=opts.verbose_name %}A record of changes to this {{ model }}.{% endblocktrans %}</p>
+    </div>
+    {% if has_change_permission %}
+    <a class="be-history__back" href="../">{% translate "Back to record" %}</a>
+    {% endif %}
+  </header>
+
+  <section class="be-history__panel" aria-label="{% translate 'Change history' %}">
+    {% if action_list %}
+    <ol class="be-history__timeline">
+      {% for action in action_list %}
+      <li class="be-history__item">
+        <div class="be-history__meta">
+          <time datetime="{{ action.action_time|date:'c' }}">{{ action.action_time|date:"d M Y, H:i" }}</time>
+          <span class="be-history__action">
+            {% if action.is_addition %}{% translate "Created" %}
+            {% elif action.is_deletion %}{% translate "Deleted" %}
+            {% else %}{% translate "Updated" %}{% endif %}
+          </span>
+        </div>
+        <p class="be-history__message">{{ action.get_change_message|default:_("No details recorded.") }}</p>
+        <p class="be-history__actor">{% blocktrans with user=action.user %}By {{ user }}{% endblocktrans %}</p>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="be-history__empty">{% translate "No history available for this record." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

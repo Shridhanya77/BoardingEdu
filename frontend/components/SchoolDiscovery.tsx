@@ -50,6 +50,7 @@ import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import HomeBotOnboarding from "@/components/home/HomeBotOnboarding";
+import IndiaRegionPickerModal from "@/components/home/IndiaRegionPickerModal";
 import SchoolTypePickerModal, { type SchoolTypePickerRequest } from "@/components/home/SchoolTypePickerModal";
 import {
   createLocationPreferences,
@@ -57,6 +58,7 @@ import {
   normalizeLocationPreferences,
   type LocationPreferences,
 } from "@/lib/location-preferences";
+import { INDIA_REGIONS, indiaRegionById, indiaRegionBySlug, indiaRegionForState } from "@/lib/india-regions";
 import {
   exploreItems,
   faqItems,
@@ -75,7 +77,7 @@ import {
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolEnquiryPath, schoolSearchPath } from "@/lib/school-urls";
+import { boardListingPath, indiaRegionBoardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolEnquiryPath, schoolSearchPath } from "@/lib/school-urls";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -103,6 +105,12 @@ type StateBrowseItem = {
   state_slug: string;
   country_slug: string;
   count: number;
+};
+type IndiaRegionBrowseItem = {
+  id: (typeof INDIA_REGIONS)[number]["id"];
+  label: string;
+  count: number;
+  stateIds: string[];
 };
 
 const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
@@ -178,8 +186,17 @@ const DEFAULT_PLACE_PHOTO = "https://images.unsplash.com/photo-1541339907198-e08
 const CLASSROOM_PHOTO = "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=640&q=60";
 const LIBRARY_PHOTO = "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=640&q=60";
 
+const REGION_PHOTOS: Record<string, string> = {
+  north: PLACE_PHOTOS.uttarakhand,
+  south: PLACE_PHOTOS.karnataka,
+  east: DEFAULT_PLACE_PHOTO,
+  west: PLACE_PHOTOS.maharashtra,
+  central: CLASSROOM_PHOTO,
+};
+
 function placeBackdrop(slug: string) {
-  const photo = PLACE_PHOTOS[slug.toLowerCase()] ?? DEFAULT_PLACE_PHOTO;
+  const normalizedSlug = slug.toLowerCase();
+  const photo = REGION_PHOTOS[normalizedSlug] ?? PLACE_PHOTOS[normalizedSlug] ?? DEFAULT_PLACE_PHOTO;
   return `linear-gradient(160deg, rgb(10 24 40 / 78%), rgb(10 24 40 / 38%)), url("${photo}") center / cover no-repeat`;
 }
 
@@ -239,6 +256,8 @@ function SchoolCard({
   const isCompared = comparedSchools.some(
     (item) => item.school_id === school.school_id
   );
+  const [coverImageFailed, setCoverImageFailed] = useState(false);
+  const [logoImageFailed, setLogoImageFailed] = useState(false);
   const location = [school.city_name, school.state_name]
     .filter(Boolean)
     .join(", ");
@@ -247,6 +266,7 @@ function SchoolCard({
   const coverImage =
     school.school_image_url || school.school_photos?.[0]?.photo_url || "";
   const logoImage = school.school_logo_url || "";
+  const initials = (school.short_name || school.school_name).slice(0, 2).toUpperCase();
 
   return (
     <article className="school-card">
@@ -263,7 +283,7 @@ function SchoolCard({
             Featured
           </span>
         )}
-        {coverImage ? (
+        {coverImage && !coverImageFailed ? (
           <Image
             className="school-card__media-image"
             src={coverImage}
@@ -271,6 +291,7 @@ function SchoolCard({
             fill
             sizes="(max-width: 820px) 100vw, 420px"
             unoptimized
+            onError={() => setCoverImageFailed(true)}
           />
         ) : (
           <span className="school-card__media-fallback" aria-hidden="true">
@@ -288,16 +309,17 @@ function SchoolCard({
       <div className="school-card__body">
         <div className="school-card__top">
           <div className="school-card__avatar">
-            {logoImage ? (
+            {logoImage && !logoImageFailed ? (
               <Image
                 src={logoImage}
                 alt={`${school.school_name} logo`}
                 width={88}
                 height={88}
                 unoptimized
+                onError={() => setLogoImageFailed(true)}
               />
             ) : (
-              <Building2 size={23} strokeWidth={1.7} aria-hidden="true" />
+              <span aria-label={`${school.school_name} logo unavailable`}>{initials}</span>
             )}
           </div>
 
@@ -425,7 +447,7 @@ function SchoolCard({
   );
 }
 
-type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; placeName?: string; place?: { countrySlug: string; stateSlug?: string; citySlug?: string; locationSlug?: string }; schoolTypes?: string[]; boardIds?: string[]; boardSlug?: string; homeCategory?: HomeSchoolCategory; search?: string; ordering?: SchoolFilters["ordering"] };
+type InitialDiscoveryFilter = { country?: string; state?: string; city?: string; location?: string; region?: (typeof INDIA_REGIONS)[number]["id"]; placeName?: string; place?: { countrySlug: string; stateSlug?: string; citySlug?: string; locationSlug?: string }; schoolTypes?: string[]; boardIds?: string[]; boardSlug?: string; homeCategory?: HomeSchoolCategory; search?: string; ordering?: SchoolFilters["ordering"] };
 type RelatedSearch = { label: string; href: string };
 type Breadcrumb = { name: string; url: string };
 type PlaceHighlight = { label: string; href: string; kind: "state" | "city" | "locality" };
@@ -595,9 +617,51 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [featuredError, setFeaturedError] = useState<string | null>(null);
   const [featuredFallback, setFeaturedFallback] = useState(false);
   const [geoCountry, setGeoCountry] = useState("");
+  const [geoRegion, setGeoRegion] = useState("");
   const [geoState, setGeoState] = useState("");
   const [geoCity, setGeoCity] = useState("");
   const [geoLocation, setGeoLocation] = useState("");
+  const activeCountryId = geoCountry || initialFilter?.country || "";
+  const activeStateId = geoState || initialFilter?.state || "";
+  const activeCityId = geoCity || initialFilter?.city || "";
+  const indiaCountryCity = cities.find((city) =>
+    toSeoSlug(city.country_slug ?? city.country_name) === "india",
+  );
+  const regionCountryId = activeCountryId || indiaCountryCity?.country_id || "";
+  const countryCity = cities.find((city) => city.country_id === activeCountryId);
+  const isIndiaCountry = toSeoSlug(
+    initialFilter?.place?.countrySlug ?? countryCity?.country_slug ?? countryCity?.country_name ?? "",
+  ) === "india";
+  const hasBroadBoardScope = Boolean(
+    (initialFilter?.boardIds?.length || initialFilter?.boardSlug || board.length) &&
+    !activeCountryId &&
+    !activeStateId &&
+    !activeCityId,
+  );
+  const hasBroadDirectoryScope = Boolean(
+    !initialFilter?.search &&
+    !search &&
+    !activeCountryId &&
+    !activeStateId &&
+    !activeCityId,
+  );
+  const countryScopeStillLoading = Boolean(
+    activeCountryId &&
+    !countryCity &&
+    citiesLoading &&
+    !activeStateId &&
+    !activeCityId,
+  );
+  const requiresIndiaRegion =
+    !isHomePage &&
+    ((isIndiaCountry && Boolean(activeCountryId)) ||
+      hasBroadBoardScope ||
+      hasBroadDirectoryScope ||
+      countryScopeStillLoading) &&
+    !activeStateId &&
+    !activeCityId &&
+    !geoRegion;
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false);
   const [homeCategory, setHomeCategory] = useState<HomeSchoolCategory | null>(
     initialFilter?.homeCategory ?? null,
   );
@@ -726,6 +790,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     if (isHomePage || !schoolTypesLoaded) return;
+    if (requiresIndiaRegion) {
+      setTopBoardingSchools([]);
+      setTopDaySchools([]);
+      setTopBoardingSchoolsLoading(false);
+      return;
+    }
     if (boardingSchoolTypeIds.length === 0 && daySchoolTypeIds.length === 0) {
       setTopBoardingSchools([]);
       setTopDaySchools([]);
@@ -737,14 +807,32 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const activeCountry = geoCountry || initialFilter?.country;
     const activeState = geoState || initialFilter?.state;
     const activeCity = geoCity || initialFilter?.city;
+    const regionalStateIds = geoRegion
+      ? [...new Set(cities
+          .filter((city) =>
+              city.country_id === regionCountryId &&
+              indiaRegionForState(city.state_name, city.state_slug)?.id === geoRegion,
+            )
+          .map((city) => city.state_id))]
+      : [];
+    if (geoRegion && citiesLoading) return;
+    if (geoRegion && !regionalStateIds.length) {
+      setTopBoardingSchools([]);
+      setTopDaySchools([]);
+      setTopBoardingSchoolsLoading(false);
+      return;
+    }
 
     const sharedFilters: SchoolFilters = {
       status: true,
       ordering: "-average_rating",
       page_size: 10,
-      country: activeCountry || undefined,
+      country: geoRegion ? undefined : activeCountry || undefined,
       state: activeState || undefined,
       city: activeCity || undefined,
+      location_group: geoRegion
+        ? [`${regionCountryId}|${regionalStateIds.join(",")}`]
+        : undefined,
       board: topSchoolsBoardId ? [topSchoolsBoardId] : undefined,
     };
     Promise.all([
@@ -781,7 +869,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     topSchoolsBoardId,
     geoCity,
     geoCountry,
+    geoRegion,
     geoState,
+    activeCountryId,
+    regionCountryId,
+    cities,
+    citiesLoading,
+    requiresIndiaRegion,
     initialFilter?.city,
     initialFilter?.country,
     initialFilter?.state,
@@ -867,6 +961,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             : false,
     );
     const initialPlaceName = isInitialLocation ? initialFilter.placeName : "";
+    if (geoRegion) {
+      return [
+        indiaRegionById(geoRegion)?.label ?? "Indian region",
+        initialPlaceName || matchingCity?.country_name || "India",
+      ].join(", ");
+    }
     if (!matchingCity) return initialPlaceName ?? "";
     if (geoCity) {
       const place = initialPlaceName && initialPlaceName !== matchingCity.city_name
@@ -886,6 +986,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     geoCountry,
     geoState,
     geoCity,
+    geoRegion,
     geoLocation,
     initialFilter?.placeName,
     initialFilter?.country,
@@ -984,7 +1085,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
    * hidden in the filter panel, because Day Boarding belongs to both families.
    */
   const filterSelectionFamily = homeSchoolCategoryForIds(schoolType, schoolTypes);
-  const queryKey = `${search}|${geoCountry}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
+  const queryKey = `${search}|${geoCountry}|${geoRegion}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
@@ -1073,10 +1174,45 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           left.city_name.localeCompare(right.city_name),
       );
   }, [cities, selectedState, stateCitySearch]);
-  const activeCountryId = geoCountry || initialCountry || "";
-  const activeStateId = geoState || initialState || "";
-  const activeCityId = geoCity || initialCity || "";
+  const indiaRegionCards = useMemo<IndiaRegionBrowseItem[]>(() => {
+    if (!regionCountryId) return [];
+    const grouped = new Map<string, IndiaRegionBrowseItem>();
+    for (const city of cities) {
+      if (city.country_id !== regionCountryId) continue;
+      const region = indiaRegionForState(city.state_name, city.state_slug);
+      if (!region) continue;
+      const entry = grouped.get(region.id) ?? {
+        id: region.id,
+        label: region.label,
+        count: 0,
+        stateIds: [],
+      };
+      entry.count += city.schools_count ?? 0;
+      if (!entry.stateIds.includes(city.state_id)) entry.stateIds.push(city.state_id);
+      grouped.set(region.id, entry);
+    }
+    return INDIA_REGIONS.flatMap((region) => {
+      const item = grouped.get(region.id);
+      return item ? [item] : [];
+    });
+  }, [cities, regionCountryId]);
+  const selectedIndiaRegion = indiaRegionById(geoRegion);
+  const selectedIndiaRegionStateIds = useMemo(
+    () => indiaRegionCards.find((region) => region.id === geoRegion)?.stateIds ?? [],
+    [geoRegion, indiaRegionCards],
+  );
+  useEffect(() => {
+    if (!requiresIndiaRegion) {
+      setRegionPickerOpen(false);
+      return;
+    }
+    if (!citiesLoading && !citiesError && indiaRegionCards.length) {
+      setRegionPickerOpen(true);
+    }
+  }, [citiesError, citiesLoading, indiaRegionCards.length, requiresIndiaRegion]);
   function categoryBrowsePath(category: HomeSchoolCategory) {
+    const selectedRegion = indiaRegionById(geoRegion);
+    if (selectedRegion) return indiaRegionListingPath(selectedRegion.id, category);
     // The server resolves the place for landing pages, so the chooser can link to
     // the typed URL without waiting for the city list to load.
     if (initialFilter?.place) {
@@ -1091,14 +1227,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     }
     const localityId = geoLocation || initialLocation;
     return placeListingPath({
-      countrySlug: placeCity.country_slug ?? placeCity.country_name,
-      stateSlug: activeStateId ? placeCity.state_slug ?? placeCity.state_name : undefined,
-      citySlug: activeCityId ? placeCity.slug : undefined,
-      locationSlug: localityId
-        ? locations.find((location) => location.location_id === localityId)?.slug
-        : undefined,
-      category,
-    });
+        countrySlug: placeCity.country_slug ?? placeCity.country_name,
+        stateSlug: activeStateId ? placeCity.state_slug ?? placeCity.state_name : undefined,
+        citySlug: activeCityId ? placeCity.slug : undefined,
+        locationSlug: localityId
+          ? locations.find((location) => location.location_id === localityId)?.slug
+          : undefined,
+        category,
+      });
   }
   const hasBoardContext = Boolean(initialFilter?.boardIds?.length);
   const hasPlaceContext = Boolean(activeCountryId || activeStateId || activeCityId);
@@ -1275,11 +1411,39 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return;
     }
     let cancelled = false;
+    if (requiresIndiaRegion) {
+      setResults([]);
+      setTotalCount(0);
+      setLoading(false);
+      setError(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (geoRegion && citiesLoading) return () => {
+      cancelled = true;
+    };
+    if (geoRegion && !selectedIndiaRegionStateIds.length) {
+      setResults([]);
+      setTotalCount(0);
+      setLoading(false);
+      setError(
+        citiesError
+          ? `Indian region could not be loaded: ${citiesError}`
+          : `No school listings are available in ${selectedIndiaRegion?.label ?? "this region"} yet.`,
+      );
+      return () => {
+        cancelled = true;
+      };
+    }
     const placeScoped = Boolean(initialCity || initialLocation);
     const locationScoped = !isHomePage && Boolean(
       geoCountry || geoState || geoCity || geoLocation ||
-      initialCountry || initialState || initialCity || initialLocation,
+      initialCountry || initialState || initialCity || initialLocation || geoRegion,
     );
+    const effectiveLocationGroups = geoRegion
+      ? [`${regionCountryId}|${selectedIndiaRegionStateIds.join(",")}`]
+      : locationGroups;
     const residentialOnly =
       !placeScoped &&
       !geoCity &&
@@ -1290,11 +1454,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
     const filters: SchoolFilters = {
       search: search || undefined,
-      country: locationGroups.length ? undefined : geoCountry || undefined,
-      state: locationGroups.length ? undefined : geoState || undefined,
-      city: !residentialOnly && !locationGroups.length ? geoCity || undefined : undefined,
-      location: !residentialOnly && !locationGroups.length ? geoLocation || undefined : undefined,
-      location_group: locationGroups,
+      country: effectiveLocationGroups.length ? undefined : geoCountry || undefined,
+      state: effectiveLocationGroups.length ? undefined : geoState || undefined,
+      city: !residentialOnly && !effectiveLocationGroups.length ? geoCity || undefined : undefined,
+      location: !residentialOnly && !effectiveLocationGroups.length ? geoLocation || undefined : undefined,
+      location_group: effectiveLocationGroups,
       school_type: schoolType,
       home_category: homeCategory ? homeSchoolCategoryPath(homeCategory) : undefined,
       board: resolvedBoardIds,
@@ -1376,7 +1540,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoState, geoCity, geoLocation, initialCountry, initialState, initialCity, initialLocation, locationGroups, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount, isHomePage]);
+  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoRegion, geoState, geoCity, geoLocation, initialCountry, initialState, initialCity, initialLocation, locationGroups, selectedIndiaRegionStateIds, selectedIndiaRegion, activeCountryId, regionCountryId, requiresIndiaRegion, citiesLoading, citiesError, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount, isHomePage]);
 
   useEffect(() => {
     if (isHomePage || loading || !hasMoreResults || error || loadMoreError) return;
@@ -1402,8 +1566,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       params.delete(key);
       hashParams.getAll(key).forEach((item) => params.append(key, item));
     }
-    if (initialCountry || initialState || initialCity || initialLocation || initialSchoolTypeKey || initialBoardKey || initialHomeCategory) {
-      initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation);
+    if (initialCountry || initialState || initialCity || initialLocation || initialFilter?.region || initialSchoolTypeKey || initialBoardKey || initialHomeCategory) {
+      initialLocationWasInUrl.current = Boolean(initialCountry || initialState || initialCity || initialLocation || initialFilter?.region || params.has("region"));
       const scopedSearch = initialFilter?.search ?? params.get("search") ?? "";
       setSearch(scopedSearch);
       setSearchInput(scopedSearch);
@@ -1415,6 +1579,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
       setHomeCategory(initialHomeCategory ?? homeSchoolCategoryFromValue(params.get("home_category")));
       setGeoCountry(initialCountry ?? "");
+      setGeoRegion(initialFilter?.region ?? params.get("region") ?? "");
       setGeoState(initialState ?? "");
       setGeoCity(initialCity ?? "");
       setGeoLocation(initialLocation ?? "");
@@ -1433,6 +1598,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       "city",
       "location",
       "location_group",
+      "region",
     ].some((key) => params.has(key));
     const initialSearch = initialFilter?.search ?? params.get("search") ?? "";
     setSearch(initialSearch);
@@ -1448,6 +1614,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       setPendingTypeSlug(typeSlug);
     }
     setGeoCountry(params.get("country") ?? "");
+    setGeoRegion(params.get("region") ?? "");
     setGeoState(params.get("state") ?? "");
     const initialBoardingSearch = typeSlug === "boarding-school" || typeSlug === "full-boarding-school";
     setGeoCity(initialBoardingSearch ? "" : params.get("city") ?? "");
@@ -1478,7 +1645,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       setRecentSearches([]);
     }
     setQueryRestored(true);
-  }, [initialCountry, initialState, initialCity, initialLocation, initialSchoolTypeKey, initialBoardKey, initialHomeCategory, initialFilter?.search]);
+  }, [initialCountry, initialState, initialCity, initialLocation, initialFilter?.region, initialSchoolTypeKey, initialBoardKey, initialHomeCategory, initialFilter?.search]);
+
+  useEffect(() => {
+    const syncRegionFromUrl = () => {
+      setGeoRegion(new URLSearchParams(window.location.search).get("region") ?? "");
+    };
+    window.addEventListener("popstate", syncRegionFromUrl);
+    return () => window.removeEventListener("popstate", syncRegionFromUrl);
+  }, []);
 
   useEffect(() => {
     if (!pendingTypeSlug || !schoolTypesLoaded) return;
@@ -1745,8 +1920,26 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const activeState = geoState || initialState;
     const activeCity = geoCity || initialCity;
     const activeLocation = geoLocation || initialLocation;
+    const regionalStateIds = geoRegion
+      ? [...new Set(cities
+          .filter((city) =>
+            city.country_id === regionCountryId &&
+            indiaRegionForState(city.state_name, city.state_slug)?.id === geoRegion,
+          )
+          .map((city) => city.state_id))]
+      : [];
     const boardingOnly = isBoardingOnlySelection(schoolType, schoolTypes);
     const featuredCategory = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
+    if (requiresIndiaRegion) {
+      setFeaturedSchools([]);
+      setFeaturedLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (geoRegion && citiesLoading) return () => {
+      cancelled = true;
+    };
     if (isHomePage && schoolType.length > 0 && !schoolTypesLoaded) {
       setFeaturedLoading(true);
       return () => {
@@ -1761,10 +1954,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       is_featured: true,
       ordering: "-average_rating",
       page_size: isHomePage ? 10 : 100,
-      country: isHomePage ? undefined : activeCountry || undefined,
+      country: isHomePage || geoRegion ? undefined : activeCountry || undefined,
       state: isHomePage ? undefined : activeState || undefined,
       city: isHomePage || boardingOnly ? undefined : activeCity || undefined,
       location: isHomePage || boardingOnly ? undefined : activeLocation || undefined,
+      location_group: geoRegion
+        ? [`${regionCountryId}|${regionalStateIds.join(",")}`]
+        : undefined,
       board: isHomePage ? undefined : board,
       school_type: isHomePage
         ? featuredCategory
@@ -1853,9 +2049,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     };
   }, [
     board,
+    activeCountryId,
+    regionCountryId,
+    cities,
+    citiesLoading,
     geoCity,
     geoCountry,
     geoLocation,
+    geoRegion,
     geoState,
     homeCategory,
     initialCity,
@@ -1863,6 +2064,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     initialLocation,
     initialState,
     isHomePage,
+    requiresIndiaRegion,
     schoolType,
     schoolTypes,
     schoolTypesLoaded,
@@ -1919,6 +2121,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setSchoolType([]);
     setBoard([]);
     setGeoCountry("");
+    setGeoRegion("");
+    const pathnameRegion = pathname.split("/").filter(Boolean)[1];
+    if (pathname.startsWith("/india/") && indiaRegionBySlug(pathnameRegion)) {
+      router.replace(schoolDirectoryPath(), { scroll: false });
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("region")) {
+      params.delete("region");
+      const query = params.toString();
+      router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+    }
     setGeoState("");
     setGeoCity("");
     setGeoLocation("");
@@ -1949,6 +2162,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             },
           },
         ]
+      : []),
+    ...(selectedIndiaRegion
+      ? [{
+          key: "region",
+          label: selectedIndiaRegion.label,
+          onClear: () => selectIndiaRegion(""),
+        }]
       : []),
     ...schoolType.map((typeId) => {
       const type = schoolTypes.find((item) => item.school_type_id === typeId);
@@ -2129,6 +2349,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   function finderValue(): HeroFinderValue {
     return {
       country: geoCountry,
+      region: geoRegion,
       state: geoState,
       city: geoCity,
       location: geoLocation,
@@ -2141,6 +2362,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setBoard(next.board);
     const locationChanged =
       next.country !== geoCountry ||
+      next.region !== geoRegion ||
       next.state !== geoState ||
       next.city !== geoCity ||
       next.location !== geoLocation;
@@ -2151,10 +2373,38 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setHomeCategory(nextHomeCategory);
     setSchoolType(next.schoolType);
     setGeoCountry(next.country);
+    setGeoRegion(next.region);
     setGeoState(next.state);
     setGeoCity(boardingOnly && !homeSearchEnabled ? "" : next.city);
     setGeoLocation(boardingOnly ? "" : next.location);
     if (locationChanged) setLocationGroups([]);
+  }
+
+  function selectIndiaRegion(region: string) {
+    setGeoRegion(region);
+    setLocationGroups([]);
+    setPage(1);
+    const category = homeCategory ?? initialFilter?.homeCategory;
+    const selectedRegion = indiaRegionById(region);
+    const boardIds = board.length ? board : initialFilter?.boardIds ?? [];
+    const boardSlugs = boardIds
+      .map((boardId) => boards.find((item) =>
+        item.board_id === boardId ||
+        toSeoSlug(item.slug) === toSeoSlug(boardId) ||
+        item.board_code.toLowerCase() === boardId.toLowerCase(),
+      )?.slug)
+      .filter((slug): slug is string => Boolean(slug));
+    if (!boardSlugs.length && initialFilter?.boardSlug) {
+      boardSlugs.push(initialFilter.boardSlug);
+    }
+    const destination = selectedRegion
+      ? boardSlugs.length
+        ? indiaRegionBoardListingPath(selectedRegion.id, boardSlugs, category)
+        : indiaRegionListingPath(selectedRegion.id, category)
+      : category
+        ? placeListingPath({ countrySlug: "india", category })
+        : "/home/india/";
+    router.push(destination, { scroll: false });
   }
 
   function handleFinderSubmit(path: string) {
@@ -2439,16 +2689,42 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             const cover =
               school.school_image_url ||
               school.school_photos?.[0]?.photo_url ||
-              school.school_logo_url ||
               "";
             return (
               <article key={school.school_id} className={isCompared ? "is-shortlisted" : ""}>
                 <Link href={schoolHref(school)} className="compare-promo__school-link">
                   <span className="compare-promo__school-image">
-                    {cover ? (
-                      <Image src={cover} alt="" fill sizes="200px" unoptimized />
-                    ) : (
-                      <Building2 size={23} aria-hidden />
+                    <Building2
+                      className="compare-promo__school-fallback"
+                      size={23}
+                      aria-hidden
+                    />
+                    {cover && (
+                      <Image
+                        src={cover}
+                        alt={`${school.school_name} campus`}
+                        fill
+                        sizes="200px"
+                        unoptimized
+                        onError={(event) => {
+                          event.currentTarget.style.visibility = "hidden";
+                        }}
+                      />
+                    )}
+                    {school.school_logo_url && (
+                      <span className="compare-promo__school-logo">
+                        <span aria-hidden>{(school.short_name || school.school_name).slice(0, 2).toUpperCase()}</span>
+                        <Image
+                          src={school.school_logo_url}
+                          alt={`${school.school_name} logo`}
+                          width={42}
+                          height={42}
+                          unoptimized
+                          onError={(event) => {
+                            event.currentTarget.style.visibility = "hidden";
+                          }}
+                        />
+                      </span>
                     )}
                   </span>
                   <strong>{school.school_name}</strong>
@@ -2486,79 +2762,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           )}
         </div>
-      </section>
-
-      <section className="home-section home-reviews" id="home-reviews" aria-labelledby="home-reviews-heading">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">PARENT VOICES</div>
-            <h2 id="home-reviews-heading">
-              {reviewCategory === "day-school"
-                ? "Day school parent reviews"
-                : reviewCategory === "residential-school"
-                  ? "Boarding school parent reviews"
-                  : "Reviews from school communities"}
-            </h2>
-            <p>
-              {reviewCategory
-                ? `Read published feedback from parents about ${reviewCategory === "day-school" ? "day" : "boarding"} schools.`
-                : "Read published feedback shared by parents about their school experiences."}
-            </p>
-          </div>
-          <button
-            type="button"
-            className="home-reviews__browse"
-            onClick={openReviewsDialog}
-          >
-            Explore more reviews <ArrowRight size={15} aria-hidden />
-          </button>
-        </div>
-        {homeReviewsLoading ? (
-          <p className="home-reviews__status" role="status">Loading published reviews…</p>
-        ) : homeReviewSummary || homeReviews.length > 0 ? (
-          <div className="home-reviews__layout">
-            {homeReviewSummary && <ReviewSummaryPanel summary={homeReviewSummary} />}
-            {homeReviews.length > 0 ? (
-              <div className="home-reviews__grid">
-                {homeReviews.map((review) => (
-                  <PublicReviewCard key={review.review_id} review={review} />
-                ))}
-              </div>
-            ) : (
-              <p className="home-reviews__status">
-                {(homeReviewSummary?.review_count ?? 0) > 0
-                  ? "Recent review cards are temporarily unavailable."
-                  : "No published parent reviews yet. Check back as school communities share their experiences."}
-              </p>
-            )}
-            {(homeReviewsError || homeReviewSummaryError) && (
-              <p className="home-reviews__status" role="status">
-                {homeReviewsError || homeReviewSummaryError}
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="home-reviews__status">
-            {homeReviewsError || homeReviewSummaryError
-              ? "Published reviews and ratings are temporarily unavailable. Please try again later."
-              : "No published parent reviews yet. Check back as school communities share their experiences."}
-          </p>
-        )}
-        {reviewsDialogOpen && (
-          <ReviewsCollection
-            mode="dialog"
-            heading={
-              reviewCategory === "day-school"
-                ? "Day school parent reviews"
-                : reviewCategory === "residential-school"
-                  ? "Boarding school parent reviews"
-                  : "Reviews from school communities"
-            }
-            description="Browse published parent reviews and ratings from school communities."
-            schoolTypes={reviewSchoolTypeIds}
-            onClose={closeReviewsDialog}
-          />
-        )}
       </section>
 
       {stateCards.length > 0 && (
@@ -2626,8 +2829,28 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 <span className="section-eyebrow">EXPLORE BY CITY</span>
                 <h2 id="state-explorer-title">Schools in {selectedState.state_name}</h2>
                 <p id="state-explorer-description">
-                  Choose a city, then open all schools, day schools, or boarding schools.
+                  Choose a school type for this state, or pick a city to narrow your search.
                 </p>
+                <button
+                  className="state-explorer__type-button"
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => {
+                    const place = {
+                      countrySlug: selectedState.country_slug,
+                      stateSlug: selectedState.state_slug,
+                    };
+                    setSelectedState(null);
+                    openTypePicker({
+                      title: `Schools in ${selectedState.state_name}`,
+                      subtitle: "Choose the school type you want to explore.",
+                      hrefFor: (category) => placeListingPath({ ...place, category }),
+                      showAllOption: false,
+                    });
+                  }}
+                >
+                  Choose day or boarding schools
+                </button>
               </div>
               <button
                 className="state-explorer__close"
@@ -2667,16 +2890,23 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                         <small>{city.schools_count ?? 0} listed schools</small>
                       </span>
                     </div>
-                    <div className="state-city-card__links" aria-label={`School types in ${city.city_name}`}>
-                      <Link href={placeListingPath(place)} onClick={() => setSelectedState(null)}>
-                        All schools <ArrowRight size={13} aria-hidden />
-                      </Link>
-                      <Link href={placeListingPath({ ...place, category: "day-school" })} onClick={() => setSelectedState(null)}>
-                        Day schools <ArrowRight size={13} aria-hidden />
-                      </Link>
-                      <Link href={placeListingPath({ ...place, category: "residential-school" })} onClick={() => setSelectedState(null)}>
-                        Boarding schools <ArrowRight size={13} aria-hidden />
-                      </Link>
+                    <div className="state-city-card__links">
+                      <button
+                        type="button"
+                        aria-label={`Choose a school type in ${city.city_name}`}
+                        aria-haspopup="dialog"
+                        onClick={() => {
+                          setSelectedState(null);
+                          openTypePicker({
+                            title: `Schools in ${city.city_name}`,
+                            subtitle: "Choose the type of school you want to explore.",
+                            hrefFor: (category) => placeListingPath({ ...place, category }),
+                            showAllOption: false,
+                          });
+                        }}
+                      >
+                        Choose school type <ArrowRight size={13} aria-hidden />
+                      </button>
                     </div>
                   </article>
                 );
@@ -2979,11 +3209,134 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
+      <section className="home-section home-reviews" id="home-reviews" aria-labelledby="home-reviews-heading">
+        <div className="home-section__heading">
+          <div>
+            <div className="section-eyebrow">PARENT VOICES</div>
+            <h2 id="home-reviews-heading">
+              {reviewCategory === "day-school"
+                ? "Day school parent reviews"
+                : reviewCategory === "residential-school"
+                  ? "Boarding school parent reviews"
+                  : "Reviews from school communities"}
+            </h2>
+            <p>
+              {reviewCategory
+                ? `Read published feedback from parents about ${reviewCategory === "day-school" ? "day" : "boarding"} schools.`
+                : "Read published feedback shared by parents about their school experiences."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="home-reviews__browse"
+            onClick={openReviewsDialog}
+          >
+            Explore more reviews <ArrowRight size={15} aria-hidden />
+          </button>
+        </div>
+        {homeReviewsLoading ? (
+          <p className="home-reviews__status" role="status">Loading published reviews…</p>
+        ) : homeReviewSummary || homeReviews.length > 0 ? (
+          <div className="home-reviews__layout">
+            {homeReviewSummary && <ReviewSummaryPanel summary={homeReviewSummary} />}
+            {homeReviews.length > 0 ? (
+              <div className="home-reviews__grid">
+                {homeReviews.map((review) => (
+                  <PublicReviewCard key={review.review_id} review={review} />
+                ))}
+              </div>
+            ) : (
+              <p className="home-reviews__status">
+                {(homeReviewSummary?.review_count ?? 0) > 0
+                  ? "Recent review cards are temporarily unavailable."
+                  : "No published parent reviews yet. Check back as school communities share their experiences."}
+              </p>
+            )}
+            {(homeReviewsError || homeReviewSummaryError) && (
+              <p className="home-reviews__status" role="status">
+                {homeReviewsError || homeReviewSummaryError}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="home-reviews__status">
+            {homeReviewsError || homeReviewSummaryError
+              ? "Published reviews and ratings are temporarily unavailable. Please try again later."
+              : "No published parent reviews yet. Check back as school communities share their experiences."}
+          </p>
+        )}
+        {reviewsDialogOpen && (
+          <ReviewsCollection
+            mode="dialog"
+            heading={
+              reviewCategory === "day-school"
+                ? "Day school parent reviews"
+                : reviewCategory === "residential-school"
+                  ? "Boarding school parent reviews"
+                  : "Reviews from school communities"
+            }
+            description="Browse published parent reviews and ratings from school communities."
+            schoolTypes={reviewSchoolTypeIds}
+            onClose={closeReviewsDialog}
+          />
+        )}
+      </section>
+
         </>
       )}
 
       {!isHomePage && (
       <section className="discovery-content" id="schools">
+        {(isIndiaCountry || hasBroadBoardScope || hasBroadDirectoryScope) && !activeStateId && !activeCityId && (
+          <section className="home-section home-section--states" aria-labelledby="india-region-heading">
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">BROWSE INDIA BY REGION</div>
+                <h2 id="india-region-heading">Choose a region to explore schools</h2>
+                <p>
+                  {listingBoardName
+                    ? `Choose a region to narrow ${listingBoardName} school listings.`
+                    : "Start with a smaller area to browse schools more easily."}
+                </p>
+              </div>
+            </div>
+            {citiesLoading ? (
+              <p className="section-empty" role="status">Loading school regions…</p>
+            ) : citiesError ? (
+              <p className="section-error" role="alert">
+                School regions could not be loaded: {citiesError}{" "}
+                <button type="button" onClick={() => setCitiesRetry((count) => count + 1)}>Retry</button>
+              </p>
+            ) : indiaRegionCards.length ? (
+              <div className="city-grid" role="group" aria-label="Indian school regions">
+                {indiaRegionCards.map((region, index) => (
+                  <button
+                    className={`city-card city-card--${index + 1}${geoRegion === region.id ? " is-selected" : ""}`}
+                    key={region.id}
+                    type="button"
+                    style={{ background: placeBackdrop(region.id) }}
+                    onClick={() => selectIndiaRegion(region.id)}
+                    aria-pressed={geoRegion === region.id}
+                  >
+                    <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="city-card__name">{region.label}</span>
+                    <span className="city-card__state">{region.count} schools listed</span>
+                    <span className="city-card__action">
+                      Explore region <ArrowRight size={14} aria-hidden />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="section-empty">No Indian regions with published school listings are available right now.</p>
+            )}
+          </section>
+        )}
+        {requiresIndiaRegion && (
+          <p className="finder-message" role="status">
+            Choose an Indian region above to load its school listings.
+          </p>
+        )}
         {(activeCountryId || activeStateId || activeCityId) && (
           <section className="listing-place-spotlight" aria-label={`Explore schools in ${listingPlaceLabel}`}>
             <div className="listing-place-spotlight__heading">
@@ -3222,7 +3575,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           </aside>
 
-          <div className="school-results">
+          {!requiresIndiaRegion && <div className="school-results">
             <div className="school-results__toolbar">
               <button
                 ref={filterTriggerRef}
@@ -3409,7 +3762,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 </div>
               </>
             )}
-          </div>
+          </div>}
           <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading">
             <div className="top-boarding-schools__heading">
               <span className="section-eyebrow">TOP PICKS</span>
@@ -3515,6 +3868,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         onSearch={searchFor}
         onBoard={selectBoard}
         onSchoolType={selectSchoolType}
+      />
+      <IndiaRegionPickerModal
+        open={regionPickerOpen}
+        regions={indiaRegionCards}
+        onChoose={(region) => {
+          setRegionPickerOpen(false);
+          selectIndiaRegion(region);
+        }}
+        onClose={() => setRegionPickerOpen(false)}
       />
       <SchoolTypePickerModal request={typePicker} onClose={() => setTypePicker(null)} />
       {isHomePage && botOnboardingOpen && (

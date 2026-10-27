@@ -11,12 +11,13 @@ import type {
   SchoolListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
+import { INDIA_REGIONS } from "@/lib/india-regions";
 import {
   homeSchoolCategories,
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
+import { boardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -151,6 +152,23 @@ export default function SiteFooterSeo({
       );
   }, [countries, uniqueCities]);
 
+  const indiaRegionLinks = useMemo(() => {
+    const india = countrySearches.find(
+      (country) => toSeoSlug(country.slug || country.country_name) === "india",
+    );
+    if (!india) return [];
+    return INDIA_REGIONS.flatMap((region) => [
+      {
+        label: `All schools in ${region.label}`,
+        href: indiaRegionListingPath(region.id),
+      },
+      ...availableCategories.map(({ category, label }) => ({
+        label: `${label} in ${region.label}`,
+        href: indiaRegionListingPath(region.id, category),
+      })),
+    ]);
+  }, [availableCategories, countrySearches]);
+
   const locationGroups = useMemo(() => {
     const locationLinks = (
       label: string,
@@ -169,6 +187,10 @@ export default function SiteFooterSeo({
         links: countrySearches.flatMap((country) =>
           locationLinks(country.country_name, { countrySlug: country.slug }),
         ),
+      },
+      {
+        title: "By region",
+        links: indiaRegionLinks,
       },
       {
         title: "By state",
@@ -201,7 +223,7 @@ export default function SiteFooterSeo({
         ),
       },
     ];
-  }, [availableCategories, countrySearches, localitySearches, popularCities, stateSearches]);
+  }, [availableCategories, countrySearches, indiaRegionLinks, localitySearches, popularCities, stateSearches]);
 
   const boardGroups = useMemo(
     () =>

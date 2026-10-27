@@ -6,10 +6,11 @@ import { homeSchoolCategoryFromValue, homeSchoolTypeIds, schoolCategorySegment, 
 import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
 import { listingCopy, pageMetadata } from "@/lib/seo";
-import { boardListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
+import { boardListingPath, indiaRegionBoardListingPath, indiaRegionListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
 import { isSchoolSectionId, schoolSectionPath, schoolSectionSeo, type SchoolSectionId } from "@/lib/school-sections";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
+import { indiaRegionBySlug } from "@/lib/india-regions";
 
 export const dynamic = "force-dynamic";
 
@@ -349,6 +350,55 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         keywords: [copy.heading, label, "schools in India"],
       });
     }
+  }
+  const metadataRegion =
+    segments[0]?.toLowerCase() === "india"
+      ? indiaRegionBySlug(segments[1]?.toLowerCase())
+      : undefined;
+  const metadataRegionBoardRoute =
+    metadataRegion &&
+    segments[2]?.toLowerCase() === "board" &&
+    (segments.length === 4 || segments.length === 5);
+  if (
+    metadataRegion &&
+    (segments.length === 2 ||
+      segments.length === 3 ||
+      metadataRegionBoardRoute)
+  ) {
+    const boardSlugs = metadataRegionBoardRoute
+      ? (segments[3] ?? "").split(",").filter(Boolean)
+      : [];
+    const matchedBoards = await Promise.all(boardSlugs.map(findActiveBoard));
+    if (matchedBoards.some((board) => !board)) {
+      return unavailableMetadata("School discovery | BoardingEdu");
+    }
+    const boards = matchedBoards.filter((board): board is BoardListItem => Boolean(board));
+    const categoryIndex = metadataRegionBoardRoute ? 4 : 2;
+    const category = segments.length > categoryIndex
+      ? homeSchoolCategoryFromValue(segments[categoryIndex]?.toLowerCase())
+      : null;
+    if (segments.length > categoryIndex && !category) {
+      return unavailableMetadata("School discovery | BoardingEdu");
+    }
+    const label = category === "day-school"
+      ? "Day School"
+      : category
+        ? "Boarding School"
+        : undefined;
+    const boardName = boards.map((board) => board.board_name).join(", ");
+    const copy = listingCopy({
+      boardName: boardName || undefined,
+      categoryLabel: label,
+      place: metadataRegion.label,
+    });
+    return pageMetadata({
+      title: copy.title,
+      description: copy.description,
+      path: boards.length
+        ? indiaRegionBoardListingPath(metadataRegion.id, boards.map((board) => board.slug), category)
+        : indiaRegionListingPath(metadataRegion.id, category),
+      keywords: [copy.heading, metadataRegion.label, ...boards.map((board) => board.board_name), "schools in India"],
+    });
   }
   const schoolRouteSegments = enquiryRoute ? segments.slice(0, -1) : segments;
   const { schoolSegments, section: schoolSection } = splitSchoolSection(schoolRouteSegments);
@@ -690,6 +740,77 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       if (error instanceof ApiError && error.status === 404) notFound();
       throw error;
     }
+  }
+
+  const regionalSlug = segments[0]?.toLowerCase() === "india"
+    ? segments[1]?.toLowerCase()
+    : undefined;
+  const region = indiaRegionBySlug(regionalSlug);
+  const regionBoardRoute =
+    region &&
+    segments[2]?.toLowerCase() === "board" &&
+    (segments.length === 4 || segments.length === 5);
+  if (
+    region &&
+    (segments.length === 2 || segments.length === 3 || regionBoardRoute)
+  ) {
+    const boardSlugs = regionBoardRoute
+      ? (segments[3] ?? "").split(",").filter(Boolean)
+      : [];
+    const matchedBoards = await Promise.all(boardSlugs.map(findActiveBoard));
+    if (matchedBoards.some((board) => !board)) notFound();
+    const selectedBoards = matchedBoards.filter((board): board is BoardListItem => Boolean(board));
+    const categoryIndex = regionBoardRoute ? 4 : 2;
+    const category = segments.length > categoryIndex
+      ? homeSchoolCategoryFromValue(segments[categoryIndex]?.toLowerCase())
+      : null;
+    if (segments.length > categoryIndex && !category) notFound();
+
+    const countries = await fetchAllPages(await geography.countries());
+    const india = countries.find(
+      (country) => country.status && toSeoSlug(country.slug || country.country_name) === "india",
+    );
+    if (!india) notFound();
+
+    const types = category ? await resolveHomeTypes(category) : [];
+    const canonicalPath = selectedBoards.length
+      ? indiaRegionBoardListingPath(region.id, selectedBoards.map((board) => board.slug), category)
+      : indiaRegionListingPath(region.id, category);
+    if (`/${segments.join("/")}/` !== canonicalPath) redirect(canonicalPath);
+    const breadcrumbs = [
+      { name: "Home", url: "/" },
+      { name: india.country_name, url: withTrailingSlash(`/home/${toSeoSlug(india.slug)}`) },
+      { name: region.label, url: indiaRegionListingPath(region.id) },
+    ];
+    if (selectedBoards.length) {
+      breadcrumbs.push({
+        name: selectedBoards.map((board) => board.board_name).join(", "),
+        url: canonicalPath,
+      });
+    }
+    if (category) {
+      breadcrumbs.push({
+        name: category === "day-school" ? "Day Schools" : "Boarding Schools",
+        url: canonicalPath,
+      });
+    }
+    return (
+      <>
+        <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
+        <SchoolDiscovery
+          initialFilter={{
+            country: india.country_id,
+            region: region.id,
+            placeName: region.label,
+            boardIds: selectedBoards.map((board) => board.board_id),
+            ...(selectedBoards.length === 1 ? { boardSlug: selectedBoards[0]!.slug } : {}),
+            schoolTypes: types.map((type) => type.school_type_id),
+            homeCategory: category ?? undefined,
+          }}
+          breadcrumbs={breadcrumbs}
+        />
+      </>
+    );
   }
 
   if (

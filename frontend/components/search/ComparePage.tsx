@@ -287,6 +287,11 @@ export default function ComparePage() {
         </section>
       )}
 
+      <header className="compare-section-heading">
+        <span>Side-by-side overview</span>
+        <h2>Comparison of schools</h2>
+      </header>
+
       {comparedSchools.length === 0 ? (
         <section className="compare-empty">
           <h2>No schools selected yet</h2>

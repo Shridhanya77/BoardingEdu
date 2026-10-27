@@ -6,6 +6,7 @@ import {
   type HomeSchoolCategory,
   type SchoolTypeCategory,
 } from "@/lib/seo-slugs";
+import { indiaRegionById, type IndiaRegionId } from "@/lib/india-regions";
 
 export type SchoolPathFields = {
   country_slug: string;
@@ -55,6 +56,32 @@ export function schoolDirectoryPath(category?: HomeSchoolCategory | null): strin
   return category
     ? `/schools/${schoolCategorySegment(category)}/`
     : withTrailingSlash("/schools");
+}
+
+export function indiaRegionListingPath(
+  regionId: IndiaRegionId,
+  category?: HomeSchoolCategory | null,
+): string {
+  const region = indiaRegionById(regionId);
+  if (!region) throw new Error(`Unknown Indian region: ${regionId}`);
+  const base = `/india/${region.slug}`;
+  return withTrailingSlash(
+    category ? `${base}/${schoolCategorySegment(category)}` : base,
+  );
+}
+
+export function indiaRegionBoardListingPath(
+  regionId: IndiaRegionId,
+  boardSlugs: string[],
+  category?: HomeSchoolCategory | null,
+): string {
+  const region = indiaRegionById(regionId);
+  if (!region) throw new Error(`Unknown Indian region: ${regionId}`);
+  if (!boardSlugs.length) throw new Error("At least one board is required.");
+  const base = `/india/${region.slug}/board/${boardSlugs.map(toSeoSlug).join(",")}`;
+  return withTrailingSlash(
+    category ? `${base}/${schoolCategorySegment(category)}` : base,
+  );
 }
 
 export function schoolSearchPath(query: string): string {

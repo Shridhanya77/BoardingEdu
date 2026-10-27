@@ -102,8 +102,8 @@
         <tbody>
           {% for e in s.recent_enquiries %}
           <tr>
-            <td>{{ e.enquiry_code|default:"—" }}</td>
-            <td>{{ e.school__school_name|truncatechars:34 }}</td>
+            <td><a href="{{ e.url }}">{{ e.enquiry_code|default:"—" }}</a></td>
+            <td><a href="{{ e.url }}">{{ e.school__school_name|truncatechars:34 }}</a></td>
             <td><span class="be-tag">{{ e.status }}</span></td>
             <td class="be-table__date">{{ e.created_at|date:"d M" }}</td>
           </tr>

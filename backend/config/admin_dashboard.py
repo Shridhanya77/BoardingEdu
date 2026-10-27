@@ -30,9 +30,9 @@ def _card(label, value, url_name=None, tone="neutral", hint=""):
 
 def _enquiry_trend(now):
     """Count new enquiries per month for the last TREND_MONTHS months."""
-    start = (now - timedelta(days=31 * TREND_MONTHS)).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
-    )
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    for _ in range(TREND_MONTHS - 1):
+        start = (start - timedelta(days=1)).replace(day=1)
     from apps.admissions.models import AdmissionEnquiry
 
     rows = (
@@ -42,17 +42,25 @@ def _enquiry_trend(now):
         .annotate(n=Count("pk"))
         .order_by("bucket")
     )
-    counts = {row["bucket"].strftime("%b"): row["n"] for row in rows if row["bucket"]}
+    counts = {
+        row["bucket"].strftime("%Y-%m"): row["n"]
+        for row in rows
+        if row["bucket"]
+    }
 
     months = []
     cursor = start
     for _ in range(TREND_MONTHS):
-        months.append({"label": cursor.strftime("%b"), "value": counts.get(cursor.strftime("%b"), 0)})
+        month_key = cursor.strftime("%Y-%m")
+        months.append({
+            "label": cursor.strftime("%b"),
+            "value": counts.get(month_key, 0),
+        })
         cursor = (cursor + timedelta(days=32)).replace(day=1)
 
     peak = max([month["value"] for month in months] + [1])
     for month in months:
-        month["pct"] = round(month["value"] / peak * 100)
+        month["pct"] = max(4, round(month["value"] / peak * 100))
     return months
 
 
@@ -134,8 +142,13 @@ def build_stats():
     recent_enquiries = list(
         AdmissionEnquiry.objects.select_related("school")
         .order_by("-created_at")
-        .values("enquiry_code", "school__school_name", "status", "created_at")[:6]
+        .values("enquiry_id", "enquiry_code", "school__school_name", "status", "created_at")[:6]
     )
+    for enquiry in recent_enquiries:
+        enquiry["url"] = reverse(
+            "admin:admissions_admissionenquiry_change",
+            args=[enquiry["enquiry_id"]],
+        )
     recent_reviews = [
         {**row, "url": reverse("admin:reviews_review_change", args=[row["review_id"]])}
         for row in Review.objects.filter(status=Review.STATUS_PENDING)

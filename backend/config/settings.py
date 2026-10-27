@@ -26,6 +26,7 @@ ALLOWED_HOSTS = [
 
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,6 +50,65 @@ INSTALLED_APPS = [
     'apps.reviews.apps.ReviewsConfig',
     'apps.dashboards.apps.DashboardsConfig'
 ]
+
+JAZZMIN_SETTINGS = {
+    "site_title": "BoardingEdu Admin",
+    "site_header": "BoardingEdu Admin",
+    "site_brand": "BoardingEdu",
+    "site_logo": "admin/img/boardingedu-logo.jpeg",
+    "login_logo": "admin/img/boardingedu-logo.jpeg",
+    "welcome_sign": "Welcome to the BoardingEdu administration panel",
+    "copyright": "BoardingEdu",
+    "search_model": "schools.School",
+    "topmenu_links": [
+        {"name": "Dashboard", "url": "admin:index", "icon": "fas fa-chart-line"},
+        {"model": "schools.School", "icon": "fas fa-school"},
+        {"model": "admissions.AdmissionEnquiry", "icon": "fas fa-envelope"},
+        {"model": "reviews.Review", "icon": "fas fa-star"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "order_with_respect_to": [
+        "schools",
+        "admissions",
+        "reviews",
+        "users",
+        "geography",
+        "fees",
+        "search",
+        "dashboards",
+    ],
+    "icons": {
+        "schools": "fas fa-school",
+        "schools.school": "fas fa-school",
+        "admissions": "fas fa-user-graduate",
+        "admissions.admissionenquiry": "fas fa-envelope",
+        "reviews": "fas fa-star",
+        "reviews.review": "fas fa-comment-dots",
+        "users": "fas fa-users",
+        "users.user": "fas fa-user",
+        "geography": "fas fa-globe-asia",
+        "fees": "fas fa-money-bill-wave",
+        "search": "fas fa-search",
+        "dashboards": "fas fa-chart-pie",
+    },
+    "related_modal_active": True,
+    "show_ui_builder": False,
+    "show_theme_chooser": True,
+    "changeform_format": "horizontal_tabs",
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar": "navbar-white navbar-light",
+    "navbar_fixed": True,
+    "sidebar": "sidebar-dark-navy",
+    "sidebar_fixed": True,
+    "sidebar_nav_compact_style": True,
+    "sidebar_nav_child_indent": True,
+    "accent": "accent-orange",
+    "theme": "default",
+    "default_theme_mode": "light",
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST

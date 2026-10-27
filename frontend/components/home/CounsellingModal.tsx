@@ -13,6 +13,7 @@ import {
   type GradeListItem,
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 
 /**
  * Compact "request a callback" form opened from the navigation bar. It shares the
@@ -199,18 +200,7 @@ export default function CounsellingModal({
                 required
               />
             </label>
-            <label>
-              Phone number
-              <input
-                type="tel"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+91 98765 43210"
-                required
-              />
-            </label>
+            <CountryPhoneInput id="counselling-modal-phone" label="Phone number" value={phone} onChange={setPhone} disabled={submitting} />
             <label>
               Email address
               <input
@@ -218,6 +208,7 @@ export default function CounsellingModal({
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="email"
+                maxLength={254}
                 required
               />
             </label>

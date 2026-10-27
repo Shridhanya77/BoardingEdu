@@ -12,8 +12,9 @@ export type SchoolTypePickerRequest = {
   /** Where each family choice leads — always a clean trailing-slash path. */
   hrefFor: (category: HomeSchoolCategory) => string;
   /** Unfiltered listing for the same place or board. */
-  allHref: string;
-  allLabel: string;
+  allHref?: string;
+  allLabel?: string;
+  showAllOption?: boolean;
 };
 
 const OPTIONS: { category: HomeSchoolCategory; title: string }[] = [
@@ -57,6 +58,7 @@ export default function SchoolTypePickerModal({
         <>
           <div className="type-picker-modal__intro">
             <h2>{request.title}</h2>
+            <p>{request.subtitle}</p>
           </div>
 
           <div className="type-picker-modal__options">
@@ -79,9 +81,11 @@ export default function SchoolTypePickerModal({
             ))}
           </div>
 
-          <Link className="type-picker-modal__all" href={request.allHref} onClick={onClose}>
-            All schools
-          </Link>
+          {request.showAllOption !== false && request.allHref && (
+            <Link className="type-picker-modal__all" href={request.allHref} onClick={onClose}>
+              {request.allLabel ?? "All schools"}
+            </Link>
+          )}
         </>
       )}
     </dialog>

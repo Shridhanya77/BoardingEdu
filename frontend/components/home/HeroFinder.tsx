@@ -3,12 +3,14 @@
 import { BedDouble, GraduationCap, House, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import IndiaRegionPickerModal from "@/components/home/IndiaRegionPickerModal";
 import { fetchAllPages, geography } from "@/lib/api";
 import type { CityListItem, CountryListItem, LocationListItem, SchoolTypeListItem, StateListItem } from "@/lib/api";
+import { INDIA_REGIONS, indiaRegionById, indiaRegionForState } from "@/lib/india-regions";
 import { homeSchoolCategory, homeSchoolCategoryForIds, homeSchoolTypeIds, schoolCategorySegment, schoolTypeCategory, toSeoSlug, type HomeSchoolCategory, type SchoolTypeCategory } from "@/lib/seo-slugs";
-import { schoolDirectoryPath } from "@/lib/school-urls";
+import { indiaRegionListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 
-export type HeroFinderValue = { country: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
+export type HeroFinderValue = { country: string; region: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
 type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; mobileCategory?: HomeSchoolCategory | null; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
 type LocationOption = { id: string; name: string };
@@ -100,6 +102,8 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const [cityError, setCityError] = useState<string | null>(null);
   const [localityError, setLocalityError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false);
+  const [dismissedRegionPickerFor, setDismissedRegionPickerFor] = useState("");
 
   const options = schoolTypes.filter((type) => type.status && (homeSearch
     ? homeSchoolCategory(type.type_code, type.slug, type.type_name)
@@ -116,7 +120,44 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const state = states.find((item) => item.state_id === value.state);
   const city = cities.find((item) => item.city_id === value.city);
   const locality = locations.find((item) => item.location_id === value.location);
+  const isIndia = country
+    ? toSeoSlug(country.slug || country.country_name) === "india"
+    : false;
+  const availableRegions = INDIA_REGIONS.filter((region) =>
+    states.some((item) => item.status && indiaRegionForState(item.state_name, item.slug)?.id === region.id),
+  ).map((region) => ({ id: region.id, label: region.label }));
+  useEffect(() => {
+    if (!isIndia || value.state || value.region) {
+      setRegionPickerOpen(false);
+      if (!isIndia) setDismissedRegionPickerFor("");
+      return;
+    }
+    if (
+      !loadingStates &&
+      availableRegions.length > 0 &&
+      dismissedRegionPickerFor !== value.country
+    ) {
+      setRegionPickerOpen(true);
+    }
+  }, [
+    availableRegions.length,
+    dismissedRegionPickerFor,
+    isIndia,
+    loadingStates,
+    value.country,
+    value.region,
+    value.state,
+  ]);
   const path = useMemo(() => {
+    const selectedRegion = isIndia ? indiaRegionById(value.region) : undefined;
+    if (selectedRegion) {
+      const homeCategory = activeCategory === "day-school"
+        ? "day-school"
+        : residential
+          ? "residential-school"
+          : null;
+      return indiaRegionListingPath(selectedRegion.id, homeCategory);
+    }
     const parts = country ? [toSeoSlug(country.slug)] : [];
     const homeCategory = activeCategory === "day-school" || activeCategory === "residential-school"
       ? activeCategory
@@ -124,17 +165,23 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     if (state) parts.push(toSeoSlug(state.slug));
     if (city) parts.push(toSeoSlug(city.slug));
     if (!residential && city && locality) parts.push(toSeoSlug(locality.slug));
+    let pathname: string;
     if (!homeSearch) {
-      const pathname = !country ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
-      const typeQuery = activeCategory && activeCategory !== "day-school" ? `?type=${activeCategory}` : "";
-      return `${pathname}${typeQuery}`;
+      pathname = !country ? "/home" : parts.length === 1 ? `/home/${parts[0]}` : `/${parts.join("/")}`;
+    } else {
+      pathname = homeCategory
+        ? country
+          ? `/${parts.join("/")}/${schoolCategorySegment(homeCategory)}`
+          : schoolDirectoryPath(homeCategory)
+        : "/home";
     }
-    return homeCategory
-      ? country
-        ? `/${parts.join("/")}/${schoolCategorySegment(homeCategory)}`
-        : schoolDirectoryPath(homeCategory)
-      : "/home";
-  }, [country, state, city, locality, residential, activeCategory, homeSearch]);
+    const query = new URLSearchParams();
+    if (!homeSearch && activeCategory && activeCategory !== "day-school") {
+      query.set("type", activeCategory);
+    }
+    const queryString = query.toString();
+    return queryString ? `${pathname}?${queryString}` : pathname;
+  }, [country, state, city, locality, residential, activeCategory, homeSearch, value.region, isIndia]);
 
   useEffect(() => {
     let active = true;
@@ -189,11 +236,12 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   }
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (isIndia && !value.state && !value.region) return;
     if (!activeCategory || !country || (value.state && !state) || (value.city && !city) || (!residential && value.location && !locality)) return;
     onSubmit(path);
   }
   function clearSelections() {
-    onChange({ country: "", state: "", city: "", location: "", board: [], schoolType: [] });
+    onChange({ country: "", region: "", state: "", city: "", location: "", board: [], schoolType: [] });
   }
   const apiError = countryError ?? stateError ?? cityError ?? localityError;
 
@@ -254,8 +302,26 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
           disabled={loadingCountries}
           required
           placeholder={loadingCountries ? "Loading countries…" : "Search countries"}
-          onSelect={(countryId) => patch({ country: countryId, state: "", city: "", location: "" })}
+          onSelect={(countryId) => patch({ country: countryId, region: "", state: "", city: "", location: "" })}
         />
+        {isIndia && (
+          <label className="finder-field" htmlFor="hero-region">
+            <span>Region{value.state ? " (optional)" : " (required)"}</span>
+            <select
+              id="hero-region"
+              value={value.region}
+              disabled={loadingStates}
+              required={!value.state}
+              aria-required={!value.state || undefined}
+              onChange={(event) => patch({ region: event.target.value, state: "", city: "", location: "" })}
+            >
+              <option value="">Choose an Indian region</option>
+              {availableRegions.map((region) => (
+                <option value={region.id} key={region.id}>{region.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <LocationCombobox
           id="hero-state"
           label="State"
@@ -263,7 +329,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
           options={states.map((row) => ({ id: row.state_id, name: row.state_name }))}
           disabled={!value.country || loadingStates}
           placeholder={loadingStates ? "Loading states…" : "Search states"}
-          onSelect={(stateId) => patch({ state: stateId, city: "", location: "" })}
+          onSelect={(stateId) => patch({ region: "", state: stateId, city: "", location: "" })}
         />
         {residential ? (
           <LocationCombobox
@@ -321,7 +387,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
         <p className="finder-message" role="status">Loading location options…</p>
       )}
       <p className="finder-location-summary" aria-live="polite">
-        {[country?.country_name, state?.state_name, city?.city_name, !residential && locality?.location_name].filter(Boolean).join(" · ") || "No location selected"}
+        {[country?.country_name, indiaRegionById(value.region)?.label, state?.state_name, city?.city_name, !residential && locality?.location_name].filter(Boolean).join(" · ") || "No location selected"}
       </p>
     </fieldset>}
     <div className="finder-actions">
@@ -332,5 +398,18 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
         <Search size={16} /> Find Schools
       </button>
     </div>
+    <IndiaRegionPickerModal
+      open={regionPickerOpen}
+      regions={availableRegions}
+      onChoose={(region) => {
+        setRegionPickerOpen(false);
+        setDismissedRegionPickerFor(value.country);
+        patch({ region, state: "", city: "", location: "" });
+      }}
+      onClose={() => {
+        setRegionPickerOpen(false);
+        setDismissedRegionPickerFor(value.country);
+      }}
+    />
   </form>;
 }

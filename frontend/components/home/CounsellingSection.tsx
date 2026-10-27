@@ -12,6 +12,7 @@ import {
   type GradeListItem,
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
@@ -140,20 +141,11 @@ export default function CounsellingSection() {
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@example.com"
             autoComplete="email"
+            maxLength={254}
             required
           />
         </label>
-        <label>
-          WhatsApp Number
-          <input
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            placeholder="+91 98765 43210"
-            inputMode="tel"
-            autoComplete="tel"
-            required
-          />
-        </label>
+        <CountryPhoneInput id="counselling-phone" label="WhatsApp Number" value={phone} onChange={setPhone} />
         <label>
           Class applying for
           <select

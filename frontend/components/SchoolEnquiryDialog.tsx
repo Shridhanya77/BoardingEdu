@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { admissions, ApiError, type NewEnquiryInput, type SchoolDetail } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import { useAuth } from "@/lib/auth";
 import { schoolEnquiryPath, schoolListPath } from "@/lib/school-urls";
 
@@ -389,27 +390,21 @@ function SchoolEnquiryDialog({
                       onChange={(event) => patch("parent_email", event.target.value)}
                       disabled={submitting}
                       autoComplete="email"
+                      maxLength={254}
                       placeholder="you@example.com"
                     />
                   </span>
                 </label>
 
-                <label className="field">
-                  <span className="field__label">
-                    Phone <em>*</em>
-                  </span>
-                  <span className="field__wrap">
-                    <input
-                      type="tel"
-                      value={form.parent_phone}
-                      onChange={(event) => patch("parent_phone", event.target.value)}
-                      disabled={submitting}
-                      autoComplete="tel"
-                      inputMode="tel"
-                      placeholder="+91 98765 43210"
-                    />
-                  </span>
-                </label>
+                <div className="field">
+                  <CountryPhoneInput
+                    id="enquiry-phone"
+                    label="Phone"
+                    value={form.parent_phone}
+                    onChange={(value) => patch("parent_phone", value)}
+                    disabled={submitting}
+                  />
+                </div>
 
                 <div className="enquiry-dialog__choices">
                   <span className="field__label">Preferred contact</span>
