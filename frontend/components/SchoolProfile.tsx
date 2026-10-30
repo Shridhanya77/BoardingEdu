@@ -5,25 +5,17 @@ import {
   ArrowRight,
   BedDouble,
   BookOpen,
-  Bus,
   CalendarDays,
   CheckCircle2,
-  FlaskConical,
   GraduationCap,
-  HeartPulse,
   Landmark,
   MessageSquare,
   MapPin,
-  Monitor,
   Phone,
   Plane,
-  ShieldCheck,
   Star,
   Train,
-  Trophy,
-  Utensils,
   Users,
-  Waves,
 } from "lucide-react";
 import type {
   SchoolDetail,
@@ -84,21 +76,6 @@ function verificationLabel(value: string) {
   if (normalized === "verified") return "Verified school";
   if (normalized.includes("pending")) return "Verification in progress";
   return "Not yet verified";
-}
-
-function facilityAppearance(name: string, category: string) {
-  const value = `${name} ${category}`.toLowerCase();
-  if (value.includes("librar") || value.includes("book")) return { Icon: BookOpen, tone: "library" };
-  if (value.includes("lab")) return { Icon: FlaskConical, tone: "laboratory" };
-  if (value.includes("smart class") || value.includes("technology") || value.includes("computer")) return { Icon: Monitor, tone: "technology" };
-  if (value.includes("sport") || value.includes("playground")) return { Icon: Trophy, tone: "sports" };
-  if (value.includes("swim") || value.includes("pool")) return { Icon: Waves, tone: "aquatic" };
-  if (value.includes("hostel") || value.includes("boarding")) return { Icon: BedDouble, tone: "residential" };
-  if (value.includes("dining") || value.includes("food") || value.includes("cafeteria")) return { Icon: Utensils, tone: "dining" };
-  if (value.includes("medical") || value.includes("health") || value.includes("clinic")) return { Icon: HeartPulse, tone: "medical" };
-  if (value.includes("transport") || value.includes("bus")) return { Icon: Bus, tone: "transport" };
-  if (value.includes("security") || value.includes("safety")) return { Icon: ShieldCheck, tone: "security" };
-  return { Icon: CheckCircle2, tone: "general" };
 }
 
 export function schoolProfilePath(school: SchoolDetail) {
@@ -172,27 +149,6 @@ async function loadNearbySchools(
   }
 
   return null;
-}
-
-function gradeBadge(gradeName: string, seats: number | null, entryAge: [number | null, number | null]) {
-  const range = entryAge.filter((x): x is number => x != null);
-  return (
-    <li className="grade-offered" key={gradeName}>
-      <div className="grade-offered__head">
-        <span className="grade-offered__name">{gradeName}</span>
-        {seats != null && (
-          <span className={`grade-offered__seats ${seats === 0 ? "empty" : ""}`}>
-            {seats === 0 ? "Closed" : `${seats} seats`}
-          </span>
-        )}
-      </div>
-      {range.length > 0 && (
-        <p className="grade-offered__age">
-          Entry age {range.join("–")}
-        </p>
-      )}
-    </li>
-  );
 }
 
 export default async function SchoolProfile({

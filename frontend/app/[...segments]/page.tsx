@@ -6,7 +6,6 @@ import {
   homeSchoolCategoryFromValue,
   homeSchoolTypeIds,
   schoolCategorySegment,
-  schoolProfilePathFromSlugs,
   schoolTypeCategory,
   schoolTypeLabel,
   toSeoSlug,

@@ -157,10 +157,10 @@ export default function SchoolFeeSummary({
           .map((item) => ({ structure, item })),
       );
 
-    let yearDetails = details.filter(
+    const yearDetails = details.filter(
       ({ structure }) => structure.academic_year_id === selectedYearId,
     );
-    let items = filterItems(yearDetails);
+    const items = filterItems(yearDetails);
     if (items.length) {
       return { visibleItems: items, feeFallbackNote: null as string | null };
     }

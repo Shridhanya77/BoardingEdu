@@ -11,7 +11,6 @@ import {
   HeartPulse,
   Monitor,
   ShieldCheck,
-  Star,
   Trophy,
   Utensils,
   Waves,
