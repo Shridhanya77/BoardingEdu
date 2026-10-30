@@ -68,6 +68,8 @@ class BoardDetailSerializer(serializers.ModelSerializer):
 # ======================================================================
 
 class SchoolTypeListSerializer(serializers.ModelSerializer):
+    type_name = serializers.SerializerMethodField()
+
     class Meta:
         model = SchoolType
         fields = [
@@ -77,6 +79,13 @@ class SchoolTypeListSerializer(serializers.ModelSerializer):
             'slug',
             'status',
         ]
+
+    def get_type_name(self, obj):
+        name = obj.type_name or ""
+        compact = name.lower().replace("-", " ")
+        if "day cum" in compact or "daycum" in compact.replace(" ", ""):
+            return "Day Boarding School"
+        return name
 
 
 class SchoolFAQSerializer(serializers.ModelSerializer):

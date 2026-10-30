@@ -76,4 +76,5 @@ class FeeItemViewSet(ReadWriteModelViewSet):
         'item_name', 'item_code', 'amount', 'sort_order',
         'created_at',
     ]
-    ordering = ['fee_structure__structure_code', 'sort_order', 'item_name']
+    # Cursor pagination requires ordering fields on the model itself (not lookups).
+    ordering = ['sort_order', 'item_name', 'item_code']

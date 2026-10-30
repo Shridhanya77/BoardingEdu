@@ -1293,6 +1293,33 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           kind: "city",
         }));
     }
+    if (geoRegion && activeCountryId && !activeStateId && !activeCityId) {
+      const region = indiaRegionById(geoRegion);
+      if (region) {
+        const states = new Map<string, { city: CityListItem; count: number }>();
+        for (const city of cities) {
+          if (city.country_id !== activeCountryId) continue;
+          if (indiaRegionForState(city.state_name, city.state_slug)?.id !== region.id) continue;
+          const current = states.get(city.state_id) ?? { city, count: 0 };
+          current.count += city.schools_count ?? 0;
+          states.set(city.state_id, current);
+        }
+        return [...states.values()]
+          .sort(
+            (left, right) =>
+              right.count - left.count || left.city.state_name.localeCompare(right.city.state_name),
+          )
+          .map(({ city }) => ({
+            label: city.state_name,
+            href: placeListingPath({
+              countrySlug: city.country_slug ?? city.country_name,
+              stateSlug: city.state_slug ?? city.state_name,
+              category,
+            }),
+            kind: "state" as const,
+          }));
+      }
+    }
     if (!activeCountryId) return [];
     const states = new Map<string, { city: CityListItem; count: number }>();
     for (const city of cities) {
@@ -1313,7 +1340,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         }),
         kind: "state",
       }));
-  }, [activeCityId, activeCountryId, activeStateId, cities, homeCategory, locations, schoolType, schoolTypes]);
+  }, [activeCityId, activeCountryId, activeStateId, cities, geoRegion, homeCategory, locations, schoolType, schoolTypes]);
 
   useEffect(() => {
     if (!activeCityId) {
@@ -3732,8 +3759,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
             {!error && results.length > 0 && (
               <>
+                {schoolView === "grid" && results.length >= 2 && (
+                  <div className="listing-spotlight-grid" aria-label="Highlighted schools">
+                    {results.slice(0, 4).map((school) => (
+                      <SchoolCard
+                        key={`spotlight-${school.school_id}`}
+                        school={school}
+                        selectedBoards={board}
+                        selectedSchoolTypes={schoolType}
+                      />
+                    ))}
+                  </div>
+                )}
                 <div className={`school-list school-list--${schoolView}`}>
-                  {results.map((school) => (
+                  {(schoolView === "grid" ? results.slice(4) : results).map((school) => (
                     <SchoolCard
                       key={school.school_id}
                       school={school}

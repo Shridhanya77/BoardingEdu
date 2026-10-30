@@ -7,12 +7,53 @@ if (!configuredApiBase && process.env.NODE_ENV === "production") {
 export const API_BASE = (
   configuredApiBase ?? "https://boardingedu-production-ac84.up.railway.app/api"
 ).replace(/\/+$/, "");
-const API_ORIGIN = new URL(API_BASE).origin;
 const API_PATH = new URL(API_BASE).pathname.replace(/\/+$/, "");
 
+/** Map DRF absolute or alternate-host pagination links onto the configured API base. */
+function apiRelativeRequestPath(path: string): string {
+  const withLeadingSlash = (value: string) => (value.startsWith("/") ? value : `/${value}`);
+
+  if (!path.startsWith("http")) {
+    const raw = withLeadingSlash(path);
+    if (raw === API_PATH || raw.startsWith(`${API_PATH}/`)) {
+      const suffix = raw.slice(API_PATH.length) || "/";
+      return withLeadingSlash(suffix);
+    }
+    for (const prefix of ["/backend-api", "/api"]) {
+      if (raw === prefix) return "/";
+      if (raw.startsWith(`${prefix}/`)) {
+        return withLeadingSlash(raw.slice(prefix.length));
+      }
+    }
+    return raw;
+  }
+
+  const abs = new URL(path);
+  let pathname = abs.pathname.replace(/\/+$/, "") || "/";
+  if (pathname === API_PATH || pathname.startsWith(`${API_PATH}/`)) {
+    pathname = pathname.slice(API_PATH.length) || "/";
+  } else {
+    for (const prefix of ["/backend-api", "/api"]) {
+      if (pathname === prefix) {
+        pathname = "/";
+        break;
+      }
+      if (pathname.startsWith(`${prefix}/`)) {
+        pathname = pathname.slice(prefix.length) || "/";
+        break;
+      }
+    }
+  }
+
+  if (!pathname.startsWith("/")) pathname = `/${pathname}`;
+  return `${pathname}${abs.search}`;
+}
+
 export function apiRequestUrl(path: string): URL {
-  const url = path.startsWith("http") ? new URL(path) : new URL(`${API_BASE}${path}`);
-  if (url.origin !== API_ORIGIN || !url.pathname.startsWith(`${API_PATH}/`)) {
+  const relative = apiRelativeRequestPath(path);
+  const baseWithSlash = API_BASE.endsWith("/") ? API_BASE : `${API_BASE}/`;
+  const url = new URL(relative.replace(/^\//, ""), baseWithSlash);
+  if (!url.pathname.startsWith(`${API_PATH}/`) && url.pathname !== API_PATH) {
     throw new Error("The API returned a URL outside the configured API base.");
   }
   if (typeof window === "undefined") return url;

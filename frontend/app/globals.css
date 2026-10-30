@@ -190,16 +190,40 @@
 
 .school-detail__gallery-stage {
   position: relative;
-  width: min(100%, 900px);
-  height: clamp(190px, 26vw, 300px);
+  width: min(100%, 1060px);
+  height: clamp(240px, 36vw, 420px);
   margin-inline: auto;
   overflow: hidden;
-  background: #e7edf4;
+  background: #dfe6ef;
   border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgb(15 35 58 / 6%);
 }
 
-.school-detail__gallery-stage > img {
+.school-detail__gallery-watermark {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+  background: url("/BoardingEdu_LOGO.jpeg") center / 42% auto no-repeat;
+  opacity: 0.1;
+}
+
+.school-detail__gallery-stage::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgb(9 20 34 / 0%) 55%,
+    rgb(9 20 34 / 18%) 100%
+  );
+}
+
+.school-detail__gallery-stage img {
   object-fit: cover;
+  object-position: center 38%;
 }
 
 .school-detail__gallery-fallback {
@@ -213,7 +237,7 @@
 
 .school-detail__gallery-arrow {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   top: 50%;
   display: grid;
   width: 42px;
@@ -244,8 +268,9 @@
 
 .school-detail__gallery-count {
   position: absolute;
-  right: 14px;
+  left: 14px;
   bottom: 14px;
+  z-index: 2;
   padding: 5px 10px;
   color: white;
   background: rgb(18 38 63 / 72%);
@@ -6455,7 +6480,31 @@ select:focus-visible {
 }
 
 .school-detail__media-panel .school-detail__gallery {
-  margin-top: 0;
+  margin-top: 0.75rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.school-detail__media-panel .detail-panel__heading {
+  margin-bottom: 0.5rem;
+}
+
+.school-detail__media-panel .school-detail__gallery-stage {
+  min-height: clamp(220px, 42vw, 420px);
+  border-radius: 1rem;
+}
+
+.school-detail__media-panel .school-detail__gallery-thumbnails {
+  margin-top: 0.85rem;
+  gap: 0.55rem;
+  padding: 0.15rem 0.1rem 0.35rem;
+}
+
+.fee-summary {
+  padding-top: 0.35rem;
+}
+
+.fee-summary__table-wrap {
+  margin-top: 0.75rem;
 }
 
 .school-detail__gallery-categories {
@@ -6778,6 +6827,7 @@ select:focus-visible {
 
 .school-card__media-tile img {
   object-fit: cover;
+  object-position: center 36%;
   transition: transform 250ms ease;
 }
 
@@ -6804,6 +6854,7 @@ select:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 36%;
 }
 
 .school-card__video-count {
@@ -6934,7 +6985,7 @@ select:focus-visible {
   }
 
   .school-detail__gallery-stage {
-    height: clamp(190px, 48vw, 280px);
+    height: clamp(220px, 52vw, 360px);
   }
 
   .school-card__media {
@@ -16837,8 +16888,151 @@ select:focus-visible {
 }
 
 .school-list--grid:not(.school-list--skeleton) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.listing-spotlight-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.listing-spotlight-grid .school-card {
+  min-height: 100%;
+}
+
+.discovery-page--listing .listing-spotlight-grid .school-card__media {
+  height: 168px;
+}
+
+.school-detail-page--polished {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.school-detail-page--polished .detail-panel h2 {
+  font-size: clamp(1.35rem, 2vw, 1.65rem);
+  letter-spacing: -0.02em;
+}
+
+.school-detail-page--polished .detail-panel p,
+.school-detail-page--polished .empty-state {
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.grades-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.grades-picker__chip {
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #cfd9e4;
+  border-radius: 999px;
+  background: #fff;
+  color: #17324d;
+  font-size: 0.88rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.grades-picker__chip:hover,
+.grades-picker__chip:focus-visible {
+  border-color: #17456b;
+  background: #f0f6fb;
+}
+
+.grades-picker__chip.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, #17456b, #1f6b52);
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgb(23 69 107 / 22%);
+}
+
+.facilities-interactive__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.facility-tile {
+  width: 100%;
+  min-height: 118px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  text-align: left;
+  border: 1px solid #dbe4ee;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.facility-tile:hover,
+.facility-tile:focus-visible {
+  border-color: #17456b;
+  box-shadow: 0 6px 18px rgb(23 69 107 / 10%);
+  transform: translateY(-1px);
+}
+
+.facility-tile.is-active {
+  border-color: #1f6b52;
+  background: linear-gradient(180deg, #f8fcfa, #fff);
+}
+
+.facility-tile__icon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef4f8;
+  color: #17456b;
+}
+
+.facility-tile__name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #17324d;
+}
+
+.facility-tile__detail,
+.facility-tile__meta {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #526278;
+}
+
+.school-location-card__map {
+  min-height: 280px;
+  border: 0;
+  border-radius: 14px;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .school-list--grid:not(.school-list--skeleton) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .school-list--grid:not(.school-list--skeleton),
+  .listing-spotlight-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .discovery-page--listing .school-list--grid .school-card {

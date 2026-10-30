@@ -38,6 +38,7 @@ from rest_framework_simplejwt.views import (
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
 from .health import healthz, readyz
 from .admin_dashboard import install_admin_dashboard
+from .school_media import serve_school_media
 
 
 install_admin_dashboard()
@@ -146,6 +147,7 @@ urlpatterns = [
     # ===== Health probes (liveness / readiness) =====
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
+    path("media/schools/<path:filename>", serve_school_media, name="school-media"),
     # ===== API schema & docs =====
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

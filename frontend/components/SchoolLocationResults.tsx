@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { SchoolListItem, SchoolTypeListItem } from "@/lib/api";
 import type { CityListItem, CountryListItem, LocationListItem, StateListItem } from "@/lib/api";
-import { schoolTypeLabel, schoolTypePath } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, schoolTypeLabel, schoolTypePath } from "@/lib/seo-slugs";
 
 type Place = { country: CountryListItem; state: StateListItem; city: CityListItem; location?: LocationListItem };
 
@@ -14,7 +14,13 @@ export default function SchoolLocationResults({ type, place, rows }: { type: Sch
     <p>{location}</p>
     {rows.length === 0 && <p>No schools are listed for this type and location yet.</p>}
     <div className="school-list">{rows.map((school) => <article className="school-card" key={school.school_id}>
-      <h2><Link href={`/${typeSlug}/${place.country.slug}/${place.state.slug}/${place.city.slug}/${school.slug}`}>{school.school_name}</Link></h2>
+      <h2><Link href={schoolProfilePathFromSlugs({
+        countrySlug: school.country_slug,
+        stateSlug: school.state_slug,
+        citySlug: school.city_slug,
+        localitySlug: school.location_slug,
+        schoolSlug: school.slug,
+      })}>{school.school_name}</Link></h2>
       <p>{school.city_name}, {school.state_name}</p>
       <p>{school.school_types_detail.map((item) => schoolTypeLabel(item.type_code, item.slug, item.type_name)).join(", ")} · {school.boards_detail.map((item) => item.board_name).join(", ")}</p>
     </article>)}</div>

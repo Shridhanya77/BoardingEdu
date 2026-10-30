@@ -19,6 +19,10 @@ export function withTrailingSlash(path: string): string {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
+export function schoolSlugFromName(name: string): string {
+  return toSeoSlug(name);
+}
+
 export function schoolProfilePathFromSlugs({
   countrySlug,
   stateSlug,
@@ -110,7 +114,7 @@ export function homeSchoolCategoryForIds(
 
 export function schoolTypeCategory(typeCode: string, slug = "", name = ""): SchoolTypeCategory | null {
   const value = `${typeCode} ${slug} ${name}`.toLowerCase().replace(/_/g, "-");
-  if (/day[- ]boarding/.test(value)) return "day-boarding-school";
+  if (/day[- ]boarding|day\s*cum|day-cum|daycum/.test(value)) return "day-boarding-school";
   if (/^(boarding|residential)(\s|$)|\bboarding-school\b|\bresidential-school\b/.test(value)) return "boarding-school";
   if (/full[- ]boarding/.test(value)) return "boarding-school";
   if (/\bday\b|day-school/.test(value)) return "day-school";

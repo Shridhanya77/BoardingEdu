@@ -55,7 +55,7 @@ jobs:
       run:
         working-directory: frontend
     env:
-      NEXT_PUBLIC_API_BASE: https://boardingedu-production-ac84.up.railway.app/api
+     NEXT_PUBLIC_API_BASE: https://boardingedu-production-ac84.up.railway.app/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

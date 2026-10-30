@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronDown, LoaderCircle } from "lucide-react";
 import { fees, fetchAllPages } from "@/lib/api";
 import type { FeeItemListItem, FeeStructureListItem } from "@/lib/api";
+import { academicYearSortKey, formatAcademicYearLabel } from "@/lib/academic-year";
+import { formatGradeLabel } from "@/lib/grade-labels";
 
 type FeeDetails = {
   structure: FeeStructureListItem;
@@ -31,16 +33,55 @@ function formatAmount(value: string | null) {
     : value;
 }
 
+function pickDefaultYearId(rows: FeeDetails[]): string {
+  if (!rows.length) return "";
+  const withItems = rows.filter(({ items }) => items.length > 0);
+  const pool = withItems.length ? withItems : rows;
+  const current = pool.find(
+    ({ structure }) =>
+      structure.academic_year_code === "2026-2027" ||
+      formatAcademicYearLabel(structure.academic_year_code) === "2026-27",
+  );
+  if (current) return current.structure.academic_year_id;
+  const sorted = [...pool].sort(
+    (a, b) =>
+      academicYearSortKey(b.structure.academic_year_code).localeCompare(
+        academicYearSortKey(a.structure.academic_year_code),
+      ) || b.items.length - a.items.length,
+  );
+  return sorted[0]?.structure.academic_year_id ?? "";
+}
+
+function yearCodesMatch(candidates: string[], code: string): boolean {
+  const label = formatAcademicYearLabel(code);
+  return candidates.some(
+    (candidate) =>
+      code === candidate ||
+      formatAcademicYearLabel(candidate) === label ||
+      code.includes(candidate) ||
+      candidate.includes(code),
+  );
+}
+
+const PRIMARY_FEE_YEARS = ["2026-2027", "2026-27"];
+const FALLBACK_FEE_YEARS = ["2027-2028", "2027-28", "2024-2025", "2024-25"];
+
 export default function SchoolFeeSummary({
   schoolId,
   grades,
+  selectedGradeId: controlledGradeId,
+  onGradeChange,
 }: {
   schoolId: string;
   grades: GradeOption[];
+  selectedGradeId?: string;
+  onGradeChange?: (gradeId: string) => void;
 }) {
   const [details, setDetails] = useState<FeeDetails[]>([]);
   const [selectedYearId, setSelectedYearId] = useState("");
-  const [selectedGradeId, setSelectedGradeId] = useState("");
+  const [internalGradeId, setInternalGradeId] = useState("");
+  const selectedGradeId = controlledGradeId ?? internalGradeId;
+  const setSelectedGradeId = onGradeChange ?? setInternalGradeId;
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,12 +104,7 @@ export default function SchoolFeeSummary({
       .then((rows) => {
         if (!cancelled) {
           setDetails(rows);
-          setSelectedYearId(
-            rows
-              .slice()
-              .sort((a, b) => b.structure.effective_from.localeCompare(a.structure.effective_from))[0]
-              ?.structure.academic_year_id ?? "",
-          );
+          setSelectedYearId(pickDefaultYearId(rows));
           setError(null);
         }
       })
@@ -87,29 +123,65 @@ export default function SchoolFeeSummary({
   }, [schoolId]);
 
   useEffect(() => {
-    setSelectedGradeId((current) =>
+    if (controlledGradeId !== undefined) return;
+    setInternalGradeId((current) =>
       current && grades.some((grade) => grade.grade_id === current)
         ? current
         : grades[0]?.grade_id ?? "",
     );
-  }, [grades]);
+  }, [grades, controlledGradeId]);
+
+  useEffect(() => {
+    if (controlledGradeId === undefined) return;
+    if (controlledGradeId && grades.some((g) => g.grade_id === controlledGradeId)) return;
+    if (grades[0]?.grade_id) onGradeChange?.(grades[0].grade_id);
+  }, [controlledGradeId, grades, onGradeChange]);
 
   const availableYears = useMemo(() => {
     const years = new Map<string, string>();
     details.forEach(({ structure }) => {
       years.set(structure.academic_year_id, structure.academic_year_code);
     });
-    return [...years.entries()].sort((a, b) => b[1].localeCompare(a[1]));
+    return [...years.entries()].sort((a, b) =>
+      academicYearSortKey(b[1]).localeCompare(academicYearSortKey(a[1])),
+    );
   }, [details]);
 
-  const yearDetails = details.filter(
-    ({ structure }) => structure.academic_year_id === selectedYearId,
-  );
-  const visibleItems = yearDetails.flatMap(({ structure, items }) =>
-    items
-      .filter((item) => !selectedGradeId || !item.grade_id || item.grade_id === selectedGradeId)
-      .map((item) => ({ structure, item })),
-  );
+  const selectedYearCode = availableYears.find(([id]) => id === selectedYearId)?.[1] ?? "";
+
+  const { visibleItems, feeFallbackNote } = useMemo(() => {
+    const filterItems = (rows: FeeDetails[]) =>
+      rows.flatMap(({ structure, items }) =>
+        items
+          .filter((item) => !selectedGradeId || !item.grade_id || item.grade_id === selectedGradeId)
+          .map((item) => ({ structure, item })),
+      );
+
+    let yearDetails = details.filter(
+      ({ structure }) => structure.academic_year_id === selectedYearId,
+    );
+    let items = filterItems(yearDetails);
+    if (items.length) {
+      return { visibleItems: items, feeFallbackNote: null as string | null };
+    }
+
+    if (yearCodesMatch(PRIMARY_FEE_YEARS, selectedYearCode)) {
+      for (const fallbackCode of FALLBACK_FEE_YEARS) {
+        const fallbackDetails = details.filter(({ structure }) =>
+          yearCodesMatch([fallbackCode], structure.academic_year_code),
+        );
+        const fallbackItems = filterItems(fallbackDetails);
+        if (fallbackItems.length) {
+          return {
+            visibleItems: fallbackItems,
+            feeFallbackNote: `2026–27 fees are shown using published ${formatAcademicYearLabel(fallbackCode)} values until the school publishes the current session.`,
+          };
+        }
+      }
+    }
+
+    return { visibleItems: items, feeFallbackNote: null };
+  }, [details, selectedGradeId, selectedYearCode, selectedYearId]);
 
   if (loading) {
     return <p className="empty-state" role="status"><LoaderCircle className="spin" size={16} /> Loading published fees…</p>;
@@ -121,7 +193,12 @@ export default function SchoolFeeSummary({
     return <p className="empty-state"><CheckCircle2 size={16} />No published fee schedule is available yet. Fee details appear here after the school activates and publishes its schedule.</p>;
   }
 
-  const selectedGradeName = grades.find((grade) => grade.grade_id === selectedGradeId)?.grade_name;
+  const selectedGradeName = formatGradeLabel(
+    grades.find((grade) => grade.grade_id === selectedGradeId)?.grade_name ?? "",
+  );
+  const selectedYearLabel = formatAcademicYearLabel(
+    availableYears.find(([id]) => id === selectedYearId)?.[1],
+  );
 
   return (
     <div className="fee-summary">
@@ -135,7 +212,9 @@ export default function SchoolFeeSummary({
             Academic year
             <span className="fee-summary__select-wrap">
               <select value={selectedYearId} onChange={(event) => setSelectedYearId(event.target.value)}>
-                {availableYears.map(([id, code]) => <option key={id} value={id}>{code}</option>)}
+                {availableYears.map(([id, code]) => (
+                  <option key={id} value={id}>{formatAcademicYearLabel(code)}</option>
+                ))}
               </select>
               <ChevronDown size={16} aria-hidden />
             </span>
@@ -145,7 +224,11 @@ export default function SchoolFeeSummary({
             <span className="fee-summary__select-wrap">
               <select value={selectedGradeId} onChange={(event) => setSelectedGradeId(event.target.value)}>
                 {!grades.length && <option value="">All grades</option>}
-                {grades.map((grade) => <option key={grade.grade_id} value={grade.grade_id}>{grade.grade_name}</option>)}
+                {grades.map((grade) => (
+                  <option key={grade.grade_id} value={grade.grade_id}>
+                    {formatGradeLabel(grade.grade_name)}
+                  </option>
+                ))}
               </select>
               <ChevronDown size={16} aria-hidden />
             </span>
@@ -154,8 +237,9 @@ export default function SchoolFeeSummary({
       </div>
 
       <h4 className="fee-summary__subheading">
-        {selectedGradeName || "All grades"} — Academic Year {availableYears.find(([id]) => id === selectedYearId)?.[1]}
+        {selectedGradeName || "All grades"} — Academic Year {selectedYearLabel || "2026-27"}
       </h4>
+      {feeFallbackNote && <p className="fee-summary__note">{feeFallbackNote}</p>}
 
       {visibleItems.length ? (
         <div className="fee-summary__table-wrap">

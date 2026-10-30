@@ -2,7 +2,17 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, fetchAllPages, geography, schools } from "@/lib/api";
 import type { BoardListItem, CityListItem, CountryListItem, LocationListItem, SchoolDetail, SchoolTypeListItem, StateListItem } from "@/lib/api";
-import { homeSchoolCategoryFromValue, homeSchoolTypeIds, schoolCategorySegment, schoolTypeCategory, schoolTypeLabel, toSeoSlug, withTrailingSlash, type HomeSchoolCategory } from "@/lib/seo-slugs";
+import {
+  homeSchoolCategoryFromValue,
+  homeSchoolTypeIds,
+  schoolCategorySegment,
+  schoolProfilePathFromSlugs,
+  schoolTypeCategory,
+  schoolTypeLabel,
+  toSeoSlug,
+  withTrailingSlash,
+  type HomeSchoolCategory,
+} from "@/lib/seo-slugs";
 import SchoolProfile, { schoolProfilePath } from "@/components/SchoolProfile";
 import SchoolDiscovery from "@/components/SchoolDiscovery";
 import { listingCopy, pageMetadata } from "@/lib/seo";
@@ -11,6 +21,13 @@ import { isSchoolSectionId, schoolSectionPath, schoolSectionSeo, type SchoolSect
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
 import { indiaRegionBySlug } from "@/lib/india-regions";
+import {
+  isSchoolProfileSegmentPath,
+  profileSegmentsWithoutTypeSuffix,
+  schoolGeographyMatchesProfilePath,
+  schoolSlugFromProfileSegments,
+  schoolSlugMatchesProfilePath,
+} from "@/lib/school-profile-route";
 
 export const dynamic = "force-dynamic";
 
@@ -186,13 +203,40 @@ function splitSchoolSection(segments: string[]): { schoolSegments: string[]; sec
 }
 
 /**
- * School profiles use [school-slug, localitySlug?, citySlug, stateSlug, countrySlug].
+ * School profiles use [school-slug, localitySlug?, citySlug, stateSlug, countrySlug],
+ * or legacy [countrySlug, stateSlug, citySlug, schoolSlug].
  * Six-segment paths with a type suffix are accepted only to redirect old URLs.
  */
-function isNewSchoolPath(segments: string[]): boolean {
-  if (segments.length === 4 || segments.length === 5) return true;
+function isLegacySchoolPathWithTypeSuffix(segments: string[]): boolean {
   const last = segments[segments.length - 1]?.toLowerCase();
   return segments.length === 6 && (last === "boarding-school" || last === "day-school");
+}
+
+async function loadSchoolProfileForRequest(
+  rawSegments: string[],
+  schoolSegments: string[],
+  schoolSection: SchoolSectionId | undefined,
+  enquiryRoute: boolean,
+): Promise<SchoolDetail | null> {
+  const slug = schoolSlugFromProfileSegments(schoolSegments);
+  if (!slug) return null;
+  try {
+    const school = await schools.bySlug(slug);
+    if (!schoolSlugMatchesProfilePath(school, schoolSegments)) {
+      redirect(schoolProfilePath(school));
+    }
+    if (!schoolGeographyMatchesProfilePath(school, schoolSegments)) {
+      redirect(schoolProfilePath(school));
+    }
+    const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
+    if (requestedSchoolPath(rawSegments) !== expectedPath) {
+      redirect(expectedPath);
+    }
+    return school;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /**
@@ -402,9 +446,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   }
   const schoolRouteSegments = enquiryRoute ? segments.slice(0, -1) : segments;
   const { schoolSegments, section: schoolSection } = splitSchoolSection(schoolRouteSegments);
-  if (isNewSchoolPath(schoolSegments)) {
+  const profileSlug = schoolSlugFromProfileSegments(schoolSegments);
+  if (profileSlug) {
     try {
-      return schoolPageMetadata(await schools.bySlug(schoolSegments[0]!), schoolSection);
+      return schoolPageMetadata(await schools.bySlug(profileSlug), schoolSection);
     } catch (error) {
       if (!(error instanceof ApiError && error.status === 404)) {
         return unavailableMetadata("School profile | BoardingEdu");
@@ -414,19 +459,6 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
       return schoolPageMetadata(await schools.bySlug(schoolSegments[3]!), schoolSection);
-    } catch {
-      return unavailableMetadata("School profile | BoardingEdu");
-    }
-  }
-  // Trailing school-type suffixes (…/boarding-school, …/day-school) are listings, not school slugs.
-  const isCategorySuffix = ["day-school", "boarding-school", "boarding-schools", "residential-school"].includes(schoolSegments[schoolSegments.length - 1]?.toLowerCase() ?? "");
-  if (
-    !isCategorySuffix &&
-    (schoolSegments.length === 4 || schoolSegments.length === 5) &&
-    !["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")
-  ) {
-    try {
-      return schoolPageMetadata(await schools.bySlug(schoolSegments[schoolSegments.length - 1]!), schoolSection);
     } catch {
       return unavailableMetadata("School profile | BoardingEdu");
     }
@@ -567,20 +599,23 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       );
     }
   }
-  if (isNewSchoolPath(schoolSegments)) {
-    try {
-      const school = await schools.bySlug(schoolSegments[0]!);
-      const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
-      if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+  if (isSchoolProfileSegmentPath(schoolSegments) || isLegacySchoolPathWithTypeSuffix(schoolSegments)) {
+    const profileSegments = profileSegmentsWithoutTypeSuffix(schoolSegments);
+    const school = await loadSchoolProfileForRequest(
+      segments,
+      profileSegments,
+      schoolSection,
+      enquiryRoute,
+    );
+    if (school) {
       return (
         <SchoolProfile
+          key={school.school_id}
           school={school}
           initialSection={schoolSection ?? "overview"}
           initialEnquiryOpen={enquiryRoute}
         />
       );
-    } catch (error) {
-      if (!(error instanceof ApiError && error.status === 404)) throw error;
     }
   }
   const boardPathCategory = segments.length === 3 ? homeSchoolCategoryFromValue(segments[2]?.toLowerCase()) : null;
@@ -813,26 +848,6 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     );
   }
 
-  if (
-    (schoolSegments.length === 4 || schoolSegments.length === 5) &&
-    !["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")
-  ) {
-    try {
-      const school = await schools.bySlug(schoolSegments[schoolSegments.length - 1]!);
-      const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
-      if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
-      return (
-        <SchoolProfile
-          school={school}
-          initialSection={schoolSection ?? "overview"}
-          initialEnquiryOpen={enquiryRoute}
-        />
-      );
-    } catch (error) {
-      if (!(error instanceof ApiError && error.status === 404)) throw error;
-    }
-  }
-
   if (schoolSegments.length === 4 && ["boarding", "dayschool", "fullboarding"].includes(schoolSegments[2] ?? "")) {
     try {
       const school = await schools.bySlug(schoolSegments[3]!);
@@ -840,6 +855,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
       return (
         <SchoolProfile
+          key={school.school_id}
           school={school}
           initialSection={schoolSection ?? "overview"}
           initialEnquiryOpen={enquiryRoute}
@@ -861,6 +877,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
         if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
         return (
           <SchoolProfile
+            key={school.school_id}
             school={school}
             initialSection={schoolSection ?? "overview"}
             initialEnquiryOpen={enquiryRoute}

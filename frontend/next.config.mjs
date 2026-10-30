@@ -12,6 +12,16 @@ const siteHost = configuredSiteHost.replace(/^www\./i, "");
 
 const nextConfig = {
   trailingSlash: true,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "boardingedu.com", pathname: "/media/**" },
+      { protocol: "https", hostname: "www.boardingedu.com", pathname: "/media/**" },
+      { protocol: "https", hostname: "media.boardingeu.com", pathname: "/**" },
+      { protocol: "https", hostname: "*.up.railway.app", pathname: "/**" },
+      { protocol: "http", hostname: "127.0.0.1", pathname: "/**" },
+      { protocol: "http", hostname: "localhost", pathname: "/**" },
+    ],
+  },
   async redirects() {
     // Canonical host: every public URL is served from https://www.<domain>/… so
     // the apex domain permanently redirects to the `www.` host.
@@ -25,10 +35,15 @@ const nextConfig = {
     ];
   },
   async rewrites() {
+    const backendOrigin = apiBase.replace(/\/api\/?$/, "");
     return [
       {
         source: "/backend-api/:path*",
         destination: `${apiBase}/:path*/`,
+      },
+      {
+        source: "/media/schools/:path*",
+        destination: `${backendOrigin}/media/schools/:path*`,
       },
     ];
   },

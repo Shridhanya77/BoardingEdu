@@ -46,8 +46,10 @@ import SchoolFaqList from "./SchoolFaqList";
 import FeaturedSchoolCards from "./home/FeaturedSchoolCards";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
+import { buildProfileGalleryPhotos } from "@/lib/profile-media";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
-import SchoolFeeSummary from "./SchoolFeeSummary";
+import SchoolFeesAndGrades from "./SchoolFeesAndGrades";
+import SchoolFacilitiesInteractive from "./SchoolFacilitiesInteractive";
 import SchoolEnquiryProvider from "./SchoolEnquiryDialog";
 import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
 import SchoolReviews from "./SchoolReviews";
@@ -217,15 +219,15 @@ export default async function SchoolProfile({
     school.state_detail.state_name,
     school.country_detail.country_name,
   ].filter(Boolean).join(", ");
-  const latitude = school.lat ?? Number.NaN;
-  const longitude = school.lng ?? Number.NaN;
+  const latitude = Number(school.lat);
+  const longitude = Number(school.lng);
   const hasCoordinates =
     Number.isFinite(latitude) &&
     Number.isFinite(longitude) &&
     Math.abs(latitude) <= 90 &&
     Math.abs(longitude) <= 180;
   const mapFrameUrl = hasCoordinates
-    ? `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01}%2C${latitude - 0.01}%2C${longitude + 0.01}%2C${latitude + 0.01}&layer=mapnik&marker=${latitude}%2C${longitude}`
+    ? `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&hl=en&output=embed`
     : null;
   const travelOptions = [
     { label: "Railway station", query: "railway station", Icon: Train },
@@ -367,9 +369,10 @@ export default async function SchoolProfile({
       : null;
   const structuredData = JSON.stringify(schoolJsonLd(school, { breadcrumbs, aggregateRating })).replace(/</g, "\\u003c");
   const faqStructuredData = JSON.stringify(faqJsonLd(profileFaqs)).replace(/</g, "\\u003c");
+  const galleryPhotos = buildProfileGalleryPhotos(school);
 
   return (
-    <main className="school-detail-page">
+    <main className="school-detail-page school-detail-page--polished">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
       <SchoolEnquiryProvider school={school} initialOpen={initialEnquiryOpen}>
@@ -512,72 +515,25 @@ export default async function SchoolProfile({
               )}
             </article>
 
-            <article className="detail-panel" id="fees">
-              <div className="detail-panel__heading">
-                <span className="detail-panel__icon"><Landmark size={18} /></span>
-                <div><h2>Fees</h2></div>
-              </div>
-              <SchoolFeeSummary
-                schoolId={school.school_id}
-                grades={school.grades_offered_detail.map(({ grade_id, grade_name }) => ({ grade_id, grade_name }))}
-              />
-            </article>
+            <SchoolFeesAndGrades
+              schoolId={school.school_id}
+              grades={school.grades_offered_detail.map((g) => ({
+                grade_id: g.grade_id,
+                grade_name: g.grade_name,
+                sort_order: g.sort_order,
+              }))}
+            />
 
-            <article className="detail-panel" id="admissions">
-              <div className="detail-panel__heading">
-                <span className="detail-panel__icon"><GraduationCap size={18} /></span>
-                <div>
-                  <h2>Grades</h2>
-                </div>
-              </div>
-              {school.grades_offered_detail.length === 0 ? (
-                <p className="empty-state"><BookOpen size={16} /> Contact the school to confirm which grades they currently offer.</p>
-              ) : (
-                <ul className="grades-offered grades-offered--ribbon">
-                  {school.grades_offered_detail.map((g) =>
-                    gradeBadge(g.grade_name, g.seats_available, [g.entry_age_min, g.entry_age_max])
-                  )}
-                </ul>
-              )}
-            </article>
-
-            {/* ===== SECTION 3: FACILITIES (NEW) ===== */}
             <article className="detail-panel" id="facilities">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Star size={18} /></span>
                 <div>
                   <h2>Campus &amp; facilities</h2>
-                  {school.facilities_detail.length === 0 && (
-                    <p>Facilities have not yet been published for this school.</p>
-                  )}
+                  <p>Tap a facility to see details.</p>
                 </div>
               </div>
               <span id="infrastructure" className="school-detail__section-anchor" />
-
-              {school.facilities_detail.length === 0 ? (
-                <p className="empty-state"><Star size={16} /> Facilities info coming soon.</p>
-              ) : (
-                <div className="facility-groups">
-                  {[...facilitiesByCategory.entries()].map(([category, list]) => (
-                    <section key={category} className="facility-group">
-                      <h3>{category}</h3>
-                      <ul>
-                        {list.map((f) => {
-                          const { Icon, tone } = facilityAppearance(f.facility_name, f.category);
-                          return (
-                            <li key={f.school_facility_id} className={`facility facility--${tone}`}>
-                              <span className="facility__name">
-                                <span className="facility__icon"><Icon size={18} aria-hidden="true" /></span>
-                                {f.facility_name}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </section>
-                  ))}
-                </div>
-              )}
+              <SchoolFacilitiesInteractive facilitiesByCategory={[...facilitiesByCategory.entries()]} />
             </article>
 
             <section className="detail-panel school-detail__media-panel" id="media">
@@ -585,23 +541,9 @@ export default async function SchoolProfile({
                 <span className="detail-panel__icon"><BookOpen size={18} /></span>
                 <div><h2>Photos &amp; videos</h2><p>Explore the campus and school life.</p></div>
               </div>
-              {(school.school_image_url || school.photos_detail?.length) ? (
+              {galleryPhotos.length ? (
                 <SchoolPhotoGallery
-                  photos={[
-                    ...(school.school_image_url
-                      ? [{
-                          photo_id: "school-cover",
-                          photo_url: school.school_image_url,
-                          caption: "",
-                          alt_text: `${school.school_name} campus`,
-                          category: "CAMPUS",
-                          sort_order: 0,
-                        }]
-                      : []),
-                    ...(school.photos_detail ?? []).filter(
-                      (photo) => photo.photo_url !== school.school_image_url,
-                    ),
-                  ]}
+                  photos={galleryPhotos}
                   schoolName={school.school_name}
                 />
               ) : (

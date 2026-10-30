@@ -4,6 +4,7 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.db.models import (
     Avg, Count, DecimalField, F, FloatField, IntegerField, OuterRef, Prefetch,
@@ -18,6 +19,7 @@ from apps.reviews.models import Review
 from config.pagination import SchoolDirectoryPagination
 from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
 from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
+from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
@@ -554,7 +556,11 @@ class SchoolViewSet(ReadWriteModelViewSet):
         Usage: GET /api/schools/schools/by-slug/doon-public-school/
         """
         queryset = self.filter_queryset(self.get_queryset()).filter(status=True)
-        school = get_object_or_404(queryset, slug=slug)
+        school = queryset.filter(slug=slug).first()
+        if school is None and slug:
+            school = queryset.filter(slug__iexact=slug).first()
+        if school is None:
+            raise Http404
         serializer = self.get_serializer(school)
         return Response(serializer.data)
 

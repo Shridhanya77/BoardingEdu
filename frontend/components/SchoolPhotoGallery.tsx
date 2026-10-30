@@ -94,16 +94,21 @@ export default function SchoolPhotoGallery({
             {activePhoto.caption || "Campus photo is currently unavailable."}
           </p>
         ) : (
-          <Image
-            key={activePhoto.photo_id}
-            src={activePhoto.photo_url}
-            alt={activePhoto.alt_text || `${schoolName} campus`}
-            fill
-            priority={selectedIndex === 0}
-            sizes="(max-width: 900px) 100vw, 1060px"
-            unoptimized
-            onError={() => markImageFailed(activePhoto.photo_id)}
-          />
+          <>
+            <Image
+              key={activePhoto.photo_id}
+              src={activePhoto.photo_url}
+              alt={activePhoto.alt_text || `${schoolName} campus`}
+              fill
+              priority={selectedIndex === 0}
+              sizes="(max-width: 900px) 100vw, 1060px"
+              unoptimized
+              onError={() => markImageFailed(activePhoto.photo_id)}
+            />
+            {activePhoto.photo_id !== "school-cover" && (
+              <span className="school-detail__gallery-watermark" aria-hidden="true" />
+            )}
+          </>
         )}
 
         {visiblePhotos.length > 1 && (
