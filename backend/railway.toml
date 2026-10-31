@@ -1,0 +1,10 @@
+# Railway service settings when Root Directory = backend (recommended).
+[build]
+builder = "NIXPACKS"
+buildCommand = "chmod +x ./build.sh && ./build.sh"
+
+[deploy]
+startCommand = "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"

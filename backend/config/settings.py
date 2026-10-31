@@ -19,7 +19,7 @@ ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
         "ALLOWED_HOSTS",
-        "localhost,127.0.0.1,boardingedu-production-4144.up.railway.app,boardingedu-6ng7.onrender.com"
+        "localhost,127.0.0.1,.up.railway.app,boardingedu-production-ac84.up.railway.app,boardingedu-production-4144.up.railway.app,boardingedu-6ng7.onrender.com"
     ).split(",")
     if host.strip()
 ]
@@ -191,6 +191,21 @@ if DEBUG:
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
 if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+RAILWAY_PUBLIC_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+RAILWAY_STATIC_URL = os.getenv("RAILWAY_STATIC_URL", "").strip()
+if RAILWAY_STATIC_URL:
+    try:
+        from urllib.parse import urlparse
+
+        railway_host = urlparse(RAILWAY_STATIC_URL).hostname
+        if railway_host and railway_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(railway_host)
+    except ValueError:
+        pass
 
 
 # Allowed frontend origins
