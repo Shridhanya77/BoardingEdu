@@ -28,7 +28,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { fetchAllPages, geography, reviews, schools } from "@/lib/api";
+import { fetchAllPages, geography, reviews, schools, apiErrorMessage } from "@/lib/api";
 import type {
   BoardListItem,
   CityListItem,
@@ -115,7 +115,7 @@ type IndiaRegionBrowseItem = {
 
 const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 4;
 
 const orderingOptions: Record<
   string,
@@ -1438,15 +1438,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return;
     }
     let cancelled = false;
-    if (requiresIndiaRegion) {
-      setResults([]);
-      setTotalCount(0);
-      setLoading(false);
-      setError(null);
-      return () => {
-        cancelled = true;
-      };
-    }
     if (geoRegion && citiesLoading) return () => {
       cancelled = true;
     };
@@ -1495,7 +1486,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       ordering,
       is_featured: locationScoped ? false : undefined,
       page: page > 1 ? page : undefined,
-      page_size: locationScoped ? PAGE_SIZE - 1 : PAGE_SIZE,
+      page_size: PAGE_SIZE,
     };
 
     activeQuery.current = queryKey;
@@ -1549,7 +1540,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       } catch (reason: unknown) {
         if (cancelled) return;
 
-        const message = reason instanceof Error ? reason.message : "Could not load schools.";
+        const message = apiErrorMessage(reason);
         if (page === 1) {
           setResults([]);
           setTotalCount(0);
@@ -1584,7 +1575,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [error, hasMoreResults, isHomePage, loadMoreError, loading]);
+  }, [error, hasMoreResults, isHomePage, loadMoreError, loading, results.length, page]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -3602,7 +3593,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           </aside>
 
-          {!requiresIndiaRegion && <div className="school-results">
+          <div className="school-results">
+            {requiresIndiaRegion && !geoRegion && (
+              <div className="listing-region-hint" role="status">
+                <MapPin size={18} aria-hidden />
+                <div>
+                  <strong>Browse all of India</strong>
+                  <p>
+                    Schools load below. Optional: pick a region to narrow results faster.
+                  </p>
+                </div>
+                <button type="button" className="listing-region-hint__action" onClick={() => setRegionPickerOpen(true)}>
+                  Choose region
+                </button>
+              </div>
+            )}
             <div className="school-results__toolbar">
               <button
                 ref={filterTriggerRef}
@@ -3759,20 +3764,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
             {!error && results.length > 0 && (
               <>
-                {schoolView === "grid" && results.length >= 2 && (
-                  <div className="listing-spotlight-grid" aria-label="Highlighted schools">
-                    {results.slice(0, 4).map((school) => (
-                      <SchoolCard
-                        key={`spotlight-${school.school_id}`}
-                        school={school}
-                        selectedBoards={board}
-                        selectedSchoolTypes={schoolType}
-                      />
-                    ))}
-                  </div>
-                )}
-                <div className={`school-list school-list--${schoolView}`}>
-                  {(schoolView === "grid" ? results.slice(4) : results).map((school) => (
+                <div className={`school-list school-list--${schoolView} school-list--listing`}>
+                  {results.map((school) => (
                     <SchoolCard
                       key={school.school_id}
                       school={school}
@@ -3793,15 +3786,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                         Retry loading schools
                       </button>
                     </>
-                  ) : loading ? (
+                  ) : loading && page > 1 ? (
                     <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
-                  ) : totalCount > PAGE_SIZE ? (
-                    <p>You&apos;ve viewed all {totalCount} schools.</p>
-                  ) : null}
+                  ) : hasMoreResults ? (
+                    <p className="school-load-more__hint">Scroll down to load the next {PAGE_SIZE} schools</p>
+                  ) : (
+                    <p>You&apos;ve seen all {totalCount} schools in this search.</p>
+                  )}
                 </div>
               </>
             )}
-          </div>}
+          </div>
           <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading">
             <div className="top-boarding-schools__heading">
               <span className="section-eyebrow">TOP PICKS</span>
