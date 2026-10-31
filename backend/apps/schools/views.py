@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.db.models import (
-    Avg, Count, DecimalField, F, FloatField, IntegerField, OuterRef, Prefetch,
-    Q, Subquery, Sum,
+    Avg, Case, Count, DecimalField, F, FloatField, IntegerField, Min, OuterRef, Prefetch,
+    Q, Subquery, Sum, When, Value,
 )
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
@@ -228,17 +228,51 @@ class SchoolFilter(django_filters.FilterSet):
 
     @staticmethod
     def annual_fee_subquery():
-        return (
-            FeeItem.objects.filter(
-                fee_structure__school_id=OuterRef('pk'),
-                fee_structure__status=True,
-                fee_structure__published=True,
-                fee_structure__academic_year__is_current=True,
+        """Starting yearly tuition, not the sum of every class and one-time fee."""
+        amount_field = DecimalField(max_digits=14, decimal_places=2)
+        annualized = Case(
+            When(payment_frequency="MONTHLY", then=F("amount") * Value(12)),
+            When(payment_frequency="QUARTERLY", then=F("amount") * Value(4)),
+            When(payment_frequency="HALF_YEARLY", then=F("amount") * Value(2)),
+            When(payment_frequency="TERM", then=F("amount") * Value(3)),
+            When(payment_frequency="ANNUAL", then=F("amount")),
+            default=None,
+            output_field=amount_field,
+        )
+        published = Q(
+            fee_structure__school_id=OuterRef("pk"),
+            fee_structure__status=True,
+            fee_structure__published=True,
+            amount__isnull=False,
+        ) & (
+            Q(fee_structure__academic_year__is_current=True)
+            | Q(fee_structure__academic_year__year_code__in=["2026-2027", "2026-27"])
+        )
+        tuition = (
+            Q(item_name__icontains="tuition")
+            | Q(item_name__icontains="composite")
+            | Q(item_name__icontains="annual fee")
+        )
+
+        def min_annual(extra=None):
+            qs = FeeItem.objects.filter(published).exclude(
+                payment_frequency__in=["ONE_TIME", "BY_DISTANCE", "DYNAMIC"],
             )
-            .order_by()
-            .values('fee_structure__school_id')
-            .annotate(total=Sum('amount'))
-            .values('total')[:1]
+            if extra is not None:
+                qs = qs.filter(extra)
+            return (
+                qs.annotate(_annual=annualized)
+                .filter(_annual__isnull=False)
+                .order_by()
+                .values("fee_structure__school_id")
+                .annotate(total=Min("_annual"))
+                .values("total")[:1]
+            )
+
+        return Coalesce(
+            Subquery(min_annual(tuition), output_field=amount_field),
+            Subquery(min_annual(), output_field=amount_field),
+            output_field=amount_field,
         )
 
     def _filter_fee(self, queryset, lookup, value):
@@ -246,10 +280,7 @@ class SchoolFilter(django_filters.FilterSet):
             return queryset
         if 'annual_fee' not in queryset.query.annotations:
             queryset = queryset.annotate(
-                annual_fee=Subquery(
-                    self.annual_fee_subquery(),
-                    output_field=DecimalField(max_digits=12, decimal_places=2),
-                )
+                annual_fee=self.annual_fee_subquery(),
             )
         return queryset.filter(**{f'annual_fee__{lookup}': value})
 
@@ -334,10 +365,7 @@ class SchoolViewSet(ReadWriteModelViewSet):
             ),
         )
         .annotate(
-            annual_fee=Subquery(
-                SchoolFilter.annual_fee_subquery(),
-                output_field=DecimalField(max_digits=12, decimal_places=2),
-            ),
+            annual_fee=SchoolFilter.annual_fee_subquery(),
             average_rating=Subquery(
                 Review.objects.filter(
                     school=OuterRef('pk'),

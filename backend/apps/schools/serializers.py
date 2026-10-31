@@ -11,7 +11,7 @@ from apps.geography.serializers import (
     LocationListSerializer,
 )
 
-from config.school_media import SchoolMediaUrlMixin
+from config.school_media import SchoolMediaUrlMixin, cover_image_url_for_school, rewrite_school_media_url
 
 from .models import (
     Board,
@@ -273,6 +273,7 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         read_only=True,
     )
     annual_fee = serializers.SerializerMethodField()
+    school_image_url = serializers.SerializerMethodField()
     school_photos = serializers.SerializerMethodField()
     videos_count = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
@@ -365,8 +366,9 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         return str(board.board_id) if board else None
 
     def get_board_name(self, obj):
+        from .display import board_label
         board, _ = self._first_classifications(obj)
-        return board.board_name if board else None
+        return board_label(board) if board else None
 
     def get_school_type_id(self, obj):
         _, school_type = self._first_classifications(obj)
@@ -378,6 +380,12 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
 
     def get_annual_fee(self, obj):
         return getattr(obj, 'annual_fee', None)
+
+    def get_school_image_url(self, obj):
+        return rewrite_school_media_url(
+            cover_image_url_for_school(obj),
+            self.context.get("request"),
+        )
 
     def get_school_photos(self, obj):
         photos = getattr(obj, 'active_photos', None)
@@ -407,10 +415,9 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         return int(value) if value is not None else 0
 
     def get_grades_range(self, obj):
-        """Human readable class range, e.g. "LKG - 12".
+        """Human readable class range, e.g. "Nursery - Class 12"."""
+        from .display import format_grade_label, grade_sort_value
 
-        Uses the ``school_grades`` prefetch so the listing stays at one query.
-        """
         school_grades = getattr(obj, 'school_grades', None)
         if school_grades is None:
             return None
@@ -421,12 +428,13 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         ]
         if not grades:
             return None
-        # sort_order is the canonical ordering for classes (LKG, UKG, 1..12).
-        first = min(grades, key=lambda grade: (grade.sort_order, grade.grade_name))
-        last = max(grades, key=lambda grade: (grade.sort_order, grade.grade_name))
-        if first.grade_name == last.grade_name:
-            return first.grade_name
-        return f"{first.grade_name} - {last.grade_name}"
+        first = min(grades, key=grade_sort_value)
+        last = max(grades, key=grade_sort_value)
+        start = format_grade_label(first.grade_name, first.grade_code)
+        end = format_grade_label(last.grade_name, last.grade_code)
+        if start == end:
+            return start
+        return f"{start} - {end}"
 
 
 class SchoolPhotoListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
@@ -503,6 +511,7 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     school_type_detail = serializers.SerializerMethodField()
 
     grades_offered_detail = serializers.SerializerMethodField()
+    school_image_url = serializers.SerializerMethodField()
     facilities_detail = serializers.SerializerMethodField()
     photos_detail = serializers.SerializerMethodField()
     videos_detail = serializers.SerializerMethodField()
@@ -604,6 +613,12 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     def get_seo_keywords(self, obj):
         return school_seo_keywords(obj)
 
+    def get_school_image_url(self, obj):
+        return rewrite_school_media_url(
+            cover_image_url_for_school(obj),
+            self.context.get("request"),
+        )
+
     def get_board(self, obj):
         board, _ = self._first_classifications(obj)
         return str(board.board_id) if board else None
@@ -639,20 +654,25 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
 
         result = []
 
+        from .display import format_grade_label, grade_sort_value
+
+        ordered = []
         for school_grade in grades:
             if not school_grade.is_active:
                 continue
-
             grade = school_grade.grade
+            ordered.append((grade_sort_value(grade), school_grade, grade))
+        ordered.sort(key=lambda row: row[0])
 
+        for _, school_grade, grade in ordered:
             result.append({
                 'school_grade_id': str(
                     school_grade.school_grade_id
                 ),
                 'grade_id': str(grade.grade_id),
                 'grade_code': grade.grade_code,
-                'grade_name': grade.grade_name,
-                'sort_order': grade.sort_order,
+                'grade_name': format_grade_label(grade.grade_name, grade.grade_code),
+                'sort_order': grade_sort_value(grade)[0],
                 'seats_available': school_grade.seats_available,
                 'entry_age_min': school_grade.entry_age_min,
                 'entry_age_max': school_grade.entry_age_max,

@@ -185,9 +185,20 @@ class School(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            from .utils import unique_school_slug
-            self.slug = unique_school_slug(self.school_name)
+        from .slug_utils import seo_slug
+        from .utils import unique_school_slug
+        import re
+
+        normalized = seo_slug(self.slug) if self.slug else ""
+        uuid_like = bool(re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            (self.slug or ""),
+            flags=re.I,
+        ))
+        if not normalized or uuid_like:
+            self.slug = unique_school_slug(self.school_name, self.school_id if self.pk else None)
+        elif normalized != self.slug:
+            self.slug = unique_school_slug(self.slug, self.school_id if self.pk else None)
         super().save(*args, **kwargs)
 
     def __str__(self):

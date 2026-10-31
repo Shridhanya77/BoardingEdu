@@ -24,6 +24,9 @@ school list, and exposes the audit history as read-only.
 ## School images
 
 School logo, campus image, and gallery image fields in the Django admin accept
-public image URLs. Upload files to a storage provider of your choice and paste
-the resulting URL into the corresponding field. This project does not upload,
-store, or serve school image files.
+image URLs. The API rewrites school media URLs to `/media/schools/<filename>`
+and serves those images from Cloudflare R2; it does not accept file uploads or
+store media on the application filesystem. Configure the `CLOUDFLARE_R2_*`
+variables listed in `.env.example` and upload each image to the bucket at
+`schools/<filename>`, matching the filename in the school record. Railway's
+local filesystem is ephemeral and should not be used for persistent images.

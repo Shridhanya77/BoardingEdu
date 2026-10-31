@@ -39,7 +39,9 @@ import FeaturedSchoolCards from "./home/FeaturedSchoolCards";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import { buildProfileGalleryPhotos } from "@/lib/profile-media";
-import { publicSchoolImageUrl } from "@/lib/school-media";
+import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
+import { boardLabel, boardsAffiliatedLabel } from "@/lib/board-labels";
+import { formatGradesRange } from "@/lib/grade-labels";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeesAndGrades from "./SchoolFeesAndGrades";
 import SchoolFacilitiesInteractive from "./SchoolFacilitiesInteractive";
@@ -86,6 +88,7 @@ export function schoolProfilePath(school: SchoolDetail) {
     citySlug: school.city_detail.slug,
     localitySlug: school.location_detail?.slug,
     schoolSlug: school.slug,
+    schoolName: school.school_name,
   });
 }
 
@@ -96,6 +99,7 @@ function listItemPath(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    schoolName: school.school_name,
   });
 }
 
@@ -161,8 +165,8 @@ export default async function SchoolProfile({
   initialSection?: SchoolSectionId;
   initialEnquiryOpen?: boolean;
 }) {
-  const schoolImage = publicSchoolImageUrl(school.school_logo_url || school.school_image_url);
-  const heroBackground = publicSchoolImageUrl(school.school_image_url || school.school_logo_url);
+  const schoolImage = publicSchoolImageUrl(school.school_logo_url);
+  const heroBackground = schoolCoverImageUrl(school);
   const [reviewData, nearbySchools] = await Promise.all([
     loadReviewData(school.school_id),
     loadNearbySchools(school),
@@ -255,7 +259,7 @@ export default async function SchoolProfile({
   // Stats chips
   const chips = [
     ...school.boards_detail.map((board) => ({
-      label: board.board_name,
+      label: boardLabel(board),
       icon: Landmark,
     })),
     ...school.school_types_detail.map((type) => ({
@@ -269,14 +273,7 @@ export default async function SchoolProfile({
     },
   ];
   // Quick-stats strip — only rendered for values that actually exist in the DB.
-  const orderedGrades = [...school.grades_offered_detail].sort(
-    (left, right) => left.sort_order - right.sort_order,
-  );
-  const classesRange = orderedGrades.length
-    ? orderedGrades[0].grade_name === orderedGrades[orderedGrades.length - 1].grade_name
-      ? orderedGrades[0].grade_name
-      : `${orderedGrades[0].grade_name} – ${orderedGrades[orderedGrades.length - 1].grade_name}`
-    : null;
+  const classesRange = formatGradesRange(school.grades_offered_detail);
   const quickStats = [
     {
       label: "Established",
@@ -286,7 +283,7 @@ export default async function SchoolProfile({
     { label: "Classes offered", value: classesRange, icon: GraduationCap },
     {
       label: "Education board",
-      value: school.boards_detail.map((board) => board.board_name).join(", ") || null,
+      value: boardsAffiliatedLabel(school.boards_detail) || null,
       icon: Landmark,
     },
     { label: "Student community", value: genderLabel(school.gender), icon: Users },
@@ -439,7 +436,7 @@ export default async function SchoolProfile({
                     ? school.school_types_detail.map((type) => schoolTypeLabel(type.type_code, type.slug, type.type_name).toLowerCase()).join(" and ")
                     : "school"
                 } in ${cityName}, ${stateName}${
-                  school.boards_detail.length ? `, following ${school.boards_detail.map((board) => board.board_name).join(" and ")}` : ""
+                  school.boards_detail.length ? `, following ${boardsAffiliatedLabel(school.boards_detail)}` : ""
                 }. View fees, facilities and admissions information.`
           ).slice(0, 180)}
           initialSection={initialSection}
@@ -462,7 +459,7 @@ export default async function SchoolProfile({
                         : "school"
                     } in ${location}${
                       school.boards_detail.length
-                        ? `, affiliated with ${school.boards_detail.map((board) => board.board_name).join(" and ")}`
+                        ? `, affiliated with ${boardsAffiliatedLabel(school.boards_detail)}`
                         : ""
                     }.`
                 }
@@ -496,7 +493,7 @@ export default async function SchoolProfile({
             <section className="detail-panel school-detail__media-panel" id="media">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><BookOpen size={18} /></span>
-                <div><h2>Photos &amp; videos</h2><p>Explore the campus and school life.</p></div>
+                <div><h2>Gallery</h2><p>Campus photographs of {school.school_name}.</p></div>
               </div>
               {galleryPhotos.length ? (
                 <SchoolPhotoGallery
@@ -665,7 +662,7 @@ export default async function SchoolProfile({
                     <span className="school-nearby-card__tags">
                       {item.boards_detail.slice(0, 2).map((board) => (
                         <span className="school-tag school-tag--blue" key={board.board_id}>
-                          {board.board_name}
+                          {boardLabel(board)}
                         </span>
                       ))}
                       {formatFee(item.annual_fee) && (

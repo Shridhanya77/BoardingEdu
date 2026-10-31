@@ -1,29 +1,32 @@
 import type { SchoolDetail } from "@/lib/api";
-import { publicSchoolImageUrl } from "@/lib/school-media";
+import { isCoverSchoolMedia, isLogoSchoolMedia, publicSchoolImageUrl } from "@/lib/school-media";
 
-export const MAX_PROFILE_GALLERY_PHOTOS = 6;
+export const MAX_PROFILE_GALLERY_PHOTOS = 12;
 
 type PhotoRow = SchoolDetail["photos_detail"][number];
 
-/** Cover + up to six gallery images (logo stays on the hero badge). */
+function photoKey(url: string): string {
+  return url.replace(/-(\d+)(?=\.(webp|jpe?g|png|gif|avif)$)/i, "").toLowerCase();
+}
+
+/** Campus gallery only: drop logos, the cover hero, watermarks, and exact duplicates. */
 export function buildProfileGalleryPhotos(school: SchoolDetail): PhotoRow[] {
-  const coverUrl = publicSchoolImageUrl(school.school_image_url);
-  const gallery = (school.photos_detail ?? [])
-    .map((photo) => ({ ...photo, photo_url: publicSchoolImageUrl(photo.photo_url) }))
-    .filter((photo) => photo.photo_url && photo.photo_url !== coverUrl)
+  const seen = new Set<string>();
+  const rows: PhotoRow[] = [];
+
+  for (const photo of school.photos_detail ?? []) {
+    const url = publicSchoolImageUrl(photo.photo_url);
+    if (!url) continue;
+    const blob = `${url} ${photo.caption ?? ""} ${photo.category ?? ""}`;
+    if (isLogoSchoolMedia(blob) || isCoverSchoolMedia(blob)) continue;
+    const key = photoKey(url);
+    if (seen.has(key) || seen.has(url)) continue;
+    seen.add(key);
+    seen.add(url);
+    rows.push({ ...photo, photo_url: url });
+  }
+
+  return rows
     .sort((a, b) => a.sort_order - b.sort_order)
     .slice(0, MAX_PROFILE_GALLERY_PHOTOS);
-
-  const rows: PhotoRow[] = [];
-  if (coverUrl) {
-    rows.push({
-      photo_id: "school-cover",
-      photo_url: coverUrl,
-      caption: "Campus cover",
-      alt_text: `${school.school_name} campus cover photo`,
-      category: "CAMPUS",
-      sort_order: -1,
-    });
-  }
-  return [...rows, ...gallery];
 }

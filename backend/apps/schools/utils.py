@@ -22,7 +22,8 @@ def slugify_url(text: str, max_length: int = 75) -> str:
 def unique_school_slug(base: str, school_id: UUID | None = None, max_attempts: int = 100) -> str:
     """Auto-generates unique slug: 'st-marys', 'st-marys-2', 'st-marys-3', ..."""
     from .models import School
-    base_slug = slugify_url(base)
+    from .slug_utils import seo_slug
+    base_slug = seo_slug(base) or slugify_url(base)
     if not base_slug:
         raise ValueError(f"Cannot generate slug from empty name: {base}")
     qs = School.objects.all()

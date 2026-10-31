@@ -29,7 +29,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography, reviews, schools, apiErrorMessage } from "@/lib/api";
-import { publicSchoolImageUrl } from "@/lib/school-media";
+import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
+import { boardsAffiliatedLabel } from "@/lib/board-labels";
 import type {
   BoardListItem,
   CityListItem,
@@ -87,6 +88,7 @@ function schoolHref(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    schoolName: school.school_name,
   });
 }
 
@@ -264,9 +266,7 @@ function SchoolCard({
     .join(", ");
 
   const href = schoolHref(school);
-  const coverImage = publicSchoolImageUrl(
-    school.school_image_url || school.school_photos?.[0]?.photo_url || "",
-  );
+  const coverImage = schoolCoverImageUrl(school);
   const logoImage = publicSchoolImageUrl(school.school_logo_url || "");
   const initials = (school.short_name || school.school_name).slice(0, 2).toUpperCase();
 
@@ -372,6 +372,20 @@ function SchoolCard({
           </div>
         </div>
 
+        <div className="school-card__facts">
+          {school.boards_detail.length > 0 && (
+            <p><span>Affiliated to</span> {boardsAffiliatedLabel(
+              school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
+            ) || boardsAffiliatedLabel(school.boards_detail)}</p>
+          )}
+          {school.grades_range && (
+            <p><span>Classes</span> {school.grades_range}</p>
+          )}
+          {school.annual_fee != null && Number(school.annual_fee) > 0 && (
+            <p><span>Annual fees</span> {formatRupees(Number(school.annual_fee))} onwards</p>
+          )}
+        </div>
+
         <div className="school-card__tags">
           {school.school_types_detail
             .filter((type) => !selectedSchoolTypes.length || selectedSchoolTypes.includes(type.school_type_id))
@@ -381,22 +395,9 @@ function SchoolCard({
             </span>
           ))}
 
-          {school.boards_detail
-            .filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id))
-            .map((item) => (
-            <span className="school-tag school-tag--blue" key={item.board_id}>
-              {item.board_name}
-            </span>
-          ))}
-
           {school.gender && (
             <span className="school-tag school-tag--plain">
               {school.gender}
-            </span>
-          )}
-          {school.annual_fee != null && (
-            <span className="school-tag school-tag--fee">
-              From {formatRupees(Number(school.annual_fee))} / year
             </span>
           )}
         </div>
@@ -2706,11 +2707,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="compare-promo__schools">
           {comparisonSchools.map((school) => {
             const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
-            const cover = publicSchoolImageUrl(
-              school.school_image_url ||
-              school.school_photos?.[0]?.photo_url ||
-              "",
-            );
+            const cover = schoolCoverImageUrl(school);
             return (
               <article key={school.school_id} className={isCompared ? "is-shortlisted" : ""}>
                 <Link href={schoolHref(school)} className="compare-promo__school-link">

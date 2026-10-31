@@ -9,6 +9,7 @@ import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 import { useSearchExperience } from "@/lib/search-experience";
 import { schoolTypeLabel } from "@/lib/seo-slugs";
 import { publicSchoolImageUrl } from "@/lib/school-media";
+import { boardsAffiliatedLabel } from "@/lib/board-labels";
 
 export default function ComparePage() {
   const {
@@ -82,7 +83,7 @@ export default function ComparePage() {
       rows: [
         {
           label: "Education board",
-          value: (school) => school.boards_detail.map((board) => board.board_name).join(", ") || "Not listed",
+          value: (school) => boardsAffiliatedLabel(school.boards_detail) || "Not listed",
         },
         {
           label: "School type",
@@ -355,6 +356,7 @@ export default function ComparePage() {
                       citySlug: school.city_slug,
                       localitySlug: school.location_slug,
                       schoolSlug: school.slug,
+                      schoolName: school.school_name,
                     })}
                   >
                     View profile

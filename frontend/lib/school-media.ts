@@ -7,6 +7,40 @@ function schoolMediaFilename(path: string): string {
   return path.split("/").filter(Boolean).pop() ?? "";
 }
 
+function mediaBlob(value?: string | null): string {
+  return (value ?? "").toLowerCase();
+}
+
+export function isLogoSchoolMedia(value?: string | null): boolean {
+  const text = mediaBlob(value);
+  return text.includes("logo") || text.includes("watermark");
+}
+
+export function isCoverSchoolMedia(value?: string | null): boolean {
+  const text = mediaBlob(value);
+  if (!text || isLogoSchoolMedia(text)) return false;
+  return text.includes("-cover.") || text.includes("/cover.") || text.includes("cover.webp") || /\bcover\b/.test(text);
+}
+
+export function schoolCoverImageUrl(school: {
+  school_image_url?: string | null;
+  school_logo_url?: string | null;
+  school_photos?: { photo_url?: string | null; caption?: string | null; category?: string | null }[];
+  photos_detail?: { photo_url?: string | null; caption?: string | null; category?: string | null }[];
+}): string {
+  const photos = school.photos_detail ?? school.school_photos ?? [];
+  const coverPhoto = photos.find((photo) =>
+    isCoverSchoolMedia(`${photo.photo_url ?? ""} ${photo.caption ?? ""} ${photo.category ?? ""}`),
+  );
+  if (coverPhoto?.photo_url) return publicSchoolImageUrl(coverPhoto.photo_url);
+  if (school.school_image_url && !isLogoSchoolMedia(school.school_image_url)) {
+    return publicSchoolImageUrl(school.school_image_url);
+  }
+  const campus = photos.find((photo) => !isLogoSchoolMedia(photo.photo_url));
+  if (campus?.photo_url) return publicSchoolImageUrl(campus.photo_url);
+  return "";
+}
+
 /** Turn a stored school image into a URL the browser can actually load. */
 export function publicSchoolImageUrl(value?: string | null): string {
   const raw = value?.trim() ?? "";

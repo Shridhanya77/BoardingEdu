@@ -137,6 +137,17 @@ export default function SchoolFeeSummary({
     if (grades[0]?.grade_id) onGradeChange?.(grades[0].grade_id);
   }, [controlledGradeId, grades, onGradeChange]);
 
+  useEffect(() => {
+    if (!details.length || !grades.length) return;
+    const gradeHasFees = (gradeId: string) =>
+      details.some(({ items }) =>
+        items.some((item) => !item.grade_id || item.grade_id === gradeId),
+      );
+    if (selectedGradeId && gradeHasFees(selectedGradeId)) return;
+    const next = grades.find((grade) => gradeHasFees(grade.grade_id));
+    if (next) setSelectedGradeId(next.grade_id);
+  }, [details, grades, selectedGradeId, setSelectedGradeId]);
+
   const availableYears = useMemo(() => {
     const years = new Map<string, string>();
     details.forEach(({ structure }) => {
@@ -150,12 +161,24 @@ export default function SchoolFeeSummary({
   const selectedYearCode = availableYears.find(([id]) => id === selectedYearId)?.[1] ?? "";
 
   const { visibleItems, feeFallbackNote } = useMemo(() => {
-    const filterItems = (rows: FeeDetails[]) =>
-      rows.flatMap(({ structure, items }) =>
+    const filterItems = (rows: FeeDetails[]) => {
+      const mapped = rows.flatMap(({ structure, items }) =>
         items
           .filter((item) => !selectedGradeId || !item.grade_id || item.grade_id === selectedGradeId)
           .map((item) => ({ structure, item })),
       );
+      const unique = new Map<string, (typeof mapped)[number]>();
+      for (const row of mapped) {
+        const key = [
+          row.item.item_name,
+          row.item.amount,
+          row.item.payment_frequency,
+          row.item.school_type_name ?? "",
+        ].join("|");
+        if (!unique.has(key)) unique.set(key, row);
+      }
+      return [...unique.values()];
+    };
 
     const yearDetails = details.filter(
       ({ structure }) => structure.academic_year_id === selectedYearId,
@@ -204,8 +227,8 @@ export default function SchoolFeeSummary({
     <div className="fee-summary">
       <div className="fee-summary__intro">
         <div>
-          <h3>Fee Structure</h3>
-          <p>Review the published class-wise fees and payment frequency for the selected academic year.</p>
+          <h3>Fee structure</h3>
+          <p>Class-wise fees for the selected academic year, shown the way schools publish them for admissions.</p>
         </div>
         <div className="fee-summary__selectors">
           <label>

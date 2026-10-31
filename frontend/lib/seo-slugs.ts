@@ -23,20 +23,35 @@ export function schoolSlugFromName(name: string): string {
   return toSeoSlug(name);
 }
 
+export function canonicalSchoolSlug(slug: string, schoolName = ""): string {
+  const cleaned = toSeoSlug(slug);
+  const uuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug.trim());
+  if (!cleaned || uuidLike) return schoolSlugFromName(schoolName) || cleaned;
+  return cleaned;
+}
+
 export function schoolProfilePathFromSlugs({
   countrySlug,
   stateSlug,
   citySlug,
   localitySlug,
   schoolSlug,
+  schoolName,
 }: {
   countrySlug: string;
   stateSlug: string;
   citySlug: string;
   localitySlug?: string | null;
   schoolSlug: string;
+  schoolName?: string;
 }) {
-  return withTrailingSlash(`/${[schoolSlug, localitySlug, citySlug, stateSlug, countrySlug]
+  return withTrailingSlash(`/${[
+    canonicalSchoolSlug(schoolSlug, schoolName),
+    localitySlug,
+    citySlug,
+    stateSlug,
+    countrySlug,
+  ]
     .filter((slug): slug is string => Boolean(slug))
     .map(toSeoSlug)
     .join("/")}`);

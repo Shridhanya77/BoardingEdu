@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { X } from "lucide-react";
 import { publicSchoolImageUrl } from "@/lib/school-media";
 
 type SchoolPhoto = {
@@ -14,15 +14,6 @@ type SchoolPhoto = {
   sort_order: number;
 };
 
-const categoryLabels: Record<string, string> = {
-  CAMPUS: "Campus",
-  CLASSROOM: "Classroom",
-  SPORTS: "Sports",
-  LIBRARY: "Library",
-  HOSTEL: "Hostel",
-  OTHER: "Other",
-};
-
 export default function SchoolPhotoGallery({
   photos,
   schoolName,
@@ -30,148 +21,71 @@ export default function SchoolPhotoGallery({
   photos: SchoolPhoto[];
   schoolName: string;
 }) {
-  const [activeCategory, setActiveCategory] = useState("ALL");
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [failedPhotoIds, setFailedPhotoIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const categories = [...new Set(photos.map((photo) => photo.category))];
-  const visiblePhotos = activeCategory === "ALL"
-    ? photos
-    : photos.filter((photo) => photo.category === activeCategory);
-  const selectedIndex = activeIndex % visiblePhotos.length;
-  const activePhoto = visiblePhotos[selectedIndex];
-  const imageFailed = failedPhotoIds.has(activePhoto.photo_id);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [failedPhotoIds, setFailedPhotoIds] = useState<Set<string>>(() => new Set());
+  const visible = photos.filter((photo) => !failedPhotoIds.has(photo.photo_id));
+  const activePhoto = activeIndex != null ? visible[activeIndex] : null;
 
-  function markImageFailed(photoId: string) {
-    setFailedPhotoIds((current) => new Set(current).add(photoId));
-  }
+  useEffect(() => {
+    if (activeIndex == null) return undefined;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setActiveIndex(null);
+      if (event.key === "ArrowRight") {
+        setActiveIndex((index) => (index == null ? 0 : (index + 1) % Math.max(visible.length, 1)));
+      }
+      if (event.key === "ArrowLeft") {
+        setActiveIndex((index) => (index == null ? 0 : (index - 1 + visible.length) % Math.max(visible.length, 1)));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeIndex, visible.length]);
 
-  function showPrevious() {
-    setActiveIndex((index) => (index - 1 + visiblePhotos.length) % visiblePhotos.length);
-  }
-
-  function showNext() {
-    setActiveIndex((index) => (index + 1) % visiblePhotos.length);
+  if (!visible.length) {
+    return <p className="empty-state">School photos have not been published yet.</p>;
   }
 
   return (
-    <section className="school-detail__gallery" aria-label={`${schoolName} photos`}>
-      {categories.length > 1 && (
-        <div className="school-detail__gallery-categories" aria-label="Filter school photos">
-          <button
-            className={activeCategory === "ALL" ? "is-active" : ""}
-            type="button"
-            aria-pressed={activeCategory === "ALL"}
-            onClick={() => {
-              setActiveCategory("ALL");
-              setActiveIndex(0);
-            }}
-          >
-            All <span>{photos.length}</span>
-          </button>
-          {categories.map((category) => {
-            const count = photos.filter((photo) => photo.category === category).length;
-            return (
-              <button
-                className={activeCategory === category ? "is-active" : ""}
-                key={category}
-                type="button"
-                aria-pressed={activeCategory === category}
-                onClick={() => {
-                  setActiveCategory(category);
-                  setActiveIndex(0);
-                }}
-              >
-                {categoryLabels[category] ?? category} <span>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-      <div className="school-detail__gallery-stage">
-        {imageFailed ? (
-          <p className="school-detail__gallery-fallback">
-            {activePhoto.caption || "Campus photo is currently unavailable."}
-          </p>
-        ) : (
-          <>
-            <Image
-              key={activePhoto.photo_id}
-              src={publicSchoolImageUrl(activePhoto.photo_url)}
-              alt={activePhoto.alt_text || `${schoolName} campus`}
-              fill
-              priority={selectedIndex === 0}
-              sizes="(max-width: 900px) 100vw, 1060px"
-              unoptimized
-              onError={() => markImageFailed(activePhoto.photo_id)}
-            />
-            {activePhoto.photo_id !== "school-cover" && (
-              <span className="school-detail__gallery-watermark" aria-hidden="true" />
-            )}
-          </>
-        )}
-
-        {visiblePhotos.length > 1 && (
-          <>
+    <section className="school-gallery" aria-label={`${schoolName} gallery`}>
+      <ul className="school-gallery__grid">
+        {visible.map((photo, index) => (
+          <li key={photo.photo_id}>
             <button
-              className="school-detail__gallery-arrow school-detail__gallery-arrow--previous"
-              type="button"
-              onClick={showPrevious}
-              aria-label="Show previous school photo"
-            >
-              <ChevronLeft size={22} aria-hidden />
-            </button>
-            <button
-              className="school-detail__gallery-arrow school-detail__gallery-arrow--next"
-              type="button"
-              onClick={showNext}
-              aria-label="Show next school photo"
-            >
-              <ChevronRight size={22} aria-hidden />
-            </button>
-            <span className="school-detail__gallery-count" aria-live="polite">
-              {selectedIndex + 1} / {visiblePhotos.length}
-            </span>
-          </>
-        )}
-      </div>
-
-      {activePhoto.caption && !imageFailed && (
-        <p className="school-detail__gallery-caption">{activePhoto.caption}</p>
-      )}
-
-      {visiblePhotos.length > 1 && (
-        <div className="school-detail__gallery-thumbnails" aria-label="Choose a school photo">
-          {visiblePhotos.map((photo, index) => (
-            <button
-              className={`school-detail__gallery-thumbnail${index === selectedIndex ? " is-active" : ""}`}
-              key={photo.photo_id}
+              className="school-gallery__item"
               type="button"
               onClick={() => setActiveIndex(index)}
-              onMouseEnter={() => setActiveIndex(index)}
-              onFocus={() => setActiveIndex(index)}
-              aria-label={`Show photo ${index + 1}${photo.caption ? `: ${photo.caption}` : ""}`}
-              aria-current={index === selectedIndex ? "true" : undefined}
             >
-              {failedPhotoIds.has(photo.photo_id) ? (
-                <span className="school-detail__gallery-thumbnail-fallback" aria-hidden>
-                  {index + 1}
-                </span>
-              ) : (
-                <Image
-                  src={publicSchoolImageUrl(photo.photo_url)}
-                  alt=""
-                  width={120}
-                  height={72}
-                  unoptimized
-                  onError={() => markImageFailed(photo.photo_id)}
-                />
-              )}
+              <Image
+                src={publicSchoolImageUrl(photo.photo_url)}
+                alt={photo.alt_text || photo.caption || `${schoolName} photo`}
+                fill
+                sizes="(max-width: 700px) 50vw, 33vw"
+                unoptimized
+                onError={() => setFailedPhotoIds((current) => new Set(current).add(photo.photo_id))}
+              />
+              {photo.caption ? <span>{photo.caption.replaceAll("_", " ")}</span> : null}
             </button>
-          ))}
+          </li>
+        ))}
+      </ul>
+
+      {activePhoto ? (
+        <div className="school-gallery__lightbox" role="dialog" aria-modal="true" aria-label={activePhoto.caption || schoolName}>
+          <button className="school-gallery__lightbox-close" type="button" onClick={() => setActiveIndex(null)} aria-label="Close photo">
+            <X size={22} />
+          </button>
+          <Image
+            src={publicSchoolImageUrl(activePhoto.photo_url)}
+            alt={activePhoto.alt_text || activePhoto.caption || schoolName}
+            width={1400}
+            height={900}
+            unoptimized
+          />
+          {visible.length > 1 ? (
+            <p>{(activeIndex ?? 0) + 1} / {visible.length}</p>
+          ) : null}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

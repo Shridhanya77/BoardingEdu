@@ -28,10 +28,17 @@ allow-list entries are not needed for the frontend.
    | `ALLOWED_HOSTS` | The Railway API hostname, without `https://` |
    | `CORS_ALLOWED_ORIGINS` | Optional origins for other browser clients. The Next.js frontend uses a same-origin backend proxy and does not require CORS access to Django. |
    | `CSRF_TRUSTED_ORIGINS` | The Vercel origin; include the API origin if using Django admin |
+   | `CLOUDFLARE_R2_ACCOUNT_ID` | Cloudflare account ID for the R2 media bucket |
+   | `CLOUDFLARE_R2_ACCESS_KEY_ID` / `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 credentials with read access to school images |
+   | `CLOUDFLARE_R2_BUCKET` | Bucket name (defaults to `boardingedu-media`) |
+   | `CLOUDFLARE_R2_PUBLIC_BASE` | Optional public bucket URL ending in `/schools`; use the actual R2 public URL, not `media.boardingeu.com` |
 
    Keep `DATABASE_URL` private. Use Railway's private Postgres URL when the
    services are in the same project/environment. If using a public database
    URL, set `DATABASE_SSL_REQUIRE` according to that URL's TLS requirements.
+   Upload school images to the R2 bucket under `schools/<filename>`; the
+   filename must match the one saved in the school's image URL. Railway's
+   application filesystem is ephemeral and is not persistent media storage.
 
 5. Generate a public domain for the Django service. Wait for the deployment to
    finish, then open `https://YOUR-API-DOMAIN/api/`. It should return the API

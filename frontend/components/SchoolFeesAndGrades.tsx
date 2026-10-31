@@ -32,8 +32,12 @@ export default function SchoolFeesAndGrades({
       <article className="detail-panel" id="admissions">
         <div className="detail-panel__heading">
           <div>
-            <h2>Grades offered</h2>
-            <p>Select a grade to filter fees. Pre-Nursery through Class 12 where published.</p>
+            <h2>Classes offered</h2>
+            <p>
+              {sortedGrades.length
+                ? `${formatGradeLabel(sortedGrades[0].grade_name)} to ${formatGradeLabel(sortedGrades[sortedGrades.length - 1].grade_name)}. Select a class to see its published fees.`
+                : "Select a class to filter fees."}
+            </p>
           </div>
         </div>
         {sortedGrades.length === 0 ? (

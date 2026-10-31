@@ -17,13 +17,14 @@ export type SchoolPathFields = {
   school_types_detail: { type_code: string; slug: string; type_name: string }[];
 };
 
-export function schoolListPath(school: SchoolPathFields): string {
+export function schoolListPath(school: SchoolPathFields & { school_name?: string }): string {
   return schoolProfilePathFromSlugs({
     countrySlug: school.country_slug,
     stateSlug: school.state_slug,
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    schoolName: school.school_name,
   });
 }
 

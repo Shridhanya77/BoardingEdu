@@ -7,7 +7,8 @@ import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
 import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
 import { schoolEnquiryPath } from "@/lib/school-urls";
-import { publicSchoolImageUrl } from "@/lib/school-media";
+import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
+import { boardsAffiliatedLabel } from "@/lib/board-labels";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -16,6 +17,7 @@ function schoolHref(school: SchoolListItem) {
     citySlug: school.city_slug,
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
+    schoolName: school.school_name,
   });
 }
 
@@ -37,9 +39,7 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   const initials = (school.short_name || school.school_name).slice(0, 2);
-  const photo = publicSchoolImageUrl(
-    school.school_image_url || school.school_photos?.[0]?.photo_url || "",
-  );
+  const photo = schoolCoverImageUrl(school);
 
   return (
     <div className="featured-card__cover">
@@ -81,7 +81,7 @@ export default function FeaturedSchoolCards({
   return (
     <div className="featured-cards">
       {schools.map((school) => {
-        const boards = school.boards_detail.map((item) => item.board_name).join("/") || "Board on request";
+        const boards = boardsAffiliatedLabel(school.boards_detail) || "Board on request";
         const location = [school.city_name, school.state_name].filter(Boolean).join(", ");
         const types = Array.from(new Set(
           school.school_types_detail
