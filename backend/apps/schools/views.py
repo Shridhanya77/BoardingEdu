@@ -467,6 +467,46 @@ class SchoolViewSet(ReadWriteModelViewSet):
     ]
     ordering = ['school_name']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if getattr(self, 'action', None) != 'list':
+            return queryset
+
+        return (
+            queryset.prefetch_related(None)
+            .prefetch_related(
+                'boards',
+                'school_types',
+                Prefetch(
+                    'school_grades',
+                    queryset=SchoolGrade.objects.filter(is_active=True).select_related('grade'),
+                ),
+                Prefetch(
+                    'photos',
+                    queryset=SchoolPhoto.objects.filter(status=True)
+                    .order_by('sort_order', 'created_at')[:3],
+                    to_attr='active_photos',
+                ),
+            )
+            .annotate(
+                videos_count=Coalesce(
+                    Subquery(
+                        SchoolVideo.objects.filter(
+                            school=OuterRef('pk'),
+                            status=True,
+                        )
+                        .order_by()
+                        .values('school')
+                        .annotate(total=Count('video_id'))
+                        .values('total')[:1],
+                        output_field=IntegerField(),
+                    ),
+                    Value(0, output_field=IntegerField()),
+                    output_field=IntegerField(),
+                )
+            )
+        )
+
     def get_permissions(self):
         if self.action == 'register':
             return [AllowAny()]

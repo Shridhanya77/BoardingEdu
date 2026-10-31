@@ -36,6 +36,10 @@ class BoardingEduCursorPagination(CursorPagination):
         return api_relative_pagination_link(super().get_previous_link())
 
 
+class CityDirectoryPagination(BoardingEduCursorPagination):
+    page_size = 100
+
+
 class SchoolDirectoryPagination(PageNumberPagination):
     """Offset pagination for the public school directory.
 

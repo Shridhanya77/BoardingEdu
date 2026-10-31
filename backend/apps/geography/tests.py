@@ -6,6 +6,34 @@ from .serializers import CityListSerializer
 
 
 class CityListSerializerTests(TestCase):
+    def test_city_directory_returns_up_to_100_rows_per_page(self):
+        country = Country.objects.create(
+            country_code="IN",
+            country_name="India",
+            slug="india",
+        )
+        state = State.objects.create(
+            country=country,
+            state_code="KA",
+            state_name="Karnataka",
+            slug="karnataka",
+        )
+        City.objects.bulk_create([
+            City(
+                state=state,
+                city_code=f"CT{index:02}",
+                city_name=f"City {index:02}",
+                slug=f"city-{index:02}",
+            )
+            for index in range(21)
+        ])
+
+        response = self.client.get("/api/geography/cities/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data["results"]), 21)
+        self.assertIsNone(response.data["next"])
+
     def test_city_payload_includes_school_count_and_seo_slugs(self):
         country = Country.objects.create(
             country_code="IN",

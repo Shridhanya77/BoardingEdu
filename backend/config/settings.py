@@ -1,30 +1,78 @@
 import os
+import re
+from datetime import timedelta
+from pathlib import Path
+
 import dj_database_url
 from dotenv import load_dotenv
-load_dotenv()
-from pathlib import Path
-from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.getenv("SECRET_KEY")
+load_dotenv(BASE_DIR / ".env")
 
+SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is missing.")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 
+# ----------------------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------------------
+def _csv_env(name, default=""):
+    return [
+        value.strip().rstrip("/")
+        for value in os.getenv(name, default).split(",")
+        if value.strip()
+    ]
 
+
+def _first_env(*names, default=""):
+    """Return the first non-empty environment variable among `names`."""
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+    return default
+
+
+# ----------------------------------------------------------------------------
+# Hosts
+# ----------------------------------------------------------------------------
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
         "ALLOWED_HOSTS",
-        "localhost,127.0.0.1,.up.railway.app,boardingedu-production-ac84.up.railway.app,boardingedu-production-4144.up.railway.app,boardingedu-6ng7.onrender.com"
+        "localhost,127.0.0.1,.up.railway.app,"
+        "boardingedu-production-ac84.up.railway.app,"
+        "boardingedu-production-4144.up.railway.app,"
+        "boardingedu-6ng7.onrender.com",
     ).split(",")
     if host.strip()
 ]
 
+for _extra in (
+    os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip(),
+    os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip(),
+):
+    if _extra and _extra not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_extra)
 
+_railway_static = os.getenv("RAILWAY_STATIC_URL", "").strip()
+if _railway_static:
+    try:
+        from urllib.parse import urlparse
+
+        _railway_host = urlparse(_railway_static).hostname
+        if _railway_host and _railway_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(_railway_host)
+    except ValueError:
+        pass
+
+
+# ----------------------------------------------------------------------------
+# Apps / middleware
+# ----------------------------------------------------------------------------
 INSTALLED_APPS = [
     'jazzmin',
     'django.contrib.admin',
@@ -33,14 +81,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 3rd Party (YOUR STACK DECISIONS)
+    # 3rd party
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
     'drf_spectacular',
-    # Local Apps
+    # Local apps
     'apps.geography.apps.GeographyConfig',
     'apps.schools.apps.SchoolsConfig',
     'apps.fees.apps.FeesConfig',
@@ -48,7 +96,7 @@ INSTALLED_APPS = [
     'apps.users.apps.UsersConfig',
     'apps.search.apps.SearchConfig',
     'apps.reviews.apps.ReviewsConfig',
-    'apps.dashboards.apps.DashboardsConfig'
+    'apps.dashboards.apps.DashboardsConfig',
 ]
 
 JAZZMIN_SETTINGS = {
@@ -69,14 +117,8 @@ JAZZMIN_SETTINGS = {
     "show_sidebar": True,
     "navigation_expanded": True,
     "order_with_respect_to": [
-        "schools",
-        "admissions",
-        "reviews",
-        "users",
-        "geography",
-        "fees",
-        "search",
-        "dashboards",
+        "schools", "admissions", "reviews", "users",
+        "geography", "fees", "search", "dashboards",
     ],
     "icons": {
         "schools": "fas fa-school",
@@ -114,6 +156,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # MUST BE FIRST
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django.middleware.gzip.GZipMiddleware',  # compresses large JSON responses
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -123,17 +166,26 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
-TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [BASE_DIR / 'templates'], 'APP_DIRS': True, 'OPTIONS': {'context_processors': ['django.template.context_processors.debug','django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages'],},},]
+TEMPLATES = [{
+    'BACKEND': 'django.template.backends.django.DjangoTemplates',
+    'DIRS': [BASE_DIR / 'templates'],
+    'APP_DIRS': True,
+    'OPTIONS': {'context_processors': [
+        'django.template.context_processors.debug',
+        'django.template.context_processors.request',
+        'django.contrib.auth.context_processors.auth',
+        'django.contrib.messages.context_processors.messages',
+    ]},
+}]
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# YOUR DATABASE DECISION: PostgreSQL
-# PostgreSQL database configuration
-DATABASE_URL = os.getenv("DATABASE_URL")
 
+# ----------------------------------------------------------------------------
+# Database (PostgreSQL)
+# ----------------------------------------------------------------------------
+DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError(
-        "DATABASE_URL is missing. Configure it in your environment."
-    )
+    raise RuntimeError("DATABASE_URL is missing. Configure it in your environment.")
 
 DATABASES = {
     "default": dj_database_url.parse(
@@ -144,95 +196,131 @@ DATABASES = {
     )
 }
 
-AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',},{'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',},{'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',},{'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},]
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
+
+
+# ----------------------------------------------------------------------------
+# Static files + Cloudflare R2 media storage
+# ----------------------------------------------------------------------------
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 _static_dir = BASE_DIR / 'static'
 STATICFILES_DIRS = [_static_dir] if _static_dir.is_dir() else []
+
+# Accepts either R2_* or the CLOUDFLARE_R2_* names used by upload_cloudflare_r2.py
+R2_BUCKET_NAME = _first_env("R2_BUCKET_NAME", "CLOUDFLARE_R2_BUCKET")
+R2_ACCESS_KEY_ID = _first_env("R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = _first_env("R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+
+# Account ID must be ONLY the 32-character id. Strip a pasted URL if present.
+R2_ACCOUNT_ID = re.sub(
+    r"^https?:/*|\.r2\.cloudflarestorage\.com.*$",
+    "",
+    _first_env("R2_ACCOUNT_ID", "CLOUDFLARE_R2_ACCOUNT_ID"),
+)
+
+# Public domain only, e.g. pub-xxxx.r2.dev or media.yourdomain.com (no https://, no path)
+R2_PUBLIC_DOMAIN = re.sub(
+    r"^https?://", "", _first_env("R2_PUBLIC_DOMAIN")
+).split("/")[0]
+
+_r2_values = {
+    "R2_BUCKET_NAME": R2_BUCKET_NAME,
+    "R2_ACCOUNT_ID": R2_ACCOUNT_ID,
+    "R2_ACCESS_KEY_ID": R2_ACCESS_KEY_ID,
+    "R2_SECRET_ACCESS_KEY": R2_SECRET_ACCESS_KEY,
+    "R2_PUBLIC_DOMAIN": R2_PUBLIC_DOMAIN,
+}
+_r2_missing = [name for name, value in _r2_values.items() if not value]
+
+if not _r2_missing:
+    _default_storage = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": R2_BUCKET_NAME,
+            "endpoint_url": f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+            "access_key": R2_ACCESS_KEY_ID,
+            "secret_key": R2_SECRET_ACCESS_KEY,
+            "region_name": "auto",
+            "signature_version": "s3v4",
+            "default_acl": None,        # R2 does not support ACLs
+            "querystring_auth": False,  # plain public URLs, no signing
+            "custom_domain": R2_PUBLIC_DOMAIN,
+            "object_parameters": {
+                "CacheControl": "public, max-age=31536000, immutable",
+            },
+        },
+    }
+elif DEBUG:
+    # Local development without R2: store uploads on disk
+    _default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+else:
+    raise RuntimeError(
+        "Cloudflare R2 is not configured. Missing: " + ", ".join(_r2_missing)
+    )
+
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
+    "default": _default_storage,
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 
-def _csv_env(name, default=""):
-    return [
-        value.strip().rstrip("/")
-        for value in os.getenv(name, default).split(",")
-        if value.strip()
-    ]
 
-
-# Comma-separated frontend origins, e.g. the production Vercel URL.
-
-CORS_ALLOWED_ORIGIN_REGEXES = _csv_env(
-    "CORS_ALLOWED_ORIGIN_REGEXES",
-    r"^https://[a-z0-9-]+\.vercel\.app$",
+# ----------------------------------------------------------------------------
+# CORS / CSRF
+# ----------------------------------------------------------------------------
+# Exact frontend origins (add your production domain via the env variable).
+CORS_ALLOWED_ORIGINS = _csv_env(
+    "CORS_ALLOWED_ORIGINS",
+    "https://boardingedu-ewj8l6i4h-shridhanya77s-projects.vercel.app",
 )
 
-CORS_ALLOW_CREDENTIALS = True
-
-if DEBUG:
-    CORS_ALLOWED_ORIGIN_REGEXES.extend(
-        [r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"]
+# Only YOUR Vercel project (production alias + its preview deployments),
+# not every *.vercel.app site.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    os.getenv(
+        "CORS_ORIGIN_REGEX",
+        r"^https://boardingedu(-[a-z0-9-]+-shridhanya77s-projects)?\.vercel\.app$",
     )
+]
+if DEBUG:
+    CORS_ALLOWED_ORIGIN_REGEXES.append(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$")
     for _host in ("localhost", "127.0.0.1"):
         if _host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(_host)
 
-RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
-if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-
-RAILWAY_PUBLIC_DOMAIN = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
-if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
-
-RAILWAY_STATIC_URL = os.getenv("RAILWAY_STATIC_URL", "").strip()
-if RAILWAY_STATIC_URL:
-    try:
-        from urllib.parse import urlparse
-
-        railway_host = urlparse(RAILWAY_STATIC_URL).hostname
-        if railway_host and railway_host not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(railway_host)
-    except ValueError:
-        pass
-
-
-# Allowed frontend origins
-CORS_ALLOWED_ORIGINS = [
-    "https://boardingedu-ewj8l6i4h-shridhanya77s-projects.vercel.app",
-    # keep any other existing origins
-]
-
-
 CORS_ALLOW_CREDENTIALS = True
 
-# Add trusted origins for Django CSRF protection
 CSRF_TRUSTED_ORIGINS = _csv_env(
     "CSRF_TRUSTED_ORIGINS",
-    ",".join(CORS_ALLOWED_ORIGINS)
+    ",".join(CORS_ALLOWED_ORIGINS),
 )
 
-# Railway reverse proxy configuration
+
+# ----------------------------------------------------------------------------
+# Security / proxy (Railway)
+# ----------------------------------------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = (
-        os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
-    )
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -240,25 +328,35 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = (
         os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() == "true"
     )
-    SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "True").lower() == "true"
+    # Preload is hard to undo, so it is opt-in
+    SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() == "true"
 
-# Applied in every environment: block clickjacking and tighten referrer leakage.
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 
-# YOUR DRF + JWT AUTH DECISION (WITH TOKEN ROTATION)
+# ----------------------------------------------------------------------------
+# DRF + JWT
+# ----------------------------------------------------------------------------
+_renderers = ['rest_framework.renderers.JSONRenderer']
+if DEBUG:
+    # The browsable API builds HTML forms and extra queries; dev only.
+    _renderers.append('rest_framework.renderers.BrowsableAPIRenderer')
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',),
+    'DEFAULT_RENDERER_CLASSES': _renderers,
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.BoardingEduCursorPagination',
     'PAGE_SIZE': 20,
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend','rest_framework.filters.SearchFilter','rest_framework.filters.OrderingFilter',],
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.ScopedRateThrottle',
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.ScopedRateThrottle'],
     'DEFAULT_THROTTLE_RATES': {
         'counselling': '5/hour',
         'review': '10/hour',
@@ -285,44 +383,34 @@ SPECTACULAR_SETTINGS = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,  # YOUR TOKEN ROTATION DECISION
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-REDIS_URL = os.getenv(
-    "REDIS_URL",
-    "redis://localhost:6379/0"
-)
 
-def _redis_available(redis_url: str) -> bool:
-    try:
-        import socket as _socket
-        from urllib.parse import urlparse as _urlparse
-
-        parsed = _urlparse(redis_url)
-        host = parsed.hostname or 'localhost'
-        port = parsed.port or 6379
-        timeout = 0.3
-        with _socket.create_connection((host, port), timeout=timeout):
-            pass
-        return True
-    except OSError:
-        return False
-    except Exception:
-        return False
-
-
-REDIS_IS_AVAILABLE = _redis_available(REDIS_URL)
+# ----------------------------------------------------------------------------
+# Cache / sessions / Celery
+# ----------------------------------------------------------------------------
+# Redis is used only when REDIS_URL is explicitly set. No probing at startup,
+# so a brief Redis hiccup during boot can no longer silently switch the app to
+# per-process memory caches and run Celery tasks inside web requests.
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
+REDIS_IS_AVAILABLE = bool(REDIS_URL)
 
 if REDIS_IS_AVAILABLE:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL,
-            "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": 2,
+                "SOCKET_TIMEOUT": 2,
+                "IGNORE_EXCEPTIONS": True,  # cache outage must not take the API down
+            },
             "KEY_PREFIX": "boardingedu",
         }
     }
@@ -337,20 +425,21 @@ else:
         }
     }
     SESSION_ENGINE = "django.contrib.sessions.backends.db"
-    SESSION_CACHE_ALIAS = "default"
 
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
 
-# YOUR QUEUE DECISION: Celery + Redis (silently disabled when Redis is offline)
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_BROKER_URL = REDIS_URL or "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = not REDIS_IS_AVAILABLE
 CELERY_TASK_EAGER_PROPAGATES = True
 
-# ===== Observability: structured logging =====
+
+# ----------------------------------------------------------------------------
+# Logging / Sentry
+# ----------------------------------------------------------------------------
 LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO").upper()
 
 LOGGING = {
@@ -377,20 +466,11 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
-        "django.request": {
-            "handlers": ["console"],
-            "level": "WARNING",
-            "propagate": False,
-        },
-        "django.security": {
-            "handlers": ["console"],
-            "level": "WARNING",
-            "propagate": False,
-        },
+        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },
 }
 
-# ===== Observability: error tracking (opt-in via SENTRY_DSN) =====
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 if SENTRY_DSN:
     import sentry_sdk

@@ -401,6 +401,8 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         ).data
 
     def get_videos_count(self, obj):
+        if hasattr(obj, 'videos_count'):
+            return obj.videos_count
         videos = getattr(obj, 'active_videos', None)
         if videos is not None:
             return len(videos)

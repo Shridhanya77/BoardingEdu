@@ -5,6 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Count, Q
 
+from config.pagination import CityDirectoryPagination
 from .models import Country, State, City, Location
 from .serializers import (
     CountryListSerializer,
@@ -78,6 +79,7 @@ class StateViewSet(ReadWriteModelViewSet):
 
 
 class CityViewSet(ReadWriteModelViewSet):
+    pagination_class = CityDirectoryPagination
     queryset = City.objects.select_related('state', 'state__country').annotate(
         schools_count=Count('schools', filter=Q(schools__status=True), distinct=True)
     )
