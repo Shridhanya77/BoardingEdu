@@ -4,7 +4,7 @@ builder = "NIXPACKS"
 buildCommand = "cd backend && chmod +x build.sh && ./build.sh"
 
 [deploy]
-startCommand = "cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120"
+startCommand = "cd backend && bash ./start.sh"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

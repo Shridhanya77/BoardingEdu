@@ -10,7 +10,7 @@ export default defineRailway(() => {
     // builder from CaC: "NIXPACKS"
     source: github("Shridhanya77/BoardingEdu", { branch: "main", checkSuites: false, rootDirectory: "backend" }),
     build: "cd backend && chmod +x build.sh && ./build.sh",
-    start: "cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120",
+    start: "cd backend && bash ./start.sh",
     healthcheck: "/healthz",
     healthcheckTimeout: 300,
     replicas: { "iad": 1 },
@@ -20,7 +20,7 @@ export default defineRailway(() => {
   const backend = service("backend", {
     // builder from CaC: "NIXPACKS"
     build: "chmod +x ./build.sh && ./build.sh",
-    start: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120",
+    start: "bash ./start.sh",
     healthcheck: "/healthz",
     healthcheckTimeout: 300,
   });

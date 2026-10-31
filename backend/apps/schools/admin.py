@@ -8,6 +8,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 
 from apps.users.models import User
+from config.school_media import rewrite_school_media_url
 from .services import SchoolVerificationError, set_school_verification_status
 from .models import (
     Board,
@@ -22,6 +23,21 @@ from .models import (
     SchoolFAQ,
     SchoolVerificationEvent,
 )
+
+
+def media_preview_html(url):
+    """Show the R2 proxy URL Django actually serves, not www.boardingedu.com."""
+    src = rewrite_school_media_url(url)
+    if not src:
+        return "No image URL"
+    return format_html(
+        '<img src="{}" alt="" style="max-width:180px;max-height:120px;object-fit:cover;'
+        'border-radius:8px;display:block;margin:6px 0;" />'
+        '<a href="{}" target="_blank" rel="noopener">{}</a>',
+        src,
+        src,
+        src,
+    )
 
 
 def render_fee_structures_panel(obj):
@@ -215,14 +231,20 @@ class SchoolGradeInline(admin.TabularInline):
 class SchoolPhotoInline(admin.TabularInline):
     model = SchoolPhoto
     extra = 1
+    readonly_fields = ("photo_preview",)
     fields = (
         "photo_url",
+        "photo_preview",
         "caption",
         "alt_text",
         "category",
         "sort_order",
         "status",
     )
+
+    @admin.display(description="Preview")
+    def photo_preview(self, obj):
+        return media_preview_html(getattr(obj, "photo_url", ""))
 
 class SchoolVideoInline(admin.TabularInline):
     model = SchoolVideo
@@ -287,11 +309,21 @@ class SchoolAdmin(admin.ModelAdmin):
     def fee_structures_panel(self, obj):
         return render_fee_structures_panel(obj)
 
+    @admin.display(description="Logo preview")
+    def school_logo_preview(self, obj):
+        return media_preview_html(getattr(obj, "school_logo_url", ""))
+
+    @admin.display(description="Cover preview")
+    def school_image_preview(self, obj):
+        return media_preview_html(getattr(obj, "school_image_url", ""))
+
     readonly_fields = (
         "created_at",
         "updated_at",
         "verification_status",
         "fee_structures_panel",
+        "school_logo_preview",
+        "school_image_preview",
     )
 
     fieldsets = (
@@ -304,7 +336,9 @@ class SchoolAdmin(admin.ModelAdmin):
                     "short_name",
                     "slug",
                     "school_logo_url",
+                    "school_logo_preview",
                     "school_image_url",
+                    "school_image_preview",
                 )
             },
         ),
