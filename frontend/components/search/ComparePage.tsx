@@ -8,6 +8,7 @@ import { schools, type SchoolListItem } from "@/lib/api";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 import { useSearchExperience } from "@/lib/search-experience";
 import { schoolTypeLabel } from "@/lib/seo-slugs";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 
 export default function ComparePage() {
   const {
@@ -245,9 +246,9 @@ export default function ComparePage() {
                 return (
                   <li key={school.school_id}>
                     <span className="compare-school-picker__image">
-                      {school.school_image_url || school.school_logo_url ? (
+                      {publicSchoolImageUrl(school.school_image_url || school.school_logo_url) ? (
                         <Image
-                          src={school.school_image_url || school.school_logo_url || ""}
+                          src={publicSchoolImageUrl(school.school_image_url || school.school_logo_url)}
                           alt=""
                           width={48}
                           height={48}
@@ -330,9 +331,9 @@ export default function ComparePage() {
             {comparedSchools.map((school) => (
               <article className="compare-school-card" key={school.school_id}>
                 <span className="compare-school-card__photo">
-                  {school.school_image_url || school.school_logo_url ? (
+                  {publicSchoolImageUrl(school.school_image_url || school.school_logo_url) ? (
                     <Image
-                      src={school.school_image_url || school.school_logo_url || ""}
+                      src={publicSchoolImageUrl(school.school_image_url || school.school_logo_url)}
                       alt=""
                       fill
                       sizes="220px"

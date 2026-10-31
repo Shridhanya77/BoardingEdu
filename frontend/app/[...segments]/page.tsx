@@ -20,6 +20,7 @@ import { isSchoolSectionId, schoolSectionPath, schoolSectionSeo, type SchoolSect
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import JsonLd from "@/components/JsonLd";
 import { indiaRegionBySlug } from "@/lib/india-regions";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 import {
   isSchoolProfileSegmentPath,
   profileSegmentsWithoutTypeSuffix,
@@ -271,7 +272,7 @@ function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Me
     title: sectionCopy.title,
     description: sectionCopy.description,
     path: schoolSectionPath(schoolProfilePath(school), section),
-    image: school.school_image_url,
+    image: publicSchoolImageUrl(school.school_image_url),
     keywords: [
       ...(school.seo_keywords ?? []),
       ...sectionCopy.keywords,

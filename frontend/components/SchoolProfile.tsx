@@ -39,6 +39,7 @@ import FeaturedSchoolCards from "./home/FeaturedSchoolCards";
 import SchoolPhotoGallery from "./SchoolPhotoGallery";
 import SchoolVideoGallery from "./SchoolVideoGallery";
 import { buildProfileGalleryPhotos } from "@/lib/profile-media";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
 import SchoolFeesAndGrades from "./SchoolFeesAndGrades";
 import SchoolFacilitiesInteractive from "./SchoolFacilitiesInteractive";
@@ -160,8 +161,8 @@ export default async function SchoolProfile({
   initialSection?: SchoolSectionId;
   initialEnquiryOpen?: boolean;
 }) {
-  const schoolImage = school.school_logo_url || school.school_image_url;
-  const heroBackground = school.school_image_url || school.school_logo_url;
+  const schoolImage = publicSchoolImageUrl(school.school_logo_url || school.school_image_url);
+  const heroBackground = publicSchoolImageUrl(school.school_image_url || school.school_logo_url);
   const [reviewData, nearbySchools] = await Promise.all([
     loadReviewData(school.school_id),
     loadNearbySchools(school),
@@ -640,9 +641,9 @@ export default async function SchoolProfile({
                   key={item.school_id}
                 >
                   <span className="school-nearby-card__media">
-                    {item.school_image_url ? (
+                    {publicSchoolImageUrl(item.school_image_url) ? (
                       <Image
-                        src={item.school_image_url}
+                        src={publicSchoolImageUrl(item.school_image_url)}
                         alt={`${item.school_name} campus`}
                         fill
                         sizes="220px"

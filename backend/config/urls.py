@@ -148,6 +148,7 @@ urlpatterns = [
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
     path("media/schools/<path:filename>", serve_school_media, name="school-media"),
+    path("media/schools/<path:filename>/", serve_school_media, name="school-media-slash"),
     # ===== API schema & docs =====
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

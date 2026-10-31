@@ -12,11 +12,17 @@ const siteHost = configuredSiteHost.replace(/^www\./i, "");
 
 const nextConfig = {
   trailingSlash: true,
+  skipTrailingSlashRedirect: false,
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "boardingedu.com", pathname: "/media/**" },
       { protocol: "https", hostname: "www.boardingedu.com", pathname: "/media/**" },
+      { protocol: "https", hostname: "media.boardingedu.com", pathname: "/**" },
       { protocol: "https", hostname: "media.boardingeu.com", pathname: "/**" },
+      { protocol: "https", hostname: "imagedelivery.net", pathname: "/**" },
+      { protocol: "https", hostname: "*.imagedelivery.net", pathname: "/**" },
+      { protocol: "https", hostname: "*.r2.dev", pathname: "/**" },
+      { protocol: "https", hostname: "*.r2.cloudflarestorage.com", pathname: "/**" },
       { protocol: "https", hostname: "*.up.railway.app", pathname: "/**" },
       { protocol: "http", hostname: "127.0.0.1", pathname: "/**" },
       { protocol: "http", hostname: "localhost", pathname: "/**" },
@@ -27,7 +33,13 @@ const nextConfig = {
     // the apex domain permanently redirects to the `www.` host.
     return [
       {
-        source: "/:path*",
+        source: "/media/schools/:filename*",
+        has: [{ type: "host", value: siteHost }],
+        destination: `https://www.${siteHost}/media/schools/:filename*`,
+        permanent: true,
+      },
+      {
+        source: "/:path((?!media/schools/).*)",
         has: [{ type: "host", value: siteHost }],
         destination: `https://www.${siteHost}/:path*/`,
         permanent: true,
@@ -43,6 +55,10 @@ const nextConfig = {
       },
       {
         source: "/media/schools/:path*",
+        destination: `${backendOrigin}/media/schools/:path*`,
+      },
+      {
+        source: "/media/schools/:path*/",
         destination: `${backendOrigin}/media/schools/:path*`,
       },
     ];

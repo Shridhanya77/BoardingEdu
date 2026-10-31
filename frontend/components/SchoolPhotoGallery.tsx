@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 
 type SchoolPhoto = {
   photo_id: string;
@@ -97,7 +98,7 @@ export default function SchoolPhotoGallery({
           <>
             <Image
               key={activePhoto.photo_id}
-              src={activePhoto.photo_url}
+              src={publicSchoolImageUrl(activePhoto.photo_url)}
               alt={activePhoto.alt_text || `${schoolName} campus`}
               fill
               priority={selectedIndex === 0}
@@ -159,7 +160,7 @@ export default function SchoolPhotoGallery({
                 </span>
               ) : (
                 <Image
-                  src={photo.photo_url}
+                  src={publicSchoolImageUrl(photo.photo_url)}
                   alt=""
                   width={120}
                   height={72}

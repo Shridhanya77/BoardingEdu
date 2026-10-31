@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { SchoolListItem } from "@/lib/api";
 import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
 import { schoolEnquiryPath } from "@/lib/school-urls";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -36,7 +37,9 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   const initials = (school.short_name || school.school_name).slice(0, 2);
-  const photo = school.school_image_url || school.school_photos?.[0]?.photo_url || "";
+  const photo = publicSchoolImageUrl(
+    school.school_image_url || school.school_photos?.[0]?.photo_url || "",
+  );
 
   return (
     <div className="featured-card__cover">
@@ -55,7 +58,7 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
       <div className="featured-card__logo">
         {school.school_logo_url && !logoFailed ? (
           <Image
-            src={school.school_logo_url}
+            src={publicSchoolImageUrl(school.school_logo_url)}
             alt=""
             width={56}
             height={56}

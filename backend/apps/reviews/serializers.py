@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
+from config.school_media import SchoolMediaUrlMixin
+
 from .models import Review
 
 
-class ReviewListSerializer(serializers.ModelSerializer):
+class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     """Lean payload for listing reviews."""
 
     school_id = serializers.UUIDField(source="school.school_id", read_only=True)

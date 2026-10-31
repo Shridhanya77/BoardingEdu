@@ -11,6 +11,8 @@ from apps.geography.serializers import (
     LocationListSerializer,
 )
 
+from config.school_media import SchoolMediaUrlMixin
+
 from .models import (
     Board,
     SchoolType,
@@ -195,7 +197,7 @@ class FacilityDetailSerializer(serializers.ModelSerializer):
 # SCHOOL — LIST
 # ======================================================================
 
-class SchoolListSerializer(serializers.ModelSerializer):
+class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     country_id = serializers.UUIDField(
         source='country.country_id',
         read_only=True,
@@ -384,7 +386,11 @@ class SchoolListSerializer(serializers.ModelSerializer):
                 'sort_order',
                 'created_at',
             )
-        return SchoolPhotoListSerializer(photos[:3], many=True).data
+        return SchoolPhotoListSerializer(
+            photos[:3],
+            many=True,
+            context=self.context,
+        ).data
 
     def get_videos_count(self, obj):
         videos = getattr(obj, 'active_videos', None)
@@ -423,7 +429,7 @@ class SchoolListSerializer(serializers.ModelSerializer):
         return f"{first.grade_name} - {last.grade_name}"
 
 
-class SchoolPhotoListSerializer(serializers.ModelSerializer):
+class SchoolPhotoListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     class Meta:
         model = SchoolPhoto
         fields = [
@@ -436,7 +442,7 @@ class SchoolPhotoListSerializer(serializers.ModelSerializer):
         ]
 
 
-class SchoolVideoListSerializer(serializers.ModelSerializer):
+class SchoolVideoListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     class Meta:
         model = SchoolVideo
         fields = [
@@ -453,7 +459,7 @@ class SchoolVideoListSerializer(serializers.ModelSerializer):
 # SCHOOL — DETAIL
 # ======================================================================
 
-class SchoolDetailSerializer(serializers.ModelSerializer):
+class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     is_featured = serializers.BooleanField(read_only=True)
 
     country_detail = CountryListSerializer(
@@ -706,7 +712,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
                 'sort_order',
                 'created_at',
             )
-        return SchoolPhotoListSerializer(photos, many=True).data
+        return SchoolPhotoListSerializer(photos, many=True, context=self.context).data
 
     def get_videos_detail(self, obj):
         videos = getattr(obj, 'active_videos', None)
@@ -715,7 +721,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
                 'sort_order',
                 'created_at',
             )
-        return SchoolVideoListSerializer(videos, many=True).data
+        return SchoolVideoListSerializer(videos, many=True, context=self.context).data
 
     def get_average_rating(self, obj):
         value = getattr(obj, 'average_rating', None)
@@ -1037,7 +1043,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
         return school
 
 
-class SchoolPortalSerializer(serializers.ModelSerializer):
+class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     """Fields a verified school admin can maintain on their own profile."""
 
     phone = serializers.CharField(

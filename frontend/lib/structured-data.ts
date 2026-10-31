@@ -2,6 +2,7 @@ import type { SchoolDetail } from "@/lib/api";
 import { SITE_EMAIL, SITE_NAME, SITE_PHONE, SITE_URL } from "@/lib/site";
 import { absoluteUrl } from "@/lib/seo";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 
 export type JsonLd = Record<string, unknown>;
 
@@ -115,8 +116,8 @@ export function schoolJsonLd(
   const url = absoluteUrl(path);
 
   const images = [
-    school.school_image_url,
-    ...(school.photos_detail ?? []).map((photo) => photo.photo_url),
+    publicSchoolImageUrl(school.school_image_url),
+    ...(school.photos_detail ?? []).map((photo) => publicSchoolImageUrl(photo.photo_url)),
   ].filter((value): value is string => Boolean(value));
 
   const locality = [

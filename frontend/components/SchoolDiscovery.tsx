@@ -29,6 +29,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { fetchAllPages, geography, reviews, schools, apiErrorMessage } from "@/lib/api";
+import { publicSchoolImageUrl } from "@/lib/school-media";
 import type {
   BoardListItem,
   CityListItem,
@@ -263,9 +264,10 @@ function SchoolCard({
     .join(", ");
 
   const href = schoolHref(school);
-  const coverImage =
-    school.school_image_url || school.school_photos?.[0]?.photo_url || "";
-  const logoImage = school.school_logo_url || "";
+  const coverImage = publicSchoolImageUrl(
+    school.school_image_url || school.school_photos?.[0]?.photo_url || "",
+  );
+  const logoImage = publicSchoolImageUrl(school.school_logo_url || "");
   const initials = (school.short_name || school.school_name).slice(0, 2).toUpperCase();
 
   return (
@@ -2704,10 +2706,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="compare-promo__schools">
           {comparisonSchools.map((school) => {
             const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
-            const cover =
+            const cover = publicSchoolImageUrl(
               school.school_image_url ||
               school.school_photos?.[0]?.photo_url ||
-              "";
+              "",
+            );
             return (
               <article key={school.school_id} className={isCompared ? "is-shortlisted" : ""}>
                 <Link href={schoolHref(school)} className="compare-promo__school-link">
