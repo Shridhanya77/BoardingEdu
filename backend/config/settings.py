@@ -217,7 +217,8 @@ STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 _static_dir = BASE_DIR / 'static'
 STATICFILES_DIRS = [_static_dir] if _static_dir.is_dir() else []
 
-# Accepts either R2_* or the CLOUDFLARE_R2_* names used by upload_cloudflare_r2.py
+# Accepts either the short R2_* names or the CLOUDFLARE_R2_* names.
+# Bucket that holds the school objects (keys under `schools/`).
 R2_BUCKET_NAME = _first_env("R2_BUCKET_NAME", "CLOUDFLARE_R2_BUCKET")
 R2_ACCESS_KEY_ID = _first_env("R2_ACCESS_KEY_ID", "CLOUDFLARE_R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = _first_env("R2_SECRET_ACCESS_KEY", "CLOUDFLARE_R2_SECRET_ACCESS_KEY")
@@ -229,10 +230,17 @@ R2_ACCOUNT_ID = re.sub(
     _first_env("R2_ACCOUNT_ID", "CLOUDFLARE_R2_ACCOUNT_ID"),
 )
 
-# Public domain only, e.g. pub-xxxx.r2.dev or media.yourdomain.com (no https://, no path)
+# Public delivery host for R2 objects (no scheme, no path). Accepts either
+# R2_PUBLIC_DOMAIN or CLOUDFLARE_R2_PUBLIC_BASE; any /schools prefix is stripped
+# because this feeds the storage `custom_domain` and objects keep their key path.
 R2_PUBLIC_DOMAIN = re.sub(
-    r"^https?://", "", _first_env("R2_PUBLIC_DOMAIN")
+    r"^https?://", "", _first_env("R2_PUBLIC_DOMAIN", "CLOUDFLARE_R2_PUBLIC_BASE")
 ).split("/")[0]
+
+# Full public base for school media objects, e.g. https://pub-xxx.r2.dev/schools
+R2_SCHOOL_MEDIA_BASE = _first_env(
+    "R2_SCHOOL_MEDIA_BASE", "CLOUDFLARE_R2_PUBLIC_BASE"
+).rstrip("/")
 
 _r2_values = {
     "R2_BUCKET_NAME": R2_BUCKET_NAME,

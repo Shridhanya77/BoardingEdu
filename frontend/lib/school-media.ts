@@ -1,4 +1,9 @@
-const PUBLIC_MEDIA_BASE = (process.env.NEXT_PUBLIC_SCHOOL_MEDIA_BASE ?? "").replace(/\/+$/, "");
+const RAW_MEDIA_BASE = (process.env.NEXT_PUBLIC_SCHOOL_MEDIA_BASE ?? "").replace(/\/+$/, "");
+// School objects live under the `schools/` prefix in the R2 bucket.
+const PUBLIC_MEDIA_BASE =
+  RAW_MEDIA_BASE && !RAW_MEDIA_BASE.endsWith("/schools")
+    ? `${RAW_MEDIA_BASE}/schools`
+    : RAW_MEDIA_BASE;
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api")
   .replace(/\/+$/, "")
   .replace(/\/api$/i, "");
@@ -63,6 +68,8 @@ export function publicSchoolImageUrl(value?: string | null): string {
 
     if (isR2Proxy) {
       if (PUBLIC_MEDIA_BASE) return `${PUBLIC_MEDIA_BASE}/${filename}`;
+      // Already a working Cloudflare public URL: leave it untouched.
+      if (host.endsWith(".r2.dev")) return url.toString();
       if (API_ORIGIN) return `${API_ORIGIN}/media/schools/${filename}`;
       return `/media/schools/${filename}`;
     }

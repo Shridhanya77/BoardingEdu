@@ -35,7 +35,11 @@ def school_media_filename(value: str | None) -> str:
 
 
 def rewrite_school_media_url(value: str | None, request=None) -> str:
-    """Point stored proxy URLs at this API so the browser never hits Apache."""
+    """Point stored school-media URLs at the live Cloudflare public host.
+
+    Falls back to this API's own /media/schools/ proxy only when no public
+    base is configured.
+    """
     raw = (value or "").strip()
     if not raw:
         return ""
@@ -53,20 +57,45 @@ def rewrite_school_media_url(value: str | None, request=None) -> str:
     )
     if not is_proxy:
         return raw
+    public_url = _public_media_url(filename)
+    if public_url:
+        return public_url
     relative = f"/media/schools/{filename}"
     if request is not None:
         return request.build_absolute_uri(relative)
     return relative
 
 
-def _public_media_url(filename: str) -> str:
-    base = (os.getenv("CLOUDFLARE_R2_PUBLIC_BASE") or "").strip().rstrip("/")
+def _public_media_base() -> str:
+    """Public base for school objects, always ending in /schools.
+
+    Prefers the explicit media base, then the bare public domain. Returns an
+    empty string when the host is known to be unusable (legacy PHP hosts).
+    """
+    base = (
+        os.getenv("CLOUDFLARE_R2_PUBLIC_BASE")
+        or os.getenv("R2_SCHOOL_MEDIA_BASE")
+        or ""
+    ).strip().rstrip("/")
+    if not base:
+        domain = (os.getenv("R2_PUBLIC_DOMAIN") or "").strip()
+        if domain:
+            base = domain if "://" in domain else f"https://{domain}"
     if not base:
         return ""
+    if "://" not in base:
+        base = f"https://{base}"
     host = (urlparse(base).hostname or "").lower()
     if host in _UNUSABLE_PUBLIC_HOSTS:
         return ""
-    return f"{base}/{filename}"
+    if not base.endswith("/schools"):
+        base = f"{base}/schools"
+    return base
+
+
+def _public_media_url(filename: str) -> str:
+    base = _public_media_base()
+    return f"{base}/{filename}" if base and filename else ""
 
 
 def _photo_url_text(photo) -> str:
@@ -162,7 +191,7 @@ def _r2_client():
 
 
 def _r2_bucket() -> str:
-    return (os.getenv("CLOUDFLARE_R2_BUCKET") or "boardingedu-media").strip()
+    return (os.getenv("CLOUDFLARE_R2_BUCKET") or "school-images").strip()
 
 
 @require_http_methods(["GET", "HEAD"])
