@@ -1,0 +1,29 @@
+﻿===== LOCAL DB (127.0.0.1:5432/boardingedu) =====
+          metric           | value 
+---------------------------+-------
+ photos_boardingedu        | 5636
+ photos_empty              | 0
+ school_photos_total       | 5636
+ school_videos_total       | 0
+ schools_image_boardingedu | 1057
+ schools_image_empty       | 317
+ schools_logo_boardingedu  | 969
+ schools_logo_empty        | 405
+ schools_total             | 1374
+(9 rows)
+
+
+===== RAILWAY DB (iriguchi.proxy.rlwy.net:31506/railway) =====
+          metric           | value 
+---------------------------+-------
+ photos_boardingedu        | 5636
+ photos_empty              | 0
+ school_photos_total       | 5636
+ schools_image_boardingedu | 1057
+ schools_image_empty       | 311
+ schools_logo_boardingedu  | 969
+ schools_logo_empty        | 399
+ schools_total             | 1368
+ school_videos_total       | 1
+(9 rows)
+

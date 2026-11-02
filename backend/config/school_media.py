@@ -106,14 +106,14 @@ def _photo_url_text(photo) -> str:
     return f"{getattr(photo, 'photo_url', '')} {getattr(photo, 'caption', '')} {getattr(photo, 'category', '')}"
 
 
-def _is_logo_media(value: str) -> bool:
+def is_logo_school_media(value: str) -> bool:
     text = value.lower()
     return "logo" in text or "watermark" in text
 
 
 def _is_cover_media(value: str) -> bool:
     text = value.lower()
-    return (not _is_logo_media(text)) and (
+    return (not is_logo_school_media(text)) and (
         "-cover." in text
         or "/cover." in text
         or "cover.webp" in text
@@ -124,12 +124,16 @@ def _is_cover_media(value: str) -> bool:
 
 
 def cover_image_url_for_school(school) -> str:
-    """Prefer an uploaded photo whose URL/caption is cover, then school_image_url."""
+    """Prefer the configured cover URL, then cover-marked photos, then a fallback."""
     photos = list(getattr(school, "active_photos", None) or [])
     if not photos:
         manager = getattr(school, "photos", None)
         if manager is not None:
             photos = list(manager.filter(status=True).order_by("sort_order", "created_at"))
+
+    image = (getattr(school, "school_image_url", None) or "").strip()
+    if image and not is_logo_school_media(image):
+        return image
 
     for photo in photos:
         blob = _photo_url_text(photo)
@@ -137,14 +141,10 @@ def cover_image_url_for_school(school) -> str:
         if url and _is_cover_media(blob):
             return url
 
-    image = (getattr(school, "school_image_url", None) or "").strip()
-    if image and not _is_logo_media(image):
-        return image
-
     for photo in photos:
         blob = _photo_url_text(photo)
         url = (photo.get("photo_url") if isinstance(photo, dict) else getattr(photo, "photo_url", "")) or ""
-        if url and not _is_logo_media(blob):
+        if url and not is_logo_school_media(blob):
             return url
     return image
 

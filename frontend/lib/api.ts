@@ -609,6 +609,52 @@ export const geography = {
     ),
 };
 
+// ---------- Public search autocomplete (schools + locations) ----------
+export type SearchSchoolSuggestion = {
+  school_id: string;
+  school_name: string;
+  short_name: string;
+  slug: string;
+  school_image_url: string;
+  school_logo_url: string;
+  country_slug: string;
+  state_slug: string;
+  state_name: string;
+  city_slug: string;
+  city_name: string;
+  location_slug: string | null;
+  school_type_name: string | null;
+  board_name: string | null;
+  verification_status: string;
+  is_featured: boolean;
+};
+
+export type SearchLocationKind = "state" | "city" | "locality";
+
+export type SearchLocationSuggestion = {
+  kind: SearchLocationKind;
+  name: string;
+  slug: string;
+  country_slug: string | null;
+  state_slug: string | null;
+  city_slug: string | null;
+  location_slug: string | null;
+  schools_count: number;
+};
+
+export type SearchSuggestions = {
+  query: string;
+  schools: SearchSchoolSuggestion[];
+  locations: SearchLocationSuggestion[];
+};
+
+export const searchApi = {
+  suggest: (query: string, limit = 8) =>
+    request<SearchSuggestions>(
+      `/search/suggestions/?q=${encodeURIComponent(query)}&limit=${limit}`,
+    ),
+};
+
 // ---------- Admissions Enquiries (Parent & Guest submissions) ----------
 export type EnquirySource = "WEBSITE" | "GOOGLE" | "REFERENCE" | "EXPO" | "OTHER";
 export type EnquiryStatus =

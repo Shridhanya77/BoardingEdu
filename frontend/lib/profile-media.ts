@@ -13,12 +13,17 @@ function photoKey(url: string): string {
 export function buildProfileGalleryPhotos(school: SchoolDetail): PhotoRow[] {
   const seen = new Set<string>();
   const rows: PhotoRow[] = [];
+  const coverUrl = publicSchoolImageUrl(school.school_image_url);
+  const coverKey = coverUrl ? photoKey(coverUrl) : "";
 
   for (const photo of school.photos_detail ?? []) {
     const url = publicSchoolImageUrl(photo.photo_url);
     if (!url) continue;
     const blob = `${url} ${photo.caption ?? ""} ${photo.category ?? ""}`;
     if (isLogoSchoolMedia(blob) || isCoverSchoolMedia(blob)) continue;
+    if (coverUrl && (url.toLowerCase() === coverUrl.toLowerCase() || photoKey(url) === coverKey)) {
+      continue;
+    }
     const key = photoKey(url);
     if (seen.has(key) || seen.has(url)) continue;
     seen.add(key);

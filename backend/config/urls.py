@@ -85,6 +85,7 @@ class BoardingEduApiRoot(APIView):
                     "users":     drf_reverse("users:user-list",      request=request, format=format).rsplit("/users/",      1)[0] + "/",
                     "admissions": drf_reverse("admissions:child-list", request=request, format=format).rsplit("/children/", 1)[0] + "/",
                     "reviews":   "/api/reviews/",
+                    "search":    "/api/search/",
                 },
                 "docs": {
                     "schema": drf_reverse("schema", request=request, format=format),
@@ -142,6 +143,8 @@ urlpatterns = [
     path("api/admissions/", include("apps.admissions.urls", namespace="admissions")),
     # ===== Reviews App =====
     path("api/reviews/", include("apps.reviews.urls", namespace="reviews")),
+    # ===== Search App (public autocomplete) =====
+    path("api/search/", include("apps.search.urls", namespace="search")),
     # ===== Role dashboards (school / parent / admin / staff-admin) =====
     path("api/dashboards/", include("apps.dashboards.urls", namespace="dashboards")),
     # ===== Health probes (liveness / readiness) =====

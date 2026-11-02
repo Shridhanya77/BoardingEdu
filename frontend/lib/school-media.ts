@@ -34,6 +34,9 @@ export function schoolCoverImageUrl(school: {
   photos_detail?: { photo_url?: string | null; caption?: string | null; category?: string | null }[];
 }): string {
   const photos = school.photos_detail ?? school.school_photos ?? [];
+  if (school.school_image_url && !isLogoSchoolMedia(school.school_image_url)) {
+    return publicSchoolImageUrl(school.school_image_url);
+  }
   const coverPhoto = photos.find((photo) =>
     isCoverSchoolMedia(`${photo.photo_url ?? ""} ${photo.caption ?? ""} ${photo.category ?? ""}`),
   );

@@ -1,20 +1,26 @@
 from datetime import date
 from decimal import Decimal
 from importlib import import_module
-from types import SimpleNamespace
+from io import BytesIO
+from types import ModuleType, SimpleNamespace
+from unittest.mock import Mock, patch
 from django.apps import apps
+from django.core.management.base import CommandError
 from django.db import connection
 from django.http import QueryDict
 from django.urls import reverse
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
+from PIL import Image
 
 from apps.admissions.models import CounsellingRequest
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.fees.admin import FeeItemInline
 from apps.geography.models import City, Country, Location, State
 from apps.users.models import User
+from .management.commands.manage_school_photos import Command as ManageSchoolPhotosCommand
+from config.school_media import cover_image_url_for_school
 from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
 from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
 from .serializers import (
@@ -82,6 +88,65 @@ class SchoolImageAdminTests(SimpleTestCase):
         self.assertNotIn("school_image_upload", identity_fields)
         self.assertIn("photo_url", SchoolPhotoInline.fields)
         self.assertNotIn("photo_upload", SchoolPhotoInline.fields)
+
+
+class SchoolPhotoCommandImageTests(SimpleTestCase):
+    def test_images_are_optimized_to_webp_and_gallery_images_are_watermarked(self):
+        source = BytesIO()
+        Image.new("RGB", (1800, 900), color=(235, 235, 235)).save(source, format="JPEG")
+        command = ManageSchoolPhotosCommand()
+
+        cover = command._optimize_image(source.getvalue(), add_watermark=False)
+        gallery = command._optimize_image(source.getvalue(), add_watermark=True)
+
+        with Image.open(BytesIO(cover)) as cover_image:
+            self.assertEqual(cover_image.format, "WEBP")
+            self.assertEqual(cover_image.size, (1600, 800))
+            cover_pixels = cover_image.convert("RGB").tobytes()
+        with Image.open(BytesIO(gallery)) as gallery_image:
+            self.assertEqual(gallery_image.format, "WEBP")
+            self.assertEqual(gallery_image.size, (1600, 800))
+            self.assertNotEqual(gallery_image.convert("RGB").tobytes(), cover_pixels)
+
+    def test_image_download_rejects_non_https_urls(self):
+        command = ManageSchoolPhotosCommand()
+
+        with patch("apps.schools.management.commands.manage_school_photos.requests.get") as get:
+            with self.assertRaises(CommandError):
+                command._download_image("http://example.com/image.jpg")
+
+        get.assert_not_called()
+
+    def test_optimized_images_upload_to_configured_r2_bucket(self):
+        command = ManageSchoolPhotosCommand()
+        client = Mock()
+        boto3 = ModuleType("boto3")
+        boto3.client = Mock(return_value=client)
+        with (
+            override_settings(
+                R2_ACCOUNT_ID="account",
+                R2_ACCESS_KEY_ID="access-key",
+                R2_SECRET_ACCESS_KEY="secret-key",
+                R2_BUCKET_NAME="school-images",
+            ),
+            patch.dict("sys.modules", {"boto3": boto3}),
+        ):
+            command._upload_to_r2("school-cover-123.webp", b"optimized")
+
+        boto3.client.assert_called_once_with(
+            "s3",
+            endpoint_url="https://account.r2.cloudflarestorage.com",
+            aws_access_key_id="access-key",
+            aws_secret_access_key="secret-key",
+            region_name="auto",
+        )
+        client.put_object.assert_called_once_with(
+            Bucket="school-images",
+            Key="schools/school-cover-123.webp",
+            Body=b"optimized",
+            ContentType="image/webp",
+            CacheControl="public, max-age=31536000, immutable",
+        )
 
 
 class SchoolClassificationTests(TestCase):
@@ -343,6 +408,103 @@ class SchoolClassificationTests(TestCase):
             [str(first.photo_id), str(second.photo_id)],
         )
         self.assertEqual(photos[0]['caption'], 'Campus')
+
+    def test_selected_school_image_url_takes_precedence_over_cover_marked_photo(self):
+        school = self.create_school('SELECTED-COVER')
+        selected = SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/selected.jpg',
+            caption='Main building',
+        )
+        SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/old-cover.jpg',
+            caption='Cover',
+        )
+        school.school_image_url = selected.photo_url
+        school.save(update_fields=['school_image_url'])
+
+        self.assertEqual(cover_image_url_for_school(school), selected.photo_url)
+
+    def test_selected_cover_stays_visible_when_hidden_from_gallery(self):
+        school = self.create_school('HIDDEN-COVER')
+        selected = SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/selected.jpg',
+            status=False,
+        )
+        SchoolPhoto.objects.create(
+            school=school,
+            photo_url='https://example.com/old-cover.jpg',
+            caption='Cover',
+        )
+        school.school_image_url = selected.photo_url
+        school.save(update_fields=['school_image_url'])
+
+        self.assertEqual(cover_image_url_for_school(school), selected.photo_url)
+
+    def test_add_gallery_image_uploads_and_saves_category(self):
+        school = self.create_school('GALLERY-UPLOAD')
+        command = ManageSchoolPhotosCommand()
+        with (
+            patch.object(command, "_download_image", return_value=b"source"),
+            patch.object(
+                command,
+                "_optimize_image",
+                return_value=b"optimized",
+            ) as optimize,
+            patch.object(command, "_upload_to_r2") as upload,
+            patch(
+                "apps.schools.management.commands.manage_school_photos.rewrite_school_media_url",
+                return_value="https://media.example.com/gallery.webp",
+            ),
+            patch("builtins.input", return_value="y"),
+        ):
+            command._add_image(
+                school,
+                "gallery",
+                "https://images.example.com/library.jpg",
+                category="LIBRARY",
+                caption="Library",
+                alt_text="School library",
+            )
+
+        photo = SchoolPhoto.objects.get(school=school)
+        self.assertEqual(photo.photo_url, "https://media.example.com/gallery.webp")
+        self.assertEqual(photo.category, "LIBRARY")
+        self.assertEqual(photo.caption, "Library")
+        self.assertEqual(photo.alt_text, "School library")
+        optimize.assert_called_once_with(b"source", add_watermark=True)
+        upload.assert_called_once()
+
+    def test_add_cover_and_logo_images_updates_school_fields_without_watermark(self):
+        school = self.create_school('COVER-LOGO-UPLOAD')
+        command = ManageSchoolPhotosCommand()
+        for role, field in (
+            ("cover", "school_image_url"),
+            ("logo", "school_logo_url"),
+        ):
+            expected_url = f"https://media.example.com/{role}.webp"
+            with self.subTest(role=role):
+                with (
+                    patch.object(command, "_download_image", return_value=b"source"),
+                    patch.object(command, "_optimize_image", return_value=b"optimized") as optimize,
+                    patch.object(command, "_upload_to_r2"),
+                    patch(
+                        "apps.schools.management.commands.manage_school_photos.rewrite_school_media_url",
+                        return_value=expected_url,
+                    ),
+                    patch("builtins.input", return_value="y"),
+                ):
+                    command._add_image(
+                        school,
+                        role,
+                        f"https://images.example.com/{role}.jpg",
+                    )
+
+            school.refresh_from_db()
+            self.assertEqual(getattr(school, field), expected_url)
+            optimize.assert_called_once_with(b"source", add_watermark=False)
 
     def test_school_detail_and_listing_include_school_media(self):
         school = self.create_school('WITH-MEDIA')

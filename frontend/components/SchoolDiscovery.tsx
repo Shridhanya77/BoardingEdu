@@ -44,6 +44,7 @@ import type {
 } from "@/lib/api";
 import FeeRangeSlider from "@/components/search/FeeRangeSlider";
 import SearchCommandPalette from "@/components/search/SearchCommandPalette";
+import SchoolSearchAutocomplete from "@/components/search/SchoolSearchAutocomplete";
 import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
@@ -1027,6 +1028,34 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     (stillOnInitialPlace || (!geoCountry && !geoState && !geoCity) ? initialFilter?.placeName : "") ||
     "India";
   const listingTypeLabel = listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools";
+  // The India region (North/South/East/West/Central) of the place being
+  // browsed, derived from real city records so the featured section can stay
+  // regional ("Featured Boarding Schools in North India") instead of being
+  // scoped to a single state or city.
+  const browsedRegion = useMemo(() => {
+    if (geoRegion) return indiaRegionById(geoRegion) ?? undefined;
+    const city = cities.find((item) =>
+      activeCityId
+        ? item.city_id === activeCityId
+        : activeStateId
+          ? item.state_id === activeStateId
+          : activeCountryId
+            ? item.country_id === activeCountryId
+            : false,
+    );
+    const stateSlug = city?.state_slug ?? initialFilter?.place?.stateSlug ?? "";
+    const stateName = city?.state_name ?? initialFilter?.placeName ?? "";
+    if (!stateSlug && !stateName) return undefined;
+    return indiaRegionForState(stateName, stateSlug);
+  }, [
+    activeCityId,
+    activeCountryId,
+    activeStateId,
+    cities,
+    geoRegion,
+    initialFilter?.place?.stateSlug,
+    initialFilter?.placeName,
+  ]);
   const listingSubject = listingBoardName ? `${listingBoardName} ${listingTypeLabel}` : listingTypeLabel;
   const listingHeading = `${listingSubject} in ${listingPlaceLabel}`;
   // Day boarding belongs to both families, so the chosen type is always named
@@ -1941,11 +1970,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const activeState = geoState || initialState;
     const activeCity = geoCity || initialCity;
     const activeLocation = geoLocation || initialLocation;
-    const regionalStateIds = geoRegion
+    // Region-wide scope: either an explicit region page (geoRegion) or a place
+    // that maps to an India region. Keeps "Featured ... in North India" truly
+    // regional and prevents other regions leaking into the section.
+    const featuredRegionId = geoRegion || browsedRegion?.id || "";
+    const featuredNeedsRegion = Boolean(featuredRegionId);
+    const regionalStateIds = featuredNeedsRegion
       ? [...new Set(cities
           .filter((city) =>
             city.country_id === regionCountryId &&
-            indiaRegionForState(city.state_name, city.state_slug)?.id === geoRegion,
+            indiaRegionForState(city.state_name, city.state_slug)?.id === featuredRegionId,
           )
           .map((city) => city.state_id))]
       : [];
@@ -1958,7 +1992,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         cancelled = true;
       };
     }
-    if (geoRegion && citiesLoading) return () => {
+    if (featuredNeedsRegion && (citiesLoading || !regionalStateIds.length)) return () => {
       cancelled = true;
     };
     if (isHomePage && schoolType.length > 0 && !schoolTypesLoaded) {
@@ -1975,11 +2009,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       is_featured: true,
       ordering: "-average_rating",
       page_size: isHomePage ? 10 : 100,
-      country: isHomePage || geoRegion ? undefined : activeCountry || undefined,
-      state: isHomePage ? undefined : activeState || undefined,
-      city: isHomePage || boardingOnly ? undefined : activeCity || undefined,
-      location: isHomePage || boardingOnly ? undefined : activeLocation || undefined,
-      location_group: geoRegion
+      country: isHomePage || featuredNeedsRegion ? undefined : activeCountry || undefined,
+      state: isHomePage || featuredNeedsRegion ? undefined : activeState || undefined,
+      city: isHomePage || boardingOnly || featuredNeedsRegion ? undefined : activeCity || undefined,
+      location: isHomePage || boardingOnly || featuredNeedsRegion ? undefined : activeLocation || undefined,
+      location_group: featuredNeedsRegion
         ? [`${regionCountryId}|${regionalStateIds.join(",")}`]
         : undefined,
       board: isHomePage ? undefined : board,
@@ -1999,7 +2033,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         if (cancelled) return;
         let featuredCandidates = featuredResponse.results;
         let otherLocationIds = new Set<string>();
-        if (!isHomePage && (activeCountry || activeState || activeCity || activeLocation)) {
+        if (
+          !isHomePage &&
+          !featuredNeedsRegion &&
+          (activeCountry || activeState || activeCity || activeLocation)
+        ) {
           const globalResponse = await schools.list({
             ...featuredFilters,
             country: undefined,
@@ -2036,7 +2074,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
         const hasAreaFilter =
           !isHomePage &&
-          Boolean(activeCountry || activeState || activeCity || activeLocation);
+          (featuredNeedsRegion ||
+            Boolean(activeCountry || activeState || activeCity || activeLocation));
         if (!hasAreaFilter) {
           setFeaturedSchools([]);
           return;
@@ -2072,6 +2111,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     board,
     activeCountryId,
     regionCountryId,
+    browsedRegion?.id,
     cities,
     citiesLoading,
     geoCity,
@@ -2544,20 +2584,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </p>
 
           {isHomePage && (
-            <form
-              className="hero-search"
-              role="search"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const query = String(new FormData(event.currentTarget).get("q") ?? "").trim();
-                void navigateHomeSearch(query);
+            <SchoolSearchAutocomplete
+              variant="hero"
+              placeholder="Search a school, city, state, or board"
+              ariaLabel="Search schools and locations"
+              onFreeTextSubmit={(value) => {
+                void navigateHomeSearch(value);
               }}
-            >
-              <label className="sr-only" htmlFor="home-school-search">Search schools</label>
-              <Search size={18} aria-hidden />
-              <input id="home-school-search" name="q" type="search" placeholder="Search a school, city, or board" />
-              <button type="submit">Search</button>
-            </form>
+            />
           )}
 
           <HeroFinder
@@ -3383,12 +3417,18 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <div className="home-section__heading">
                 <div>
                   <div className="section-eyebrow">
-                    {featuredFallback ? "LOCAL SCHOOLS" : "LOCAL PICKS"}
+                    {featuredFallback
+                      ? "LOCAL SCHOOLS"
+                      : browsedRegion
+                        ? "REGIONAL PICKS"
+                        : "LOCAL PICKS"}
                   </div>
                   <h2>
                     {featuredFallback
                       ? `${listingTypeLabel} in ${listingPlaceLabel}`
-                      : `Featured ${listingTypeLabel.toLowerCase()} in ${listingPlaceLabel}`}
+                      : browsedRegion
+                        ? `Featured ${listingTypeLabel} in ${browsedRegion.label}`
+                        : `Featured ${listingTypeLabel.toLowerCase()} in ${listingPlaceLabel}`}
                   </h2>
                 </div>
               </div>
@@ -3606,6 +3646,26 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 <button type="button" className="listing-region-hint__action" onClick={() => setRegionPickerOpen(true)}>
                   Choose region
                 </button>
+              </div>
+            )}
+            {!isHomePage && (
+              <div className="school-results__search">
+                <SchoolSearchAutocomplete
+                  variant="inline"
+                  placeholder="Search a school, city, state, or board"
+                  ariaLabel="Search schools and locations"
+                  initialQuery={search}
+                  onFreeTextSubmit={(value) => {
+                    setSearchInput(value);
+                    setSearch(value);
+                    rememberSearch(value);
+                    trackSearchEvent(
+                      "search_query_submitted",
+                      { query_length: value.length },
+                      true
+                    );
+                  }}
+                />
               </div>
             )}
             <div className="school-results__toolbar">
