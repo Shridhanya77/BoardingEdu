@@ -100,6 +100,7 @@ export default function ParentDashboardPage() {
                             citySlug: item.city_slug,
                             localitySlug: item.location_slug,
                             schoolSlug: item.slug,
+                            schoolTypes: item.school_types_detail,
                           })}
                         >
                           {item.school_name}

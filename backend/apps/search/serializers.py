@@ -23,6 +23,7 @@ class SchoolSuggestionSerializer(serializers.ModelSerializer):
         source="location.slug", read_only=True, allow_null=True
     )
     school_type_name = serializers.SerializerMethodField()
+    school_type_names = serializers.SerializerMethodField()
     board_name = serializers.SerializerMethodField()
     verification_status = serializers.CharField(
         source="get_verification_status_display", read_only=True
@@ -44,6 +45,7 @@ class SchoolSuggestionSerializer(serializers.ModelSerializer):
             "city_name",
             "location_slug",
             "school_type_name",
+            "school_type_names",
             "board_name",
             "verification_status",
             "is_featured",
@@ -65,6 +67,9 @@ class SchoolSuggestionSerializer(serializers.ModelSerializer):
     def get_school_type_name(self, obj):
         school_type = self._first_related(obj, "school_types")
         return school_type.type_name if school_type else None
+
+    def get_school_type_names(self, obj):
+        return [school_type.type_name for school_type in obj.school_types.all()]
 
     def get_board_name(self, obj):
         from apps.schools.display import board_label

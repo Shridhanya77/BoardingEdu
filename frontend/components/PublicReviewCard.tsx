@@ -18,6 +18,8 @@ function schoolHref(review: ReviewListItem) {
       citySlug: review.school_city_slug,
       localitySlug: review.school_location_slug,
       schoolSlug: review.school_slug,
+      schoolTypeName: review.school_type_name,
+      schoolTypeNames: review.school_type_names,
     });
   }
   return `/schools/${review.school_slug}/`;

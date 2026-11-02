@@ -34,9 +34,11 @@ export function schoolProfilePathFromSlugs({
   countrySlug,
   stateSlug,
   citySlug,
-  localitySlug,
   schoolSlug,
   schoolName,
+  schoolTypes,
+  schoolTypeName,
+  schoolTypeNames,
 }: {
   countrySlug: string;
   stateSlug: string;
@@ -44,16 +46,30 @@ export function schoolProfilePathFromSlugs({
   localitySlug?: string | null;
   schoolSlug: string;
   schoolName?: string;
+  schoolTypes?: { type_code?: string; slug?: string; type_name?: string }[];
+  schoolTypeName?: string | null;
+  schoolTypeNames?: string[];
 }) {
-  return withTrailingSlash(`/${[
-    canonicalSchoolSlug(schoolSlug, schoolName),
-    localitySlug,
-    citySlug,
-    stateSlug,
-    countrySlug,
-  ]
+  const hasBoardingType = schoolTypes?.some(
+    (type) =>
+      schoolTypeCategory(type.type_code ?? "", type.slug ?? "", type.type_name ?? "") ===
+      "boarding-school",
+  );
+  const typeNames = [
+    ...(schoolTypeNames ?? []),
+    ...(schoolTypeName ? [schoolTypeName] : []),
+  ];
+  const hasBoardingTypeName = typeNames.some(
+    (name) => schoolTypeCategory("", "", name) === "boarding-school",
+  );
+  const isBoardingSchool = hasBoardingType || hasBoardingTypeName;
+  const canonicalSlug = canonicalSchoolSlug(schoolSlug, schoolName);
+  const slugs = isBoardingSchool
+    ? ["boarding-schools", countrySlug, stateSlug, canonicalSlug]
+    : ["day-schools", countrySlug, stateSlug, citySlug, canonicalSlug];
+  return withTrailingSlash(`/${slugs
     .filter((slug): slug is string => Boolean(slug))
-    .map(toSeoSlug)
+    .map((slug) => slug === "boarding-schools" || slug === "day-schools" ? slug : toSeoSlug(slug))
     .join("/")}`);
 }
 
@@ -61,8 +77,13 @@ export type SchoolTypeCategory = "day-school" | "day-boarding-school" | "boardin
 export type HomeSchoolCategory = "day-school" | "residential-school";
 
 export function homeSchoolCategoryFromValue(value?: string | null): HomeSchoolCategory | null {
-  if (value === "day-school") return "day-school";
-  if (value === "boarding-school" || value === "boarding-schools" || value === "residential-school") return "residential-school";
+  const normalized = value?.toLowerCase().replace(/_/g, "-");
+  if (normalized === "day-school" || normalized === "day-schools") return "day-school";
+  if (
+    normalized === "boarding-school" ||
+    normalized === "boarding-schools" ||
+    normalized === "residential-school"
+  ) return "residential-school";
   return null;
 }
 
@@ -75,11 +96,11 @@ export function homeSchoolCategoryPath(category: HomeSchoolCategory): "day-schoo
 }
 
 /**
- * Final path segment of a typed listing URL, e.g. /india/karnataka/boarding-school/.
+ * Final path segment of a typed listing URL, e.g. /india/karnataka/boarding_schools/.
  * Day Boarding belongs to both families, so only the two parent types get a segment.
  */
-export function schoolCategorySegment(category: HomeSchoolCategory): "day-school" | "boarding-school" {
-  return category === "day-school" ? "day-school" : "boarding-school";
+export function schoolCategorySegment(category: HomeSchoolCategory): "day_schools" | "boarding_schools" {
+  return category === "day-school" ? "day_schools" : "boarding_schools";
 }
 
 export function homeSchoolCategories(typeCode: string, slug = "", name = ""): HomeSchoolCategory[] {

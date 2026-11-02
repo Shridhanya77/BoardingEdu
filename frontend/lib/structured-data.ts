@@ -16,6 +16,7 @@ export function schoolCanonicalPath(school: SchoolDetail): string {
     citySlug: school.city_detail.slug,
     localitySlug: school.location_detail?.slug,
     schoolSlug: school.slug,
+    schoolTypes: school.school_types_detail,
   });
 }
 

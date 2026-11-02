@@ -357,6 +357,7 @@ export default function ComparePage() {
                       localitySlug: school.location_slug,
                       schoolSlug: school.slug,
                       schoolName: school.school_name,
+                      schoolTypes: school.school_types_detail,
                     })}
                   >
                     View profile

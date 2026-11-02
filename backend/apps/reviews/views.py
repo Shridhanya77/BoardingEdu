@@ -114,7 +114,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
             "school__state",
             "school__location",
             "user",
-        )
+        ).prefetch_related("school__school_types")
         user = getattr(self.request, "user", None)
 
         if user is None or not user.is_authenticated:

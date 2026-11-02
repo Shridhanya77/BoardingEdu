@@ -3,13 +3,13 @@ import { ArrowRight, GraduationCap, House } from "lucide-react";
 
 const categories = [
   {
-    href: "/schools/day-school/",
+    href: "/schools/day_schools/",
     title: "Day Schools",
     text: "Explore schools where students travel home after class.",
     Icon: GraduationCap,
   },
   {
-    href: "/schools/boarding-school/",
+    href: "/schools/boarding_schools/",
     title: "Boarding Schools",
     text: "Explore day boarding and full boarding schools across India.",
     Icon: House,

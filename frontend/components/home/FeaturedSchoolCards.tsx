@@ -18,6 +18,7 @@ function schoolHref(school: SchoolListItem) {
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
     schoolName: school.school_name,
+    schoolTypes: school.school_types_detail,
   });
 }
 

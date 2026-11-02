@@ -624,6 +624,7 @@ export type SearchSchoolSuggestion = {
   city_name: string;
   location_slug: string | null;
   school_type_name: string | null;
+  school_type_names: string[];
   board_name: string | null;
   verification_status: string;
   is_featured: boolean;
@@ -812,6 +813,8 @@ export type ReviewListItem = {
   school_location_slug?: string | null;
   school_city_name?: string;
   school_state_name?: string;
+  school_type_name?: string | null;
+  school_type_names?: string[];
   user: number | null;
   author_name: string;
   rating: number;

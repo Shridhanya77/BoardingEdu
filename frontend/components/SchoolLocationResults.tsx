@@ -20,6 +20,8 @@ export default function SchoolLocationResults({ type, place, rows }: { type: Sch
         citySlug: school.city_slug,
         localitySlug: school.location_slug,
         schoolSlug: school.slug,
+        schoolName: school.school_name,
+        schoolTypes: school.school_types_detail,
       })}>{school.school_name}</Link></h2>
       <p>{school.city_name}, {school.state_name}</p>
       <p>{school.school_types_detail.map((item) => schoolTypeLabel(item.type_code, item.slug, item.type_name)).join(", ")} · {school.boards_detail.map((item) => item.board_name).join(", ")}</p>

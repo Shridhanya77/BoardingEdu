@@ -321,4 +321,8 @@ class ReviewApiTests(TestCase):
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["school_name"], "API Review School")
         self.assertEqual(response.data["results"][0]["school_city_slug"], "bengaluru")
+        self.assertIn(
+            "Day Boarding School",
+            response.data["results"][0]["school_type_names"],
+        )
         self.assertEqual(summary.data["review_count"], 1)

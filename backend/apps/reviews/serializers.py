@@ -19,7 +19,16 @@ class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     school_location_slug = serializers.SlugField(source="school.location.slug", read_only=True, allow_null=True)
     school_city_name = serializers.CharField(source="school.city.city_name", read_only=True)
     school_state_name = serializers.CharField(source="school.state.state_name", read_only=True)
+    school_type_name = serializers.SerializerMethodField()
+    school_type_names = serializers.SerializerMethodField()
     author_name = serializers.CharField(source="display_name", read_only=True)
+
+    def get_school_type_names(self, obj):
+        return [school_type.type_name for school_type in obj.school.school_types.all()]
+
+    def get_school_type_name(self, obj):
+        names = self.get_school_type_names(obj)
+        return names[0] if names else None
 
     class Meta:
         model = Review
@@ -36,6 +45,8 @@ class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "school_location_slug",
             "school_city_name",
             "school_state_name",
+            "school_type_name",
+            "school_type_names",
             "user",
             "author_name",
             "rating",

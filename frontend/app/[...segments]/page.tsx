@@ -208,8 +208,11 @@ function splitSchoolSection(segments: string[]): { schoolSegments: string[]; sec
  * Six-segment paths with a type suffix are accepted only to redirect old URLs.
  */
 function isLegacySchoolPathWithTypeSuffix(segments: string[]): boolean {
-  const last = segments[segments.length - 1]?.toLowerCase();
-  return segments.length === 6 && (last === "boarding-school" || last === "day-school");
+  const last = segments[segments.length - 1]?.toLowerCase().replace(/_/g, "-");
+  return (
+    segments.length === 6 &&
+    ["boarding-school", "boarding-schools", "day-school", "day-schools"].includes(last ?? "")
+  );
 }
 
 async function loadSchoolProfileForRequest(
@@ -381,7 +384,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       keywords: ["school directory", "schools in India", "boarding schools", "day schools"],
     });
   }
-  // Typed directory listings: /schools/day-school/ and /schools/boarding-school/.
+  // Typed directory listings: /schools/day_schools/ and /schools/boarding_schools/.
   if (segments[0] === "schools" && segments.length === 2) {
     const directoryCategory = homeSchoolCategoryFromValue(segments[1]?.toLowerCase());
     if (directoryCategory) {
@@ -741,10 +744,13 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     return <SchoolDiscovery initialFilter={{ schoolTypes: types.map((type) => type.school_type_id) }} />;
   }
 
-  // Typed directory listings: /schools/day-school/ and /schools/boarding-school/.
+  // Typed directory listings: /schools/day_schools/ and /schools/boarding_schools/.
   if (segments[0] === "schools" && segments.length === 2) {
     const directoryCategory = homeSchoolCategoryFromValue(segments[1]?.toLowerCase());
     if (directoryCategory) {
+      if (segments[1] !== schoolCategorySegment(directoryCategory)) {
+        redirect(schoolDirectoryPath(directoryCategory));
+      }
       if (searchParams?.home_category) redirect(schoolDirectoryPath(directoryCategory));
       const types = await resolveHomeTypes(directoryCategory);
       const breadcrumbs = [

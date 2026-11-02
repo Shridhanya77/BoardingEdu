@@ -56,6 +56,8 @@ function schoolHref(school: SearchSchoolSuggestion): string {
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
     schoolName: school.school_name,
+    schoolTypeName: school.school_type_name,
+    schoolTypeNames: school.school_type_names,
   });
 }
 

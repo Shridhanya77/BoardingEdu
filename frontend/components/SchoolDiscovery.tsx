@@ -90,6 +90,7 @@ function schoolHref(school: SchoolListItem) {
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
     schoolName: school.school_name,
+    schoolTypes: school.school_types_detail,
   });
 }
 
@@ -2643,8 +2644,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           {isHomePage && (
             <div className="hero-spots">
               {(heroSpots.length ? heroSpots : [
-                { key: "boarding", category: "residential-school" as const, title: "Boarding schools in —", place: "—", count: 0, href: "/schools/boarding-school/" },
-                { key: "day", category: "day-school" as const, title: "Day schools in —", place: "—", count: 0, href: "/schools/day-school/" },
+                { key: "boarding", category: "residential-school" as const, title: "Boarding schools in —", place: "—", count: 0, href: "/schools/boarding_schools/" },
+                { key: "day", category: "day-school" as const, title: "Day schools in —", place: "—", count: 0, href: "/schools/day_schools/" },
               ])
                 .filter((spot) => !homeCategory || spot.category === homeCategory)
                 .map((spot) => (

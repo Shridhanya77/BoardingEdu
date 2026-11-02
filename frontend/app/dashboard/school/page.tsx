@@ -208,6 +208,7 @@ export default function SchoolDashboardPage() {
                       citySlug: data.school.city_slug,
                       localitySlug: data.school.location_slug,
                       schoolSlug: data.school.slug,
+                      schoolTypes: data.school.school_types_detail,
                     })}
                   >
                     View public profile

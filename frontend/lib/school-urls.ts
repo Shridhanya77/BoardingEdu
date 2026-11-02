@@ -25,6 +25,7 @@ export function schoolListPath(school: SchoolPathFields & { school_name?: string
     localitySlug: school.location_slug,
     schoolSlug: school.slug,
     schoolName: school.school_name,
+    schoolTypes: school.school_types_detail,
   });
 }
 
@@ -36,8 +37,8 @@ export function schoolEnquiryPath(school: SchoolPathFields): string {
  * Board listing URL. The school-type family is a path segment (never a query
  * string) so every canonical URL ends with a trailing slash:
  *   /board/cbse/                → board chooser / all CBSE schools
- *   /board/cbse/day-school/     → CBSE day + day boarding schools
- *   /board/cbse/boarding-school/→ CBSE boarding + day boarding schools
+ *   /board/cbse/day_schools/     → CBSE day + day boarding schools
+ *   /board/cbse/boarding_schools/→ CBSE boarding + day boarding schools
  */
 export function boardListingPath(
   slug: string,
@@ -50,8 +51,8 @@ export function boardListingPath(
 /**
  * Typed school-directory URL with no query string:
  *   /schools/                   → every school
- *   /schools/day-school/        → day + day boarding schools
- *   /schools/boarding-school/   → boarding + day boarding schools
+ *   /schools/day_schools/        → day + day boarding schools
+ *   /schools/boarding_schools/   → boarding + day boarding schools
  */
 export function schoolDirectoryPath(category?: HomeSchoolCategory | null): string {
   return category
@@ -94,8 +95,8 @@ export function schoolSearchPath(query: string): string {
  * Hierarchical listing URL. Without a category it is the place landing page
  * that asks for a school type first:
  *   /india/karnataka/bengaluru/                 → school-type chooser
- *   /india/karnataka/bengaluru/day-school/      → day + day boarding schools
- *   /india/karnataka/bengaluru/boarding-school/ → boarding + day boarding schools
+ *   /india/karnataka/bengaluru/day_schools/      → day + day boarding schools
+ *   /india/karnataka/bengaluru/boarding_schools/ → boarding + day boarding schools
  */
 export function placeListingPath(parts: {
   countrySlug: string;
