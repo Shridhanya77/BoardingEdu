@@ -199,10 +199,10 @@ export default function ComparePage() {
       <Link className="school-detail__back" href="/schools">
         <ArrowLeft size={15} /> Back to school search
       </Link>
-      <div className="compare-page__heading">
+      <div className="compare-page__heading compare-page__heading--center">
         <div>
           <div className="section-eyebrow">MAKE AN INFORMED CHOICE</div>
-          <h1>Compare schools</h1>
+          <h1>Comparison of Schools</h1>
           <p>
             {comparedSchools.length < 2
               ? "Choose another school to compare side by side. Missing details are shown as not listed rather than estimated."
@@ -291,7 +291,7 @@ export default function ComparePage() {
 
       <header className="compare-section-heading">
         <span>Side-by-side overview</span>
-        <h2>Comparison of schools</h2>
+        <h2>Comparison of Schools</h2>
       </header>
 
       {comparedSchools.length === 0 ? (

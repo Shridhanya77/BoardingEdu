@@ -10,16 +10,16 @@ import {
   geography,
   schools,
   type CityListItem,
+  type CountryListItem,
   type GradeListItem,
+  type SchoolTypeListItem,
+  type StateListItem,
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
+import { indiaRegionForState, INDIA_REGIONS } from "@/lib/india-regions";
+import { homeSchoolTypeIds, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
-/**
- * Compact "request a callback" form opened from the navigation bar. It shares the
- * admissions endpoint with the home-page counselling section but stays deliberately
- * short: name, phone, email, class and a state-grouped preferred city, nothing else.
- */
 export default function CounsellingModal({
   onClose,
 }: {
@@ -29,10 +29,19 @@ export default function CounsellingModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
+  const [schoolCategory, setSchoolCategory] = useState<HomeSchoolCategory>("residential-school");
+  const [countryId, setCountryId] = useState("");
+  const [regionId, setRegionId] = useState("");
+  const [stateId, setStateId] = useState("");
   const [cityId, setCityId] = useState("");
   const [gradeId, setGradeId] = useState("");
+  const [countries, setCountries] = useState<CountryListItem[]>([]);
+  const [states, setStates] = useState<StateListItem[]>([]);
+  const [statesLoading, setStatesLoading] = useState(false);
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [grades, setGrades] = useState<GradeListItem[]>([]);
+  const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,31 +60,25 @@ export default function CounsellingModal({
 
     let cancelled = false;
     Promise.all([
+      geography.countries().then((page) => fetchAllPages(page)),
       geography.cities().then((page) => fetchAllPages(page)),
       schools.grades().then((page) => fetchAllPages(page)),
+      schools.types().then((page) => fetchAllPages(page)),
     ])
-      .then(([cityRows, gradeRows]) => {
-        if (!cancelled) {
-          setCities(
-            cityRows
-              .filter((city) => city.status && city.country_code.toUpperCase() === "IN")
-              .sort(
-                (left, right) =>
-                  left.state_name.localeCompare(right.state_name) ||
-                  left.city_name.localeCompare(right.city_name),
-              ),
-          );
-          setGrades(gradeRows.filter((grade) => grade.status));
-          setOptionsError(null);
-        }
+      .then(([countryRows, cityRows, gradeRows, typeRows]) => {
+        if (cancelled) return;
+        const activeCountries = countryRows.filter((country) => country.status);
+        setCountries(activeCountries);
+        const india = activeCountries.find((country) => toSeoSlug(country.slug || country.country_name) === "india");
+        if (india) setCountryId(india.country_id);
+        setCities(cityRows.filter((city) => city.status));
+        setGrades(gradeRows.filter((grade) => grade.status));
+        setSchoolTypes(typeRows.filter((type) => type.status));
+        setOptionsError(null);
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
-          setOptionsError(
-            reason instanceof Error
-              ? reason.message
-              : "Counselling options could not be loaded.",
-          );
+          setOptionsError(reason instanceof Error ? reason.message : "Counselling options could not be loaded.");
         }
       })
       .finally(() => {
@@ -89,23 +92,48 @@ export default function CounsellingModal({
     };
   }, [onClose]);
 
-  /** Cities grouped by state so the picker reads "state, then city" in one control. */
-  const citiesByState = useMemo(() => {
-    const groups = new Map<string, CityListItem[]>();
-    for (const city of cities) {
-      const bucket = groups.get(city.state_name);
-      if (bucket) bucket.push(city);
-      else groups.set(city.state_name, [city]);
+  useEffect(() => {
+    if (!countryId) {
+      setStates([]);
+      return;
     }
-    return [...groups.entries()];
-  }, [cities]);
+    let cancelled = false;
+    setStatesLoading(true);
+    geography.statesOf(countryId)
+      .then((page) => fetchAllPages(page))
+      .then((rows) => {
+        if (!cancelled) setStates(rows.filter((state) => state.status && state.country_id === countryId));
+      })
+      .catch(() => {
+        if (!cancelled) setStates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setStatesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [countryId]);
+
+  const isIndia = countries.some((country) => country.country_id === countryId && toSeoSlug(country.slug || country.country_name) === "india");
+  const regionStates = useMemo(() => {
+    return states.filter((state) => {
+      if (!isIndia || !regionId) return true;
+      return indiaRegionForState(state.state_name, state.slug)?.id === regionId;
+    });
+  }, [isIndia, regionId, states]);
+  const dayCities = useMemo(() => {
+    return cities
+      .filter((city) => !stateId || city.state_id === stateId)
+      .sort((left, right) => left.city_name.localeCompare(right.city_name));
+  }, [cities, stateId]);
+  const boarding = schoolCategory === "residential-school";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
     setError(null);
     setReference(null);
-    const city = cities.find((item) => item.city_id === cityId);
-    const grade = grades.find((item) => item.grade_id === gradeId);
     const digits = normalizePhoneNumber(phone);
     if (!digits) {
       setError("Enter your country code followed by exactly 10 phone number digits.");
@@ -115,8 +143,18 @@ export default function CounsellingModal({
       setError("Enter a valid email address.");
       return;
     }
-    if (!city || !grade) {
-      setError("Choose a preferred city and the class your child is applying for.");
+    const state = states.find((item) => item.state_id === stateId);
+    const city = cities.find((item) => item.city_id === cityId);
+    if (boarding && !state) {
+      setError("Choose a state for boarding school counselling.");
+      return;
+    }
+    if (!boarding && !city) {
+      setError("Choose a city for day school counselling.");
+      return;
+    }
+    if (!gradeId) {
+      setError("Choose the class your child is applying for.");
       return;
     }
 
@@ -126,18 +164,24 @@ export default function CounsellingModal({
         parent_name: name.trim(),
         email: email.trim(),
         phone: digits,
-        home_city: city.city_name,
-        preferred_country: city.country_id,
-        preferred_state: city.state_id,
-        preferred_cities: [city.city_id],
-        grades: [grade.grade_id],
-        message: "Requested a callback from the navigation bar.",
+        home_city: boarding ? state?.state_name ?? "" : city?.city_name ?? "",
+        preferred_country: countryId || city?.country_id || state?.country_id,
+        preferred_state: state?.state_id || city?.state_id,
+        preferred_cities: city && !boarding ? [city.city_id] : [],
+        grades: [gradeId],
+        school_types: homeSchoolTypeIds(schoolTypes, schoolCategory),
+        message: [
+          message.trim(),
+          boarding ? "School type: Boarding School. Tehsil records are not published for this state, so no tehsil was selected." : "School type: Day School.",
+        ].filter(Boolean).join("\n"),
       });
       setReference(result.reference);
       setName("");
       setEmail("");
       setPhone("");
+      setMessage("");
       setCityId("");
+      setStateId("");
       setGradeId("");
     } catch (reason: unknown) {
       setError(
@@ -156,7 +200,7 @@ export default function CounsellingModal({
     <div
       className="counselling-modal__backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
       <div
@@ -167,17 +211,12 @@ export default function CounsellingModal({
         tabIndex={-1}
         ref={dialogRef}
       >
-        <button
-          className="counselling-modal__close"
-          type="button"
-          aria-label="Close callback form"
-          onClick={onClose}
-        >
+        <button className="counselling-modal__close" type="button" aria-label="Close counselling form" onClick={onClose}>
           <X size={18} aria-hidden />
         </button>
-        <span className="counselling-modal__eyebrow">FREE CALLBACK</span>
-        <h2 id="counselling-modal-title">Request a callback</h2>
-        <p>Five quick details and a counsellor calls you back.</p>
+        <span className="counselling-modal__eyebrow">GET COUNSELLING</span>
+        <h2 id="counselling-modal-title">Request counselling</h2>
+        <p>Tell us how to reach you and where you want to look. Required fields are marked.</p>
 
         {loading ? (
           <div className="counselling-modal__loading" role="status">
@@ -185,36 +224,112 @@ export default function CounsellingModal({
           </div>
         ) : optionsError ? (
           <p className="counselling-modal__error" role="alert">{optionsError}</p>
-        ) : !cities.length || !grades.length ? (
-          <p className="counselling-modal__error" role="alert">
-            Callback requests are not available right now. Please try again later.
-          </p>
         ) : (
           <form onSubmit={submit}>
             <label>
-              Your name
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                autoComplete="name"
-                required
-              />
+              Parent name <span aria-hidden="true">*</span>
+              <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required disabled={submitting} />
             </label>
-            <CountryPhoneInput id="counselling-modal-phone" label="Phone number" value={phone} onChange={setPhone} disabled={submitting} />
+            <CountryPhoneInput id="counselling-modal-phone" label="Phone number *" value={phone} onChange={setPhone} disabled={submitting} />
             <label>
-              Email address
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-                maxLength={254}
-                required
-              />
+              Email <span aria-hidden="true">*</span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required disabled={submitting} />
             </label>
             <label>
-              Class applying for
-              <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required>
+              School type <span aria-hidden="true">*</span>
+              <select
+                value={schoolCategory}
+                disabled={submitting}
+                onChange={(event) => {
+                  setSchoolCategory(event.target.value as HomeSchoolCategory);
+                  setCityId("");
+                  setStateId("");
+                }}
+              >
+                <option value="residential-school">Boarding School</option>
+                <option value="day-school">Day School</option>
+              </select>
+            </label>
+            <label>
+              Country
+              <select
+                value={countryId}
+                disabled={submitting}
+                onChange={(event) => {
+                  setCountryId(event.target.value);
+                  setRegionId("");
+                  setStateId("");
+                  setCityId("");
+                }}
+              >
+                <option value="">Choose a country</option>
+                {countries.map((country) => (
+                  <option key={country.country_id} value={country.country_id}>{country.country_name}</option>
+                ))}
+              </select>
+            </label>
+            {isIndia && (
+              <label>
+                Region
+                <select
+                  value={regionId}
+                  disabled={submitting || statesLoading}
+                  onChange={(event) => {
+                    setRegionId(event.target.value);
+                    setStateId("");
+                    setCityId("");
+                  }}
+                >
+                  <option value="">{statesLoading ? "Loading regions…" : "All regions"}</option>
+                  {INDIA_REGIONS.map((region) => (
+                    <option key={region.id} value={region.id}>{region.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label>
+              State {boarding && <span aria-hidden="true">*</span>}
+              <select
+                value={stateId}
+                required={boarding}
+                disabled={submitting || !countryId || statesLoading}
+                onChange={(event) => {
+                  setStateId(event.target.value);
+                  setCityId("");
+                }}
+              >
+                <option value="">{statesLoading ? "Loading states…" : "Choose a state"}</option>
+                {regionStates.map((state) => (
+                  <option key={state.state_id} value={state.state_id}>{state.state_name}</option>
+                ))}
+              </select>
+            </label>
+            {boarding ? (
+              <label>
+                Tehsil
+                <select value="" disabled aria-describedby="tehsil-note">
+                  <option value="">{stateId ? "No tehsils published" : "Choose a state first"}</option>
+                </select>
+                <small id="tehsil-note">
+                  {stateId
+                    ? "This state has no tehsil records in the directory. Cities and localities are not used here."
+                    : "Tehsils load only after a state is selected."}
+                </small>
+              </label>
+            ) : (
+              <label>
+                City <span aria-hidden="true">*</span>
+                <select value={cityId} required disabled={submitting} onChange={(event) => setCityId(event.target.value)}>
+                  <option value="">Choose a city</option>
+                  {dayCities.map((city) => (
+                    <option key={city.city_id} value={city.city_id}>{city.city_name}, {city.state_name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label>
+              Preferred class <span aria-hidden="true">*</span>
+              <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required disabled={submitting}>
                 <option value="">Choose a class</option>
                 {grades.map((grade) => (
                   <option value={grade.grade_id} key={grade.grade_id}>{grade.grade_name}</option>
@@ -222,28 +337,17 @@ export default function CounsellingModal({
               </select>
             </label>
             <label className="counselling-modal__wide">
-              Preferred city
-              <select value={cityId} onChange={(event) => setCityId(event.target.value)} required>
-                <option value="">State, then city</option>
-                {citiesByState.map(([stateName, stateCities]) => (
-                  <optgroup label={stateName} key={stateName}>
-                    {stateCities.map((city) => (
-                      <option value={city.city_id} key={city.city_id}>
-                        {city.city_name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              Additional message
+              <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={3} disabled={submitting} />
             </label>
             {error && <p className="counselling-modal__error" role="alert">{error}</p>}
             {reference && (
               <p className="counselling-modal__success" role="status">
-                Callback requested. Your reference is <strong>{reference}</strong>.
+                Request received. Your reference is <strong>{reference}</strong>.
               </p>
             )}
             <button type="submit" disabled={submitting}>
-              {submitting ? "Sending request…" : "Request callback"}
+              {submitting ? "Sending request…" : "Get counselling"}
             </button>
           </form>
         )}

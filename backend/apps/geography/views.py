@@ -81,7 +81,12 @@ class StateViewSet(ReadWriteModelViewSet):
 class CityViewSet(ReadWriteModelViewSet):
     pagination_class = CityDirectoryPagination
     queryset = City.objects.select_related('state', 'state__country').annotate(
-        schools_count=Count('schools', filter=Q(schools__status=True), distinct=True)
+        schools_count=Count('schools', filter=Q(schools__status=True), distinct=True),
+        featured_schools_count=Count(
+            'schools',
+            filter=Q(schools__status=True, schools__is_featured=True),
+            distinct=True,
+        ),
     )
     serializer_class = CityDetailSerializer
     list_serializer_class = CityListSerializer

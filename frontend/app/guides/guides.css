@@ -51,12 +51,33 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 26px;
+  padding: 0 0 22px;
+  overflow: hidden;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+
+.guides-card__media {
+  height: 148px;
+  background-color: #e7eef6;
+  background-size: cover;
+  background-position: center;
+}
+
+.guides-card--admissions .guides-card__media { background-color: #d9e8f4; }
+.guides-card--boarding-life .guides-card__media { background-color: #f3e6c4; }
+.guides-card--boards-curriculum .guides-card__media { background-color: #dfe8df; }
+.guides-card--fees-planning .guides-card__media { background-color: #e7e4f2; }
+
+.guides-chip,
+.guides-card__title,
+.guides-card__summary,
+.guides-card__foot {
+  margin-left: 22px;
+  margin-right: 22px;
 }
 
 .guides-card:hover {

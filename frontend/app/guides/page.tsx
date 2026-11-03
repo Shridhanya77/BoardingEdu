@@ -42,7 +42,8 @@ export default function GuidesIndexPage() {
 
       <section className="guides-grid" aria-label="Guides">
         {guides.map((guide) => (
-          <article key={guide.slug} className="guides-card">
+          <article key={guide.slug} className={`guides-card guides-card--${guide.category.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
+            <div className="guides-card__media" style={{ backgroundImage: "url(/school-cover-fallback.svg)" }} role="img" aria-label="" />
             <span className="guides-chip">{guide.category}</span>
             <h2 className="guides-card__title">
               <Link href={`/guides/${guide.slug}`}>{guide.title}</Link>

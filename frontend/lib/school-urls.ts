@@ -1,5 +1,4 @@
 import {
-  schoolCategorySegment,
   schoolProfilePathFromSlugs,
   toSeoSlug,
   withTrailingSlash,
@@ -34,30 +33,50 @@ export function schoolEnquiryPath(school: SchoolPathFields): string {
 }
 
 /**
- * Board listing URL. The school-type family is a path segment (never a query
- * string) so every canonical URL ends with a trailing slash:
- *   /board/cbse/                → board chooser / all CBSE schools
- *   /board/cbse/day_schools/     → CBSE day + day boarding schools
- *   /board/cbse/boarding_schools/→ CBSE boarding + day boarding schools
+ * School type is not part of a location or board slug.
+ * Direct links, refresh, and back/forward keep the selection in one
+ * `category` query (`day-school` or `boarding-schools`). The path stays
+ * geographical. Canonical metadata uses the path without that query so
+ * day and boarding filters do not create a second indexable URL.
+ */
+export function listingCategoryQuery(category?: HomeSchoolCategory | null): "day-school" | "boarding-schools" | null {
+  if (!category) return null;
+  return category === "day-school" ? "day-school" : "boarding-schools";
+}
+
+export function withCategoryQuery(path: string, category?: HomeSchoolCategory | null): string {
+  const url = new URL(path, "https://boardingeu.invalid");
+  url.searchParams.delete("school_type");
+  url.searchParams.delete("home_category");
+  url.searchParams.delete("type");
+  const value = listingCategoryQuery(category);
+  if (value) url.searchParams.set("category", value);
+  else url.searchParams.delete("category");
+  const base = withTrailingSlash(url.pathname);
+  const query = url.searchParams.toString();
+  return query ? `${base}?${query}` : base;
+}
+
+/**
+ * Board listing URL. School type stays off the path:
+ *   /board/cbse/                         → all CBSE schools
+ *   /board/cbse/?category=day-school     → day + day boarding schools
+ *   /board/cbse/?category=boarding-schools → boarding + day boarding schools
  */
 export function boardListingPath(
   slug: string,
   category?: HomeSchoolCategory | null,
 ): string {
-  const base = withTrailingSlash(`/board/${toSeoSlug(slug)}`);
-  return category ? `${base}${schoolCategorySegment(category)}/` : base;
+  return withCategoryQuery(`/board/${toSeoSlug(slug)}`, category);
 }
 
 /**
- * Typed school-directory URL with no query string:
- *   /schools/                   → every school
- *   /schools/day_schools/        → day + day boarding schools
- *   /schools/boarding_schools/   → boarding + day boarding schools
+ * Directory URL. A school-type filter uses `/india/?category=` so the
+ * geographical slug never changes between day and boarding schools.
  */
 export function schoolDirectoryPath(category?: HomeSchoolCategory | null): string {
-  return category
-    ? `/schools/${schoolCategorySegment(category)}/`
-    : withTrailingSlash("/schools");
+  if (!category) return withTrailingSlash("/schools");
+  return placeListingPath({ countrySlug: "india", category });
 }
 
 export function indiaRegionListingPath(
@@ -66,10 +85,7 @@ export function indiaRegionListingPath(
 ): string {
   const region = indiaRegionById(regionId);
   if (!region) throw new Error(`Unknown Indian region: ${regionId}`);
-  const base = `/india/${region.slug}`;
-  return withTrailingSlash(
-    category ? `${base}/${schoolCategorySegment(category)}` : base,
-  );
+  return withCategoryQuery(`/india/${region.slug}`, category);
 }
 
 export function indiaRegionBoardListingPath(
@@ -80,9 +96,9 @@ export function indiaRegionBoardListingPath(
   const region = indiaRegionById(regionId);
   if (!region) throw new Error(`Unknown Indian region: ${regionId}`);
   if (!boardSlugs.length) throw new Error("At least one board is required.");
-  const base = `/india/${region.slug}/board/${boardSlugs.map(toSeoSlug).join(",")}`;
-  return withTrailingSlash(
-    category ? `${base}/${schoolCategorySegment(category)}` : base,
+  return withCategoryQuery(
+    `/india/${region.slug}/board/${boardSlugs.map(toSeoSlug).join(",")}`,
+    category,
   );
 }
 
@@ -92,11 +108,12 @@ export function schoolSearchPath(query: string): string {
 }
 
 /**
- * Hierarchical listing URL. Without a category it is the place landing page
- * that asks for a school type first:
- *   /india/karnataka/bengaluru/                 → school-type chooser
- *   /india/karnataka/bengaluru/day_schools/      → day + day boarding schools
- *   /india/karnataka/bengaluru/boarding_schools/ → boarding + day boarding schools
+ * Geographical listing URL. School type is never a path segment.
+ *   /india/
+ *   /india/maharashtra/
+ *   /india/maharashtra/panchgani/
+ *   /india/maharashtra/pune/kothrud/
+ *   /india/maharashtra/?category=boarding-schools
  */
 export function placeListingPath(parts: {
   countrySlug: string;
@@ -111,15 +128,7 @@ export function placeListingPath(parts: {
     parts.citySlug,
     parts.locationSlug,
   ].filter((slug): slug is string => Boolean(slug)).map(toSeoSlug);
-  const path = !parts.stateSlug && !parts.citySlug && !parts.locationSlug
-    ? parts.category
-      ? `/${slugs[0]}`
-      : `/home/${slugs[0]}`
-    : `/${slugs.join("/")}`;
-  const categoryPath = parts.category
-    ? `${path}/${schoolCategorySegment(parts.category)}`
-    : path;
-  return withTrailingSlash(categoryPath);
+  return withCategoryQuery(`/${slugs.join("/")}`, parts.category);
 }
 
 /**

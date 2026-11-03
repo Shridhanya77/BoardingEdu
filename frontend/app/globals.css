@@ -19050,7 +19050,7 @@ select:focus-visible {
 .country-phone-field__controls {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(108px, 0.8fr) minmax(0, 1.4fr);
+  grid-template-columns: 92px minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -19354,4 +19354,77 @@ select:focus-visible {
   .search-ac__panel {
     max-height: 70vh;
   }
+}
+
+.school-list:not(.school-list--skeleton) {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 800px) {
+  .school-list:not(.school-list--skeleton) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.school-card__avatar {
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.school-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.school-card__media {
+  position: relative;
+  height: 148px;
+  overflow: hidden;
+  background: #e7eef6;
+}
+
+.school-card__board {
+  margin: 8px 0 0;
+  color: #3d5168;
+  font-size: 13px;
+}
+
+.home-section__more {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.compare-page__heading--center {
+  text-align: center;
+}
+
+.compare-page__heading--center > div {
+  width: 100%;
+}
+
+.finder-field.is-disabled {
+  opacity: 0.55;
+}
+
+.counselling-modal form textarea,
+.counselling-modal form select,
+.counselling-modal form input {
+  width: 100%;
+  min-height: 44px;
+}
+
+.counselling-modal form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.counselling-modal small {
+  display: block;
+  margin-top: 6px;
+  color: #5c6b7a;
+  font-size: 12px;
 }

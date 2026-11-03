@@ -106,7 +106,7 @@ export default function CountryPhoneInput({
           }}
         >
           {[...new Map(COUNTRY_DIAL_CODES.map((item) => [item.code, item])).values()].map((item) => (
-            <option value={item.code} key={item.code}>{item.country} ({item.code})</option>
+            <option value={item.code} key={item.code} title={item.country}>{item.code}</option>
           ))}
         </select>
         <input

@@ -52,6 +52,7 @@ class StateListSerializer(serializers.ModelSerializer):
 
 class CityListSerializer(serializers.ModelSerializer):
     schools_count = serializers.SerializerMethodField()
+    featured_schools_count = serializers.SerializerMethodField()
     state_id = serializers.CharField(source='state.state_id', read_only=True)
     state_code = serializers.CharField(source='state.state_code', read_only=True)
     state_name = serializers.CharField(source='state.state_name', read_only=True)
@@ -76,6 +77,7 @@ class CityListSerializer(serializers.ModelSerializer):
             'city_code',
             'city_name',
             'schools_count',
+            'featured_schools_count',
             'slug',
             'status',
             'created_at',
@@ -92,6 +94,11 @@ class CityListSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'schools_count'):
             return obj.schools_count
         return obj.schools.filter(status=True).count()
+
+    def get_featured_schools_count(self, obj):
+        if hasattr(obj, 'featured_schools_count'):
+            return obj.featured_schools_count
+        return obj.schools.filter(status=True, is_featured=True).count()
 
 
 class LocationListSerializer(serializers.ModelSerializer):

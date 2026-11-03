@@ -28,10 +28,10 @@ function headerLinks(role: UserRole | null, pathname: string): HeaderLink[] {
   const home = pathname === "/" || pathname === "";
   const guides = pathname.startsWith("/guides");
   const compare = pathname.startsWith("/compare");
-  const explore = !home && !guides && !compare && !pathname.startsWith("/dashboard") && !pathname.startsWith("/login") && !pathname.startsWith("/signup") && !pathname.startsWith("/privacy") && !pathname.startsWith("/terms") && !pathname.startsWith("/counselling");
+  const explore = pathname === "/india" || pathname.startsWith("/india/") || pathname.startsWith("/schools");
   const shared: HeaderLink[] = [
     { href: "/", label: "Home", active: home },
-    { href: "/schools/", label: "Explore Schools", active: explore },
+    { href: "/india/", label: "Explore Schools", active: explore || pathname === "/india" || pathname.startsWith("/india/") },
   ];
   if (!role || role === "PARENT") {
     return [

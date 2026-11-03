@@ -80,7 +80,7 @@ import {
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, indiaRegionBoardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolEnquiryPath, schoolSearchPath } from "@/lib/school-urls";
+import { boardListingPath, indiaRegionBoardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -298,9 +298,13 @@ function SchoolCard({
             onError={() => setCoverImageFailed(true)}
           />
         ) : (
-          <span className="school-card__media-fallback" aria-hidden="true">
-            <Building2 size={30} strokeWidth={1.4} />
-          </span>
+          <Image
+            className="school-card__media-image"
+            src="/school-cover-fallback.svg"
+            alt=""
+            fill
+            sizes="(max-width: 800px) 100vw, 50vw"
+          />
         )}
 
         {school.videos_count ? (
@@ -348,45 +352,14 @@ function SchoolCard({
               {location || "Location not listed"}
             </p>
 
-            {(school.average_rating != null || school.grades_range) && (
-              <div className="school-card__meta">
-                {school.average_rating != null && (
-                  <span
-                    className="school-card__rating"
-                    aria-label={`Rated ${school.average_rating} out of 5 from ${school.review_count} reviews`}
-                  >
-                    <Star size={14} aria-hidden="true" />
-                    <strong>{school.average_rating.toFixed(1)}</strong>
-                    <span className="school-card__rating-count">
-                      ({school.review_count}{" "}
-                      {school.review_count === 1 ? "review" : "reviews"})
-                    </span>
-                  </span>
-                )}
-
-                {school.grades_range && (
-                  <span className="school-card__classes">
-                    Classes: {school.grades_range}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
-        <div className="school-card__facts">
-          {school.boards_detail.length > 0 && (
-            <p><span>Affiliated to</span> {boardsAffiliatedLabel(
-              school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
-            ) || boardsAffiliatedLabel(school.boards_detail)}</p>
-          )}
-          {school.grades_range && (
-            <p><span>Classes</span> {school.grades_range}</p>
-          )}
-          {school.annual_fee != null && Number(school.annual_fee) > 0 && (
-            <p><span>Annual fees</span> {formatRupees(Number(school.annual_fee))} onwards</p>
-          )}
-        </div>
+        {school.boards_detail.length > 0 && (
+          <p className="school-card__board">{boardsAffiliatedLabel(
+            school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
+          ) || boardsAffiliatedLabel(school.boards_detail)}</p>
+        )}
 
         <div className="school-card__tags">
           {school.school_types_detail
@@ -405,10 +378,6 @@ function SchoolCard({
         </div>
 
         <div className="school-card__footer">
-          <p>
-            {school.address || "Contact the school for address details."}
-          </p>
-
           <div className="school-card__actions">
             <label className="school-compare">
               <input
@@ -429,22 +398,7 @@ function SchoolCard({
               />
               Compare
             </label>
-            <Link className="school-card__view" href={href}>View school</Link>
-            <Link className="school-card__enquire" href={schoolEnquiryPath(school)}>Enquire</Link>
-
-            {school.phone && (
-              <a href={`tel:${school.phone}`}>Call school</a>
-            )}
-
-            {school.email && (
-              <a
-                className="school-card__email"
-                href={`mailto:${school.email}`}
-                aria-label={`Email ${school.school_name}`}
-              >
-                <ArrowRight size={16} />
-              </a>
-            )}
+            <Link className="school-card__view" href={href}>View Details</Link>
           </div>
         </div>
       </div>
@@ -458,10 +412,12 @@ type Breadcrumb = { name: string; url: string };
 type PlaceHighlight = { label: string; href: string; kind: "state" | "city" | "locality" };
 const finderScrollStorageKey = "boardingeu:finder-scroll-path";
 
-function withListingFilters(href: string, boards: string[], schoolTypes: string[]) {
+function withListingFilters(href: string, boards: string[]) {
   const url = new URL(href, "https://boardingeu.invalid");
-  boards.forEach((id) => url.searchParams.append("board", id));
-  schoolTypes.forEach((id) => url.searchParams.append("school_type", id));
+  url.searchParams.delete("school_type");
+  boards.forEach((id) => {
+    if (!url.searchParams.getAll("board").includes(id)) url.searchParams.append("board", id);
+  });
   return `${url.pathname}${url.search}`;
 }
 
@@ -562,7 +518,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citiesError, setCitiesError] = useState<string | null>(null);
   const [citiesRetry, setCitiesRetry] = useState(0);
-  const [hoveredCityIds, setHoveredCityIds] = useState<string[] | null>(null);
   const [locations, setLocations] = useState<LocationListItem[]>([]);
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const [schoolFaqs, setSchoolFaqs] = useState<SchoolFAQListItem[]>([]);
@@ -749,6 +704,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [citiesSectionCategory, setCitiesSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [selectedState, setSelectedState] = useState<StateBrowseItem | null>(null);
+  const [allStatesOpen, setAllStatesOpen] = useState(false);
+  const [allCitiesOpen, setAllCitiesOpen] = useState(false);
+  const [allStateQuery, setAllStateQuery] = useState("");
+  const [allCityQuery, setAllCityQuery] = useState("");
+  const [allCityStateId, setAllCityStateId] = useState("");
   const [stateCitySearch, setStateCitySearch] = useState("");
   const [botOnboardingOpen, setBotOnboardingOpen] = useState(false);
 
@@ -1095,7 +1055,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             : itemCategory === "day-school" ? "Day schools" : "Boarding schools",
           href: currentBoard
             ? boardListingPath(currentBoard.slug, itemCategory)
-            : withListingFilters(schoolDirectoryPath(itemCategory), board, []),
+            : withListingFilters(schoolDirectoryPath(itemCategory), board),
         }));
     const boardSearches = category
       ? boards.slice(0, 8).map((item) => ({
@@ -1134,20 +1094,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setLoadMoreError(null);
   }, [queryKey]);
 
-  const cityCards = useMemo(() => {
-    // "Top cities" means the cities with the most listed schools, so the row is
-    // ranked by school count instead of the API's default name order.
-    const featuredCities = cities
+  const rankedCities = useMemo(() => {
+    return cities
       .filter((city) => (city.schools_count ?? 0) > 0)
       .sort(
         (left, right) =>
+          (right.featured_schools_count ?? 0) - (left.featured_schools_count ?? 0) ||
           (right.schools_count ?? 0) - (left.schools_count ?? 0) ||
           left.city_name.localeCompare(right.city_name),
       );
-    if (!hoveredCityIds) return featuredCities.slice(0, 10);
-    const selectedIds = new Set(hoveredCityIds);
-    return featuredCities.filter((city) => selectedIds.has(city.city_id));
-  }, [cities, hoveredCityIds]);
+  }, [cities]);
+  const cityCards = useMemo(() => rankedCities.slice(0, 8), [rankedCities]);
   const boardCards = useMemo(() => {
     const query = boardSearch.trim().toLocaleLowerCase();
     return boards.filter((item) =>
@@ -1172,8 +1129,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
    * Top states, ranked by the number of listed schools across their cities.
    * Rendered above Top cities so parents can zoom out before picking a city.
    */
-  const stateCards = useMemo(() => {
-    const grouped = new Map<string, StateBrowseItem>();
+  const rankedStates = useMemo(() => {
+    const grouped = new Map<string, StateBrowseItem & { featured: number }>();
     for (const city of cities) {
       const count = city.schools_count ?? 0;
       if (count <= 0) continue;
@@ -1183,14 +1140,27 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         state_slug: city.state_slug ?? city.state_name,
         country_slug: city.country_slug ?? city.country_name,
         count: 0,
+        featured: 0,
       };
       current.count += count;
+      current.featured += city.featured_schools_count ?? 0;
       grouped.set(city.state_id, current);
     }
     return [...grouped.values()]
-      .sort((left, right) => right.count - left.count || left.state_name.localeCompare(right.state_name))
-      .slice(0, 10);
+      .sort((left, right) => right.featured - left.featured || right.count - left.count || left.state_name.localeCompare(right.state_name));
   }, [cities]);
+  const stateCards = useMemo(() => rankedStates.slice(0, 8), [rankedStates]);
+  const visibleStates = useMemo(() => {
+    const query = allStateQuery.trim().toLocaleLowerCase();
+    return rankedStates.filter((state) => state.state_name.toLocaleLowerCase().includes(query));
+  }, [allStateQuery, rankedStates]);
+  const visibleCities = useMemo(() => {
+    const query = allCityQuery.trim().toLocaleLowerCase();
+    return rankedCities.filter((city) =>
+      (!allCityStateId || city.state_id === allCityStateId) &&
+      `${city.city_name} ${city.state_name}`.toLocaleLowerCase().includes(query),
+    );
+  }, [allCityQuery, allCityStateId, rankedCities]);
   const stateModalCities = useMemo(() => {
     if (!selectedState) return [];
     const query = stateCitySearch.trim().toLocaleLowerCase();
@@ -1239,6 +1209,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       setRegionPickerOpen(false);
       return;
     }
+    if (window.sessionStorage.getItem("boardingedu:region-prompt") === "dismissed") return;
     if (!citiesLoading && !citiesError && indiaRegionCards.length) {
       setRegionPickerOpen(true);
     }
@@ -2465,7 +2436,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         : indiaRegionListingPath(selectedRegion.id, category)
       : category
         ? placeListingPath({ countrySlug: "india", category })
-        : "/home/india/";
+        : "/india/";
     router.push(destination, { scroll: false });
   }
 
@@ -2834,27 +2805,29 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             tabIndex={0}
           >
             {stateCards.map((state, index) => (
-              <button
+              <Link
                 className={`city-card state-city-trigger city-card--${index + 1}`}
                 key={state.state_id}
-                type="button"
+                href={placeListingPath({
+                  countrySlug: state.country_slug,
+                  stateSlug: state.state_slug,
+                })}
                 style={{ background: placeBackdrop(state.state_slug) }}
-                onClick={() => {
-                  setStateCitySearch("");
-                  setSelectedState(state);
-                }}
-                aria-label={`Explore cities in ${state.state_name}, ${state.count} schools listed`}
-                aria-haspopup="dialog"
-                aria-expanded={selectedState?.state_id === state.state_id}
+                aria-label={`${state.state_name}, ${state.count} schools listed`}
               >
                 <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
                 <span className="city-card__name">{state.state_name}</span>
                 <span className="city-card__state">{state.count} schools listed</span>
                 <span className="city-card__action">
-                  Explore cities <ArrowRight size={14} aria-hidden />
+                  View schools <ArrowRight size={14} aria-hidden />
                 </span>
-              </button>
+              </Link>
             ))}
+          </div>
+          <div className="home-section__more">
+            <button type="button" className="secondary-button" onClick={() => setAllStatesOpen(true)}>
+              Explore All States
+            </button>
           </div>
         </section>
       )}
@@ -3003,18 +2976,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           role="region"
           aria-label="Top cities, scroll horizontally to see more"
           tabIndex={0}
-          onMouseEnter={() => {
-            const candidates = cities.filter((city) => (city.schools_count ?? 0) > 0);
-            for (let index = candidates.length - 1; index > 0; index -= 1) {
-              const randomIndex = Math.floor(Math.random() * (index + 1));
-              [candidates[index], candidates[randomIndex]] = [
-                candidates[randomIndex]!,
-                candidates[index]!,
-              ];
-            }
-            setHoveredCityIds(candidates.slice(0, 10).map((city) => city.city_id));
-          }}
-          onMouseLeave={() => setHoveredCityIds(null)}
         >
           {cityCards.map((city, index) => {
             const hrefFor = (category?: HomeSchoolCategory | null) =>
@@ -3028,23 +2989,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <Link
                 className={`city-card city-card--${index + 1}`}
                 key={city.city_id}
-                href={hrefFor(null)}
+                href={hrefFor(citiesSectionCategory)}
                 style={{ background: placeBackdrop(city.slug) }}
-                onClick={(event) => {
-                  if (citiesSectionCategory) return;
-                  event.preventDefault();
-                  openTypePicker({
-                    title: `Schools in ${city.city_name}`,
-                    subtitle: "Pick a school type to open the right listings first.",
-                    hrefFor: (category) => hrefFor(category),
-                    allHref: hrefFor(null),
-                    allLabel: `See every school in ${city.city_name}`,
-                  });
-                }}
               >
                 <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
                 <span className="city-card__name">{city.city_name}</span>
-                <span className="city-card__state">{city.state_name}</span>
+                <span className="city-card__state">{city.state_name} · {city.schools_count ?? 0} schools</span>
                 <span className="city-card__action">
                   Explore schools <ArrowRight size={14} />
                 </span>
@@ -3060,6 +3010,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </p>
           )}
         </div>
+        {rankedCities.length > 0 && (
+          <div className="home-section__more">
+            <button type="button" className="secondary-button" onClick={() => setAllCitiesOpen(true)}>
+              Explore All Cities
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="home-section home-section--boards" id="boards">
@@ -3402,7 +3359,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 {placeHighlights.map((place) => (
                   <Link
                     key={`${place.kind}-${place.label}`}
-                    href={withListingFilters(place.href, board, schoolType)}
+                    href={withListingFilters(place.href, board)}
                   >
                     <MapPin size={14} aria-hidden />
                     {place.kind === "state" ? `Schools in ${place.label}` : place.label}
@@ -3424,13 +3381,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                         ? "REGIONAL PICKS"
                         : "LOCAL PICKS"}
                   </div>
-                  <h2>
-                    {featuredFallback
-                      ? `${listingTypeLabel} in ${listingPlaceLabel}`
-                      : browsedRegion
-                        ? `Featured ${listingTypeLabel} in ${browsedRegion.label}`
-                        : `Featured ${listingTypeLabel.toLowerCase()} in ${listingPlaceLabel}`}
-                  </h2>
+                  <h2>{homeCategory === "day-school" ? "Featured Day Schools" : homeCategory === "residential-school" ? "Featured Boarding Schools" : "Featured Schools"}</h2>
                 </div>
               </div>
               {featuredLoading ? (
@@ -3502,7 +3453,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
 
             <fieldset className="filter-group">
-              <legend>School type</legend>
+              <legend>School type{schoolType.length ? ` (${schoolType.length})` : ""}</legend>
               <div className="filter-checklist" id="school-type-filter">
                 {(["Day School", "Day Boarding School", "Boarding School"] as const).map((label) => {
                   const rows = schoolTypes.filter((type) =>
@@ -3540,7 +3491,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </fieldset>
 
             <fieldset className="filter-group">
-              <legend>Education board</legend>
+              <legend>Education board{board.length ? ` (${board.length})` : ""}</legend>
               <div className="filter-checklist" id="board-filter">
                 {boards
                   .filter((item) => !board.length || board.includes(item.board_id))
@@ -3591,7 +3542,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </fieldset>
 
             <fieldset className="filter-group">
-              <legend>Student community</legend>
+              <legend>Gender</legend>
 
               <div className="gender-options">
                 {genderOptions.map((option) => (
@@ -3964,14 +3915,110 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         onBoard={selectBoard}
         onSchoolType={selectSchoolType}
       />
+      {allStatesOpen && (
+        <div className="state-explorer" role="presentation">
+          <button className="state-explorer__backdrop" type="button" aria-label="Close state explorer" onClick={() => setAllStatesOpen(false)} />
+          <section className="state-explorer__dialog" role="dialog" aria-modal="true" aria-labelledby="all-states-title">
+            <div className="state-explorer__header">
+              <div>
+                <span className="section-eyebrow">STATES AND UNION TERRITORIES</span>
+                <h2 id="all-states-title">Explore all states</h2>
+                <p>Locations with published schools, ranked by featured schools and then by published schools.</p>
+              </div>
+              <button className="state-explorer__close" type="button" aria-label="Close" onClick={() => setAllStatesOpen(false)}><X size={19} /></button>
+            </div>
+            <label className="state-explorer__search">
+              <Search size={17} aria-hidden />
+              <span className="sr-only">Search states</span>
+              <input type="search" value={allStateQuery} onChange={(event) => setAllStateQuery(event.target.value)} placeholder="Search states" />
+            </label>
+            <div className="state-explorer__cities">
+              {visibleStates.map((state) => (
+                <Link
+                  key={state.state_id}
+                  className="state-city-card"
+                  href={placeListingPath({ countrySlug: state.country_slug, stateSlug: state.state_slug })}
+                  onClick={() => setAllStatesOpen(false)}
+                >
+                  <div className="state-city-card__heading">
+                    <span className="state-city-card__icon"><MapPin size={17} aria-hidden /></span>
+                    <span>
+                      <strong>{state.state_name}</strong>
+                      <small>{state.count} published schools</small>
+                    </span>
+                  </div>
+                </Link>
+              ))}
+              {!visibleStates.length && <p className="state-explorer__empty">No states match that search.</p>}
+            </div>
+          </section>
+        </div>
+      )}
+      {allCitiesOpen && (
+        <div className="state-explorer" role="presentation">
+          <button className="state-explorer__backdrop" type="button" aria-label="Close city explorer" onClick={() => setAllCitiesOpen(false)} />
+          <section className="state-explorer__dialog" role="dialog" aria-modal="true" aria-labelledby="all-cities-title">
+            <div className="state-explorer__header">
+              <div>
+                <span className="section-eyebrow">CITIES</span>
+                <h2 id="all-cities-title">Explore all cities</h2>
+                <p>Each city stays linked to its state. Counts come from published schools.</p>
+              </div>
+              <button className="state-explorer__close" type="button" aria-label="Close" onClick={() => setAllCitiesOpen(false)}><X size={19} /></button>
+            </div>
+            <label className="state-explorer__search">
+              <Search size={17} aria-hidden />
+              <span className="sr-only">Filter by state</span>
+              <select value={allCityStateId} onChange={(event) => setAllCityStateId(event.target.value)} aria-label="Filter cities by state">
+                <option value="">All states</option>
+                {rankedStates.map((state) => (
+                  <option key={state.state_id} value={state.state_id}>{state.state_name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="state-explorer__search">
+              <Search size={17} aria-hidden />
+              <span className="sr-only">Search cities</span>
+              <input type="search" value={allCityQuery} onChange={(event) => setAllCityQuery(event.target.value)} placeholder="Search cities" />
+            </label>
+            <div className="state-explorer__cities">
+              {visibleCities.map((city) => (
+                <Link
+                  key={city.city_id}
+                  className="state-city-card"
+                  href={placeListingPath({
+                    countrySlug: city.country_slug ?? city.country_name,
+                    stateSlug: city.state_slug ?? city.state_name,
+                    citySlug: city.slug,
+                  })}
+                  onClick={() => setAllCitiesOpen(false)}
+                >
+                  <div className="state-city-card__heading">
+                    <span className="state-city-card__icon"><MapPin size={17} aria-hidden /></span>
+                    <span>
+                      <strong>{city.city_name}</strong>
+                      <small>{city.state_name} · {city.schools_count ?? 0} schools</small>
+                    </span>
+                  </div>
+                </Link>
+              ))}
+              {!visibleCities.length && <p className="state-explorer__empty">No cities match that search.</p>}
+            </div>
+          </section>
+        </div>
+      )}
       <IndiaRegionPickerModal
         open={regionPickerOpen}
         regions={indiaRegionCards}
         onChoose={(region) => {
+          window.sessionStorage.setItem("boardingedu:region-prompt", "dismissed");
           setRegionPickerOpen(false);
           selectIndiaRegion(region);
         }}
-        onClose={() => setRegionPickerOpen(false)}
+        onClose={() => {
+          window.sessionStorage.setItem("boardingedu:region-prompt", "dismissed");
+          setRegionPickerOpen(false);
+        }}
       />
       <SchoolTypePickerModal request={typePicker} onClose={() => setTypePicker(null)} />
       {isHomePage && botOnboardingOpen && (

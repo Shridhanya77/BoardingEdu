@@ -188,7 +188,7 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
     preferred_cities = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=City.objects.filter(status=True),
-        allow_empty=False,
+        allow_empty=True,
     )
     grades = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -240,6 +240,10 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
         country = attrs.get("preferred_country")
         state = attrs.get("preferred_state")
         cities = attrs.get("preferred_cities", [])
+        if not cities and not state:
+            raise serializers.ValidationError({
+                "preferred_state": "Choose a state or at least one city."
+            })
         if state and country and state.country_id != country.pk:
             raise serializers.ValidationError({
                 "preferred_state": "The selected state does not belong to the selected country."

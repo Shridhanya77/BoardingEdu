@@ -246,30 +246,98 @@ export default function SiteFooterSeo({
     [availableCategories],
   );
 
+  const topStateLinks = stateSearches.slice(0, 6);
+  const topCityLinks = popularCities.slice(0, 6);
   const footerGroups = [
-    { title: "By school type", links: schoolTypeLinks },
-    ...boardGroups.map((group) => ({ ...group, links: group.links.slice(0, 12) })),
-    ...locationGroups.map((group) => ({ ...group, links: group.links.slice(0, 18) })),
     {
-      title: "Top 10 schools",
-      links: topSchools.length
-        ? topSchools.slice(0, 10).map((school) => ({
-            label: school.school_name,
-            href: schoolListPath(school),
-          }))
-        : [{ label: "Browse all schools", href: schoolDirectoryPath() }],
+      title: "Explore Schools",
+      links: [
+        { label: "Day Schools in India", href: placeListingPath({ countrySlug: "india", category: "day-school" }) },
+        { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
+        { label: "Schools by State", href: "/india/" },
+        { label: "Explore All Schools", href: schoolDirectoryPath() },
+        ...topCityLinks.slice(0, 1).map((city) => ({
+          label: "Schools by City",
+          href: placeListingPath({
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+          }),
+        })),
+      ],
     },
     {
-      title: "More from BoardingEdu",
+      title: "Day Schools",
       links: [
-        { label: "All schools", href: schoolDirectoryPath() },
-        { label: "Compare schools", href: "/compare/" },
-        { label: "School guides", href: "/guides/" },
-        { label: "List your school", href: "/signup/" },
-        { label: "Log in", href: "/login/" },
+        { label: "Day Schools in India", href: placeListingPath({ countrySlug: "india", category: "day-school" }) },
+        ...topStateLinks.slice(0, 3).map(([, state]) => ({
+          label: `Day Schools in ${state.name}`,
+          href: placeListingPath({ countrySlug: state.countrySlug, stateSlug: state.stateSlug, category: "day-school" }),
+        })),
+        ...topCityLinks.slice(0, 3).map((city) => ({
+          label: `Day Schools in ${city.city_name}`,
+          href: placeListingPath({
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+            category: "day-school",
+          }),
+        })),
+      ],
+    },
+    {
+      title: "Boarding Schools",
+      links: [
+        { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
+        ...topStateLinks.slice(0, 3).map(([, state]) => ({
+          label: `Boarding Schools in ${state.name}`,
+          href: placeListingPath({ countrySlug: state.countrySlug, stateSlug: state.stateSlug, category: "residential-school" }),
+        })),
+        ...topCityLinks.slice(0, 3).map((city) => ({
+          label: `Boarding Schools in ${city.city_name}`,
+          href: placeListingPath({
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+            category: "residential-school",
+          }),
+        })),
+      ],
+    },
+    {
+      title: "Popular Locations",
+      links: [
+        ...topStateLinks.map(([, state]) => ({
+          label: state.name,
+          href: placeListingPath({ countrySlug: state.countrySlug, stateSlug: state.stateSlug }),
+        })),
+        ...topCityLinks.map((city) => ({
+          label: `${city.city_name}, ${city.state_name}`,
+          href: placeListingPath({
+            countrySlug: city.country_slug ?? city.country_name,
+            stateSlug: city.state_slug ?? city.state_name,
+            citySlug: city.slug,
+          }),
+        })),
+      ],
+    },
+    {
+      title: "About BoardingEdu",
+      links: [
+        { label: "About Us", href: "/about/" },
+        { label: "Contact Us", href: "/contact/" },
+        { label: "Privacy Policy", href: "/privacy/" },
+        { label: "Terms and Conditions", href: "/terms/" },
+        { label: "Compare Schools", href: "/compare/" },
+        { label: "Guides", href: "/guides/" },
       ],
     },
   ];
+  void schoolTypeLinks;
+  void boardGroups;
+  void locationGroups;
+  void topSchools;
+  void schoolListPath;
 
   return (
     <footer className="seo-footer" id="sitemap">

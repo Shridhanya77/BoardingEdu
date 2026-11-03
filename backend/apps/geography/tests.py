@@ -76,5 +76,6 @@ class CityListSerializerTests(TestCase):
         payload = CityListSerializer(city).data
 
         self.assertEqual(payload["schools_count"], 1)
+        self.assertEqual(payload["featured_schools_count"], 0)
         self.assertEqual(payload["country_slug"], "india")
         self.assertEqual(payload["state_slug"], "karnataka")

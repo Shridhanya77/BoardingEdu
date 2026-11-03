@@ -378,6 +378,7 @@ export type CityListItem = {
   city_code: string;
   city_name: string;
   schools_count?: number;
+  featured_schools_count?: number;
   slug: string;
   status: boolean;
   created_at: string;
