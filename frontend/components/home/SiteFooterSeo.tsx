@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import Image from "next/image";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Phone } from "lucide-react";
+import CounsellingModal from "@/components/home/CounsellingModal";
 import type {
   BoardListItem,
   CityListItem,
@@ -17,7 +18,7 @@ import {
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
+import { boardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -29,7 +30,23 @@ type Props = {
   dataError?: string | null;
 };
 
-const CITY_LINK_LIMIT = 24;
+const CITY_LINK_LIMIT = 12;
+
+function citySearchPath(
+  city: CityListItem,
+  options?: { category?: HomeSchoolCategory; board?: string },
+) {
+  const path = placeListingPath({
+    countrySlug: city.country_slug ?? city.country_name,
+    stateSlug: city.state_slug ?? city.state_name,
+    citySlug: city.slug,
+    category: options?.category,
+  });
+  if (!options?.board) return path;
+  const url = new URL(path, "https://boardingeu.invalid");
+  url.searchParams.set("board", options.board);
+  return `${url.pathname}${url.search}`;
+}
 const STATE_LINK_LIMIT = 24;
 const LOCALITY_LINK_LIMIT = 16;
 const FOOTER_CATEGORIES: { category: HomeSchoolCategory; label: string }[] = [
@@ -58,6 +75,7 @@ export default function SiteFooterSeo({
   topSchools = [],
   dataError,
 }: Props) {
+  const [callbackOpen, setCallbackOpen] = useState(false);
   const uniqueCities = useMemo(() => uniqueBy(cities, (city) => city.city_id), [cities]);
 
   const popularCities = useMemo(
@@ -246,90 +264,69 @@ export default function SiteFooterSeo({
     [availableCategories],
   );
 
-  const topStateLinks = stateSearches.slice(0, 6);
-  const topCityLinks = popularCities.slice(0, 6);
+  const footerCities = popularCities.slice(0, 10);
+  const cbse = topBoards.find((board) => /cbse/i.test(`${board.board_code} ${board.slug} ${board.board_name}`));
+  const ib = topBoards.find((board) => /\bib\b/i.test(`${board.board_code} ${board.slug} ${board.board_name}`));
+  const international = topBoards.find((board) =>
+    board !== ib && /cambridge|igcse|international/i.test(`${board.board_code} ${board.slug} ${board.board_name}`),
+  );
   const footerGroups = [
     {
-      title: "Explore Schools",
-      links: [
-        { label: "Day Schools in India", href: placeListingPath({ countrySlug: "india", category: "day-school" }) },
-        { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
-        { label: "Schools by State", href: "/india/" },
-        { label: "Explore All Schools", href: schoolDirectoryPath() },
-        ...topCityLinks.slice(0, 1).map((city) => ({
-          label: "Schools by City",
-          href: placeListingPath({
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-          }),
-        })),
-      ],
+      title: "Boarding Schools in Popular Cities",
+      links: footerCities.map((city) => ({
+        label: `Boarding Schools in ${city.city_name}`,
+        href: citySearchPath(city, { category: "residential-school" }),
+      })),
     },
     {
-      title: "Day Schools",
-      links: [
-        { label: "Day Schools in India", href: placeListingPath({ countrySlug: "india", category: "day-school" }) },
-        ...topStateLinks.slice(0, 3).map(([, state]) => ({
-          label: `Day Schools in ${state.name}`,
-          href: placeListingPath({ countrySlug: state.countrySlug, stateSlug: state.stateSlug, category: "day-school" }),
-        })),
-        ...topCityLinks.slice(0, 3).map((city) => ({
-          label: `Day Schools in ${city.city_name}`,
-          href: placeListingPath({
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-            category: "day-school",
-          }),
-        })),
-      ],
+      title: "Day Schools in Popular Cities",
+      links: footerCities.map((city) => ({
+        label: `Schools in ${city.city_name}`,
+        href: citySearchPath(city, { category: "day-school" }),
+      })),
     },
+    ...(cbse ? [{
+      title: "CBSE Schools in Popular Cities",
+      links: footerCities.map((city) => ({
+        label: `CBSE Schools in ${city.city_name}`,
+        href: citySearchPath(city, { board: cbse.slug }),
+      })),
+    }] : []),
+    ...(international ? [{
+      title: "International Schools in Popular Cities",
+      links: footerCities.map((city) => ({
+        label: `International Schools in ${city.city_name}`,
+        href: citySearchPath(city, { board: international.slug }),
+      })),
+    }] : []),
+    ...(ib ? [{
+      title: "IB Schools in Popular Cities",
+      links: footerCities.map((city) => ({
+        label: `IB Schools in ${city.city_name}`,
+        href: citySearchPath(city, { board: ib.slug }),
+      })),
+    }] : []),
     {
-      title: "Boarding Schools",
+      title: "Popular Boarding Searches",
       links: [
-        { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
-        ...topStateLinks.slice(0, 3).map(([, state]) => ({
-          label: `Boarding Schools in ${state.name}`,
-          href: placeListingPath({ countrySlug: state.countrySlug, stateSlug: state.stateSlug, category: "residential-school" }),
-        })),
-        ...topCityLinks.slice(0, 3).map((city) => ({
+        { label: "Boarding Schools for Girls in India", href: "/india/?category=boarding-schools&gender=GIRLS" },
+        { label: "Boarding Schools for Boys in India", href: "/india/?category=boarding-schools&gender=BOYS" },
+        { label: "Coed Boarding Schools in India", href: "/india/?category=boarding-schools&gender=COED" },
+        ...footerCities.slice(0, 4).map((city) => ({
           label: `Boarding Schools in ${city.city_name}`,
-          href: placeListingPath({
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-            category: "residential-school",
-          }),
+          href: citySearchPath(city, { category: "residential-school" }),
         })),
       ],
     },
     {
-      title: "Popular Locations",
+      title: "Schools by Category",
       links: [
-        ...topStateLinks.map(([, state]) => ({
-          label: state.name,
-          href: placeListingPath({ countrySlug: state.countrySlug, stateSlug: state.stateSlug }),
-        })),
-        ...topCityLinks.map((city) => ({
-          label: `${city.city_name}, ${city.state_name}`,
-          href: placeListingPath({
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-          }),
-        })),
-      ],
-    },
-    {
-      title: "About BoardingEdu",
-      links: [
+        { label: "Day Schools in India", href: placeListingPath({ countrySlug: "india", category: "day-school" }) },
+        { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
+        { label: "Explore All Schools", href: schoolDirectoryPath() },
+        { label: "Compare Schools", href: "/compare/" },
         { label: "About Us", href: "/about/" },
         { label: "Contact Us", href: "/contact/" },
-        { label: "Privacy Policy", href: "/privacy/" },
-        { label: "Terms and Conditions", href: "/terms/" },
-        { label: "Compare Schools", href: "/compare/" },
-        { label: "Guides", href: "/guides/" },
       ],
     },
   ];
@@ -337,51 +334,42 @@ export default function SiteFooterSeo({
   void boardGroups;
   void locationGroups;
   void topSchools;
-  void schoolListPath;
 
   return (
-    <footer className="seo-footer" id="sitemap">
+    <footer className="seo-footer seo-footer--directory" id="sitemap">
       {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-      <div className="seo-footer__grid">
-        <div className="seo-footer__brand">
-          <Image
-            className="brand__image"
-            src="/BoardingEdu_LOGO.jpeg"
-            alt="BoardingEdu"
-            width={48}
-            height={48}
-          />
-          <strong>BoardingEdu</strong>
-          <span>Find a school that fits</span>
-          <p>Compare schools by location, board, and fees.</p>
-          <a href="mailto:hello@boardingedu.com">hello@boardingedu.com</a>
-          <a href="tel:+918046110000">+91 80-4611-0000</a>
-        </div>
-
-        <nav className="seo-footer__columns" aria-label="Explore schools">
-          {footerGroups.map((group) => (
-            <details className="seo-footer__column seo-footer__browse-group" key={group.title}>
-              <summary>{group.title}</summary>
-              <ul>
-                {uniqueBy(group.links, (item) => item.href).map((item) => (
-                  <li key={item.href}>
-                    <Link href={item.href}>{item.label}</Link>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ))}
-        </nav>
-      </div>
+      <nav className="seo-footer__directory" aria-label="Popular school searches">
+        {footerGroups.map((group) => (
+          <section key={group.title}>
+            <h2>{group.title}</h2>
+            <ul>
+              {uniqueBy(group.links, (item) => `${item.label}-${item.href}`).map((item) => (
+                <li key={`${group.title}-${item.href}`}>
+                  <Link href={item.href}>{item.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </nav>
       <div className="seo-footer__legal">
         <p>© 2026 BoardingEdu Technologies Pvt. Ltd. · All rights reserved.</p>
         <nav aria-label="Legal">
           <Link href="/privacy/">Privacy</Link>
           <Link href="/terms/">Terms</Link>
-          <Link href="/cookies/">Cookies</Link>
-          <Link href="/grievance/">Grievance</Link>
+          <Link href="/about/">About</Link>
+          <Link href="/contact/">Contact</Link>
         </nav>
       </div>
+      <div className="callback-dock">
+        <a className="callback-dock__phone" href="tel:+918046110000" aria-label="Call BoardingEdu">
+          <Phone size={18} />
+        </a>
+        <button type="button" className="callback-dock__action" onClick={() => setCallbackOpen(true)}>
+          Request a Callback
+        </button>
+      </div>
+      {callbackOpen && <CounsellingModal onClose={() => setCallbackOpen(false)} />}
     </footer>
   );
 }

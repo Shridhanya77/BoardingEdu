@@ -7,13 +7,17 @@ import {
   BookOpen,
   Bus,
   CheckCircle2,
+  Dumbbell,
   FlaskConical,
   HeartPulse,
   Monitor,
+  Music,
   ShieldCheck,
+  TreePine,
   Trophy,
   Utensils,
   Waves,
+  Wifi,
 } from "lucide-react";
 
 function facilityAppearance(name: string, category: string) {
@@ -23,7 +27,11 @@ function facilityAppearance(name: string, category: string) {
   if (value.includes("smart class") || value.includes("technology") || value.includes("computer")) {
     return { Icon: Monitor, tone: "technology" };
   }
-  if (value.includes("sport") || value.includes("playground")) return { Icon: Trophy, tone: "sports" };
+  if (value.includes("wifi") || value.includes("wi-fi") || value.includes("internet")) return { Icon: Wifi, tone: "technology" };
+  if (value.includes("music") || value.includes("art") || value.includes("dance")) return { Icon: Music, tone: "arts" };
+  if (value.includes("gym") || value.includes("fitness")) return { Icon: Dumbbell, tone: "sports" };
+  if (value.includes("garden") || value.includes("park") || value.includes("lawn")) return { Icon: TreePine, tone: "grounds" };
+  if (value.includes("sport") || value.includes("playground") || value.includes("court") || value.includes("field")) return { Icon: Trophy, tone: "sports" };
   if (value.includes("swim") || value.includes("pool")) return { Icon: Waves, tone: "aquatic" };
   if (value.includes("hostel") || value.includes("boarding")) return { Icon: BedDouble, tone: "residential" };
   if (value.includes("dining") || value.includes("food") || value.includes("cafeteria")) {

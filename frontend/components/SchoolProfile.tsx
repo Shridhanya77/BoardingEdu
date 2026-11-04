@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
-  BedDouble,
   BookOpen,
   CalendarDays,
   CheckCircle2,
@@ -12,9 +11,7 @@ import {
   MessageSquare,
   MapPin,
   Phone,
-  Plane,
   Star,
-  Train,
   Users,
 } from "lucide-react";
 import type {
@@ -48,6 +45,7 @@ import SchoolFacilitiesInteractive from "./SchoolFacilitiesInteractive";
 import SchoolEnquiryProvider from "./SchoolEnquiryDialog";
 import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
 import SchoolReviews from "./SchoolReviews";
+import SchoolTravelPanel from "./SchoolTravelPanel";
 import ReadMore from "./ReadMore";
 import type { SchoolSectionId } from "@/lib/school-sections";
 
@@ -72,13 +70,6 @@ function genderLabel(value: string) {
   if (normalized === "boys" || normalized === "boys only") return "Boys Only";
   if (normalized === "girls" || normalized === "girls only") return "Girls Only";
   return value || "Not provided";
-}
-
-function verificationLabel(value: string) {
-  const normalized = value.toLowerCase();
-  if (normalized === "verified") return "Verified school";
-  if (normalized.includes("pending")) return "Verification in progress";
-  return "Not yet verified";
 }
 
 export function schoolProfilePath(school: SchoolDetail) {
@@ -192,17 +183,6 @@ export default async function SchoolProfile({
   const mapFrameUrl = hasCoordinates
     ? `https://maps.google.com/maps?q=${latitude},${longitude}&z=14&hl=en&output=embed`
     : null;
-  const travelOptions = [
-    { label: "Railway station", query: "railway station", Icon: Train },
-    { label: "Airport", query: "airport", Icon: Plane },
-    { label: "Metro station", query: "metro station", Icon: Train },
-    { label: "Major landmark", query: "landmark", Icon: Landmark },
-  ].map((option) => ({
-    ...option,
-    href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-      `${option.query} near ${hasCoordinates ? `${latitude},${longitude}` : location}`,
-    )}`,
-  }));
   const cityName = school.city_detail.city_name;
   const stateName = school.state_detail.state_name;
   const primaryBoard = school.boards_detail[0];
@@ -258,22 +238,6 @@ export default async function SchoolProfile({
     facilitiesByCategory.set(key, list);
   }
 
-  // Stats chips
-  const chips = [
-    ...school.boards_detail.map((board) => ({
-      label: boardLabel(board),
-      icon: Landmark,
-    })),
-    ...school.school_types_detail.map((type) => ({
-      label: schoolTypeLabel(type.type_code, type.slug, type.type_name),
-      icon: BedDouble,
-    })),
-    { label: genderLabel(school.gender), icon: Users },
-    {
-      label: school.established_year ? `Est. ${school.established_year}` : "Year unknown",
-      icon: Star,
-    },
-  ];
   // Quick-stats strip — only rendered for values that actually exist in the DB.
   const classesRange = formatGradesRange(school.grades_offered_detail);
   const quickStats = [
@@ -344,83 +308,67 @@ export default async function SchoolProfile({
           <span>/</span><span aria-current="page">{school.school_name}</span>
         </nav>
 
-        <section className={`school-detail__hero${heroBackground ? " school-detail__hero--image" : ""}`}>
-          {heroBackground && (
-            <span className="school-detail__hero-bg" aria-hidden="true">
-              <Image src={heroBackground} alt="" fill sizes="100vw" unoptimized priority />
-            </span>
-          )}
-          {schoolImage ? (
-            <Image
-              className="school-detail__crest"
-              src={schoolImage}
-              alt={`${school.school_name} ${school.school_logo_url ? "logo" : "image"}`}
-              width={80}
-              height={80}
-              unoptimized
-            />
-          ) : (
-            <div className="school-detail__crest" aria-hidden="true">{(school.short_name || school.school_name).slice(0, 2).toUpperCase()}</div>
-          )}
+        <section
+          className="school-detail__hero school-hero-card"
+          style={{ backgroundImage: `url(${heroBackground || "/school-cover-fallback.svg"})` }}
+        >
+          <div className="school-hero-card__veil">
           <div className="school-detail__intro">
-            <div className="school-detail__eyebrow">
-              {school.is_featured && <span className="featured-badge">FEATURED</span>}
-              {school.verification_status.toLowerCase() === "verified" && (
-                <span className="verified-tag"><CheckCircle2 size={14} /> Verified school</span>
-              )}
-              {school.verification_status.toLowerCase() !== "verified" && <span>{verificationLabel(school.verification_status)}</span>}
-              {school.admission_open !== undefined && (
-                <span className={school.admission_open ? "school-admission-status is-open" : "school-admission-status"}>
-                  {school.admission_open ? "Admissions open" : "Admissions closed"}
-                </span>
-              )}
-              {school.established_year && <span>Established {school.established_year}</span>}
+            {schoolImage ? (
+              <Image
+                className="school-detail__crest"
+                src={schoolImage}
+                alt={`${school.school_name} logo`}
+                width={72}
+                height={72}
+                unoptimized
+              />
+            ) : (
+              <div className="school-detail__crest" aria-hidden="true">{(school.short_name || school.school_name).slice(0, 2).toUpperCase()}</div>
+            )}
+            <div>
+              <div className="school-detail__eyebrow">
+                {school.is_featured && <span className="featured-badge">FEATURED</span>}
+                {school.verification_status.toLowerCase() === "verified" && (
+                  <span className="verified-tag"><CheckCircle2 size={14} /> Verified</span>
+                )}
+                {school.admission_open !== undefined && (
+                  <span className={school.admission_open ? "school-admission-status is-open" : "school-admission-status"}>
+                    {school.admission_open ? "Admissions open" : "Admissions closed"}
+                  </span>
+                )}
+              </div>
+              <h1>{school.school_name}</h1>
+              <p className="school-detail__location"><MapPin size={16} />{location}</p>
+              <div className="school-detail__hero-facts" aria-label="School highlights">
+                {school.boards_detail.slice(0, 2).map((board) => (
+                  <span className="school-chip" key={board.board_id}>{board.board_name}</span>
+                ))}
+                {school.school_types_detail.slice(0, 2).map((type) => (
+                  <span className="school-chip" key={type.school_type_id}>
+                    {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
+                  </span>
+                ))}
+                {school.gender && <span className="school-chip">{school.gender}</span>}
+                {school.established_year && (
+                  <span className="school-chip">Est. {school.established_year}</span>
+                )}
+              </div>
             </div>
-            <h1>{school.school_name}</h1>
-            {school.short_name && <p className="school-detail__short-name">{school.short_name}</p>}
-            {school.tagline && <p className="school-detail__tagline">{school.tagline}</p>}
-            <p className="school-detail__location"><MapPin size={16} />{location}</p>
-
-            <div className="school-chips" role="list">
-              {chips.map(({ label, icon: Icon }) => (
-                <span key={label} className="school-chip" role="listitem">
-                  <Icon size={14} aria-hidden /> {label}
-                </span>
-              ))}
+            <div className="school-detail__actions">
+              {school.phone && (
+                <a className="detail-button detail-button--primary" href={`tel:${school.phone}`} aria-label={`Call ${school.school_name}`}>
+                  <Phone size={16} /> Call
+                </a>
+              )}
+              <SchoolEnquiryButton className="detail-button">
+                <MessageSquare size={16} /> Send an Enquiry
+              </SchoolEnquiryButton>
+              <SchoolProfileActions school={school} />
             </div>
           </div>
-          <div className="school-detail__actions">
-            {school.phone && (
-              <a
-                className="detail-button detail-button--primary"
-                href={`tel:${school.phone}`}
-                aria-label={`Call ${school.school_name}`}
-              >
-                <Phone size={16} /> Call
-              </a>
-            )}
-            <SchoolEnquiryButton className="detail-button">
-              <MessageSquare size={16} /> Send an Enquiry
-            </SchoolEnquiryButton>
-            <SchoolProfileActions school={school} />
           </div>
         </section>
-
-        {quickStats.length > 0 && (
-          <dl className="school-quick-stats" aria-label="School quick facts">
-            {quickStats.map(({ label, value, icon: Icon }) => (
-              <div className="school-quick-stat" key={label}>
-                <dt>
-                  <span className="school-quick-stat__icon">
-                    <Icon size={16} aria-hidden="true" />
-                  </span>
-                  {label}
-                </dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
 
         <SchoolProfileNavigation
           schoolPath={schoolProfilePath(school)}
@@ -480,6 +428,7 @@ export default async function SchoolProfile({
               }))}
             />
 
+            {school.facilities_detail.length > 0 && (
             <article className="detail-panel" id="facilities">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Star size={18} /></span>
@@ -489,8 +438,25 @@ export default async function SchoolProfile({
                 </div>
               </div>
               <span id="infrastructure" className="school-detail__section-anchor" />
+              {school.facilities_detail.some((facility) => facility.quantity_or_capacity != null || facility.description) && (
+                <dl className="infrastructure-facts">
+                  {school.facilities_detail
+                    .filter((facility) => facility.quantity_or_capacity != null || facility.description)
+                    .map((facility) => (
+                      <div key={facility.school_facility_id}>
+                        <dt>{facility.facility_name}</dt>
+                        <dd>
+                          {facility.quantity_or_capacity != null ? `Capacity ${facility.quantity_or_capacity}` : ""}
+                          {facility.quantity_or_capacity != null && facility.description ? " · " : ""}
+                          {facility.description || ""}
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+              )}
               <SchoolFacilitiesInteractive facilitiesByCategory={[...facilitiesByCategory.entries()]} />
             </article>
+            )}
 
             <section className="detail-panel school-detail__media-panel" id="media">
               <div className="detail-panel__heading">
@@ -511,7 +477,10 @@ export default async function SchoolProfile({
             <article className="detail-panel" id="reviews">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><Star size={18} /></span>
-                <div><h2>Reviews</h2><p>Parent experiences and school feedback.</p></div>
+                <div>
+                  <h2>Reviews</h2>
+                  <p>Experiences shared by families.</p>
+                </div>
               </div>
               <SchoolReviews
                 schoolId={school.school_id}
@@ -533,24 +502,11 @@ export default async function SchoolProfile({
                   <h3 id="school-travel-heading">Travel &amp; accessibility</h3>
                   <p>Find nearby transport and landmarks. Confirm routes and travel times before visiting.</p>
                 </div>
-                <div className="school-travel__grid">
-                  {travelOptions.map(({ label, href, Icon }) => (
-                    <a
-                      className="school-travel__card"
-                      href={href}
-                      target="_blank"
-                      rel="noreferrer"
-                      key={label}
-                    >
-                      <span className="school-travel__icon"><Icon size={20} aria-hidden /></span>
-                      <span className="school-travel__label">{label}</span>
-                      <strong>Explore nearby</strong>
-                      <span className="school-travel__distance">
-                        {hasCoordinates ? "Open nearby places in Maps" : "Search by school location"}
-                      </span>
-                    </a>
-                  ))}
-                </div>
+                <SchoolTravelPanel
+                  latitude={hasCoordinates ? latitude : null}
+                  longitude={hasCoordinates ? longitude : null}
+                  locationLabel={location}
+                />
               </section>
               <div className="school-location-card">
                 <div className="school-location-card__details">
@@ -592,19 +548,30 @@ export default async function SchoolProfile({
 
           {/* ===== ASIDE ===== */}
           <aside className="school-detail__aside">
-            <div className="detail-panel enquiry-panel" id="school-enquiry">
+            <div className="detail-panel school-quick-panel" id="school-quick-info">
               <div className="detail-panel__heading">
-                <span className="detail-panel__icon"><MessageSquare size={18} /></span>
+                <span className="detail-panel__icon"><Star size={18} /></span>
                 <div>
-                  <h2>Send a school enquiry</h2>
-                  <p>Ask the school about fees, availability, facilities, or visits.</p>
+                  <h2>Quick info</h2>
+                  <p>The details families check first.</p>
                 </div>
               </div>
+              {school.tagline && <p className="school-detail__tagline">{school.tagline}</p>}
+              <dl className="school-quick-stats school-quick-stats--side">
+                {quickStats.map(({ label, value, icon: Icon }) => (
+                  <div className="school-quick-stat" key={label}>
+                    <dt>
+                      <span className="school-quick-stat__icon"><Icon size={16} aria-hidden="true" /></span>
+                      {label}
+                    </dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
               <SchoolEnquiryButton className="primary-button">
                 <MessageSquare size={16} /> Send an enquiry
               </SchoolEnquiryButton>
             </div>
-
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>
           </aside>
         </div>

@@ -15,6 +15,7 @@ import {
   List as ListView,
   MapPin,
   Mail,
+  MessageSquare,
   Phone,
   Plus,
   Search,
@@ -27,7 +28,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { FormEvent } from "react";
+import type { CSSProperties, FormEvent } from "react";
 import { fetchAllPages, geography, reviews, schools, apiErrorMessage } from "@/lib/api";
 import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
 import { boardsAffiliatedLabel } from "@/lib/board-labels";
@@ -80,7 +81,7 @@ import {
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, indiaRegionBoardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolSearchPath } from "@/lib/school-urls";
+import { boardListingPath, indiaRegionBoardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath, schoolEnquiryPath, schoolSearchPath } from "@/lib/school-urls";
 
 function schoolHref(school: SchoolListItem) {
   return schoolProfilePathFromSlugs({
@@ -120,7 +121,16 @@ type IndiaRegionBrowseItem = {
 
 const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 12;
+
+function uniqueSchoolsById(schoolsToFilter: SchoolListItem[]) {
+  const seen = new Set<string>();
+  return schoolsToFilter.filter((school) => {
+    if (seen.has(school.school_id)) return false;
+    seen.add(school.school_id);
+    return true;
+  });
+}
 
 const orderingOptions: Record<
   string,
@@ -248,10 +258,14 @@ function SchoolCard({
   school,
   selectedBoards = [],
   selectedSchoolTypes = [],
+  className = "",
+  style,
 }: {
   school: SchoolListItem;
   selectedBoards?: string[];
   selectedSchoolTypes?: string[];
+  className?: string;
+  style?: CSSProperties;
 }) {
   const {
     comparedSchools,
@@ -271,9 +285,10 @@ function SchoolCard({
   const coverImage = schoolCoverImageUrl(school);
   const logoImage = publicSchoolImageUrl(school.school_logo_url || "");
   const initials = (school.short_name || school.school_name).slice(0, 2).toUpperCase();
+  const phoneNumber = school.phone?.replace(/[^\d+]/g, "");
 
   return (
-    <article className="school-card">
+    <article className={`school-card${className ? ` ${className}` : ""}`} style={style}>
       <Link
         className="school-card__cover-link"
         href={href}
@@ -355,11 +370,17 @@ function SchoolCard({
           </div>
         </div>
 
-        {school.boards_detail.length > 0 && (
-          <p className="school-card__board">{boardsAffiliatedLabel(
-            school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
-          ) || boardsAffiliatedLabel(school.boards_detail)}</p>
-        )}
+        <ul className="school-card__highlights">
+          {school.boards_detail.length > 0 && (
+            <li>{boardsAffiliatedLabel(
+              school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
+            ) || boardsAffiliatedLabel(school.boards_detail)}</li>
+          )}
+          {school.grades_range && <li>Classes {school.grades_range}</li>}
+          {school.annual_fee != null && Number(school.annual_fee) > 0 && (
+            <li>{formatRupees(Number(school.annual_fee))} / year</li>
+          )}
+        </ul>
 
         <div className="school-card__tags">
           {school.school_types_detail
@@ -398,6 +419,16 @@ function SchoolCard({
               />
               Compare
             </label>
+            {phoneNumber && (
+              <a className="school-card__call" href={`tel:${phoneNumber}`}>
+                <Phone size={15} aria-hidden />
+                Call
+              </a>
+            )}
+            <Link className="school-card__enquire" href={schoolEnquiryPath(school)}>
+              <MessageSquare size={15} aria-hidden />
+              Enquire
+            </Link>
             <Link className="school-card__view" href={href}>View Details</Link>
           </div>
         </div>
@@ -411,6 +442,57 @@ type RelatedSearch = { label: string; href: string };
 type Breadcrumb = { name: string; url: string };
 type PlaceHighlight = { label: string; href: string; kind: "state" | "city" | "locality" };
 const finderScrollStorageKey = "boardingeu:finder-scroll-path";
+
+function TopBoardingSchools({
+  category,
+  boardName,
+  boardingSchools,
+  daySchools,
+  loading,
+  error,
+}: {
+  category: HomeSchoolCategory;
+  boardName: string | null;
+  boardingSchools: SchoolListItem[];
+  daySchools: SchoolListItem[];
+  loading: boolean;
+  error: string | null;
+}) {
+  const schools = category === "residential-school" ? boardingSchools : daySchools;
+
+  return (
+    <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading">
+      <div className="top-boarding-schools__heading">
+        <span className="section-eyebrow">TOP PICKS</span>
+        <h2 id="top-boarding-schools-heading">
+          Top 10{boardName ? ` ${boardName}` : ""}{" "}
+          {category === "residential-school" ? "boarding" : "day"} schools
+        </h2>
+      </div>
+      {loading ? (
+        <p className="top-boarding-schools__status" role="status">
+          Loading schools…
+        </p>
+      ) : error ? (
+        <p className="top-boarding-schools__status" role="status">
+          {error}
+        </p>
+      ) : schools.length ? (
+        <ul>
+          {schools.map((school) => (
+            <li key={school.school_id}>
+              <Link href={schoolHref(school)}>{school.school_name}</Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="top-boarding-schools__status" role="status">
+          Top {category === "residential-school" ? "boarding" : "day"} schools will appear as listings are available.
+        </p>
+      )}
+    </aside>
+  );
+}
 
 function withListingFilters(href: string, boards: string[]) {
   const url = new URL(href, "https://boardingeu.invalid");
@@ -431,7 +513,7 @@ function randomFeaturedSelection(
   requiredSchoolIds: ReadonlySet<string> = new Set(),
   count = 4 + Math.floor(Math.random() * 2),
 ) {
-  const shuffled = [...schools];
+  const shuffled = uniqueSchoolsById(schools);
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const randomIndex = Math.floor(Math.random() * (index + 1));
     [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex]!, shuffled[index]!];
@@ -547,7 +629,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [page, setPage] = useState(1);
   const [results, setResults] = useState<SchoolListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [listingFeaturedError, setListingFeaturedError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [schoolView, setSchoolView] = useState<"grid" | "list">("grid");
   const [topBoardingSchools, setTopBoardingSchools] = useState<SchoolListItem[]>([]);
@@ -562,16 +643,42 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
+  const featuredSchoolIds = useMemo(
+    () => new Set(featuredSchools.map((school) => school.school_id)),
+    [featuredSchools],
+  );
+  const displayTopBoardingSchools = useMemo(
+    () => uniqueSchoolsById(topBoardingSchools)
+      .filter((school) => !featuredSchoolIds.has(school.school_id))
+      .slice(0, 10),
+    [featuredSchoolIds, topBoardingSchools],
+  );
+  const displayTopDaySchools = useMemo(
+    () => uniqueSchoolsById(topDaySchools)
+      .filter((school) => !featuredSchoolIds.has(school.school_id))
+      .slice(0, 10),
+    [featuredSchoolIds, topDaySchools],
+  );
+  const topPickSchools = topSchoolsCategory === "residential-school"
+    ? displayTopBoardingSchools
+    : displayTopDaySchools;
+  const excludedSchoolIds = useMemo(
+    () => new Set([
+      ...featuredSchoolIds,
+      ...topPickSchools.map((school) => school.school_id),
+    ]),
+    [featuredSchoolIds, topPickSchools],
+  );
   const comparisonSchools = useMemo(() => {
-    const selectedSchools = comparedSchools.slice(0, 2);
-    const additionalSchools = featuredSchools.filter(
-      (featured) =>
-        !comparedSchools.some((compared) => compared.school_id === featured.school_id),
-    );
-    return [
-      ...selectedSchools,
-      ...additionalSchools.slice(0, Math.max(0, 2 - selectedSchools.length)),
-    ];
+    const seen = new Set<string>();
+    const schools: SchoolListItem[] = [];
+    for (const school of [...comparedSchools, ...featuredSchools]) {
+      if (seen.has(school.school_id)) continue;
+      seen.add(school.school_id);
+      schools.push(school);
+      if (schools.length >= 8) break;
+    }
+    return schools;
   }, [comparedSchools, featuredSchools]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
@@ -791,7 +898,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const sharedFilters: SchoolFilters = {
       status: true,
       ordering: "-average_rating",
-      page_size: 10,
+      page_size: 20,
       country: geoRegion ? undefined : activeCountry || undefined,
       state: activeState || undefined,
       city: activeCity || undefined,
@@ -809,8 +916,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         : Promise.resolve({ results: [] as SchoolListItem[] }),
     ]).then(([boardingResponse, dayResponse]) => {
       if (!cancelled) {
-        setTopBoardingSchools(boardingResponse.results.slice(0, 10));
-        setTopDaySchools(dayResponse.results.slice(0, 10));
+        setTopBoardingSchools(boardingResponse.results.slice(0, 20));
+        setTopDaySchools(dayResponse.results.slice(0, 20));
         setTopBoardingSchoolsError(null);
       }
     }).catch((reason: unknown) => {
@@ -1030,9 +1137,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     ? `Browse ${listingFamilyTypes} in ${listingPlaceLabel}. Compare fees, boards, and facilities.`
     : `Browse ${listingSubject} in ${listingPlaceLabel}. Compare fees, boards, and facilities.`;
   const firstResultIndex = totalCount === 0 ? 0 : 1;
-  const lastResultIndex = results.length;
   const resultsHeading = `${listingSubject} in ${listingPlaceLabel}`;
-  const hasMoreResults = results.length < totalCount;
+  const directoryRecommendationsLoading =
+    !isHomePage && (featuredLoading || topBoardingSchoolsLoading);
+  const hasMoreResults = page * PAGE_SIZE < totalCount;
+  const displayResults = useMemo(() => {
+    if (directoryRecommendationsLoading) return [];
+    return uniqueSchoolsById(results).filter(
+      (school) => !excludedSchoolIds.has(school.school_id),
+    );
+  }, [directoryRecommendationsLoading, excludedSchoolIds, results]);
+  const lastResultIndex = displayResults.length;
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
     const categoryLabel = category === "day-school" ? "Day Schools" : "Boarding Schools";
@@ -1497,49 +1612,19 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setLoading(true);
     setError(null);
     setLoadMoreError(null);
-    if (page === 1) setListingFeaturedError(null);
 
     async function loadListingSchools() {
       try {
         const response = await schools.list(filters);
         if (cancelled) return;
 
-        let localFeaturedSchool: SchoolListItem | undefined;
-        let featuredError: string | null = null;
-        if (locationScoped && page === 1) {
-          try {
-            const candidates = await fetchAllPages(await schools.list({
-              ...filters,
-              is_featured: true,
-              page: undefined,
-              page_size: 100,
-              ordering: "-average_rating",
-            }));
-            if (cancelled) return;
-            localFeaturedSchool = candidates[
-              Math.floor(Math.random() * candidates.length)
-            ];
-          } catch (reason: unknown) {
-            featuredError = reason instanceof Error
-              ? reason.message
-              : "Could not load a featured school for this location.";
-          }
-        }
-
-        setListingFeaturedError(featuredError);
-        const pageResults = localFeaturedSchool
-          ? [localFeaturedSchool, ...response.results]
-          : response.results;
         setResults((current) => {
-          if (page === 1) return pageResults;
-          const existingIds = new Set(current.map((school) => school.school_id));
-          return [
-            ...current,
-            ...pageResults.filter((school) => !existingIds.has(school.school_id)),
-          ];
+          return uniqueSchoolsById(
+            page === 1 ? response.results : [...current, ...response.results],
+          );
         });
         if (page === 1) {
-          setTotalCount((response.count ?? response.results.length) + Number(Boolean(localFeaturedSchool)));
+          setTotalCount(response.count ?? response.results.length);
         }
       } catch (reason: unknown) {
         if (cancelled) return;
@@ -1565,7 +1650,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoRegion, geoState, geoCity, geoLocation, initialCountry, initialState, initialCity, initialLocation, locationGroups, selectedIndiaRegionStateIds, selectedIndiaRegion, activeCountryId, regionCountryId, requiresIndiaRegion, citiesLoading, citiesError, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount, isHomePage]);
 
   useEffect(() => {
-    if (isHomePage || loading || !hasMoreResults || error || loadMoreError) return;
+    if (
+      isHomePage ||
+      loading ||
+      directoryRecommendationsLoading ||
+      !hasMoreResults ||
+      error ||
+      loadMoreError
+    ) return;
     const sentinel = loadMoreRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
@@ -1579,7 +1671,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [error, hasMoreResults, isHomePage, loadMoreError, loading, results.length, page]);
+  }, [
+    directoryRecommendationsLoading,
+    error,
+    hasMoreResults,
+    isHomePage,
+    loadMoreError,
+    loading,
+    results.length,
+    page,
+  ]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1606,6 +1707,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       setGeoCity(initialCity ?? "");
       setGeoLocation(initialLocation ?? "");
       setLocationGroups([]);
+      const genderParam = params.get("gender");
+      if (genderParam === "COED" || genderParam === "BOYS" || genderParam === "GIRLS") {
+        setGender(genderParam);
+      }
       const min = Number(params.get("min_fee") ?? 0);
       const max = Number(params.get("max_fee") ?? 3_000_000);
       if (Number.isFinite(min) && Number.isFinite(max) && min < max) {
@@ -1938,6 +2043,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     let cancelled = false;
+    setFeaturedLoading(true);
     const activeCountry = geoCountry || initialCountry;
     const activeState = geoState || initialState;
     const activeCity = geoCity || initialCity;
@@ -1964,16 +2070,22 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         cancelled = true;
       };
     }
-    if (featuredNeedsRegion && (citiesLoading || !regionalStateIds.length)) return () => {
+    if (featuredNeedsRegion && citiesLoading) return () => {
       cancelled = true;
     };
+    if (featuredNeedsRegion && !regionalStateIds.length) {
+      setFeaturedSchools([]);
+      setFeaturedLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
     if (isHomePage && schoolType.length > 0 && !schoolTypesLoaded) {
       setFeaturedLoading(true);
       return () => {
         cancelled = true;
       };
     }
-    setFeaturedLoading(true);
     setFeaturedError(null);
     setFeaturedFallback(false);
 
@@ -2710,13 +2822,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             {comparePromoMessage || `${comparedSchools.length} of 4 schools in your comparison`}
           </span>
         </div>
-        <div className="compare-promo__schools">
-          {comparisonSchools.map((school) => {
+        <div className="compare-promo__marquee">
+          <div className="compare-promo__track">
+          {[0, 1].flatMap((copy) => comparisonSchools.map((school) => ({ school, copy }))).map(({ school, copy }) => {
             const isCompared = comparedSchools.some((item) => item.school_id === school.school_id);
             const cover = schoolCoverImageUrl(school);
             return (
-              <article key={school.school_id} className={isCompared ? "is-shortlisted" : ""}>
-                <Link href={schoolHref(school)} className="compare-promo__school-link">
+              <article key={`${school.school_id}-${copy}`} className={isCompared ? "is-shortlisted" : ""} aria-hidden={copy === 1 || undefined}>
+                <Link href={schoolHref(school)} className="compare-promo__school-link" tabIndex={copy === 1 ? -1 : undefined}>
                   <span className="compare-promo__school-image">
                     <Building2
                       className="compare-promo__school-fallback"
@@ -2753,7 +2866,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   </span>
                   <strong>{school.school_name}</strong>
                 </Link>
-                <button
+                {copy === 0 && <button
                   type="button"
                   className={isCompared ? "is-added" : undefined}
                   onClick={() => {
@@ -2774,10 +2887,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   ) : (
                     <><Plus size={14} aria-hidden /> Add to compare</>
                   )}
-                </button>
+                </button>}
               </article>
             );
           })}
+          </div>
           {!comparisonSchools.length && (
             <div className="compare-promo__empty">
               <BookOpen size={24} />
@@ -3423,14 +3537,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               onClick={closeFilters}
             />
           )}
-          <aside
-            ref={filtersPanelRef}
-            className={`filters-panel${filtersOpen ? " filters-panel--open" : ""}`}
-            aria-label="School filters"
-            aria-modal={filtersOpen || undefined}
-            role={filtersOpen ? "dialog" : undefined}
-            tabIndex={filtersOpen ? -1 : undefined}
-          >
+          <div className="filters-column">
+            <aside
+              ref={filtersPanelRef}
+              className={`filters-panel${filtersOpen ? " filters-panel--open" : ""}`}
+              aria-label="School filters"
+              aria-modal={filtersOpen || undefined}
+              role={filtersOpen ? "dialog" : undefined}
+              tabIndex={filtersOpen ? -1 : undefined}
+            >
             <div className="filters-panel__heading">
               <div>
                 <SlidersHorizontal size={17} />
@@ -3569,21 +3684,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             </fieldset>
 
-            <div className="filter-note">
-              <span className="filter-note__icon">
-                <CheckCircle2 size={16} />
-              </span>
-              <p>
-                School information is provided by the school directory.
-                Contact schools directly to confirm current details.
-              </p>
-            </div>
             <div className="filters-panel__apply">
               <button type="button" onClick={closeFilters}>
-                Show {results.length} {results.length === 1 ? "school" : "schools"}
+                Show {displayResults.length} {displayResults.length === 1 ? "school" : "schools"}
               </button>
             </div>
-          </aside>
+            </aside>
+          </div>
 
           <div className="school-results">
             {requiresIndiaRegion && !geoRegion && (
@@ -3643,7 +3750,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   <Building2 size={16} />
                 </span>
                 <span>
-                  {loading
+                  {loading || directoryRecommendationsLoading
                     ? "Searching schools…"
                     : totalCount === 0
                       ? "No schools found"
@@ -3721,12 +3828,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {listingFeaturedError && (
-              <p className="listing-place-spotlight__error" role="status">
-                A featured school for this location could not be loaded. The remaining schools are still available below.
-              </p>
-            )}
-
             {error && (
               <div
                 className="state-panel state-panel--error"
@@ -3743,7 +3844,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {loading && results.length === 0 && (
+            {(loading && results.length === 0 || directoryRecommendationsLoading) && (
               <div className="school-list school-list--skeleton" role="status">
                 <span className="sr-only">Finding schools for you…</span>
                 {Array.from({ length: 4 }, (_, index) => (
@@ -3759,7 +3860,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {!loading && !error && results.length === 0 && (
+            {!loading &&
+              !directoryRecommendationsLoading &&
+              !error &&
+              displayResults.length === 0 &&
+              !hasMoreResults && (
               <div className="state-panel state-panel--empty">
                 <Search size={25} />
                 <h3>No schools found</h3>
@@ -3774,10 +3879,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {!error && results.length > 0 && (
+            {!error && (results.length > 0 || displayResults.length > 0) && (
               <>
                 <div className={`school-list school-list--${schoolView} school-list--listing`}>
-                  {results.map((school) => (
+                  {displayResults.map((school) => (
                     <SchoolCard
                       key={school.school_id}
                       school={school}
@@ -3801,7 +3906,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   ) : loading && page > 1 ? (
                     <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
                   ) : hasMoreResults ? (
-                    <p className="school-load-more__hint">Scroll down to load the next {PAGE_SIZE} schools</p>
+                    <p className="school-load-more__hint">Scroll down to load more unique schools</p>
                   ) : (
                     <p>You&apos;ve seen all {totalCount} schools in this search.</p>
                   )}
@@ -3809,38 +3914,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </>
             )}
           </div>
-          <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading">
-            <div className="top-boarding-schools__heading">
-              <span className="section-eyebrow">TOP PICKS</span>
-              <h2 id="top-boarding-schools-heading">
-                Top 10{selectedTopBoardName ? ` ${selectedTopBoardName}` : ""}{" "}
-                {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools
-              </h2>
-            </div>
-            {topBoardingSchoolsLoading ? (
-              <p className="top-boarding-schools__status" role="status">
-                Loading schools…
-              </p>
-            ) : topBoardingSchoolsError ? (
-              <p className="top-boarding-schools__status" role="status">
-                {topBoardingSchoolsError}
-              </p>
-            ) : (topSchoolsCategory === "residential-school" ? topBoardingSchools : topDaySchools).length ? (
-              <ul>
-                {(topSchoolsCategory === "residential-school" ? topBoardingSchools : topDaySchools).map((school) => (
-                  <li key={school.school_id}>
-                    <Link href={schoolHref(school)}>
-                      {school.school_name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="top-boarding-schools__status" role="status">
-                Top {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools will appear as listings are available.
-              </p>
-            )}
-          </aside>
+          <TopBoardingSchools
+            category={topSchoolsCategory}
+            boardName={selectedTopBoardName ?? null}
+            boardingSchools={displayTopBoardingSchools}
+            daySchools={displayTopDaySchools}
+            loading={topBoardingSchoolsLoading}
+            error={topBoardingSchoolsError}
+          />
         </div>
 
         <ReviewsCollection
