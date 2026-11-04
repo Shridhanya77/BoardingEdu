@@ -370,19 +370,23 @@ function SchoolCard({
           </div>
         </div>
 
-        <ul className="school-card__highlights">
-          {school.boards_detail.length > 0 && (
-            <li>{boardsAffiliatedLabel(
-              school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
-            ) || boardsAffiliatedLabel(school.boards_detail)}</li>
-          )}
-          {school.grades_range && <li>Classes {school.grades_range}</li>}
-          {school.annual_fee != null && Number(school.annual_fee) > 0 && (
+        {school.annual_fee != null && Number(school.annual_fee) > 0 && (
+          <ul className="school-card__highlights">
             <li>{formatRupees(Number(school.annual_fee))} / year</li>
-          )}
-        </ul>
+          </ul>
+        )}
 
         <div className="school-card__tags">
+          {school.boards_detail.length > 0 && (
+            <span className="school-tag school-tag--blue">
+              {boardsAffiliatedLabel(
+                school.boards_detail.filter((item) => !selectedBoards.length || selectedBoards.includes(item.board_id)),
+              ) || boardsAffiliatedLabel(school.boards_detail)}
+            </span>
+          )}
+          {school.grades_range && (
+            <span className="school-tag school-tag--blue">Classes {school.grades_range}</span>
+          )}
           {school.school_types_detail
             .filter((type) => !selectedSchoolTypes.length || selectedSchoolTypes.includes(type.school_type_id))
             .map((type) => (
@@ -3528,7 +3532,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
         </div>
 
-        <div className="results-layout">
+        <div className={`results-layout${schoolView === "grid" ? " results-layout--school-grid" : ""}`}>
           {filtersOpen && (
             <button
               className="filters-backdrop"
@@ -3882,15 +3886,38 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             {!error && (results.length > 0 || displayResults.length > 0) && (
               <>
                 <div className={`school-list school-list--${schoolView} school-list--listing`}>
-                  {displayResults.map((school) => (
+                  {displayResults.map((school, index) => (
                     <SchoolCard
                       key={school.school_id}
                       school={school}
                       selectedBoards={board}
                       selectedSchoolTypes={schoolType}
+                      className={schoolView === "grid" && index >= 7 ? "school-card--continued-in-next-row" : ""}
                     />
                   ))}
+                  {schoolView === "grid" && (
+                    <TopBoardingSchools
+                      category={topSchoolsCategory}
+                      boardName={selectedTopBoardName ?? null}
+                      boardingSchools={displayTopBoardingSchools}
+                      daySchools={displayTopDaySchools}
+                      loading={topBoardingSchoolsLoading}
+                      error={topBoardingSchoolsError}
+                    />
+                  )}
                 </div>
+                {schoolView === "grid" && displayResults.length > 7 && (
+                  <div className="school-list school-list--grid school-list--listing school-list--continuation">
+                    {displayResults.slice(7).map((school) => (
+                      <SchoolCard
+                        key={`continuation-${school.school_id}`}
+                        school={school}
+                        selectedBoards={board}
+                        selectedSchoolTypes={schoolType}
+                      />
+                    ))}
+                  </div>
+                )}
                 <div
                   className="school-load-more"
                   ref={loadMoreRef}
@@ -3914,15 +3941,28 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </>
             )}
           </div>
-          <TopBoardingSchools
-            category={topSchoolsCategory}
-            boardName={selectedTopBoardName ?? null}
-            boardingSchools={displayTopBoardingSchools}
-            daySchools={displayTopDaySchools}
-            loading={topBoardingSchoolsLoading}
-            error={topBoardingSchoolsError}
-          />
+          {(schoolView === "list" || error || displayResults.length === 0) && (
+            <TopBoardingSchools
+              category={topSchoolsCategory}
+              boardName={selectedTopBoardName ?? null}
+              boardingSchools={displayTopBoardingSchools}
+              daySchools={displayTopDaySchools}
+              loading={topBoardingSchoolsLoading}
+              error={topBoardingSchoolsError}
+            />
+          )}
         </div>
+
+        {!topBoardingSchoolsLoading && !topBoardingSchoolsError && topPickSchools.length > 0 && (
+          <section className="listing-top-picks-cards" aria-labelledby="listing-top-picks-cards-heading">
+            <div className="listing-top-picks-cards__heading">
+              <span className="section-eyebrow">TOP PICKS</span>
+              <h2 id="listing-top-picks-cards-heading">Explore top {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools</h2>
+              <p>Get a closer look at our top picks and compare school details.</p>
+            </div>
+            <FeaturedSchoolCards schools={topPickSchools.slice(0, 4)} />
+          </section>
+        )}
 
         <ReviewsCollection
           mode="section"

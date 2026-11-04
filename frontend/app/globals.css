@@ -20354,6 +20354,12 @@ select:focus-visible {
   }
 }
 
+@media (min-width: 1201px) {
+  .discovery-page--listing .school-list--grid.school-list--listing > .school-card--continued-in-next-row {
+    display: none;
+  }
+}
+
 @media (max-width: 700px) {
   .discovery-page--listing .school-list--list.school-list--listing > .school-card {
     height: auto;
@@ -20389,5 +20395,401 @@ select:focus-visible {
 
   .discovery-page--listing .school-list--list.school-list--listing .school-card__actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1201px) {
+  .discovery-page--listing .discovery-content {
+    width: min(1840px, calc(100% - 48px));
+  }
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  column-gap: 16px;
+  row-gap: 18px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card {
+  background: linear-gradient(160deg, #f3faf9 0%, #fff 62%);
+  border-color: #d3e4e1;
+  box-shadow: 0 8px 22px rgb(23 69 107 / 9%);
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card:hover {
+  border-color: #9cc9c1;
+  box-shadow: 0 16px 30px rgb(23 69 107 / 16%);
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__body {
+  padding: 12px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__title h3 {
+  font-size: 15px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__tags {
+  min-height: 0;
+  margin: 10px 0;
+  gap: 5px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-tag {
+  min-height: 27px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__highlights {
+  min-height: 0;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions {
+  gap: 7px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions .school-compare {
+  min-height: 34px;
+  color: #35566d;
+  background: #eaf3f7;
+  border-color: #d0e1e9;
+  box-shadow: 0 3px 8px rgb(23 69 107 / 7%);
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__call,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__view,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__enquire {
+  min-height: 38px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  box-shadow: 0 4px 10px rgb(23 69 107 / 14%);
+  font-size: 11px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__call {
+  color: #176d59;
+  background: #edf7f3;
+  border-color: #cde7dc;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__view {
+  grid-column: 1 / -1;
+  color: #fff !important;
+  background: #17456b;
+  border-color: #17456b;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__enquire {
+  color: #fff;
+  background: #147461;
+  border-color: #147461;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__call:hover,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__call:focus-visible {
+  background: #dff1e9;
+  box-shadow: 0 7px 14px rgb(20 116 97 / 18%);
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__view:hover,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__view:focus-visible {
+  color: #fff !important;
+  background: #102f49;
+  border-color: #102f49;
+  box-shadow: 0 7px 14px rgb(23 69 107 / 24%);
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__enquire:hover,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__enquire:focus-visible {
+  background: #0e5e4d;
+  border-color: #0e5e4d;
+  box-shadow: 0 7px 14px rgb(20 116 97 / 24%);
+}
+
+@media (min-width: 1440px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: 1fr;
+  }
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire {
+  border: 1px solid #17456b;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgb(23 69 107 / 12%);
+  font-weight: 750;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire {
+  color: #17456b;
+  background: #fff;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view {
+  color: #fff !important;
+  background: #17456b;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call:hover,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call:focus-visible,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire:hover,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire:focus-visible {
+  color: #103551;
+  background: #edf6fb;
+  border-color: #93b8d0;
+  box-shadow: 0 7px 14px rgb(23 69 107 / 16%);
+  transform: translateY(-1px);
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view:hover,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view:focus-visible {
+  color: #fff !important;
+  background: #103551;
+  border-color: #103551;
+  box-shadow: 0 7px 14px rgb(23 69 107 / 22%);
+  transform: translateY(-1px);
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare {
+  color: #35566d;
+  background: #edf6fb;
+  border-color: #d3e4ee;
+}
+
+.listing-top-picks-cards {
+  margin: 34px 0;
+  padding: clamp(18px, 2.5vw, 28px);
+  background: linear-gradient(145deg, #f3f8fc, #fff 70%);
+  border: 1px solid #dce8f0;
+  border-radius: 18px;
+}
+
+.listing-top-picks-cards__heading {
+  margin-bottom: 18px;
+}
+
+.listing-top-picks-cards__heading h2 {
+  margin: 5px 0 6px;
+  color: #14243a;
+  font-size: clamp(20px, 2.2vw, 26px);
+}
+
+.listing-top-picks-cards__heading p {
+  margin: 0;
+  color: #63768a;
+  font-size: 14px;
+}
+
+.listing-top-picks-cards .featured-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.listing-top-picks-cards .featured-card {
+  min-width: 0;
+  border-color: #d8e3ec;
+  box-shadow: 0 6px 18px rgb(23 69 107 / 8%);
+}
+
+.listing-top-picks-cards .featured-card:hover {
+  box-shadow: 0 12px 26px rgb(23 69 107 / 14%);
+}
+
+@media (max-width: 1100px) {
+  .listing-top-picks-cards .featured-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .listing-top-picks-cards .featured-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.discovery-page--listing .results-layout--school-grid {
+  grid-template-columns: minmax(205px, 230px) minmax(0, 1fr);
+}
+
+.discovery-page--listing .results-layout--school-grid > .school-results {
+  grid-column: 2;
+}
+
+.discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
+  display: none;
+}
+
+.discovery-page--listing .school-list--continuation > .school-card {
+  align-self: stretch;
+}
+
+.discovery-page--listing .results-layout--school-grid > .top-boarding-schools {
+  grid-column: 2;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card {
+  align-self: start;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+  grid-column: 3;
+  grid-row: 1;
+  max-height: 440px;
+  overflow: auto;
+  position: static;
+}
+
+@media (min-width: 1201px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+    grid-column: 4;
+  }
+
+  .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
+    width: calc(100% + 248px);
+    margin: 20px 0 0 -248px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .discovery-page--listing .results-layout--school-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discovery-page--listing .results-layout--school-grid > .school-results,
+  .discovery-page--listing .results-layout--school-grid > .top-boarding-schools {
+    grid-column: 1;
+  }
+
+}
+
+@media (max-width: 700px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 760px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.discovery-page--listing .school-list--list.school-list--listing > .school-card {
+  height: auto;
+  min-height: 248px;
+}
+
+.discovery-page--listing .school-list--list.school-list--listing .school-card__body {
+  min-height: 248px;
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  overflow: visible;
+}
+
+.discovery-page--listing .school-list--list.school-list--listing .school-card__highlights,
+.discovery-page--listing .school-list--list.school-list--listing .school-card__tags {
+  max-height: none;
+  overflow: visible;
+}
+
+.discovery-page--listing .school-list--list.school-list--listing .school-card__tags {
+  flex-wrap: wrap;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare {
+  color: #17456b;
+  background: #fff;
+  border: 1px solid #17456b;
+  border-radius: 8px;
+  box-shadow: 0 3px 8px rgb(23 69 107 / 10%);
+  font-weight: 750;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare {
+  min-height: 38px;
+  justify-content: center;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare input {
+  accent-color: #17456b;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare:has(input:checked) {
+  color: #fff;
+  background: #17456b;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare:has(input:checked) input {
+  accent-color: #fff;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call:hover,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__call:focus-visible,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire:hover,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire:focus-visible,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions .school-compare:hover {
+  color: #103551;
+  background: #edf6fb;
+  border-color: #93b8d0;
+  box-shadow: 0 6px 12px rgb(23 69 107 / 15%);
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view {
+  color: #fff !important;
+  background: #17456b;
+  border-color: #17456b;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view:hover,
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view:focus-visible {
+  color: #fff !important;
+  background: #103551;
+  border-color: #103551;
+  box-shadow: 0 7px 14px rgb(23 69 107 / 22%);
+}
+
+@media (max-width: 700px) {
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__body {
+    min-height: 0;
+    overflow: visible;
   }
 }
