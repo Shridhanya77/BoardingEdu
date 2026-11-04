@@ -70,13 +70,9 @@ export function boardListingPath(
   return withCategoryQuery(`/board/${toSeoSlug(slug)}`, category);
 }
 
-/**
- * Directory URL. A school-type filter uses `/india/?category=` so the
- * geographical slug never changes between day and boarding schools.
- */
+/** Directory URL. Day/boarding selection stays in the query, not the path. */
 export function schoolDirectoryPath(category?: HomeSchoolCategory | null): string {
-  if (!category) return withTrailingSlash("/schools");
-  return placeListingPath({ countrySlug: "india", category });
+  return withCategoryQuery("/schools", category);
 }
 
 export function indiaRegionListingPath(

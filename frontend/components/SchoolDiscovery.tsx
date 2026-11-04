@@ -43,7 +43,7 @@ import type {
   SchoolListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
-import FeeRangeSlider from "@/components/search/FeeRangeSlider";
+import FeeRangeFilter from "@/components/search/FeeRangeFilter";
 import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import SchoolSearchAutocomplete from "@/components/search/SchoolSearchAutocomplete";
 import CompareBar from "@/components/search/CompareBar";
@@ -285,7 +285,6 @@ function SchoolCard({
   const coverImage = schoolCoverImageUrl(school);
   const logoImage = publicSchoolImageUrl(school.school_logo_url || "");
   const initials = (school.short_name || school.school_name).slice(0, 2).toUpperCase();
-  const phoneNumber = school.phone?.replace(/[^\d+]/g, "");
 
   return (
     <article className={`school-card${className ? ` ${className}` : ""}`} style={style}>
@@ -370,12 +369,6 @@ function SchoolCard({
           </div>
         </div>
 
-        {school.annual_fee != null && Number(school.annual_fee) > 0 && (
-          <ul className="school-card__highlights">
-            <li>{formatRupees(Number(school.annual_fee))} / year</li>
-          </ul>
-        )}
-
         <div className="school-card__tags">
           {school.boards_detail.length > 0 && (
             <span className="school-tag school-tag--blue">
@@ -404,6 +397,10 @@ function SchoolCard({
 
         <div className="school-card__footer">
           <div className="school-card__actions">
+            <Link className="school-card__enquire" href={schoolEnquiryPath(school)}>
+              <MessageSquare size={15} aria-hidden />
+              Enquire
+            </Link>
             <label className="school-compare">
               <input
                 type="checkbox"
@@ -423,16 +420,6 @@ function SchoolCard({
               />
               Compare
             </label>
-            {phoneNumber && (
-              <a className="school-card__call" href={`tel:${phoneNumber}`}>
-                <Phone size={15} aria-hidden />
-                Call
-              </a>
-            )}
-            <Link className="school-card__enquire" href={schoolEnquiryPath(school)}>
-              <MessageSquare size={15} aria-hidden />
-              Enquire
-            </Link>
             <Link className="school-card__view" href={href}>View Details</Link>
           </div>
         </div>
@@ -508,8 +495,9 @@ function withListingFilters(href: string, boards: string[]) {
 }
 
 function boardSearchPath(board: BoardListItem, category?: HomeSchoolCategory | null) {
-  const params = new URLSearchParams({ board: toSeoSlug(board.board_code || board.slug) });
-  return `${schoolDirectoryPath(category)}?${params.toString()}`;
+  const url = new URL(schoolDirectoryPath(category), "https://boardingeu.invalid");
+  url.searchParams.set("board", toSeoSlug(board.board_code || board.slug));
+  return `${url.pathname}${url.search}`;
 }
 
 function randomFeaturedSelection(
@@ -2731,8 +2719,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           {isHomePage && (
             <div className="hero-spots">
               {(heroSpots.length ? heroSpots : [
-                { key: "boarding", category: "residential-school" as const, title: "Boarding schools in —", place: "—", count: 0, href: "/schools/boarding_schools/" },
-                { key: "day", category: "day-school" as const, title: "Day schools in —", place: "—", count: 0, href: "/schools/day_schools/" },
+                { key: "boarding", category: "residential-school" as const, title: "Boarding schools in —", place: "—", count: 0, href: schoolDirectoryPath("residential-school") },
+                { key: "day", category: "day-school" as const, title: "Day schools in —", place: "—", count: 0, href: schoolDirectoryPath("day-school") },
               ])
                 .filter((spot) => !homeCategory || spot.category === homeCategory)
                 .map((spot) => (
@@ -3612,9 +3600,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <fieldset className="filter-group">
               <legend>Education board{board.length ? ` (${board.length})` : ""}</legend>
               <div className="filter-checklist" id="board-filter">
-                {boards
-                  .filter((item) => !board.length || board.includes(item.board_id))
-                  .map((item) => (
+                {boards.map((item) => (
                   <label className="filter-check" key={item.board_id}>
                     <input
                       type="checkbox"
@@ -3648,7 +3634,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <p className="filter-select-label">
                 Published fee details for the current academic year
               </p>
-              <FeeRangeSlider
+              <FeeRangeFilter
                 value={feeRange}
                 onValueCommit={(next) => {
                   setFeeRange(next);
@@ -3906,41 +3892,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     />
                   )}
                 </div>
-                {schoolView === "grid" && displayResults.length > 7 && (
-                  <div className="school-list school-list--grid school-list--listing school-list--continuation">
-                    {displayResults.slice(7).map((school) => (
-                      <SchoolCard
-                        key={`continuation-${school.school_id}`}
-                        school={school}
-                        selectedBoards={board}
-                        selectedSchoolTypes={schoolType}
-                      />
-                    ))}
-                  </div>
-                )}
-                <div
-                  className="school-load-more"
-                  ref={loadMoreRef}
-                  aria-live="polite"
-                >
-                  {loadMoreError ? (
-                    <>
-                      <p role="alert">{loadMoreError}</p>
-                      <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
-                        Retry loading schools
-                      </button>
-                    </>
-                  ) : loading && page > 1 ? (
-                    <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
-                  ) : hasMoreResults ? (
-                    <p className="school-load-more__hint">Scroll down to load more unique schools</p>
-                  ) : (
-                    <p>You&apos;ve seen all {totalCount} schools in this search.</p>
-                  )}
-                </div>
               </>
             )}
           </div>
+          {schoolView === "grid" && displayResults.length > 7 && (
+            <div className="school-list school-list--grid school-list--listing school-list--continuation">
+              {displayResults.slice(7).map((school) => (
+                <SchoolCard
+                  key={`continuation-${school.school_id}`}
+                  school={school}
+                  selectedBoards={board}
+                  selectedSchoolTypes={schoolType}
+                />
+              ))}
+            </div>
+          )}
           {(schoolView === "list" || error || displayResults.length === 0) && (
             <TopBoardingSchools
               category={topSchoolsCategory}
@@ -3952,6 +3918,28 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             />
           )}
         </div>
+        {!error && (results.length > 0 || displayResults.length > 0) && (
+          <div
+            className="school-load-more"
+            ref={loadMoreRef}
+            aria-live="polite"
+          >
+            {loadMoreError ? (
+              <>
+                <p role="alert">{loadMoreError}</p>
+                <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
+                  Retry loading schools
+                </button>
+              </>
+            ) : loading && page > 1 ? (
+              <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
+            ) : hasMoreResults ? (
+              <p className="school-load-more__hint">Scroll down to load more unique schools</p>
+            ) : (
+              <p>You&apos;ve seen all {totalCount} schools in this search.</p>
+            )}
+          </div>
+        )}
 
         {!topBoardingSchoolsLoading && !topBoardingSchoolsError && topPickSchools.length > 0 && (
           <section className="listing-top-picks-cards" aria-labelledby="listing-top-picks-cards-heading">

@@ -2781,103 +2781,37 @@ select:focus-visible {
   gap: 11px;
 }
 
-.fee-range__labels {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: #34485d;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.fee-range__labels span:nth-child(2) {
-  color: #8995a3;
-  font-weight: 400;
-}
-
-.fee-range__sliders {
-  height: 28px;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.fee-range__sliders::before {
-  height: 4px;
-  position: absolute;
-  right: 0;
-  left: 0;
-  content: "";
-  background: #dbe3ed;
-  border-radius: 4px;
-}
-
-.fee-range__sliders input[type="range"] {
-  width: 100%;
-  height: 28px;
-  margin: 0;
-  position: absolute;
-  inset: 0;
-  appearance: none;
-  pointer-events: none;
-  background: transparent;
-}
-
-.fee-range__sliders input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  background: transparent;
-}
-
-.fee-range__sliders input[type="range"]::-moz-range-track {
-  height: 4px;
-  background: transparent;
-}
-
-.fee-range__sliders input[type="range"]::-webkit-slider-thumb {
-  width: 17px;
-  height: 17px;
-  margin-top: -6px;
-  appearance: none;
-  pointer-events: auto;
-  background: #fff;
-  border: 2px solid var(--search-blue-600);
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 22%);
-  cursor: grab;
-}
-
-.fee-range__sliders input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  pointer-events: auto;
-  background: #fff;
-  border: 2px solid var(--search-blue-600);
-  border-radius: 50%;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 22%);
-  cursor: grab;
-}
-
 .fee-range__presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .fee-range__presets button {
-  padding: 5px 7px;
-  color: #516579;
-  background: #f1f5f9;
-  border: 1px solid transparent;
-  border-radius: 20px;
+  min-height: 42px;
+  padding: 8px 10px;
+  color: #40566d;
+  background: #f7fafc;
+  border: 1px solid #dfe7ef;
+  border-radius: 10px;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .fee-range__presets button:hover,
 .fee-range__presets button[aria-pressed="true"] {
-  color: var(--search-blue-700);
-  background: var(--search-blue-50);
-  border-color: var(--search-blue-100);
+  color: #17456b;
+  background: #edf6fb;
+  border-color: #9ebed2;
+  box-shadow: 0 3px 8px rgb(23 69 107 / 9%);
+}
+
+.fee-range__presets button:focus-visible {
+  outline: 3px solid rgb(23 69 107 / 24%);
+  outline-offset: 2px;
 }
 
 .filter-error {
@@ -8454,6 +8388,11 @@ select:focus-visible {
 .discovery-page--listing #school-type-filter {
   max-height: none;
   gap: 9px;
+}
+
+.discovery-page--listing #board-filter {
+  max-height: none;
+  overflow: visible;
 }
 
 .discovery-page--listing #school-type-filter .filter-check {
@@ -17031,7 +16970,7 @@ select:focus-visible {
 }
 
 .school-gallery__item img {
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.35s ease;
 }
 
@@ -17065,10 +17004,10 @@ select:focus-visible {
 }
 
 .school-gallery__lightbox img {
-  max-width: min(1100px, 100%);
+  max-width: min(1400px, 100%);
   max-height: 82vh;
-  width: auto;
-  height: auto;
+  width: min(100%, 1400px);
+  height: min(82vh, 900px);
   object-fit: contain;
   border-radius: 12px;
 }
@@ -20672,8 +20611,8 @@ select:focus-visible {
   }
 
   .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
-    width: calc(100% + 248px);
-    margin: 20px 0 0 -248px;
+    width: 100%;
+    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 20px;
@@ -20792,4 +20731,31 @@ select:focus-visible {
     min-height: 0;
     overflow: visible;
   }
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__enquire {
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: center;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-card__view {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.discovery-page--listing :is(.school-list--grid, .school-list--list).school-list--listing .school-card__actions > .school-compare {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: stretch;
+  justify-content: center;
 }

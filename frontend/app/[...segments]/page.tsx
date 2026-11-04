@@ -387,7 +387,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       keywords: ["school directory", "schools in India", "boarding schools", "day schools"],
     });
   }
-  // Typed directory listings: /schools/day_schools/ and /schools/boarding_schools/.
+  // Legacy typed directory aliases redirect to the query-based `/schools` URL.
   if (segments[0] === "schools" && segments.length === 2) {
     const directoryCategory = homeSchoolCategoryFromValue(segments[1]?.toLowerCase());
     if (directoryCategory) {
@@ -396,7 +396,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       return pageMetadata({
         title: copy.title,
         description: copy.description,
-        path: "/india",
+        path: "/schools",
         keywords: [copy.heading, label, "schools in India"],
       });
     }
@@ -724,9 +724,10 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       const query = remainingParams.toString();
       redirect(`${schoolSearchPath(searchQuery)}${query ? `?${query}` : ""}`);
     }
-    // Legacy `?home_category=` directory links fold into the typed path URL.
+    const category = homeSchoolCategoryFromValue(singleSearchParam(searchParams?.category));
     const legacyCategory = homeSchoolCategoryFromValue(searchParams?.home_category);
-    if (legacyCategory) redirect(schoolDirectoryPath(legacyCategory));
+    if (legacyCategory) redirect(schoolDirectoryPath(category ?? legacyCategory));
+    const types = category ? await resolveHomeTypes(category) : [];
     const breadcrumbs = [
       { name: "Home", url: "/" },
       { name: "School directory", url: "/schools" },
@@ -734,7 +735,13 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     return (
       <>
         <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
-        <SchoolDiscovery initialFilter={{}} breadcrumbs={breadcrumbs} />
+        <SchoolDiscovery
+          initialFilter={{
+            schoolTypes: types.map((type) => type.school_type_id),
+            homeCategory: category ?? undefined,
+          }}
+          breadcrumbs={breadcrumbs}
+        />
       </>
     );
   }
@@ -747,7 +754,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     return <SchoolDiscovery initialFilter={{ schoolTypes: types.map((type) => type.school_type_id) }} />;
   }
 
-  // Typed directory listings: /schools/day_schools/ and /schools/boarding_schools/.
+  // Legacy typed directory aliases redirect to the query-based `/schools` URL.
   if (segments[0] === "schools" && segments.length === 2) {
     const directoryCategory = homeSchoolCategoryFromValue(segments[1]?.toLowerCase());
     if (directoryCategory) {

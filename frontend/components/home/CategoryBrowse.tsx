@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { ArrowRight, GraduationCap, House } from "lucide-react";
+import { schoolDirectoryPath } from "@/lib/school-urls";
 
 const categories = [
   {
-    href: "/schools/day_schools/",
+    href: schoolDirectoryPath("day-school"),
     title: "Day Schools",
     text: "Explore schools where students travel home after class.",
     Icon: GraduationCap,
   },
   {
-    href: "/schools/boarding_schools/",
+    href: schoolDirectoryPath("residential-school"),
     title: "Boarding Schools",
     text: "Explore day boarding and full boarding schools across India.",
     Icon: House,
