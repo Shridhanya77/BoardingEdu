@@ -1,9 +1,13 @@
 from datetime import datetime, timezone as datetime_timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from django.contrib.staticfiles import finders
+from django.template.loader import get_template
 from django.test import SimpleTestCase, TestCase
 
 from config.admin_dashboard import _enquiry_trend
+from config.staticfiles import JAZZMIN_ADMIN_JS_OVERRIDES
 
 
 class AdminDashboardTrendTests(SimpleTestCase):
@@ -29,6 +33,29 @@ class AdminDashboardTrendTests(SimpleTestCase):
         )
         self.assertEqual(months[-1]["value"], 3)
         self.assertEqual(len(months), 6)
+
+
+class JazzminStaticReferenceTests(SimpleTestCase):
+    def test_admin_base_does_not_lookup_bootswatch_directory(self):
+        source = get_template("admin/base.html").template.source
+        self.assertNotIn("{% static 'vendor/bootswatch' %}", source)
+        self.assertNotIn('{% static "vendor/bootswatch" %}', source)
+        self.assertIn("{% get_static_prefix %}vendor/bootswatch", source)
+
+    def test_duplicate_admin_js_is_collected_from_jazzmin_only(self):
+        locations = {name: [] for name in JAZZMIN_ADMIN_JS_OVERRIDES}
+        for finder in finders.get_finders():
+            for path, storage in finder.list(None):
+                normalized = path.replace("\\", "/")
+                if normalized in locations:
+                    locations[normalized].append(storage.location.replace("\\", "/"))
+
+        for path, found in locations.items():
+            self.assertEqual(len(found), 1, found)
+            self.assertIn("/jazzmin/", found[0].lower())
+            self.assertNotIn("django/contrib/admin", found[0].replace("\\", "/"))
+            body = (Path(found[0]) / path).read_text(encoding="utf-8")
+            self.assertIn("dismissRelatedObjectModal", body)
 
 
 class HealthProbeTests(TestCase):

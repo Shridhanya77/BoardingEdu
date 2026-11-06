@@ -166,16 +166,30 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+# APP_DIRS is off because loaders are set explicitly. The Jazzmin loader
+# rewrites one admin template reference that manifest storage cannot hash.
+# See config.staticfiles.JazzminAppDirectoriesLoader.
+_template_loaders = [
+    "django.template.loaders.filesystem.Loader",
+    "config.staticfiles.JazzminAppDirectoriesLoader",
+]
+if not DEBUG:
+    _template_loaders = [
+        ("django.template.loaders.cached.Loader", _template_loaders)
+    ]
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
     'DIRS': [BASE_DIR / 'templates'],
-    'APP_DIRS': True,
-    'OPTIONS': {'context_processors': [
-        'django.template.context_processors.debug',
-        'django.template.context_processors.request',
-        'django.contrib.auth.context_processors.auth',
-        'django.contrib.messages.context_processors.messages',
-    ]},
+    'APP_DIRS': False,
+    'OPTIONS': {
+        'context_processors': [
+            'django.template.context_processors.debug',
+            'django.template.context_processors.request',
+            'django.contrib.auth.context_processors.auth',
+            'django.contrib.messages.context_processors.messages',
+        ],
+        'loaders': _template_loaders,
+    },
 }]
 WSGI_APPLICATION = 'config.wsgi.application'
 
@@ -216,6 +230,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 _static_dir = BASE_DIR / 'static'
 STATICFILES_DIRS = [_static_dir] if _static_dir.is_dir() else []
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "config.staticfiles.JazzminAwareAppDirectoriesFinder",
+]
 
 # Accepts either the short R2_* names or the CLOUDFLARE_R2_* names.
 # Bucket that holds the school objects (keys under `schools/`).
