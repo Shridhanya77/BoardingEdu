@@ -257,6 +257,8 @@ export type UserDetail = {
   role_display: string;
   phone: string;
   is_active: boolean;
+  is_email_verified: boolean;
+  email_verified_at: string | null;
   is_staff: boolean;
   date_joined: string;
   last_login: string | null;
@@ -279,11 +281,29 @@ export type RegisterInput = {
   preferred_contact_method?: "EMAIL" | "PHONE" | "WHATSAPP";
 };
 export const users = {
-  /** Public Parent registration (role is locked to PARENT on the server). Returns the created user row. */
+  /** Public Parent registration (role is locked to PARENT on the server). */
   register: (payload: RegisterInput) =>
-    request<UserDetail>("/users/users/register/", {
+    request<{ detail: string }>("/users/users/register/", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+};
+
+export const emailVerification = {
+  send: (email: string) =>
+    request<{ detail: string }>("/notifications/send-otp/", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  verify: (email: string, otp: string) =>
+    request<{ detail: string }>("/notifications/verify-otp/", {
+      method: "POST",
+      body: JSON.stringify({ email, otp }),
+    }),
+  resend: (email: string) =>
+    request<{ detail: string }>("/notifications/resend-otp/", {
+      method: "POST",
+      body: JSON.stringify({ email }),
     }),
 };
 
@@ -984,13 +1004,7 @@ export type SchoolRegistrationInput = {
   password_confirm: string;
 };
 
-export type SchoolRegistrationResult = {
-  school_id: string;
-  school_code: string;
-  school_name: string;
-  verification_status: string;
-  detail: string;
-};
+export type SchoolRegistrationResult = { detail: string };
 
 export type VerificationStatus = "UNVERIFIED" | "PENDING" | "VERIFIED";
 

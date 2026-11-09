@@ -18,11 +18,14 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
+  const [verificationRequired, setVerificationRequired] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     clearError?.();
     setFormError(null);
+    setVerificationRequired(false);
     if (!username.trim() || !password) {
       setFormError("Please enter your email or username and password.");
       return;
@@ -51,6 +54,18 @@ export default function LoginForm() {
     } catch (err) {
       if (err instanceof ApiError) {
         const message = apiErrorMessage(err);
+        const body = err.body && typeof err.body === "object"
+          ? err.body as Record<string, unknown>
+          : null;
+        if (
+          body?.code === "email_not_verified" ||
+          /email verification is required/i.test(message)
+        ) {
+          setVerificationEmail(username.trim().includes("@") ? username.trim() : "");
+          setVerificationRequired(true);
+          setFormError("Verify your email address before signing in.");
+          return;
+        }
         setFormError(
           err.status === 401 && /invalid|no active account/i.test(message)
             ? "Email/username or password is incorrect. Please try again."
@@ -80,6 +95,11 @@ export default function LoginForm() {
           <p>Sign in to continue your school journey. Choose the account type you registered with.</p>
         </aside>
         <div className="account-card__content">
+          {params.get("verified") === "1" && (
+            <div className="email-verification__success" role="status">
+              Your email is verified. You can now sign in.
+            </div>
+          )}
           <div className="account-role-choice" role="group" aria-label="Choose account type">
             {([
               ["parent", "Parent", "Find and compare schools"],
@@ -105,6 +125,15 @@ export default function LoginForm() {
           <form className="account-form" onSubmit={onSubmit} noValidate>
             {finalError && (
               <div className="form-error" role="alert">{finalError}</div>
+            )}
+            {verificationRequired && (
+              <p className="account-card__hint">
+                <Link
+                  href={`/verify-email${verificationEmail ? `?email=${encodeURIComponent(verificationEmail)}` : ""}`}
+                >
+                  Continue to email verification
+                </Link>
+              </p>
             )}
 
             <label className="field">

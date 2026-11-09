@@ -21,6 +21,39 @@ and timestamp. Generic school edits cannot change the verification status.
 The Django admin has a paginated pending-verification queue linked from the
 school list, and exposes the audit history as read-only.
 
+## Email verification and notifications
+
+Set `RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`, and `FRONTEND_URL` in the backend
+environment. `EMAIL_PROVIDER=resend` selects the Resend HTTP API; keep the API
+key on the backend only. Registration and OTP delivery require a configured
+sender. Apply migrations with `python manage.py migrate`.
+
+The public verification endpoints are:
+
+- `POST /api/notifications/send-otp/` and `/api/notifications/resend-otp/`
+  with `{"email":"parent@example.com"}`
+- `POST /api/notifications/verify-otp/` with
+  `{"email":"parent@example.com","otp":"123456"}`
+
+Verification codes expire after five minutes, are single-use, and are stored
+only as keyed hashes. Send/resend responses intentionally do not disclose
+whether an account exists. Parent and school-admin JWT access requires verified
+email; school approval remains a separate workflow. Existing `STAFF_ADMIN` and
+`SUPER_ADMIN` permissions are not changed.
+
+When Redis is configured, non-critical notifications use Celery. Run a worker
+alongside the web process with:
+
+```powershell
+celery -A config worker --loglevel=info
+```
+
+Delivery records distinguish pending, provider-accepted, delivered, failed,
+and bounced states. For Resend delivery/bounce callbacks, set
+`RESEND_WEBHOOK_SECRET` and configure Resend to POST its signed webhook events
+to `/api/notifications/resend-webhook/`. A provider-accepted email is not
+reported as delivered until a valid webhook event arrives.
+
 ## School images
 
 School logo, campus image, and gallery image fields in the Django admin accept

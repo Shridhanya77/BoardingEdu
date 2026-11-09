@@ -10,12 +10,27 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ("username", "email", "phone")
     fieldsets = BaseUserAdmin.fieldsets + (
         ("Enterprise Role & Profile", {"fields": ("role", "phone")}),
+        ("Email verification", {"fields": ("is_email_verified", "email_verified_at")}),
         ("Audit", {"fields": ("created_at", "updated_at")}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
         ("Role (IMPORTANT)", {"fields": ("role", "phone")}),
     )
-    readonly_fields = ("created_at", "updated_at", "last_login")
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "last_login",
+        "is_email_verified",
+        "email_verified_at",
+    )
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            original_email = User.objects.values_list("email", flat=True).get(pk=obj.pk)
+            if original_email.strip().lower() != obj.email.strip().lower():
+                obj.is_email_verified = False
+                obj.email_verified_at = None
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(ParentProfile)

@@ -1,6 +1,14 @@
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.models import update_last_login
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import (
+    TokenObtainPairSerializer,
+    TokenObtainSerializer,
+    TokenRefreshSerializer,
+)
+from rest_framework_simplejwt.settings import api_settings
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 
 from apps.contact_validation import normalize_phone_number
@@ -26,10 +34,18 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
             if len(usernames) == 1:
                 attrs["username"] = usernames[0]
 
-        data = super().validate(attrs)
+        TokenObtainSerializer.validate(self, attrs)
 
-        # School admins may sign in before verification so they can finish the
-        # profile. Enquiry contact details stay locked until the school is approved.
+        if (
+            self.user.role in {UserModel.ROLE_PARENT, UserModel.ROLE_SCHOOL_ADMIN}
+            and not self.user.is_superuser
+            and not self.user.is_email_verified
+        ):
+            raise AuthenticationFailed(
+                "Email verification is required before signing in.",
+                code="email_not_verified",
+            )
+
         user = self.user
         if user.role == UserModel.ROLE_SCHOOL_ADMIN:
             try:
@@ -41,7 +57,35 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "This school administrator account is not assigned to a school."
                 )
 
+        refresh = self.get_token(user)
+        data = {"refresh": str(refresh), "access": str(refresh.access_token)}
+        if api_settings.UPDATE_LAST_LOGIN:
+            update_last_login(None, user)
         return data
+
+
+class EmailVerifiedTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        try:
+            refresh = RefreshToken(attrs["refresh"])
+        except TokenError as exc:
+            raise InvalidToken(str(exc)) from exc
+
+        user_id = refresh.payload.get(api_settings.USER_ID_CLAIM)
+        user = UserModel.objects.filter(
+            **{api_settings.USER_ID_FIELD: user_id}
+        ).first()
+        if (
+            user
+            and user.role in {UserModel.ROLE_PARENT, UserModel.ROLE_SCHOOL_ADMIN}
+            and not user.is_superuser
+            and not user.is_email_verified
+        ):
+            raise AuthenticationFailed(
+                "Email verification is required before signing in.",
+                code="email_not_verified",
+            )
+        return super().validate(attrs)
 
 
 # ======================================================================
@@ -68,6 +112,8 @@ class UserListSerializer(serializers.ModelSerializer):
             "role_display",
             "phone",
             "is_active",
+            "is_email_verified",
+            "email_verified_at",
             "date_joined",
         ]
 
@@ -114,6 +160,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "role_display",
             "phone",
             "is_active",
+            "is_email_verified",
+            "email_verified_at",
             "is_staff",
             "date_joined",
             "last_login",
@@ -128,6 +176,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "role",
+            "is_email_verified",
+            "email_verified_at",
             "is_staff",
             "date_joined",
             "last_login",
@@ -154,6 +204,17 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def validate_phone(self, value):
         return normalize_phone_number(value) if value.strip() else value
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        duplicate = UserModel.objects.filter(email__iexact=value)
+        if self.instance:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise serializers.ValidationError(
+                "Unable to update using those details."
+            )
+        return value
 
     def get_school_admin_profile(self, obj):
         if obj.role != UserModel.ROLE_SCHOOL_ADMIN:
@@ -224,10 +285,17 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
+        email_changed = (
+            "email" in validated_data
+            and validated_data["email"].strip().lower() != instance.email.strip().lower()
+        )
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
+        if email_changed:
+            instance.is_email_verified = False
+            instance.email_verified_at = None
         if password:
             instance.set_password(password)
 
@@ -302,9 +370,10 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         ]
 
     def validate_email(self, value):
+        value = value.strip().lower()
         if UserModel.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
-                "An account with this email address already exists."
+                "Unable to register using those details."
             )
         return value
 

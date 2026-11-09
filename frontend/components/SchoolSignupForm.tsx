@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   AtSign,
   Building2,
-  CheckCircle2,
   GraduationCap,
   Mail,
   MapPin,
@@ -22,7 +22,6 @@ import {
   schools,
   type BoardListItem,
   type CityListItem,
-  type SchoolRegistrationResult,
   type SchoolTypeListItem,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -72,6 +71,7 @@ function fieldErrors(err: unknown, field: string): string[] | null {
 }
 
 export default function SchoolSignupForm() {
+  const router = useRouter();
   const { registerSchool, clearError } = useAuth();
 
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -84,7 +84,6 @@ export default function SchoolSignupForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [apiErr, setApiErr] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<SchoolRegistrationResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,7 +181,7 @@ export default function SchoolSignupForm() {
 
     setSubmitting(true);
     try {
-      const response = await registerSchool({
+      await registerSchool({
         school_name: form.school_name.trim(),
         city: form.city,
         address: form.address.trim(),
@@ -200,7 +199,9 @@ export default function SchoolSignupForm() {
         password: form.password,
         password_confirm: form.password_confirm,
       });
-      setResult(response);
+      router.push(
+        `/verify-email?email=${encodeURIComponent(form.email.trim())}&account=school`,
+      );
     } catch (err) {
       if (err instanceof ApiError) setApiErr(err);
       setFormError(
@@ -211,41 +212,6 @@ export default function SchoolSignupForm() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  if (result) {
-    return (
-      <main className="account-page">
-        <Link className="account-page__back" href="/">
-          <ArrowLeft size={16} /> Back to BoardingEdu
-        </Link>
-        <section className="account-card">
-          <span className="section-eyebrow">REGISTRATION RECEIVED</span>
-          <h1>Your school is in review.</h1>
-          <div className="school-signup__success" role="status">
-            <CheckCircle2 size={22} aria-hidden />
-            <div>
-              <p>
-                <strong>{result.school_name}</strong> has been registered with the school
-                code <strong>{result.school_code}</strong>.
-              </p>
-              <p>
-                Our team verifies every school before its dashboard unlocks. You will be
-                able to sign in with the credentials you just created once the school is
-                approved.
-              </p>
-            </div>
-          </div>
-          <p className="account-card__hint">
-            Questions? Write to <a href="mailto:hello@boardingedu.com">hello@boardingedu.com</a>{" "}
-            quoting {result.school_code}.
-          </p>
-          <p className="account-card__hint">
-            <Link href="/login">Go to login</Link>
-          </p>
-        </section>
-      </main>
-    );
   }
 
   return (

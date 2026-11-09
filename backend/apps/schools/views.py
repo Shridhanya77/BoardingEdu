@@ -1,9 +1,11 @@
+import logging
 import re
 import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.db.models import (
@@ -33,6 +35,8 @@ from .serializers import (
     SchoolRegistrationSerializer,
     SchoolPortalSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SchoolFAQViewSet(viewsets.ReadOnlyModelViewSet):
@@ -520,6 +524,14 @@ class SchoolViewSet(ReadWriteModelViewSet):
             return [IsStaffAdmin()]
         return super().get_permissions()
 
+    def get_throttles(self):
+        if self.action == "register":
+            from apps.notifications.throttles import OTPEmailThrottle
+
+            self.throttle_scope = "otp_send"
+            return [ScopedRateThrottle(), OTPEmailThrottle()]
+        return super().get_throttles()
+
     @action(detail=False, methods=['get', 'patch'], url_path='mine')
     def mine(self, request):
         """School admins read and update only the school assigned to them."""
@@ -556,20 +568,47 @@ class SchoolViewSet(ReadWriteModelViewSet):
         verify the school before that login can obtain a token.
         """
         serializer = SchoolRegistrationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        from rest_framework.exceptions import ValidationError
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError:
+            from django.contrib.auth import get_user_model
+
+            submitted_email = request.data.get("email")
+            if (
+                isinstance(submitted_email, str)
+                and submitted_email.strip()
+                and get_user_model().objects.filter(
+                    email__iexact=submitted_email.strip()
+                ).exists()
+            ):
+                return Response(
+                    {"detail": "If this email can be registered, a verification code will be sent."},
+                    status=202,
+                )
+            raise
         school = serializer.save()
+        from apps.notifications.email_provider import EmailDeliveryError
+        from apps.notifications.services import issue_and_send_otp
+        from apps.users.models import SchoolAdminProfile
+
+        school_admin = SchoolAdminProfile.objects.select_related("user").get(
+            school=school
+        )
+        try:
+            issue_and_send_otp(school_admin.user)
+        except EmailDeliveryError as exc:
+            logger.warning(
+                "School registration verification email failed",
+                extra={
+                    "school_id": str(school.school_id),
+                    "error_code": exc.error_code,
+                },
+            )
         return Response(
-            {
-                'school_id': str(school.school_id),
-                'school_code': school.school_code,
-                'school_name': school.school_name,
-                'verification_status': school.verification_status,
-                'detail': (
-                    'Registration received. Our team will verify your school '
-                    'before your account is activated.'
-                ),
-            },
-            status=201,
+            {"detail": "If this email can be registered, a verification code will be sent."},
+            status=202,
         )
 
     @action(detail=False, methods=['get'], url_path='verification-queue')
@@ -614,6 +653,22 @@ class SchoolViewSet(ReadWriteModelViewSet):
             return Response({'detail': 'Not found.'}, status=404)
         except SchoolVerificationError as error:
             return Response({error.field: str(error)}, status=400)
+
+        if event.previous_status != event.new_status:
+            from apps.notifications.services import send_school_admin_notification
+
+            subject = (
+                "Your school profile is approved"
+                if event.new_status == School.VERIFICATION_CHOICES[2][0]
+                else "Your school profile status was updated"
+            )
+            body = (
+                f"The verification status for {school.school_name} is now "
+                f"{event.new_status.lower()}."
+            )
+            for profile in school.school_admin_profiles.select_related("user").all():
+                if profile.user.email:
+                    send_school_admin_notification(profile.user.email, subject, body)
 
         return Response(
             {

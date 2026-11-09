@@ -56,6 +56,7 @@ class PendingSchoolAdminLoginTests(TestCase):
             username="pending-school-admin",
             password="secret-pass",
             role=User.ROLE_SCHOOL_ADMIN,
+            is_email_verified=True,
         )
         admin = User.objects.get(username="pending-school-admin")
         SchoolAdminProfile.objects.create(user=admin, school=school, designation="Principal")
@@ -101,6 +102,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         user = User.objects.create_user(
             username="backend-school-admin",
             email="principal@own-admin.test",
+            is_email_verified=True,
             password="secret-pass",
             role=User.ROLE_SCHOOL_ADMIN,
         )

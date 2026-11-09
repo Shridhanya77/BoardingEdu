@@ -961,10 +961,11 @@ class SchoolRegistrationSerializer(serializers.Serializer):
     password_confirm = serializers.CharField(min_length=8, write_only=True)
 
     def validate_email(self, value):
+        value = value.strip().lower()
         User = get_user_model()
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
-                'An account with this email address already exists.'
+                'Unable to register using those details.'
             )
         return value
 

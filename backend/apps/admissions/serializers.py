@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 
 from apps.contact_validation import normalize_phone_number
 from apps.fees.models import AcademicYear
@@ -171,7 +172,34 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
         validated_data['guest_child_dob'] = child_dob
         validated_data['guest_child_gender'] = child_gender or ''
 
-        return AdmissionEnquiry.objects.create(**validated_data)
+        enquiry = AdmissionEnquiry.objects.create(**validated_data)
+        parent_email = (
+            enquiry.parent_profile.user.email
+            if enquiry.parent_profile_id
+            else enquiry.guest_email
+        )
+        school_email = enquiry.school.email
+        if parent_email:
+            from apps.notifications.services import send_admission_enquiry_confirmation
+
+            transaction.on_commit(
+                lambda: send_admission_enquiry_confirmation(
+                    parent_email,
+                    enquiry.school.school_name,
+                    enquiry.enquiry_code,
+                )
+            )
+        if school_email:
+            from apps.notifications.services import send_school_enquiry_notification
+
+            transaction.on_commit(
+                lambda: send_school_enquiry_notification(
+                    school_email,
+                    enquiry.school.school_name,
+                    enquiry.enquiry_code,
+                )
+            )
+        return enquiry
 
 
 class CounsellingRequestSerializer(serializers.ModelSerializer):

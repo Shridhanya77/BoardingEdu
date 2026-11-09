@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     'apps.fees.apps.FeesConfig',
     'apps.admissions.apps.AdmissionsConfig',
     'apps.users.apps.UsersConfig',
+    'apps.notifications.apps.NotificationsConfig',
     'apps.search.apps.SearchConfig',
     'apps.reviews.apps.ReviewsConfig',
     'apps.dashboards.apps.DashboardsConfig',
@@ -395,7 +396,7 @@ if DEBUG:
     _renderers.append('rest_framework.renderers.BrowsableAPIRenderer')
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
+    'DEFAULT_AUTHENTICATION_CLASSES': ('apps.users.authentication.EmailVerificationJWTAuthentication',),
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',),
     'DEFAULT_RENDERER_CLASSES': _renderers,
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.BoardingEduCursorPagination',
@@ -411,6 +412,9 @@ REST_FRAMEWORK = {
         'counselling': '5/hour',
         'review': '10/hour',
         'enquiry': '10/hour',
+        'otp_send': '10/hour',
+        'otp_verify': '20/hour',
+        'otp_email': '5/hour',
     },
 }
 
@@ -485,6 +489,12 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = not REDIS_IS_AVAILABLE
 CELERY_TASK_EAGER_PROPAGATES = True
+
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "").strip()
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "").strip()
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "resend").strip().lower()
 
 
 # ----------------------------------------------------------------------------

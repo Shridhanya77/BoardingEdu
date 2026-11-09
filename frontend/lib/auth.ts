@@ -125,8 +125,8 @@ type AuthContextValue =
   & {
     /** Log in via username + password. Stores tokens, loads /me user. */
     login: (username: string, password: string) => Promise<UserDetail>;
-    /** Register a new Parent user. On success logs them in immediately. */
-    register: (payload: RegisterInput) => Promise<UserDetail>;
+    /** Register a Parent user; email verification is required before login. */
+    register: (payload: RegisterInput) => Promise<void>;
     /**
      * Register a school. The account stays inactive until an admin verifies the
      * school, so this deliberately does NOT sign the user in.
@@ -188,17 +188,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback<AuthContextValue["register"]>(async (payload) => {
     dispatch({ type: "SET_LOADING" });
     try {
-      // 1. Create user (role = PARENT on the server)
       await users.register(payload);
-      // 2. Immediately exchange the credentials for JWTs so user is signed in
-      const tokens = await auth.obtain(payload.username, payload.password);
-      writeTokens(tokens);
-      const me = await auth.me();
-      dispatch({ type: "SET_USER", user: me });
-      return me;
+      dispatch({ type: "SET_GUEST" });
     } catch (e) {
-      // If registration succeeded but login failed, we do NOT clear tokens;
-      // but the state ends up as GUEST with the error shown. Good UX.
       const message = e instanceof ApiError ? e.message : "Sign up failed. Please try again.";
       dispatch({ type: "SET_GUEST", error: message });
       throw e;

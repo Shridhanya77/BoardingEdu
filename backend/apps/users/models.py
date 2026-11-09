@@ -33,6 +33,9 @@ class User(AbstractUser):
     )
     phone = models.CharField(validators=[phone_regex], max_length=17, blank=True)
 
+    is_email_verified = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+
     # Enterprise audit fields
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -35,7 +35,10 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
     TokenBlacklistView,
 )
-from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
+from apps.users.serializers import (
+    EmailOrUsernameTokenObtainPairSerializer,
+    EmailVerifiedTokenRefreshSerializer,
+)
 from .health import healthz, readyz
 from .admin_dashboard import install_admin_dashboard
 from .school_media import serve_day_school_media, serve_school_media
@@ -46,6 +49,10 @@ install_admin_dashboard()
 
 class EmailOrUsernameTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
+
+
+class EmailVerifiedTokenRefreshView(TokenRefreshView):
+    serializer_class = EmailVerifiedTokenRefreshSerializer
 
 
 def root_redirect_view(request):
@@ -83,6 +90,7 @@ class BoardingEduApiRoot(APIView):
                     "schools":   drf_reverse("schools:board-list",   request=request, format=format).rsplit("/boards/",   1)[0] + "/",
                     "fees":      drf_reverse("fees:academicyear-list", request=request, format=format).rsplit("/academic-years/", 1)[0] + "/",
                     "users":     drf_reverse("users:user-list",      request=request, format=format).rsplit("/users/",      1)[0] + "/",
+                    "notifications": "/api/notifications/",
                     "admissions": drf_reverse("admissions:child-list", request=request, format=format).rsplit("/children/", 1)[0] + "/",
                     "reviews":   "/api/reviews/",
                     "search":    "/api/search/",
@@ -118,7 +126,7 @@ urlpatterns = [
     ),
     path(
         "api/auth/jwt/token/refresh/",
-        TokenRefreshView.as_view(),
+        EmailVerifiedTokenRefreshView.as_view(),
         name="token_refresh",
     ),
     path(
@@ -139,6 +147,7 @@ urlpatterns = [
     path("api/fees/", include("apps.fees.urls", namespace="fees")),
     # ===== Users App =====
     path("api/users/", include("apps.users.urls", namespace="users")),
+    path("api/notifications/", include("apps.notifications.urls", namespace="notifications")),
     # ===== Admissions App =====
     path("api/admissions/", include("apps.admissions.urls", namespace="admissions")),
     # ===== Reviews App =====

@@ -59,6 +59,14 @@ class BoardingEduAdminAuthenticationForm(AdminAuthenticationForm):
 
     def confirm_login_allowed(self, user):
         AuthenticationForm.confirm_login_allowed(self, user)
+        if (
+            user.role == User.ROLE_SCHOOL_ADMIN
+            and not user.is_email_verified
+        ):
+            raise forms.ValidationError(
+                "Email verification is required before signing in.",
+                code="email_not_verified",
+            )
         if user.is_staff or user.is_superuser or assigned_school_id(user) is not None:
             return
         raise forms.ValidationError(
