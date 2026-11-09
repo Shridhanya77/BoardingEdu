@@ -218,6 +218,8 @@ class SchoolFacilityInline(admin.TabularInline):
     model = SchoolFacility
     extra = 1
     autocomplete_fields = ("facility",)
+    verbose_name = "Facility"
+    verbose_name_plural = "Facilities"
 
 class SchoolGradeInline(admin.TabularInline):
     model = SchoolGrade
@@ -231,11 +233,13 @@ class SchoolGradeInline(admin.TabularInline):
         "is_active",
     )
     verbose_name = "Grade offered"
-    verbose_name_plural = "Grades offered (add multiple grades, then save once)"
+    verbose_name_plural = "Grades"
 
 class SchoolPhotoInline(admin.TabularInline):
     model = SchoolPhoto
     extra = 1
+    verbose_name = "Photograph"
+    verbose_name_plural = "Photographs"
     readonly_fields = ("photo_preview",)
     fields = (
         "photo_url",
@@ -254,6 +258,8 @@ class SchoolPhotoInline(admin.TabularInline):
 class SchoolVideoInline(admin.TabularInline):
     model = SchoolVideo
     extra = 0
+    verbose_name = "Video"
+    verbose_name_plural = "Videos"
     fields = ("video_url", "thumbnail_url", "caption", "category", "sort_order", "status")
 
 
@@ -295,6 +301,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     school_admin_can_add = False
     school_admin_can_delete = False
     change_list_template = "admin/schools/school/change_list.html"
+    change_form_template = "admin/schools/school/change_form.html"
     list_per_page = 8
     list_display = (
         "school_code",
@@ -370,22 +377,31 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
 
     fieldsets = (
         (
-            "Identity",
+            "Logo and cover",
             {
                 "fields": (
-                    "school_code",
-                    "school_name",
-                    "short_name",
-                    "slug",
                     "school_logo_url",
                     "school_logo_preview",
                     "school_image_url",
                     "school_image_preview",
+                ),
+                "description": "Paste the image address already stored for this school. Saving does not upload a new file.",
+            },
+        ),
+        (
+            "Basic information",
+            {
+                "fields": (
+                    "school_name",
+                    "short_name",
+                    "school_code",
+                    "slug",
+                    "established_year",
                 )
             },
         ),
         (
-            "Geography",
+            "Location",
             {
                 "fields": (
                     "country",
@@ -400,7 +416,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             },
         ),
         (
-            "School Classification",
+            "Academics",
             {
                 "fields": (
                     "boards",
@@ -410,19 +426,18 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             },
         ),
         (
-            "Contact & Leadership",
+            "Contact",
             {
                 "fields": (
                     "phone",
                     "email",
                     "website",
                     "principal_name",
-                    "established_year",
                 )
             },
         ),
         (
-            "School Profile & Admissions",
+            "Profile",
             {
                 "fields": (
                     "tagline",
@@ -436,7 +451,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             },
         ),
         (
-            "Enterprise",
+            "Publishing",
             {
                 "fields": (
                     "boarding_required",

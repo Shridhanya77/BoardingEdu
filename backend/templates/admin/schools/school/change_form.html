@@ -1,0 +1,57 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block form_top %}
+<div class="be-steps" id="be-steps">
+  <button type="button" id="be-step-back">{% translate "Back" %}</button>
+  <p id="be-step-label"></p>
+  <button type="button" id="be-step-next">{% translate "Next" %}</button>
+</div>
+<p class="be-steps__note">{% translate "Move through the sections, then use Save. Nothing is written until you save." %}</p>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+<script>
+(function () {
+  const tabs = Array.from(document.querySelectorAll("#jazzy-tabs .nav-link"));
+  const label = document.getElementById("be-step-label");
+  const back = document.getElementById("be-step-back");
+  const next = document.getElementById("be-step-next");
+  if (!tabs.length || !label || !back || !next) return;
+
+  function current() {
+    const active = tabs.findIndex((tab) => tab.classList.contains("active"));
+    return active < 0 ? 0 : active;
+  }
+
+  function show(index) {
+    const nextIndex = Math.min(Math.max(index, 0), tabs.length - 1);
+    const tab = tabs[nextIndex];
+    if (!tab.classList.contains("active") && window.bootstrap && window.bootstrap.Tab) {
+      window.bootstrap.Tab.getOrCreateInstance(tab).show();
+    } else if (!tab.classList.contains("active")) {
+      tab.click();
+    }
+    label.textContent = "Step " + (nextIndex + 1) + " of " + tabs.length + " — " + tab.textContent.trim();
+    back.disabled = nextIndex === 0;
+    next.hidden = nextIndex === tabs.length - 1;
+  }
+
+  back.addEventListener("click", function () { show(current() - 1); });
+  next.addEventListener("click", function () { show(current() + 1); });
+  tabs.forEach(function (tab) {
+    tab.addEventListener("shown.bs.tab", function () { show(current()); });
+  });
+
+  const errorPane = document.querySelector(".tab-pane .errorlist, .tab-pane .errors");
+  if (errorPane) {
+    const pane = errorPane.closest(".tab-pane");
+    const match = tabs.findIndex((tab) => tab.getAttribute("href") === "#" + pane.id);
+    show(match < 0 ? 0 : match);
+  } else {
+    show(0);
+  }
+})();
+</script>
+{% endblock %}

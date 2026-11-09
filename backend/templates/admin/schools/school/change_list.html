@@ -9,7 +9,7 @@
   {% elif request.GET.verification_status__exact == "UNVERIFIED" %}
     {% translate "Unverified schools" %}
   {% else %}
-    {% translate "All schools" %}
+    {% translate "Manage schools" %}
   {% endif %}
 {% endblock %}
 
@@ -27,6 +27,12 @@
       <a class="be-btn" href="{% url 'admin:schools_school_add' %}">{% translate "Add school" %}</a>
     {% endif %}
   </header>
+
+  <p class="be-count">
+    {% if cl.result_count %}
+      {% translate "Showing" %} {{ cl.result_list|length }} {% translate "of" %} {{ cl.result_count }} {% translate "schools" %}
+    {% endif %}
+  </p>
 
   {% for school in cl.result_list %}
     {% school_card school %}

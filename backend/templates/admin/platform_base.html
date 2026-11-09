@@ -18,10 +18,11 @@
       <nav>
         {% if user.is_superuser or user.role == "SUPER_ADMIN" or user.role == "STAFF_ADMIN" %}
           <a class="{% if request.resolver_match.url_name == 'index' %}is-active{% endif %}" href="{% url 'admin:index' %}">Home</a>
-          <p>Schools</p>
+          <p>Institution listing</p>
           <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and not request.GET.verification_status__exact %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}">All schools</a>
           <a class="{% if request.GET.verification_status__exact == 'PENDING' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=PENDING">Pending approval</a>
           <a class="{% if request.GET.verification_status__exact == 'VERIFIED' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Approved schools</a>
+          <p>Approval</p>
           <a class="{% if request.resolver_match.url_name == 'schools_school_verification_queue' %}is-active{% endif %}" href="{% url 'admin:schools_school_verification_queue' %}">Verification queue</a>
           <p>Admissions</p>
           <a class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Admission leads</a>

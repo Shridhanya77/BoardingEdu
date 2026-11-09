@@ -8,10 +8,11 @@
   </div>
   <div class="be-inst__body">
     <h2>{{ school.school_name }}</h2>
-    <p class="be-inst__type">{{ type_name }}</p>
+    <p class="be-inst__type">Educational institution</p>
     <dl>
-      <div><dt>Country</dt><dd>{{ school.country.country_name|default:"—" }}</dd></div>
-      <div><dt>City</dt><dd>{{ school.city.city_name|default:"—" }}</dd></div>
+      <div><dt>Type</dt><dd>{{ type_name }}</dd></div>
+      <div><dt>Country name</dt><dd>{{ school.country.country_name|default:"—" }}</dd></div>
+      <div><dt>City name</dt><dd>{{ school.city.city_name|default:"—" }}</dd></div>
       <div><dt>Registered on</dt><dd>{{ school.created_at|date:"F j, Y g:i A" }}</dd></div>
     </dl>
   </div>
@@ -19,7 +20,7 @@
     <dl>
       <div><dt>Email</dt><dd>{% if school.email %}<a href="mailto:{{ school.email }}">{{ school.email }}</a>{% else %}—{% endif %}</dd></div>
       <div><dt>Mobile</dt><dd>{{ school.phone|default:"—" }}</dd></div>
-      <div><dt>State</dt><dd>{{ school.state.state_name|default:"—" }}</dd></div>
+      <div><dt>State name</dt><dd>{{ school.state.state_name|default:"—" }}</dd></div>
       <div><dt>Pin code</dt><dd>{{ school.pincode|default:"—" }}</dd></div>
     </dl>
   </div>
