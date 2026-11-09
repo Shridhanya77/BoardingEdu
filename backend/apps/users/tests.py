@@ -171,3 +171,49 @@ class SchoolAdminBackendLoginTests(TestCase):
 
         users_page = client.get(reverse("admin:users_user_changelist"))
         self.assertEqual(users_page.status_code, 403)
+
+
+class PlatformAdminPanelTests(TestCase):
+    def test_login_page_and_staff_home_list_schools(self):
+        country = Country.objects.create(country_code="IN", country_name="India", slug="india-panel")
+        state = State.objects.create(
+            country=country, state_code="TS", state_name="Telangana", slug="telangana-panel"
+        )
+        city = City.objects.create(
+            state=state, city_code="YDB", city_name="Yadadri", slug="yadadri-panel"
+        )
+        School.objects.create(
+            school_code="PANEL-1",
+            school_name="Sri Sri Academy",
+            slug="sri-sri-academy-panel",
+            country=country,
+            state=state,
+            city=city,
+            address="Bhongir",
+            email="office@srisri.test",
+            phone="919876543210",
+            verification_status="VERIFIED",
+        )
+        User.objects.create_superuser(
+            username="panel-super",
+            email="panel-super@boardingedu.test",
+            password="secret-pass",
+        )
+        client = APIClient()
+
+        login_page = client.get("/admin/login/")
+        self.assertEqual(login_page.status_code, 200)
+        self.assertContains(login_page, "School administration")
+        self.assertContains(login_page, "id_username")
+
+        self.assertTrue(client.login(username="panel-super", password="secret-pass"))
+        home = client.get("/admin/")
+        self.assertEqual(home.status_code, 200)
+        self.assertContains(home, "Sri Sri Academy")
+        self.assertContains(home, "Approved")
+        self.assertContains(home, "Pending approval")
+
+        schools = client.get(reverse("admin:schools_school_changelist"))
+        self.assertContains(schools, "office@srisri.test")
+        self.assertContains(schools, "Edit school")
+        self.assertContains(schools, "View profile")

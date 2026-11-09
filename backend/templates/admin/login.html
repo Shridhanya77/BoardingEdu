@@ -1,70 +1,53 @@
-{% extends "admin/base_site.html" %}
 {% load i18n static %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en-us' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% translate "Sign in" %} | BoardingEdu</title>
+  <link rel="icon" href="{% static 'admin/img/boardingedu-logo.jpeg' %}" type="image/jpeg">
+  <link rel="stylesheet" href="{% static 'admin/css/boardingedu_admin.css' %}">
+</head>
+<body class="be-login-page">
+  <main class="be-login">
+    <section class="be-login__intro">
+      <img src="{% static 'admin/img/boardingedu-logo.jpeg' %}" alt="" width="72" height="72">
+      <p>BoardingEdu</p>
+      <h1>School administration</h1>
+      <span>Sign in to approve schools, update listings, and manage the admission leads sent to them.</span>
+    </section>
+    <section class="be-login__form">
+      <h2>{% translate "Sign in" %}</h2>
+      <p>{% translate "Use the username or email on the account." %}</p>
 
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static "admin/css/login.css" %}">{% endblock %}
+      {% if form.non_field_errors %}
+        {% for error in form.non_field_errors %}
+          <p class="be-login__error">{{ error }}</p>
+        {% endfor %}
+      {% endif %}
+      {% if form.errors and not form.non_field_errors %}
+        <p class="be-login__error">{% translate "Please correct the errors below." %}</p>
+      {% endif %}
+      {% if user.is_authenticated %}
+        <p class="be-login__error">
+          {% blocktranslate trimmed %}
+            You are signed in as {{ username }}, but this account cannot open the control panel.
+          {% endblocktranslate %}
+        </p>
+      {% endif %}
 
-{% block bodyclass %}{{ block.super }} login{% endblock %}
-
-{% block usertools %}{% endblock %}
-
-{% block nav-global %}{% endblock %}
-
-{% block nav-sidebar %}{% endblock %}
-
-{% block content_title %}{% endblock %}
-
-{% block nav-breadcrumbs %}{% endblock %}
-
-{% block content %}
-<div class="be-login-brand">
-  <img src="{% static 'admin/img/boardingedu-logo.jpeg' %}" alt="BoardingEdu" width="72" height="72">
-  <div>
-    <strong>BoardingEdu</strong>
-    <span>{% translate "School and platform sign in" %}</span>
-  </div>
-</div>
-
-{% if form.errors and not form.non_field_errors %}
-<p class="errornote">
-{% blocktranslate count counter=form.errors.items|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}
-</p>
-{% endif %}
-
-{% if form.non_field_errors %}
-{% for error in form.non_field_errors %}
-<p class="errornote">{{ error }}</p>
-{% endfor %}
-{% endif %}
-
-<div id="content-main">
-{% if user.is_authenticated %}
-<p class="errornote">
-{% blocktranslate trimmed %}
-    You are authenticated as {{ username }}, but are not authorized to
-    access this page. Would you like to login to a different account?
-{% endblocktranslate %}
-</p>
-{% endif %}
-
-<form action="{{ app_path }}" method="post" id="login-form">{% csrf_token %}
-  <div class="form-row">
-    {{ form.username.errors }}
-    {{ form.username.label_tag }} {{ form.username }}
-  </div>
-  <div class="form-row">
-    {{ form.password.errors }}
-    {{ form.password.label_tag }} {{ form.password }}
-    <input type="hidden" name="next" value="{{ next }}">
-  </div>
-  {% url 'admin_password_reset' as password_reset_url %}
-  {% if password_reset_url %}
-  <div class="password-reset-link">
-    <a href="{{ password_reset_url }}">{% translate 'Forgotten your password or username?' %}</a>
-  </div>
-  {% endif %}
-  <div class="submit-row">
-    <input type="submit" value="{% translate 'Log in' %}">
-  </div>
-</form>
-</div>
-{% endblock %}
+      <form action="{{ app_path }}" method="post">
+        {% csrf_token %}
+        <label for="id_username">{{ form.username.label }}</label>
+        {{ form.username.errors }}
+        {{ form.username }}
+        <label for="id_password">{{ form.password.label }}</label>
+        {{ form.password.errors }}
+        {{ form.password }}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit">{% translate "Sign in" %}</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

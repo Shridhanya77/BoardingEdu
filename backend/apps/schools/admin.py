@@ -295,6 +295,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     school_admin_can_add = False
     school_admin_can_delete = False
     change_list_template = "admin/schools/school/change_list.html"
+    list_per_page = 8
     list_display = (
         "school_code",
         "school_name",
@@ -480,6 +481,9 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         "city",
         "location",
     )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("school_types")
 
     def get_urls(self):
         custom_urls = [

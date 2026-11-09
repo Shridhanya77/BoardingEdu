@@ -1,0 +1,35 @@
+<article class="be-inst">
+  <div class="be-inst__photo">
+    {% if image %}
+      <img src="{{ image }}" alt="">
+    {% else %}
+      <span>{{ initial }}</span>
+    {% endif %}
+  </div>
+  <div class="be-inst__body">
+    <h2>{{ school.school_name }}</h2>
+    <p class="be-inst__type">{{ type_name }}</p>
+    <dl>
+      <div><dt>Country</dt><dd>{{ school.country.country_name|default:"—" }}</dd></div>
+      <div><dt>City</dt><dd>{{ school.city.city_name|default:"—" }}</dd></div>
+      <div><dt>Registered on</dt><dd>{{ school.created_at|date:"F j, Y g:i A" }}</dd></div>
+    </dl>
+  </div>
+  <div class="be-inst__contact">
+    <dl>
+      <div><dt>Email</dt><dd>{% if school.email %}<a href="mailto:{{ school.email }}">{{ school.email }}</a>{% else %}—{% endif %}</dd></div>
+      <div><dt>Mobile</dt><dd>{{ school.phone|default:"—" }}</dd></div>
+      <div><dt>State</dt><dd>{{ school.state.state_name|default:"—" }}</dd></div>
+      <div><dt>Pin code</dt><dd>{{ school.pincode|default:"—" }}</dd></div>
+    </dl>
+  </div>
+  <div class="be-inst__actions">
+    <span class="be-badge be-badge--{{ tone }}">{{ badge }}</span>
+    <div>
+      {% if profile_url %}
+        <a class="be-btn be-btn--ghost" href="{{ profile_url }}" target="_blank" rel="noopener">View profile</a>
+      {% endif %}
+      <a class="be-btn" href="{{ edit_url }}">Edit school</a>
+    </div>
+  </div>
+</article>

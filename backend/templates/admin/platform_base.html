@@ -1,0 +1,68 @@
+{% load i18n static %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'en-us' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ title }} | BoardingEdu{% endblock %}</title>
+  <link rel="icon" href="{% static 'admin/img/boardingedu-logo.jpeg' %}" type="image/jpeg">
+  <link rel="stylesheet" href="{% static 'admin/css/boardingedu_admin.css' %}">
+</head>
+<body class="be-panel-app">
+  <div class="be-shell">
+    <aside class="be-side">
+      <a class="be-side__brand" href="{% url 'admin:index' %}">
+        <img src="{% static 'admin/img/boardingedu-logo.jpeg' %}" alt="" width="36" height="36">
+        <span><strong>BoardingEdu</strong><small>Control panel</small></span>
+      </a>
+      <nav>
+        {% if user.is_superuser or user.role == "SUPER_ADMIN" or user.role == "STAFF_ADMIN" %}
+          <a class="{% if request.resolver_match.url_name == 'index' %}is-active{% endif %}" href="{% url 'admin:index' %}">Home</a>
+          <p>Schools</p>
+          <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and not request.GET.verification_status__exact %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}">All schools</a>
+          <a class="{% if request.GET.verification_status__exact == 'PENDING' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=PENDING">Pending approval</a>
+          <a class="{% if request.GET.verification_status__exact == 'VERIFIED' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Approved schools</a>
+          <a class="{% if request.resolver_match.url_name == 'schools_school_verification_queue' %}is-active{% endif %}" href="{% url 'admin:schools_school_verification_queue' %}">Verification queue</a>
+          <p>Admissions</p>
+          <a class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Admission leads</a>
+          <a class="{% if request.resolver_match.url_name == 'reviews_review_changelist' %}is-active{% endif %}" href="{% url 'admin:reviews_review_changelist' %}">Reviews</a>
+          <p>People</p>
+          <a class="{% if request.resolver_match.url_name == 'users_user_changelist' and not request.GET.role__exact %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}">All users</a>
+          <a class="{% if request.GET.role__exact == 'SCHOOL_ADMIN' %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}?role__exact=SCHOOL_ADMIN">School administrators</a>
+          <a class="{% if request.resolver_match.url_name == 'records_index' %}is-active{% endif %}" href="{% url 'admin:records_index' %}">All records</a>
+        {% else %}
+          <a href="{% url 'admin:school_workspace' %}">Home</a>
+          <a href="{% url 'admin:schools_school_changelist' %}">School profile</a>
+          <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Leads</a>
+          <a href="{% url 'admin:schools_schoolfacility_changelist' %}">Facilities</a>
+          <a href="{% url 'admin:schools_schoolgrade_changelist' %}">Grades</a>
+          <a href="{% url 'admin:fees_feestructure_changelist' %}">Fees</a>
+        {% endif %}
+      </nav>
+    </aside>
+    <div class="be-main">
+      <header class="be-top">
+        <h1>{% block page_heading %}{{ title }}{% endblock %}</h1>
+        <div class="be-top__user">
+          <span>
+            <strong>{{ user.get_full_name|default:user.get_username }}</strong>
+            <small>{{ user.get_role_display }}</small>
+          </span>
+          <form method="post" action="{% url 'admin:logout' %}">
+            {% csrf_token %}
+            <button type="submit">{% translate "Log out" %}</button>
+          </form>
+        </div>
+      </header>
+      <main>
+        {% if messages %}
+          {% for message in messages %}
+            <p class="be-flash">{{ message }}</p>
+          {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

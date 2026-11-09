@@ -348,6 +348,9 @@ def _trust_https_origin(host):
         CSRF_TRUSTED_ORIGINS.append(origin)
 
 
+# Public site used by "View profile" in the platform admin.
+PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://www.boardingedu.com").rstrip("/")
+
 # Django admin login is a browser POST. Railway's public domain has to be
 # trusted or a correct password is rejected before the session starts.
 _trust_https_origin(os.getenv("RAILWAY_PUBLIC_DOMAIN", ""))

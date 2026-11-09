@@ -1,0 +1,9 @@
+{% extends "admin/platform_base.html" %}
+{% load i18n %}
+
+{% block page_heading %}{% translate "All records" %}{% endblock %}
+
+{% block content %}
+<p class="be-empty">{% translate "Fees, geography, boards, and the rest of the records. The home page and school list stay on the control panel." %}</p>
+{% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+{% endblock %}

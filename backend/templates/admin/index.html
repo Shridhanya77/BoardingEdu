@@ -1,175 +1,27 @@
-{% extends "admin/base_site.html" %}
-{% load i18n %}
+{% extends "admin/platform_base.html" %}
+{% load i18n school_cards %}
 
-{% block coltype %}colMS{% endblock %}
-
-{% block bodyclass %}{{ block.super }} dashboard be-dashboard{% endblock %}
-
-{% block nav-breadcrumbs %}{% endblock %}
-
-{% block nav-sidebar %}{% endblock %}
+{% block page_heading %}{% translate "Home" %}{% endblock %}
 
 {% block content %}
 {% with s=boardingedu_stats %}
-<div id="content-main">
+<section class="be-home-stats">
+  <a href="{% url 'admin:schools_school_changelist' %}"><span>Schools</span><strong>{{ s.school_total }}</strong></a>
+  <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
+  <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=PENDING"><span>Pending</span><strong>{{ s.verification.pending }}</strong></a>
+  <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}"><span>New leads</span><strong>{{ s.enquiry_new }}</strong></a>
+</section>
 
-  {% if s %}
-  <section class="be-welcome">
-    <div>
-      <p class="be-welcome__kicker">{% translate "BoardingEdu backend" %}</p>
-      <h2>{% translate "Run schools, parents and admissions from one desk" %}</h2>
-      <p>Signed in as {{ user.get_short_name }}. School administrators can complete their own profile before approval. Verification still controls the public listing and parent contact details.</p>
-    </div>
-    <div class="be-welcome__actions">
-      {% for link in s.quick_links %}
-      <a href="{{ link.url }}">
-        <strong>{{ link.label }}</strong>
-        <span>{{ link.hint }}</span>
-      </a>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="be-stats">
-    <header class="be-stats__head">
-      <h2>{% translate "Platform Overview" %}</h2>
-      <span class="be-stats__time">{% translate "Updated" %} {{ s.generated_at|date:"d M Y, H:i" }}</span>
-    </header>
-
-    <div class="be-cards">
-      {% for c in s.cards %}
-        {% if c.url %}<a class="be-card be-card--{{ c.tone }}" href="{{ c.url }}">{% else %}<div class="be-card be-card--{{ c.tone }}">{% endif %}
-          <span class="be-card__label">{{ c.label }}</span>
-          <strong class="be-card__value">{{ c.value }}</strong>
-          {% if c.hint %}<span class="be-card__hint">{{ c.hint }}</span>{% endif %}
-        {% if c.url %}</a>{% else %}</div>{% endif %}
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="be-panel be-verify-meter">
-    <h3>{% translate "School verification" %}</h3>
-    <div class="be-meter" aria-hidden="true">
-      <span class="be-meter__verified" style="width: {% widthratio s.verification.verified s.verification.total 100 %}%"></span>
-      <span class="be-meter__pending" style="width: {% widthratio s.verification.pending s.verification.total 100 %}%"></span>
-      <span class="be-meter__open" style="width: {% widthratio s.verification.unverified s.verification.total 100 %}%"></span>
-    </div>
-    <ul class="be-chips">
-      <li><span>{% translate "Verified" %}</span><strong>{{ s.verification.verified }}</strong></li>
-      <li><span>{% translate "Pending" %}</span><strong>{{ s.verification.pending }}</strong></li>
-      <li><span>{% translate "Unverified" %}</span><strong>{{ s.verification.unverified }}</strong></li>
-    </ul>
-  </section>
-
-  <div class="be-panels">
-    <section class="be-panel">
-      <h3>{% translate "Enquiries — last 6 months" %}</h3>
-      <div class="be-chart">
-        {% for m in s.months %}
-        <div class="be-chart__col">
-          <span class="be-chart__value">{{ m.value }}</span>
-          <div class="be-chart__bar" style="height: {{ m.pct }}%"></div>
-          <span class="be-chart__label">{{ m.label }}</span>
-        </div>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="be-panel">
-      <h3>{% translate "Users by role" %}</h3>
-      <ul class="be-list">
-        {% for r in s.roles %}
-        <li><span>{{ r.label }}</span><strong>{{ r.value }}</strong></li>
-        {% empty %}
-        <li><span>{% translate "No users yet" %}</span></li>
-        {% endfor %}
-      </ul>
-
-      <h3>{% translate "Directory coverage" %}</h3>
-      <ul class="be-chips">
-        {% for item in s.coverage %}
-        <li><span>{{ item.label }}</span><strong>{{ item.value }}</strong></li>
-        {% endfor %}
-      </ul>
-    </section>
-  </div>
-
-  <div class="be-panels">
-    <section class="be-panel">
-      <h3>{% translate "Latest enquiries" %}</h3>
-      {% if s.recent_enquiries %}
-      <table class="be-table">
-        <tbody>
-          {% for e in s.recent_enquiries %}
-          <tr>
-            <td><a href="{{ e.url }}">{{ e.enquiry_code|default:"—" }}</a></td>
-            <td><a href="{{ e.url }}">{{ e.school__school_name|truncatechars:34 }}</a></td>
-            <td><span class="be-tag">{{ e.status }}</span></td>
-            <td class="be-table__date">{{ e.created_at|date:"d M" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="be-empty">{% translate "No enquiries yet." %}</p>
-      {% endif %}
-    </section>
-
-    <section class="be-panel">
-      <h3>{% translate "Reviews awaiting moderation" %}</h3>
-      {% if s.recent_reviews %}
-      <table class="be-table">
-        <tbody>
-          {% for r in s.recent_reviews %}
-          <tr>
-            <td><a href="{{ r.url }}">{{ r.school__school_name|truncatechars:30 }}</a></td>
-            <td>{{ r.rating }}&#9733;</td>
-            <td class="be-table__date">{{ r.created_at|date:"d M" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="be-empty">{% translate "Moderation queue is clear." %}</p>
-      {% endif %}
-    </section>
-  </div>
-  {% endif %}
-
-  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
-</div>
+<section class="be-directory">
+  <header>
+    <h2>{% translate "Schools" %}</h2>
+    <a href="{% url 'admin:schools_school_changelist' %}">{% translate "View all" %}</a>
+  </header>
+  {% for school in s.recent_schools %}
+    {% school_card school %}
+  {% empty %}
+    <p class="be-empty">{% translate "No schools yet." %}</p>
+  {% endfor %}
+</section>
 {% endwith %}
-{% endblock %}
-
-{% block sidebar %}
-<div id="content-related">
-    <div class="module" id="recent-actions-module">
-        <h2>{% translate 'Recent actions' %}</h2>
-        <h3>{% translate 'My actions' %}</h3>
-            {% load log %}
-            {% get_admin_log 10 as admin_log for_user user %}
-            {% if not admin_log %}
-            <p>{% translate 'None available' %}</p>
-            {% else %}
-            <ul class="actionlist">
-            {% for entry in admin_log %}
-            <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
-                <span class="visually-hidden">{% if entry.is_addition %}{% translate 'Added:' %}{% elif entry.is_change %}{% translate 'Changed:' %}{% elif entry.is_deletion %}{% translate 'Deleted:' %}{% endif %}</span>
-                {% if entry.is_deletion or not entry.get_admin_url %}
-                    {{ entry.object_repr }}
-                {% else %}
-                    <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
-                {% endif %}
-                <br>
-                {% if entry.content_type %}
-                    <span class="mini quiet">{% filter capfirst %}{{ entry.content_type.name }}{% endfilter %}</span>
-                {% else %}
-                    <span class="mini quiet">{% translate 'Unknown content' %}</span>
-                {% endif %}
-            </li>
-            {% endfor %}
-            </ul>
-            {% endif %}
-    </div>
-</div>
 {% endblock %}

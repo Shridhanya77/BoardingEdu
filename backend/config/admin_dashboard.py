@@ -224,8 +224,15 @@ def build_stats():
         },
         "months": _enquiry_trend(now),
         "total_reviews": reviews["total"],
+        "school_total": schools["total"],
+        "enquiry_new": enquiries["new"],
         "recent_enquiries": recent_enquiries,
         "recent_reviews": recent_reviews,
+        "recent_schools": list(
+            School.objects.select_related("country", "state", "city")
+            .prefetch_related("school_types")
+            .order_by("-created_at")[:6]
+        ),
     }
 
 
@@ -393,12 +400,29 @@ def install_admin_dashboard():
             context.update(extra_context)
         return original_index(request, extra_context=context)
 
+    def records_index(request, extra_context=None):
+        if assigned_school_id(request.user) is not None:
+            return redirect("admin:school_workspace")
+        context = {
+            **admin.site.each_context(request),
+            "title": "All records",
+            "app_list": admin.site.get_app_list(request),
+        }
+        if extra_context:
+            context.update(extra_context)
+        return render(request, "admin/records_index.html", context)
+
     def get_urls():
         return [
             path(
                 "school-workspace/",
                 admin.site.admin_view(school_workspace),
                 name="school_workspace",
+            ),
+            path(
+                "records/",
+                admin.site.admin_view(records_index),
+                name="records_index",
             ),
         ] + original_get_urls()
 
