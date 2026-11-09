@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -30,16 +30,18 @@ export default function ComparePage() {
     hydrated,
     removeSchool,
     clearSchools,
+    assignSchoolToSlot,
     storageError,
-    toggleSchool,
   } = useSearchExperience();
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SchoolListItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectionMessage, setSelectionMessage] = useState<string | null>(null);
+  const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [activeGroup, setActiveGroup] = useState("overview");
   const [differencesOnly, setDifferencesOnly] = useState(false);
+  const searchInput = useRef<HTMLInputElement | null>(null);
   const [schoolDetails, setSchoolDetails] = useState<Record<string, {
     loading?: boolean;
     facilities?: SchoolDetail["facilities_detail"];
@@ -338,6 +340,24 @@ export default function ComparePage() {
   });
   const ActiveGroupIcon = activeComparisonGroup.icon;
 
+  function openSlot(index: number) {
+    setActiveSlot(Math.min(index, comparedSchools.length));
+    setQuery("");
+    setSearchResults([]);
+    setSearchError(null);
+    setSelectionMessage(null);
+    window.setTimeout(() => searchInput.current?.focus(), 0);
+  }
+
+  function chooseSchool(school: SchoolListItem) {
+    if (activeSlot === null) return;
+    assignSchoolToSlot(activeSlot, school);
+    setSelectionMessage(`${school.school_name} added to slot ${activeSlot + 1}.`);
+    setActiveSlot(null);
+    setQuery("");
+    setSearchResults([]);
+  }
+
   return (
     <main className="compare-page compare-page--studio">
       <Link className="school-detail__back" href="/schools">
@@ -360,6 +380,8 @@ export default function ComparePage() {
               clearSchools();
               setQuery("");
               setSelectionMessage(null);
+              setActiveSlot(null);
+              setSearchResults([]);
             }}
           >
             Clear comparison
@@ -368,153 +390,209 @@ export default function ComparePage() {
       </div>
 
       {storageError && <p role="alert">{storageError}</p>}
-      <section className="compare-builder" aria-labelledby="compare-builder-heading">
-        <div className="compare-builder__search">
-          <div className="compare-builder__intro">
-            <span className="compare-builder__step">BUILD A SHORTLIST</span>
-            <h2 id="compare-builder-heading">Add schools to compare</h2>
-            <p>Search by school name, then add up to four options.</p>
-          </div>
-          <div className="compare-school-picker" aria-label="Search for a school to compare">
-            <label htmlFor="compare-school-search">
-              <Search size={17} aria-hidden />
-              <span className="sr-only">Search for a school to compare</span>
-              <input
-                id="compare-school-search"
-                type="search"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setSelectionMessage(null);
-                }}
-                placeholder="Start typing a school name..."
-                autoComplete="off"
-              />
-            </label>
-            {selectionMessage && <p role="status">{selectionMessage}</p>}
-            {searchError && <p role="alert">{searchError}</p>}
-            {searchLoading && <p role="status">Searching schools…</p>}
-            {!searchLoading && query.trim().length >= 2 && !searchError && searchResults.length === 0 && (
-              <p role="status">No matching schools found.</p>
-            )}
-            {searchResults.length > 0 && (
-              <ul className="compare-school-picker__results">
-                {searchResults.map((school) => {
-                  const selected = comparedSchools.some((item) => item.school_id === school.school_id);
-                  const atLimit = comparedSchools.length >= 4;
-                  return (
-                    <li key={school.school_id}>
-                      <span className="compare-school-picker__image">
-                        {publicSchoolImageUrl(school.school_image_url || school.school_logo_url) ? (
-                          <Image
-                            src={publicSchoolImageUrl(school.school_image_url || school.school_logo_url)}
-                            alt=""
-                            width={48}
-                            height={48}
-                            unoptimized
-                          />
-                        ) : (
-                          <GraduationCap size={20} aria-hidden />
-                        )}
-                      </span>
-                      <span className="compare-school-picker__details">
-                        <strong>{school.school_name}</strong>
-                        <small>{[school.city_name, school.state_name].filter(Boolean).join(", ")}</small>
-                      </span>
-                      <button
-                        type="button"
-                        disabled={selected || atLimit}
-                        onClick={() => {
-                          if (selected || atLimit) return;
-                          toggleSchool(school);
-                          setSelectionMessage(`${school.school_name} added to your comparison.`);
-                          setQuery("");
-                          setSearchResults([]);
-                        }}
-                      >
-                        {selected ? "Added" : atLimit ? "Limit reached" : <><Plus size={15} /> Add</>}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {query.trim().length < 2 && (
-              <p className="compare-school-picker__hint">Enter at least two characters to find a school.</p>
-            )}
-          </div>
-        </div>
-        <div className="compare-builder__shortlist">
-          <div className="compare-builder__shortlist-heading">
-            <span>YOUR SHORTLIST</span>
-            <strong>{comparedSchools.length}<small> / 4</small></strong>
-          </div>
-          {comparedSchools.length ? (
-            <ul className="compare-selected-list">
-              {comparedSchools.map((school, index) => {
-                const image = publicSchoolImageUrl(school.school_image_url || school.school_logo_url);
-                return (
-                  <li className="compare-selected-school" key={school.school_id}>
-                    <span className="compare-selected-school__index">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="compare-selected-school__photo">
-                      {image ? (
-                        <Image src={image} alt="" width={42} height={42} unoptimized />
-                      ) : (
-                        <GraduationCap size={20} aria-hidden />
-                      )}
+      <section className="compare-slot-picker" aria-labelledby="compare-builder-heading">
+        <h2 id="compare-builder-heading">Choose schools to compare</h2>
+        <p>Tap a slot below to search and add a school. Compare up to four at a time.</p>
+        <div className="compare-slots">
+          {Array.from({ length: 4 }, (_, index) => {
+            const school = comparedSchools[index];
+            const image = school
+              ? publicSchoolImageUrl(school.school_image_url || school.school_logo_url)
+              : null;
+            const isActive = activeSlot === index;
+
+            if (!school) {
+              return (
+                <button
+                  className={`compare-slot__select${isActive ? " is-active" : ""}`}
+                  type="button"
+                  key={`empty-${index}`}
+                  aria-pressed={isActive}
+                  onClick={() => openSlot(index)}
+                >
+                  <span className="compare-slot__number">{index + 1}</span>
+                  <span className="compare-slot__search"><Search size={26} aria-hidden /></span>
+                  <strong>Select School</strong>
+                  <small>{isActive ? "Search by school name below" : "Tap to search and add"}</small>
+                </button>
+              );
+            }
+
+            return (
+              <article
+                className={`compare-school-card${isActive ? " is-active" : ""}`}
+                key={school.school_id}
+              >
+                <span className="compare-slot__number">{index + 1}</span>
+                <button
+                  className="compare-school-card__change"
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => openSlot(index)}
+                >
+                  <span className="compare-school-card__photo">
+                    {image ? (
+                      <Image src={image} alt="" width={76} height={76} unoptimized />
+                    ) : (
+                      <GraduationCap size={28} aria-hidden />
+                    )}
+                  </span>
+                  <strong>{school.school_name}</strong>
+                  <small>{[school.city_name, school.state_name].filter(Boolean).join(", ")}</small>
+                  <span className="compare-school-card__rating">
+                    <b>{school.average_rating == null ? "—" : school.average_rating.toFixed(1)}</b>
+                    <span aria-label={school.average_rating == null ? "No ratings yet" : `${school.average_rating.toFixed(1)} out of 5`}>
+                      {Array.from({ length: 5 }, (_, star) => (
+                        <Star
+                          key={star}
+                          size={15}
+                          fill={school.average_rating != null && star < Math.round(school.average_rating) ? "currentColor" : "none"}
+                          aria-hidden
+                        />
+                      ))}
                     </span>
-                    <span className="compare-selected-school__details">
-                      <strong>{school.school_name}</strong>
-                      <small>{[school.city_name, school.state_name].filter(Boolean).join(", ")}</small>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeSchool(school.school_id)}
-                      aria-label={`Remove ${school.school_name} from comparison`}
-                    >
-                      <X size={16} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p className="compare-builder__empty">Your shortlist is empty. Search for a school to get started.</p>
-          )}
+                    <small>{school.review_count ? `${school.review_count} reviews` : "No ratings yet"}</small>
+                  </span>
+                  <span className="compare-slot__change">Change school</span>
+                </button>
+                <div className="compare-school-card__actions">
+                  <Link
+                    href={schoolProfilePathFromSlugs({
+                      countrySlug: school.country_slug,
+                      stateSlug: school.state_slug,
+                      citySlug: school.city_slug,
+                      localitySlug: school.location_slug,
+                      schoolSlug: school.slug,
+                      schoolName: school.school_name,
+                      schoolTypes: school.school_types_detail,
+                    })}
+                  >
+                    View School
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => removeSchool(school.school_id)}
+                    aria-label={`Remove ${school.school_name} from comparison`}
+                  >
+                    <X size={15} aria-hidden /> Remove
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
+
+        {selectionMessage && <p className="compare-selection-message" role="status">{selectionMessage}</p>}
+        {activeSlot !== null && (
+          <div className="compare-slot-picker__search">
+            <div className="compare-school-picker" aria-label={`Search for a school for slot ${activeSlot + 1}`}>
+              <label htmlFor="compare-school-search">
+                <Search size={17} aria-hidden />
+                <span className="sr-only">Search for a school to compare</span>
+                <input
+                  ref={searchInput}
+                  id="compare-school-search"
+                  type="search"
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setSelectionMessage(null);
+                  }}
+                  placeholder="Start typing a school name..."
+                  autoComplete="off"
+                />
+              </label>
+              {searchError && <p role="alert">{searchError}</p>}
+              {searchLoading && <p role="status">Searching schools…</p>}
+              {!searchLoading && query.trim().length >= 2 && !searchError && searchResults.length === 0 && (
+                <p role="status">No matching schools found.</p>
+              )}
+              {searchResults.length > 0 && (
+                <ul className="compare-school-picker__results">
+                  {searchResults.map((school) => {
+                    const selected = comparedSchools.some((item) => item.school_id === school.school_id);
+                    const resultImage = publicSchoolImageUrl(school.school_image_url || school.school_logo_url);
+                    return (
+                      <li key={school.school_id}>
+                        <span className="compare-school-picker__image">
+                          {resultImage ? (
+                            <Image src={resultImage} alt="" width={48} height={48} unoptimized />
+                          ) : (
+                            <GraduationCap size={20} aria-hidden />
+                          )}
+                        </span>
+                        <span className="compare-school-picker__details">
+                          <strong>{school.school_name}</strong>
+                          <small>{[school.city_name, school.state_name].filter(Boolean).join(", ")}</small>
+                        </span>
+                        <button
+                          type="button"
+                          disabled={selected}
+                          onClick={() => chooseSchool(school)}
+                        >
+                          {selected ? "Already added" : <><Plus size={15} /> Add school</>}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {query.trim().length < 2 && (
+                <p className="compare-school-picker__hint">Enter at least two characters to find a school.</p>
+              )}
+            </div>
+            <button
+              className="compare-slot-picker__cancel"
+              type="button"
+              onClick={() => {
+                setActiveSlot(null);
+                setQuery("");
+                setSearchResults([]);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </section>
 
       <header className="compare-section-heading compare-section-heading--categories">
-        <span>EXPLORE THE DETAILS</span>
-        <h2>Choose what matters to you</h2>
+        <span>COMPARE BY CATEGORY</span>
+        <h2>See how each school compares</h2>
       </header>
 
-      <nav className="compare-category-nav" aria-label="Comparison categories">
-        {groups.map((group) => {
-          const GroupIcon = group.icon;
-          return (
-            <button
-              className={activeGroup === group.id ? "is-active" : ""}
-              type="button"
-              role="tab"
-              aria-selected={activeGroup === group.id}
-              key={group.id}
-              onClick={() => setActiveGroup(group.id)}
-            >
-              <GroupIcon size={17} aria-hidden />
-              <span>{group.label}</span>
-              <small>{group.rows.length}</small>
-            </button>
-          );
-        })}
-      </nav>
+      <div className="compare-categories-layout">
+        <nav className="compare-category-nav" aria-label="Comparison categories" role="tablist" aria-orientation="vertical">
+          {groups.map((group, index) => {
+            const GroupIcon = group.icon;
+            return (
+              <button
+                className={activeGroup === group.id ? "is-active" : ""}
+                type="button"
+                role="tab"
+                aria-selected={activeGroup === group.id}
+                aria-controls="compare-category-panel"
+                key={group.id}
+                onClick={() => setActiveGroup(group.id)}
+              >
+                <span className="compare-category-nav__icon"><GroupIcon size={18} aria-hidden /></span>
+                <span className="compare-category-nav__copy">
+                  <strong>{group.label}</strong>
+                  <small>{group.rows.length} {group.rows.length === 1 ? "item" : "items"}</small>
+                </span>
+                <span className="compare-category-nav__number">{String(index + 1).padStart(2, "0")}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-      <section
-        className="compare-category-panel"
-        role="tabpanel"
-        aria-label={`${activeComparisonGroup.label} comparison`}
-        style={{ ["--compare-cols" as string]: Math.max(comparedSchools.length, 1) }}
-      >
+        <section
+          className="compare-category-panel"
+          id="compare-category-panel"
+          role="tabpanel"
+          aria-label={`${activeComparisonGroup.label} comparison`}
+          style={{ ["--compare-cols" as string]: Math.max(comparedSchools.length, 1) }}
+        >
         <div className="compare-category-panel__heading">
           <div className="compare-category-panel__title">
             <span className="compare-category-panel__icon"><ActiveGroupIcon size={21} aria-hidden /></span>
@@ -608,7 +686,8 @@ export default function ComparePage() {
             </div>
           </>
         )}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }
