@@ -61,6 +61,14 @@ const nextConfig = {
         source: "/media/schools/:path*/",
         destination: `${backendOrigin}/media/schools/:path*`,
       },
+      {
+        source: "/media/day-schools/:path*",
+        destination: `${backendOrigin}/media/day-schools/:path*`,
+      },
+      {
+        source: "/media/day-schools/:path*/",
+        destination: `${backendOrigin}/media/day-schools/:path*`,
+      },
     ];
   },
 };

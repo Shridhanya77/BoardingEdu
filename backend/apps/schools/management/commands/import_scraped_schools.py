@@ -13,12 +13,15 @@ flags on an existing school are left as they are.
 """
 
 import csv
+import os
+import time
 from decimal import Decimal
 from pathlib import Path
 
+import dj_database_url
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connections, transaction
-from django.db.utils import OperationalError
+from django.db import close_old_connections, connections, transaction
+from django.db.utils import IntegrityError, OperationalError
 from django.utils import timezone
 
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
@@ -56,22 +59,140 @@ def blank(value: str):
 class Command(BaseCommand):
     help = "Import merged Ezyschooling school CSVs into BoardingEdu."
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._geo_cache: dict | None = None
+
     def add_arguments(self, parser):
         parser.add_argument("folder", help="Path to the boardingedu_import folder")
+        parser.add_argument(
+            "--skip-fees",
+            action="store_true",
+            help="Import schools/photos only; skip fee structures and fee line items.",
+        )
+        parser.add_argument(
+            "--school-chunk",
+            type=int,
+            default=150,
+            help="Schools per DB transaction in phase 2 (smaller = safer over Railway).",
+        )
+        parser.add_argument(
+            "--skip-geography",
+            action="store_true",
+            help="Reuse countries/states/cities/locations already in the DB (faster retry).",
+        )
+        parser.add_argument(
+            "--resume",
+            action="store_true",
+            help="Skip schools whose school_code already exists (continue after a failed import).",
+        )
+
+    def _warm_geography_cache(self) -> dict:
+        if self._geo_cache is not None:
+            return self._geo_cache
+        self.stdout.write("  Warming geography cache from DB...")
+        self.stdout.flush()
+        cache = {
+            "state_slug": {},
+            "state_name": {},
+            "state_code": {},
+            "city_slug": {},
+            "city_name": {},
+            "city_codes": {},
+            "loc_slug": {},
+            "loc_name": {},
+            "loc_codes": {},
+        }
+        for state in State.objects.only("state_id", "country_id", "slug", "state_code", "state_name"):
+            cache["state_slug"][(state.country_id, state.slug)] = state
+            cache["state_code"][(state.country_id, state.state_code)] = state
+            cache["state_name"][(state.country_id, state.state_name.lower())] = state
+        for city in City.objects.only("city_id", "state_id", "slug", "city_code", "city_name"):
+            cache["city_slug"][(city.state_id, city.slug)] = city
+            cache["city_codes"].setdefault(city.state_id, set()).add(city.city_code)
+            cache["city_name"][(city.state_id, city.city_name.lower())] = city
+        for loc in Location.objects.only(
+            "location_id", "city_id", "slug", "location_code", "location_name"
+        ):
+            cache["loc_slug"][(loc.city_id, loc.slug)] = loc
+            cache["loc_codes"].setdefault(loc.city_id, set()).add(loc.location_code)
+            cache["loc_name"][(loc.city_id, loc.location_name.lower())] = loc
+        self._geo_cache = cache
+        return cache
+
+    def _maps_from_db(self) -> tuple[dict, dict, dict, dict]:
+        """Build import maps from rows already stored (skip geography insert phase)."""
+        country_map = {c.country_code: c for c in Country.objects.all()}
+        state_map = {s.slug: s for s in State.objects.select_related("country")}
+        city_map = {
+            (c.state.slug, c.slug): c for c in City.objects.select_related("state")
+        }
+        location_map = {
+            (loc.city.state.slug, loc.city.slug, loc.slug): loc
+            for loc in Location.objects.select_related("city__state")
+        }
+        return country_map, state_map, city_map, location_map
+
+    def _configure_import_db(self) -> None:
+        """Optional IMPORT_DATABASE_URL + keepalives for long remote imports."""
+        alias = connections["default"]
+        import_url = os.environ.get("IMPORT_DATABASE_URL", "").strip()
+        if import_url:
+            alias.close()
+            ssl = os.environ.get("IMPORT_DATABASE_SSL_REQUIRE", "false").lower() == "true"
+            alias.settings_dict.update(
+                dj_database_url.parse(import_url, conn_max_age=0, ssl_require=ssl)
+            )
+            self.stdout.write(f"Using IMPORT_DATABASE_URL for this run ({import_url.split('@')[-1]}).")
+        opts = alias.settings_dict.setdefault("OPTIONS", {})
+        opts.setdefault("connect_timeout", 30)
+        opts.update(
+            {
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+            }
+        )
+
+    def _db_retry(self, label: str, callback, attempts: int = 8):
+        last_exc: OperationalError | None = None
+        for attempt in range(attempts):
+            try:
+                close_old_connections()
+                return callback()
+            except KeyboardInterrupt:
+                raise
+            except OperationalError as exc:
+                last_exc = exc
+                connections["default"].close()
+                if attempt == attempts - 1:
+                    break
+                wait = min(90, 3 * (2**attempt))
+                self.stdout.write(
+                    f"  {label}: DB connection lost; retry in {wait}s ({attempt + 1}/{attempts})..."
+                )
+                self.stdout.flush()
+                time.sleep(wait)
+        raise CommandError(
+            f"{label} failed after {attempts} attempts (Postgres closed the connection). "
+            "Try IMPORT_DATABASE_URL pointing at local Postgres, run import on Railway, "
+            "or retry when the database is healthy — completed chunks stay committed."
+        ) from last_exc
 
     def handle(self, *args, **options):
         folder = Path(options["folder"])
         if not folder.is_dir():
             raise CommandError(f"Folder not found: {folder}")
 
+        self._configure_import_db()
         database = connections["default"]
-        database.settings_dict.setdefault("OPTIONS", {})["connect_timeout"] = 5
         try:
             database.ensure_connection()
         except OperationalError as exc:
             raise CommandError(
-                "Could not connect to PostgreSQL within 5 seconds. "
-                "Start the database named in backend/.env, then run this command again."
+                "Could not connect to PostgreSQL. "
+                "Start the database in .env (or set IMPORT_DATABASE_URL), then retry."
             ) from exc
 
         countries = read_csv(folder, "countries.csv")
@@ -93,27 +214,169 @@ class Command(BaseCommand):
         fee_items = read_csv(folder, "fee_items.csv")
         fee_items = self._sanitize_fee_item_rows(fee_items)
 
+        skip_fees = options.get("skip_fees")
+        skip_geography = options.get("skip_geography")
+        resume = options.get("resume")
+        school_chunk = max(25, int(options.get("school_chunk") or 150))
+
+        if resume:
+            existing_codes = set(
+                School.objects.filter(school_code__startswith="DAY").values_list("school_code", flat=True)
+            )
+            before = len(schools)
+            schools = [row for row in schools if row["school_code"] not in existing_codes]
+            self.stdout.write(
+                f"Resume: {before - len(schools)} schools already in DB, {len(schools)} remaining."
+            )
+            self.stdout.flush()
+            if not schools and not skip_fees:
+                self.stdout.write("Resume: all DAY schools exist; continuing with fees only.")
+                self.stdout.flush()
+            elif schools:
+                school_codes = {row["school_code"] for row in schools}
+                school_boards = [r for r in school_boards if r["school_code"] in school_codes]
+                school_type_links = [r for r in school_type_links if r["school_code"] in school_codes]
+                school_grades = [r for r in school_grades if r["school_code"] in school_codes]
+                school_facilities = [r for r in school_facilities if r["school_code"] in school_codes]
+                photos = [r for r in photos if r["school_code"] in school_codes]
+
         self.stdout.write("Connected. Loading schools, photos, and fees...")
         self.stdout.flush()
-        with transaction.atomic():
-            country_map = self._countries(countries)
-            state_map = self._states(states, country_map)
-            city_map = self._cities(cities, state_map)
-            location_map = self._locations(locations, city_map)
-            board_map = self._boards(boards)
-            type_map = self._types(school_types)
-            grade_map = self._grades(grades)
-            facility_map = self._facilities(facilities)
-            year_map = self._years(years)
-            self._mark_current_academic_year(list(year_map.values()))
-            school_map = self._schools(schools, country_map, state_map, city_map, location_map)
-            self._links(school_map, board_map, type_map, grade_map, facility_map, school_boards, school_type_links, school_grades, school_facilities)
-            photo_count = self._photos(photos, school_map)
-            structure_map = self._structures(structures, school_map, year_map)
-            item_count = self._items(fee_items, structure_map, grade_map, type_map)
+        self._warm_geography_cache()
 
+        self.stdout.write("Phase 1/4: geography and reference tables...")
+        self.stdout.flush()
+
+        if skip_geography:
+            self.stdout.write("  (--skip-geography: using existing DB countries/states/cities/locations)")
+            self.stdout.flush()
+            country_map, state_map, city_map, location_map = self._maps_from_db()
+
+            def ref_tables():
+                with transaction.atomic():
+                    board_map = self._boards(boards)
+                    type_map = self._types(school_types)
+                    grade_map = self._grades(grades)
+                    facility_map = self._facilities(facilities)
+                    year_map = self._years(years)
+                    self._mark_current_academic_year(list(year_map.values()))
+                return board_map, type_map, grade_map, facility_map, year_map
+
+            board_map, type_map, grade_map, facility_map, year_map = self._db_retry(
+                "Reference tables", ref_tables
+            )
+        else:
+            def phase1_core():
+                with transaction.atomic():
+                    country_map = self._countries(countries)
+                    state_map = self._states(states, country_map)
+                    city_map = self._cities(cities, state_map)
+                    board_map = self._boards(boards)
+                    type_map = self._types(school_types)
+                    grade_map = self._grades(grades)
+                    facility_map = self._facilities(facilities)
+                    year_map = self._years(years)
+                    self._mark_current_academic_year(list(year_map.values()))
+                return (
+                    country_map,
+                    state_map,
+                    city_map,
+                    board_map,
+                    type_map,
+                    grade_map,
+                    facility_map,
+                    year_map,
+                )
+
+            (
+                country_map,
+                state_map,
+                city_map,
+                board_map,
+                type_map,
+                grade_map,
+                facility_map,
+                year_map,
+            ) = self._db_retry("Phase 1 core", phase1_core)
+
+            location_map: dict = {}
+            loc_chunk = 200
+            for offset in range(0, len(locations), loc_chunk):
+                chunk = locations[offset : offset + loc_chunk]
+
+                def loc_batch():
+                    with transaction.atomic():
+                        location_map.update(self._locations(chunk, city_map))
+                    return len(chunk)
+
+                self._db_retry(f"Locations {offset + 1}-{offset + len(chunk)}", loc_batch)
+                self.stdout.write(f"  locations progress: {min(offset + len(chunk), len(locations))}/{len(locations)}")
+                self.stdout.flush()
+            self.stdout.write(f"  locations: {len(location_map)}")
+            self.stdout.flush()
+
+        self.stdout.write(f"Phase 2/4: schools, links, photos (chunks of {school_chunk})...")
+        self.stdout.flush()
+        school_map: dict = {}
+        photo_count = 0
+        if not schools:
+            self.stdout.write("  (no new schools in this run)")
+            self.stdout.flush()
+        for offset in range(0, len(schools), school_chunk):
+            chunk_rows = schools[offset : offset + school_chunk]
+            codes = {row["school_code"] for row in chunk_rows}
+
+            def school_batch():
+                nonlocal photo_count
+                with transaction.atomic():
+                    part = self._schools(chunk_rows, country_map, state_map, city_map, location_map)
+                    self._links(
+                        part,
+                        board_map,
+                        type_map,
+                        grade_map,
+                        facility_map,
+                        [r for r in school_boards if r["school_code"] in codes],
+                        [r for r in school_type_links if r["school_code"] in codes],
+                        [r for r in school_grades if r["school_code"] in codes],
+                        [r for r in school_facilities if r["school_code"] in codes],
+                    )
+                    photo_count += self._photos(
+                        [r for r in photos if r["school_code"] in codes],
+                        part,
+                    )
+                    school_map.update(part)
+                return len(chunk_rows)
+
+            done = self._db_retry(f"Schools {offset + 1}-{offset + len(chunk_rows)}", school_batch)
+            self.stdout.write(f"  schools committed: {min(offset + done, len(schools))}/{len(schools)}")
+            self.stdout.flush()
+
+        structure_map = {}
+        item_count = 0
+        if not skip_fees:
+            fee_codes = {row["school_code"] for row in structures if row.get("school_code")}
+            school_map = {
+                s.school_code: s
+                for s in School.objects.filter(school_code__in=fee_codes)
+            }
+            self.stdout.write(f"Phase 3/4: fee structures ({len(school_map)} schools in DB)...")
+            self.stdout.flush()
+
+            def phase3():
+                with transaction.atomic():
+                    return self._structures(structures, school_map, year_map)
+
+            structure_map = self._db_retry("Fee structures", phase3)
+            self.stdout.write(f"Phase 4/4: fee items ({len(fee_items)} rows, chunked)...")
+            self.stdout.flush()
+            item_count = self._items(fee_items, structure_map, grade_map, type_map)
+        else:
+            self.stdout.write(self.style.WARNING("Skipped fee structures and fee items (--skip-fees)."))
+
+        total_day = School.objects.filter(school_code__startswith="DAY").count()
         message = (
-            f"Imported {len(school_map)} schools, {photo_count} new photos, "
+            f"Run complete: {total_day} DAY schools in DB, {photo_count} new photos this run, "
             f"{len(structure_map)} fee structures, {item_count} fee items."
         )
         self.stdout.write(self.style.SUCCESS(message))
@@ -136,17 +399,19 @@ class Command(BaseCommand):
         return found
 
     def _states(self, rows, countries):
+        cache = self._warm_geography_cache()
         found = {}
         for row in rows:
             country = countries[row["country_code"]]
+            cid = country.pk
             state = (
-                State.objects.filter(country=country, slug=row["slug"]).first()
-                or State.objects.filter(country=country, state_name__iexact=row["state_name"]).first()
-                or State.objects.filter(country=country, state_code=row["state_code"]).first()
+                cache["state_slug"].get((cid, row["slug"]))
+                or cache["state_name"].get((cid, row["state_name"].lower()))
+                or cache["state_code"].get((cid, row["state_code"]))
             )
             if state is None:
                 code = row["state_code"]
-                if State.objects.filter(country=country, state_code=code).exists():
+                if cache["state_code"].get((cid, code)):
                     code = code[:8] + "X"
                 state = State.objects.create(
                     country=country,
@@ -155,56 +420,95 @@ class Command(BaseCommand):
                     slug=row["slug"],
                     status=True,
                 )
+                cache["state_slug"][(cid, row["slug"])] = state
+                cache["state_code"][(cid, code)] = state
+                cache["state_name"][(cid, row["state_name"].lower())] = state
             found[row["slug"]] = state
         return found
 
     def _cities(self, rows, states):
+        cache = self._warm_geography_cache()
         found = {}
         for row in rows:
             state = states[row["state_slug"]]
+            sid = state.pk
+            csv_code = (row.get("city_code") or "")[:10]
             city = (
-                City.objects.filter(state=state, slug=row["slug"]).first()
-                or City.objects.filter(state=state, city_name__iexact=row["city_name"]).first()
+                cache["city_slug"].get((sid, row["slug"]))
+                or cache["city_name"].get((sid, row["city_name"].lower()))
+                or (cache["city_slug"].get((sid, csv_code)) if csv_code else None)
             )
+            if city is None and csv_code:
+                for existing in cache["city_slug"].values():
+                    if existing.state_id == sid and existing.city_code == csv_code:
+                        city = existing
+                        break
             if city is None:
-                code = row["city_code"][:10]
+                code = csv_code or row["slug"].replace("-", "").upper()[:10]
+                used = cache["city_codes"].setdefault(sid, set())
                 n = 2
-                while City.objects.filter(state=state, city_code=code).exists():
+                while code in used:
                     suffix = str(n)
-                    code = (row["city_code"][: 10 - len(suffix)] + suffix)[:10]
+                    base = (csv_code or code)[: max(1, 10 - len(suffix))]
+                    code = (base + suffix)[:10]
                     n += 1
-                city = City.objects.create(
-                    state=state,
-                    city_code=code,
-                    city_name=row["city_name"],
-                    slug=row["slug"],
-                    status=True,
-                )
+                try:
+                    city = City.objects.create(
+                        state=state,
+                        city_code=code,
+                        city_name=row["city_name"],
+                        slug=row["slug"],
+                        status=True,
+                    )
+                    used.add(code)
+                    cache["city_slug"][(sid, row["slug"])] = city
+                    cache["city_name"][(sid, row["city_name"].lower())] = city
+                except IntegrityError:
+                    city = cache["city_slug"].get((sid, row["slug"])) or cache["city_name"].get(
+                        (sid, row["city_name"].lower())
+                    )
+                    if city is None:
+                        raise
             found[(row["state_slug"], row["slug"])] = city
         return found
 
     def _locations(self, rows, cities):
+        cache = self._warm_geography_cache()
         found = {}
         for row in rows:
             city = cities[(row["state_slug"], row["city_slug"])]
+            cid = city.pk
+            csv_code = (row.get("location_code") or "")[:10]
             location = (
-                Location.objects.filter(city=city, slug=row["slug"]).first()
-                or Location.objects.filter(city=city, location_name__iexact=row["location_name"]).first()
+                cache["loc_slug"].get((cid, row["slug"]))
+                or cache["loc_name"].get((cid, row["location_name"].lower()))
             )
             if location is None:
-                code = row["location_code"][:10]
+                code = csv_code or row["slug"].replace("-", "").upper()[:10]
+                used = cache["loc_codes"].setdefault(cid, set())
                 n = 2
-                while Location.objects.filter(city=city, location_code=code).exists():
+                while code in used:
                     suffix = str(n)
-                    code = (row["location_code"][: 10 - len(suffix)] + suffix)[:10]
+                    base = (csv_code or code)[: max(1, 10 - len(suffix))]
+                    code = (base + suffix)[:10]
                     n += 1
-                location = Location.objects.create(
-                    city=city,
-                    location_code=code,
-                    location_name=row["location_name"],
-                    slug=row["slug"],
-                    status=True,
-                )
+                try:
+                    location = Location.objects.create(
+                        city=city,
+                        location_code=code,
+                        location_name=row["location_name"],
+                        slug=row["slug"],
+                        status=True,
+                    )
+                    used.add(code)
+                    cache["loc_slug"][(cid, row["slug"])] = location
+                    cache["loc_name"][(cid, row["location_name"].lower())] = location
+                except IntegrityError:
+                    location = cache["loc_slug"].get((cid, row["slug"])) or cache["loc_name"].get(
+                        (cid, row["location_name"].lower())
+                    )
+                    if location is None:
+                        raise
             found[(row["state_slug"], row["city_slug"], row["slug"])] = location
         return found
 
@@ -656,7 +960,13 @@ class Command(BaseCommand):
 
     def _items(self, rows, structures, grades, types):
         structure_ids = [structure.pk for structure in structures.values()]
-        FeeItem.objects.filter(fee_structure_id__in=structure_ids).delete()
+
+        def clear_items():
+            with transaction.atomic():
+                FeeItem.objects.filter(fee_structure_id__in=structure_ids).delete()
+
+        self._db_retry("Clearing old fee items", clear_items)
+
         payload = []
         seen_keys: set[tuple] = set()
         for row in rows:
@@ -689,6 +999,19 @@ class Command(BaseCommand):
                 description=row["description"][:500],
                 sort_order=int(row["sort_order"] or 0),
             ))
-        if payload:
-            FeeItem.objects.bulk_create(payload, batch_size=1000, ignore_conflicts=True)
-        return len(payload)
+
+        chunk_size = 250
+        total = 0
+        for offset in range(0, len(payload), chunk_size):
+            chunk = payload[offset : offset + chunk_size]
+
+            def insert_chunk():
+                with transaction.atomic():
+                    FeeItem.objects.bulk_create(chunk, batch_size=200, ignore_conflicts=True)
+
+            self._db_retry(f"Fee items {offset + 1}-{offset + len(chunk)}", insert_chunk)
+            total += len(chunk)
+            if total % 5000 == 0 or total == len(payload):
+                self.stdout.write(f"  fee items committed: {total}/{len(payload)}")
+
+        return total

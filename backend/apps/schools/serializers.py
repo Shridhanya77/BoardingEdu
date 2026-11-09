@@ -1066,7 +1066,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
 
 
 class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
-    """Fields a verified school admin can maintain on their own profile."""
+    """Fields a school administrator can maintain on their assigned school."""
 
     phone = serializers.CharField(
         required=False,
@@ -1091,17 +1091,37 @@ class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "address",
             "pincode",
             "established_year",
+            "gender",
             "school_logo_url",
             "school_image_url",
             "admission_open",
+            "boards",
+            "school_types",
             "verification_status",
         ]
-
-    def validate_phone(self, value):
-        return normalize_phone_number(value) if value.strip() else value
         read_only_fields = [
             "school_id",
             "school_name",
             "school_code",
             "verification_status",
         ]
+
+    def validate_phone(self, value):
+        return normalize_phone_number(value) if value.strip() else value
+
+    def validate_boards(self, value):
+        if not value:
+            raise serializers.ValidationError("Choose at least one education board.")
+        return value
+
+    def validate_school_types(self, value):
+        if not value:
+            raise serializers.ValidationError("Choose at least one school type.")
+        return value
+
+    def validate_established_year(self, value):
+        if value is None:
+            return value
+        if value < 1800 or value > 2100:
+            raise serializers.ValidationError("Enter a year between 1800 and 2100.")
+        return value

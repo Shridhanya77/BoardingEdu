@@ -79,13 +79,59 @@ export default function AdminDashboardPage() {
               value={data.reviews.total}
               hint={`${data.reviews.by_status.PENDING ?? 0} pending moderation`}
             />
-            <StatCard
-              label="Counselling requests"
-              value={data.counselling.total}
-              hint={`${data.counselling.new} new`}
-              accent="orange"
-            />
+          <StatCard
+            label="Counselling requests"
+            value={data.counselling.total}
+            hint={`${data.counselling.new} new`}
+            accent="orange"
+          />
+          <StatCard label="Missing logos" value={data.data_quality.missing_logo} hint="Schools without a logo" accent="orange" />
+          <StatCard label="Missing covers" value={data.data_quality.missing_cover} hint="No campus photograph" />
+          <StatCard label="Missing boards" value={data.data_quality.missing_board} hint="No education board" />
+          <StatCard label="Unpublished fees" value={data.data_quality.missing_published_fees} hint="No published fee structure" />
+        </div>
+
+        <DashboardPanel title="Schools by type" subtitle="Each school can belong to more than one type.">
+          <div className="sa-bars">
+            {data.school_types.map((row) => (
+              <div key={row.type_name}>
+                <span>{row.type_name}</span>
+                <div>
+                  <i style={{ width: `${Math.max(6, (row.total / Math.max(1, data.schools.total)) * 100)}%` }} />
+                </div>
+                <strong>{row.total}</strong>
+              </div>
+            ))}
           </div>
+        </DashboardPanel>
+
+        <DashboardPanel title="Data quality" subtitle="Missing information is not treated as unavailable. Open the school and fill it in.">
+          <div className="dash-pills">
+            <span className="dash-pill">Missing description <strong>{data.data_quality.missing_about}</strong></span>
+            <span className="dash-pill">Missing contact <strong>{data.data_quality.missing_contact}</strong></span>
+            <span className="dash-pill">Missing locality <strong>{data.data_quality.missing_locality}</strong></span>
+            <span className="dash-pill">Unverified <strong>{data.data_quality.unverified}</strong></span>
+          </div>
+        </DashboardPanel>
+
+        <DashboardPanel title="Recently updated schools" subtitle="Latest profile activity across the platform.">
+          <div className="dash-table-wrap">
+            <table className="dash-table">
+              <thead>
+                <tr><th>School</th><th>City</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {data.recent_schools.map((school) => (
+                  <tr key={school.school_id}>
+                    <td>{school.school_name}<span className="sa-muted">{school.school_code}</span></td>
+                    <td>{school.city_name}</td>
+                    <td>{school.verification_status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DashboardPanel>
 
           <DashboardPanel title="Users by role" subtitle="Who is on the platform.">
             <div className="dash-pills">
@@ -106,7 +152,7 @@ export default function AdminDashboardPage() {
 
           <DashboardPanel
             title="Schools awaiting verification"
-            subtitle="Approve to list the school and unlock its dashboard login."
+            subtitle="Approve a school to list it publicly. School admins can complete their profile before approval."
           >
             {actionError && (
               <p className="dash-state dash-state--error" role="alert">

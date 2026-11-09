@@ -511,7 +511,7 @@ class SchoolViewSet(ReadWriteModelViewSet):
         if self.action == 'register':
             return [AllowAny()]
         if self.action == 'mine':
-            return [IsAuthenticated(), IsVerifiedSchoolAdmin()]
+            return [IsAuthenticated()]
         if self.action in {
             'verification_queue',
             'verification_history',
@@ -522,8 +522,21 @@ class SchoolViewSet(ReadWriteModelViewSet):
 
     @action(detail=False, methods=['get', 'patch'], url_path='mine')
     def mine(self, request):
-        """Verified school admins read and update their own public profile."""
-        school = request.user.school_admin_profile.school
+        """School admins read and update only the school assigned to them."""
+        from django.core.exceptions import ObjectDoesNotExist
+
+        if getattr(request.user, "role", None) != "SCHOOL_ADMIN":
+            return Response(
+                {"detail": "This action is for school administrators."},
+                status=403,
+            )
+        try:
+            school = request.user.school_admin_profile.school
+        except ObjectDoesNotExist:
+            return Response(
+                {"detail": "This account is not assigned to a school."},
+                status=403,
+            )
         if request.method.lower() == 'patch':
             serializer = SchoolPortalSerializer(
                 school,

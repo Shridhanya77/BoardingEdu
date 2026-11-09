@@ -122,6 +122,10 @@ export default function NavBar() {
     return () => window.removeEventListener("scroll", updateScrollState);
   }, [onHomePage]);
 
+  if (pathname.startsWith("/dashboard")) {
+    return null;
+  }
+
   return (
     <header
       className={`site-header site-header--sticky${onHomePage ? " site-header--hero" : ""}${hasScrolled ? " site-header--scrolled" : ""}`}

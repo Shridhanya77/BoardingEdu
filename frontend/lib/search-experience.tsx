@@ -20,6 +20,7 @@ type SearchExperienceValue = {
   limitReached: boolean;
   storageError: string | null;
   toggleSchool: (school: SchoolListItem) => void;
+  assignSchoolToSlot: (index: number, school: SchoolListItem) => void;
   removeSchool: (schoolId: string) => void;
   clearSchools: () => void;
 };
@@ -93,6 +94,21 @@ export function SearchExperienceProvider({
     }
   }, [comparedSchools]);
 
+  const assignSchoolToSlot = useCallback((index: number, school: SchoolListItem) => {
+    setComparedSchools((current) => {
+      if (index < 0 || index > current.length || index >= MAX_COMPARED_SCHOOLS) {
+        return current;
+      }
+      if (current.some((item, itemIndex) => item.school_id === school.school_id && itemIndex !== index)) {
+        return current;
+      }
+      const next = [...current];
+      next[index] = school;
+      return next;
+    });
+    setLimitReached(false);
+  }, []);
+
   const removeSchool = useCallback((schoolId: string) => {
     setLimitReached(false);
     setComparedSchools((current) =>
@@ -112,6 +128,7 @@ export function SearchExperienceProvider({
       limitReached,
       storageError,
       toggleSchool,
+      assignSchoolToSlot,
       removeSchool,
       clearSchools,
     }),
@@ -121,6 +138,7 @@ export function SearchExperienceProvider({
       limitReached,
       storageError,
       toggleSchool,
+      assignSchoolToSlot,
       removeSchool,
       clearSchools,
     ]

@@ -7,6 +7,8 @@ import re
 from functools import lru_cache
 from urllib.parse import urlparse
 
+from pathlib import Path
+
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.views.decorators.http import require_http_methods
 
@@ -34,11 +36,47 @@ def school_media_filename(value: str | None) -> str:
     return filename if SAFE_FILENAME.match(filename) else ""
 
 
+def _media_route_prefix(path: str) -> str:
+    """Return URL prefix for school media: /media/schools or /media/day-schools."""
+    lower = f"{path}/".lower()
+    if "/media/day-schools/" in lower or "/schools/day-schools/" in lower:
+        return "/media/day-schools"
+    return "/media/schools"
+
+
+def _r2_object_keys(filename: str, path: str) -> list[str]:
+    keys: list[str] = []
+    if "/media/day-schools/" in f"{path}/".lower():
+        keys.append(f"schools/day-schools/{filename}")
+    keys.append(f"schools/{filename}")
+    if filename not in keys:
+        keys.append(filename)
+    return keys
+
+
+def _local_media_file(filename: str, path: str) -> Path | None:
+    explicit = (os.getenv("LOCAL_DAY_SCHOOL_MEDIA_DIR") or "").strip()
+    default_day = Path(__file__).resolve().parents[2].parent / "DataScrapping" / "dayedu_media" / "day-schools"
+    default_boarding = Path(__file__).resolve().parents[2].parent / "DataScrapping" / "boardingedu_media" / "schools"
+    if "/media/day-schools/" in f"{path}/".lower():
+        for root in (explicit, str(default_day)):
+            if not root:
+                continue
+            candidate = Path(root) / filename
+            if candidate.is_file():
+                return candidate
+    else:
+        boarding_dir = (os.getenv("LOCAL_SCHOOL_MEDIA_DIR") or "").strip() or str(default_boarding)
+        candidate = Path(boarding_dir) / filename
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def rewrite_school_media_url(value: str | None, request=None) -> str:
     """Point stored school-media URLs at the live Cloudflare public host.
 
-    Falls back to this API's own /media/schools/ proxy only when no public
-    base is configured.
+    Falls back to this API's own /media/schools/ or /media/day-schools/ proxy.
     """
     raw = (value or "").strip()
     if not raw:
@@ -49,18 +87,28 @@ def rewrite_school_media_url(value: str | None, request=None) -> str:
     parsed = urlparse(raw, scheme="http")
     host = (parsed.hostname or "").lower()
     path = parsed.path or raw
+    # Full R2 public URLs in the DB are already correct — do not strip day-schools path.
+    if (host.endswith(".r2.dev") or host.endswith(".r2.cloudflarestorage.com")) and filename:
+        return raw
+    route = _media_route_prefix(path)
     is_proxy = (
         "/media/schools/" in f"{path}/"
+        or "/media/day-schools/" in f"{path}/"
         or host.endswith(".r2.cloudflarestorage.com")
         or host.endswith(".r2.dev")
         or host in _UNUSABLE_PUBLIC_HOSTS
     )
     if not is_proxy:
         return raw
-    public_url = _public_media_url(filename)
-    if public_url:
-        return public_url
-    relative = f"/media/schools/{filename}"
+    if route == "/media/day-schools":
+        day_base = (os.getenv("BOARDINGEDU_DAY_MEDIA_BASE") or "").strip().rstrip("/")
+        if day_base and "://" in day_base and urlparse(day_base).hostname not in _UNUSABLE_PUBLIC_HOSTS:
+            return f"{day_base}/{filename}"
+    else:
+        public_url = _public_media_url(filename)
+        if public_url:
+            return public_url
+    relative = f"{route}/{filename}"
     if request is not None:
         return request.build_absolute_uri(relative)
     return relative
@@ -195,14 +243,21 @@ def _r2_bucket() -> str:
 
 
 @require_http_methods(["GET", "HEAD"])
-def serve_school_media(request, filename: str):
+def serve_school_media(request, filename: str, *, media_kind: str = "schools"):
     filename = filename.strip().rstrip("/")
     if not SAFE_FILENAME.match(filename):
         raise Http404("Invalid media name")
 
+    path_hint = "/media/day-schools/" if media_kind == "day-schools" else "/media/schools/"
     public_url = _public_media_url(filename)
     client = _r2_client()
     if client is None:
+        local = _local_media_file(filename, path_hint)
+        if local:
+            data = local.read_bytes()
+            response = HttpResponse(data, content_type="image/webp")
+            response["Cache-Control"] = "public, max-age=86400"
+            return response
         if public_url:
             return HttpResponseRedirect(public_url)
         raise Http404("R2 is not configured")
@@ -211,7 +266,7 @@ def serve_school_media(request, filename: str):
 
     bucket = _r2_bucket()
     last_error: Exception | None = None
-    for key in (f"schools/{filename}", filename):
+    for key in _r2_object_keys(filename, path_hint):
         try:
             if request.method == "HEAD":
                 obj = client.head_object(Bucket=bucket, Key=key)
@@ -237,6 +292,16 @@ def serve_school_media(request, filename: str):
                 return HttpResponseRedirect(public_url)
             raise Http404("Media unavailable") from exc
 
+    local = _local_media_file(filename, path_hint)
+    if local:
+        data = local.read_bytes()
+        response = HttpResponse(data, content_type="image/webp")
+        response["Cache-Control"] = "public, max-age=86400"
+        return response
     if public_url:
         return HttpResponseRedirect(public_url)
     raise Http404("Not found") from last_error
+
+
+def serve_day_school_media(request, filename: str):
+    return serve_school_media(request, filename, media_kind="day-schools")

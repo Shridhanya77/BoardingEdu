@@ -18,6 +18,7 @@ from apps.reviews.models import Review
 from apps.schools.models import School
 from apps.users.models import ParentShortlist, User
 from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
+from .school_ops import build_school_admin_payload
 
 
 def _month_start():
@@ -68,47 +69,6 @@ def _school_admin_school(user):
         return None
 
 
-def _school_card(school):
-    checks = [
-        (school.tagline, "Add a one-line tagline"),
-        (school.about, "Write an about section"),
-        (school.phone, "Add a phone number"),
-        (school.email, "Add an email address"),
-        (school.website, "Add the school website"),
-        (school.school_logo_url, "Add a logo"),
-        (school.school_image_url, "Add a campus photo"),
-        (school.principal_name, "Add the principal's name"),
-        (school.established_year, "Add the year established"),
-    ]
-    gaps = [label for value, label in checks if not value]
-    return {
-        "school_id": str(school.school_id),
-        "school_name": school.school_name,
-        "school_code": school.school_code,
-        "slug": school.slug,
-        "verification_status": school.verification_status,
-        "status": school.status,
-        "city_name": school.city.city_name,
-        "state_name": school.state.state_name,
-        "country_slug": school.country.slug,
-        "state_slug": school.state.slug,
-        "city_slug": school.city.slug,
-        "location_slug": school.location.slug if school.location_id else None,
-        "school_types_detail": [
-            {
-                "school_type_id": str(school_type.school_type_id),
-                "type_code": school_type.type_code,
-                "type_name": school_type.type_name,
-                "slug": school_type.slug,
-                "status": school_type.status,
-            }
-            for school_type in school.school_types.all()
-        ],
-        "profile_completeness": round((len(checks) - len(gaps)) / len(checks) * 100),
-        "profile_gaps": gaps,
-    }
-
-
 def _shortlist_row(item):
     school = item.school
     return {
@@ -151,62 +111,44 @@ class SchoolDashboardView(APIView):
                 status=403,
             )
 
-        if school.verification_status != "VERIFIED":
-            return Response(
-                {
-                    "panel_access": "pending",
-                    "school": _school_card(school),
-                    "stats": {
-                        "enquiries_total": 0,
-                        "enquiries_new": 0,
-                        "enquiries_this_month": 0,
-                        "enquiries_converted": 0,
-                        "reviews_published": 0,
-                        "reviews_pending": 0,
-                        "average_rating": None,
-                    },
-                    "enquiry_status": {},
-                    "recent_enquiries": [],
-                }
-            )
-
         enquiries = AdmissionEnquiry.objects.filter(school=school)
         reviews = Review.objects.filter(school=school)
+        verified = school.verification_status == "VERIFIED"
 
-        return Response(
-            {
-                "panel_access": "admin",
-                "school": _school_card(school),
-                "stats": {
-                    "enquiries_total": enquiries.count(),
-                    "enquiries_new": enquiries.filter(status="NEW").count(),
-                    "enquiries_this_month": enquiries.filter(
-                        created_at__gte=_month_start()
-                    ).count(),
-                    "enquiries_converted": enquiries.filter(
-                        status="CONVERTED"
-                    ).count(),
-                    "reviews_published": reviews.filter(
-                        status=Review.STATUS_PUBLISHED
-                    ).count(),
-                    "reviews_pending": reviews.filter(
-                        status=Review.STATUS_PENDING
-                    ).count(),
-                    "average_rating": reviews.filter(
-                        status=Review.STATUS_PUBLISHED
-                    ).aggregate(value=Avg("rating"))["value"],
-                },
-                "enquiry_status": _status_counts(
-                    enquiries, "status", AdmissionEnquiry.STATUS_CHOICES
-                ),
-                "recent_enquiries": [
-                    _enquiry_row(row)
-                    for row in enquiries.select_related(
-                        "school", "parent_profile__user"
-                    ).order_by("-created_at")[:10]
-                ],
-            }
+        def enquiry_rows():
+            return [
+                _enquiry_row(row)
+                for row in enquiries.select_related(
+                    "school", "parent_profile__user"
+                ).order_by("-created_at")[:12]
+            ]
+
+        payload = build_school_admin_payload(
+            request.user,
+            enquiry_rows if verified else None,
         )
+        if payload is None:
+            return Response(
+                {"detail": "This dashboard is for school administrator accounts."},
+                status=403,
+            )
+        payload["stats"] = {
+            "enquiries_total": enquiries.count(),
+            "enquiries_new": enquiries.filter(status="NEW").count(),
+            "enquiries_this_month": enquiries.filter(created_at__gte=_month_start()).count(),
+            "enquiries_converted": enquiries.filter(status="CONVERTED").count(),
+            "reviews_published": reviews.filter(status=Review.STATUS_PUBLISHED).count(),
+            "reviews_pending": reviews.filter(status=Review.STATUS_PENDING).count(),
+            "average_rating": reviews.filter(status=Review.STATUS_PUBLISHED).aggregate(
+                value=Avg("rating")
+            )["value"],
+        }
+        payload["enquiry_status"] = (
+            _status_counts(enquiries, "status", AdmissionEnquiry.STATUS_CHOICES)
+            if verified
+            else {}
+        )
+        return Response(payload)
 
 
 class SchoolEnquiryStatusView(APIView):
@@ -344,6 +286,28 @@ class ParentDashboardView(APIView):
         )
 
 
+def _blank(field):
+    return Q(**{field: ""}) | Q(**{f"{field}__isnull": True})
+
+
+def _school_data_quality(schools):
+    return {
+        "missing_logo": schools.filter(_blank("school_logo_url")).count(),
+        "missing_cover": schools.filter(_blank("school_image_url")).count(),
+        "missing_about": schools.filter(_blank("about")).count(),
+        "missing_contact": schools.filter(_blank("phone"), _blank("email")).count(),
+        "missing_locality": schools.filter(location__isnull=True).count(),
+        "missing_board": schools.annotate(board_count=Count("boards", distinct=True))
+        .filter(board_count=0)
+        .count(),
+        "missing_published_fees": schools.exclude(
+            fee_structures__published=True,
+            fee_structures__status=True,
+        ).count(),
+        "unverified": schools.filter(verification_status="UNVERIFIED").count(),
+    }
+
+
 class AdminDashboardView(APIView):
     """Platform-wide totals for super/staff admins."""
 
@@ -407,6 +371,25 @@ class AdminDashboardView(APIView):
                     "new": CounsellingRequest.objects.filter(status="NEW").count(),
                 },
                 "coverage": {"cities_covered": len(cities)},
+                "school_types": [
+                    {"type_name": row["school_types__type_name"], "total": row["total"]}
+                    for row in School.objects.values("school_types__type_name")
+                    .annotate(total=Count("pk", distinct=True))
+                    .order_by("school_types__type_name")
+                    if row["school_types__type_name"]
+                ],
+                "data_quality": _school_data_quality(schools),
+                "recent_schools": [
+                    {
+                        "school_id": str(school.school_id),
+                        "school_name": school.school_name,
+                        "school_code": school.school_code,
+                        "city_name": school.city.city_name,
+                        "verification_status": school.verification_status,
+                        "updated_at": school.updated_at,
+                    }
+                    for school in schools.select_related("city").order_by("-updated_at")[:8]
+                ],
                 "pending_schools": [
                     {
                         "school_id": str(school.school_id),

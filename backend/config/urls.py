@@ -38,7 +38,7 @@ from rest_framework_simplejwt.views import (
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
 from .health import healthz, readyz
 from .admin_dashboard import install_admin_dashboard
-from .school_media import serve_school_media
+from .school_media import serve_day_school_media, serve_school_media
 
 
 install_admin_dashboard()
@@ -152,6 +152,8 @@ urlpatterns = [
     path("readyz", readyz, name="readyz"),
     path("media/schools/<path:filename>", serve_school_media, name="school-media"),
     path("media/schools/<path:filename>/", serve_school_media, name="school-media-slash"),
+    path("media/day-schools/<path:filename>", serve_day_school_media, name="day-school-media"),
+    path("media/day-schools/<path:filename>/", serve_day_school_media, name="day-school-media-slash"),
     # ===== API schema & docs =====
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

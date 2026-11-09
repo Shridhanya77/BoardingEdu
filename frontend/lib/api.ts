@@ -183,14 +183,12 @@ export async function authRequest<T>(path: string, init: RequestInit = {}): Prom
 
   const url = apiRequestUrl(path);
 
-  const buildInit = (access: string): RequestInit => ({
-    ...init,
-    headers: {
-      ...defaultHeaders,
-      ...init.headers,
-      Authorization: `Bearer ${access}`,
-    },
-  });
+  const buildInit = (access: string): RequestInit => {
+    const headers = new Headers(init.body instanceof FormData ? undefined : defaultHeaders);
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    headers.set("Authorization", `Bearer ${access}`);
+    return { ...init, headers };
+  };
 
   // First try with the current access token
   let tokens = provider.get();
@@ -1048,8 +1046,77 @@ export type PendingSchool = {
   created_at: string;
 };
 
+export type CompletionStatus =
+  | "published"
+  | "awaiting_approval"
+  | "needs_correction"
+  | "missing"
+  | "optional";
+
+export type CompletionItem = {
+  key: string;
+  label: string;
+  status: CompletionStatus;
+  detail: string;
+};
+
+export type CompletionSection = {
+  key: string;
+  label: string;
+  score: number;
+  status: CompletionStatus;
+  items: CompletionItem[];
+};
+
+export type SchoolFacilityRecord = {
+  school_facility_id: string;
+  facility: string;
+  facility_name: string;
+  category: string;
+  available: boolean;
+  quantity_or_capacity: number | null;
+  description: string;
+};
+
+export type SchoolGradeRecord = {
+  school_grade_id: string;
+  grade: string;
+  grade_name: string;
+  grade_code: string;
+  seats_available: number | null;
+  is_active: boolean;
+};
+
+export type SchoolPhotoRecord = {
+  photo_id: string;
+  photo_url: string;
+  caption: string;
+  alt_text: string;
+  category: string;
+  sort_order: number;
+};
+
+export type SchoolFeeRecord = {
+  fee_structure_id: string;
+  structure_name: string;
+  year_code: string;
+  published: boolean;
+  status: boolean;
+  items: {
+    fee_item_id: string;
+    item_name: string;
+    item_category: string;
+    payment_frequency: string;
+    amount: string | null;
+    is_refundable: boolean;
+    grade_name: string;
+    description: string;
+  }[];
+};
+
 export type SchoolDashboardData = {
   panel_access: "admin" | "pending";
+  academic_year: string;
   school: {
     school_id: string;
     school_name: string;
@@ -1063,9 +1130,56 @@ export type SchoolDashboardData = {
     state_slug: string;
     city_slug: string;
     location_slug: string | null;
+    school_logo_url: string;
+    school_image_url: string;
+    gender: string;
+    admission_open: boolean;
+    short_name: string;
+    tagline: string;
+    about: string;
+    website: string;
+    phone: string;
+    email: string;
+    principal_name: string;
+    address: string;
+    pincode: string;
+    established_year: number | null;
+    boards: string[];
+    school_type_ids: string[];
     school_types_detail: SchoolTypeListItem[];
     profile_completeness: number;
     profile_gaps: string[];
+  };
+  completion: {
+    score: number;
+    summary: {
+      missing: number;
+      awaiting_approval: number;
+      needs_correction: number;
+      published: number;
+    };
+    sections: CompletionSection[];
+  };
+  metrics: {
+    classrooms: number;
+    laboratories: number;
+    academic_facilities: number;
+    sports_facilities: number;
+    hostel_capacity: number;
+    photographs: number;
+  };
+  facilities: SchoolFacilityRecord[];
+  grades: SchoolGradeRecord[];
+  photos: SchoolPhotoRecord[];
+  fees: SchoolFeeRecord[];
+  catalog: {
+    facilities: { facility_id: string; facility_name: string; category: string }[];
+    boards: { board_id: string; board_name: string }[];
+    school_types: { school_type_id: string; type_name: string; type_code: string }[];
+    grades: { grade_id: string; grade_name: string; grade_code: string }[];
+    photo_categories: { value: string; label: string }[];
+    fee_categories: { value: string; label: string }[];
+    fee_frequencies: { value: string; label: string }[];
   };
   stats: {
     enquiries_total: number;
@@ -1096,6 +1210,9 @@ export type SchoolPortalData = {
   established_year: number | null;
   school_logo_url: string;
   school_image_url: string;
+  gender: string;
+  boards: string[];
+  school_types: string[];
   admission_open: boolean;
   verification_status: VerificationStatus;
 };
@@ -1114,6 +1231,9 @@ export type SchoolPortalUpdate = Pick<
   | "established_year"
   | "school_logo_url"
   | "school_image_url"
+  | "gender"
+  | "boards"
+  | "school_types"
   | "admission_open"
 >;
 
@@ -1175,6 +1295,25 @@ export type AdminDashboardData = {
   reviews: { total: number; by_status: Record<string, number> };
   counselling: { total: number; new: number };
   coverage: { cities_covered: number };
+  school_types: { type_name: string; total: number }[];
+  data_quality: {
+    missing_logo: number;
+    missing_cover: number;
+    missing_about: number;
+    missing_contact: number;
+    missing_locality: number;
+    missing_board: number;
+    missing_published_fees: number;
+    unverified: number;
+  };
+  recent_schools: {
+    school_id: string;
+    school_name: string;
+    school_code: string;
+    city_name: string;
+    verification_status: VerificationStatus;
+    updated_at: string;
+  }[];
   pending_schools: PendingSchool[];
   recent_enquiries: DashboardEnquiry[];
 };
@@ -1212,6 +1351,71 @@ export const dashboards = {
       method: "POST",
       body: JSON.stringify({ status }),
     }),
+  saveFacility: (payload: {
+    facility: string;
+    quantity_or_capacity?: number | null;
+    description?: string;
+    available?: boolean;
+  }) =>
+    authRequest<SchoolFacilityRecord>("/dashboards/school/facilities/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateFacility: (
+    id: string,
+    payload: { quantity_or_capacity?: number | null; description?: string; available?: boolean },
+  ) =>
+    authRequest<SchoolFacilityRecord>(`/dashboards/school/facilities/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  removeFacility: (id: string) =>
+    authRequest<void>(`/dashboards/school/facilities/${id}/`, { method: "DELETE" }),
+  saveGrade: (payload: { grade: string; seats_available?: number | null }) =>
+    authRequest<SchoolGradeRecord>("/dashboards/school/grades/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  removeGrade: (id: string) =>
+    authRequest<void>(`/dashboards/school/grades/${id}/`, { method: "DELETE" }),
+  savePhoto: (payload: { photo_url: string; caption?: string; alt_text?: string; category: string }) =>
+    authRequest<SchoolPhotoRecord>("/dashboards/school/photos/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  uploadPhoto: (file: File, category: string, caption: string) => {
+    const body = new FormData();
+    body.set("image", file);
+    body.set("category", category);
+    body.set("caption", caption);
+    return authRequest<SchoolPhotoRecord>("/dashboards/school/photos/", { method: "POST", body });
+  },
+  removePhoto: (id: string) =>
+    authRequest<void>(`/dashboards/school/photos/${id}/`, { method: "DELETE" }),
+  saveFeeItem: (payload: {
+    fee_structure?: string;
+    item_name: string;
+    item_category: string;
+    payment_frequency: string;
+    amount: string;
+    grade?: string;
+    is_refundable?: boolean;
+    description?: string;
+  }) =>
+    authRequest<{ fee_item_id: string }>("/dashboards/school/fees/items/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateFeeItem: (id: string, payload: { amount?: string; item_name?: string; is_refundable?: boolean }) =>
+    authRequest<{ fee_item_id: string; amount: string | null }>(`/dashboards/school/fees/items/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  publishFees: (id: string, published: boolean) =>
+    authRequest<{ fee_structure_id: string; published: boolean }>(
+      `/dashboards/school/fees/${id}/publish/`,
+      { method: "POST", body: JSON.stringify({ published }) },
+    ),
   parent: () => authRequest<ParentDashboardData>("/dashboards/parent/"),
   shortlistStatus: (schoolId: string) =>
     authRequest<{ saved: boolean }>(`/dashboards/parent/shortlist/?school_id=${encodeURIComponent(schoolId)}`),

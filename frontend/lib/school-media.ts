@@ -1,9 +1,13 @@
 const RAW_MEDIA_BASE = (process.env.NEXT_PUBLIC_SCHOOL_MEDIA_BASE ?? "").replace(/\/+$/, "");
+const RAW_DAY_MEDIA_BASE = (process.env.NEXT_PUBLIC_DAY_SCHOOL_MEDIA_BASE ?? "").replace(/\/+$/, "");
 // School objects live under the `schools/` prefix in the R2 bucket.
 const PUBLIC_MEDIA_BASE =
   RAW_MEDIA_BASE && !RAW_MEDIA_BASE.endsWith("/schools")
     ? `${RAW_MEDIA_BASE}/schools`
     : RAW_MEDIA_BASE;
+const PUBLIC_DAY_MEDIA_BASE =
+  RAW_DAY_MEDIA_BASE ||
+  (RAW_MEDIA_BASE ? `${RAW_MEDIA_BASE.replace(/\/schools$/, "")}/day-schools` : "");
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000/api")
   .replace(/\/+$/, "")
   .replace(/\/api$/i, "");
@@ -59,26 +63,45 @@ export function publicSchoolImageUrl(value?: string | null): string {
     const host = url.hostname.toLowerCase();
     const path = url.pathname;
     const filename = schoolMediaFilename(path);
+    const isDaySchool =
+      path.includes("/media/day-schools/") || path.includes("/schools/day-schools/");
+    const isR2Public =
+      host.endsWith(".r2.cloudflarestorage.com") || host.endsWith(".r2.dev");
+
+    // R2 URLs already include schools/ or schools/day-schools/ — never rewrite to filename-only.
+    if (isR2Public && filename) {
+      return url.toString();
+    }
+
     const isR2Proxy =
       Boolean(filename) &&
       (path.includes("/media/schools/") ||
-        host.endsWith(".r2.cloudflarestorage.com") ||
-        host.endsWith(".r2.dev") ||
+        isDaySchool ||
+        isR2Public ||
         host === "boardingedu.com" ||
         host === "www.boardingedu.com" ||
         host === "media.boardingedu.com" ||
         host === "media.boardingeu.com");
 
     if (isR2Proxy) {
+      if (isDaySchool) {
+        if (PUBLIC_DAY_MEDIA_BASE) return `${PUBLIC_DAY_MEDIA_BASE}/${filename}`;
+        if (API_ORIGIN) return `${API_ORIGIN}/media/day-schools/${filename}`;
+        return `/media/day-schools/${filename}`;
+      }
       if (PUBLIC_MEDIA_BASE) return `${PUBLIC_MEDIA_BASE}/${filename}`;
-      // Already a working Cloudflare public URL: leave it untouched.
-      if (host.endsWith(".r2.dev")) return url.toString();
       if (API_ORIGIN) return `${API_ORIGIN}/media/schools/${filename}`;
       return `/media/schools/${filename}`;
     }
 
     return url.toString();
   } catch {
+    if (raw.startsWith("/media/day-schools/")) {
+      const filename = schoolMediaFilename(raw);
+      if (PUBLIC_DAY_MEDIA_BASE) return `${PUBLIC_DAY_MEDIA_BASE}/${filename}`;
+      if (API_ORIGIN) return `${API_ORIGIN}/media/day-schools/${filename}`;
+      return raw;
+    }
     if (raw.startsWith("/media/schools/")) {
       const filename = schoolMediaFilename(raw);
       if (PUBLIC_MEDIA_BASE) return `${PUBLIC_MEDIA_BASE}/${filename}`;
