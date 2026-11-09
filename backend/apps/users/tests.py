@@ -1,5 +1,15 @@
-from django.test import SimpleTestCase
+from datetime import date
+
+from django.test import SimpleTestCase, TestCase
+from django.urls import reverse
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIClient
+
+from apps.admissions.models import AdmissionEnquiry
+from apps.fees.models import AcademicYear
+from apps.geography.models import City, Country, State
+from apps.schools.models import School
+from apps.users.models import SchoolAdminProfile, User
 
 from .serializers import UserRegisterSerializer
 
@@ -22,3 +32,142 @@ class UserRegistrationContactValidationTests(SimpleTestCase):
             serializer.validate_phone("+91 98765 43210"),
             "919876543210",
         )
+
+
+class PendingSchoolAdminLoginTests(TestCase):
+    def test_pending_school_admin_can_sign_in_to_the_website_panel(self):
+        country = Country.objects.create(country_code="IN", country_name="India", slug="india-login")
+        state = State.objects.create(
+            country=country, state_code="KA", state_name="Karnataka", slug="karnataka-login"
+        )
+        city = City.objects.create(state=state, city_code="BLR", city_name="Bengaluru", slug="bengaluru-login")
+        school = School.objects.create(
+            school_code="LOGIN1",
+            school_name="Pending Login School",
+            slug="pending-login-school",
+            country=country,
+            state=state,
+            city=city,
+            address="Bengaluru",
+            verification_status="PENDING",
+            status=False,
+        )
+        User.objects.create_user(
+            username="pending-school-admin",
+            password="secret-pass",
+            role=User.ROLE_SCHOOL_ADMIN,
+        )
+        admin = User.objects.get(username="pending-school-admin")
+        SchoolAdminProfile.objects.create(user=admin, school=school, designation="Principal")
+
+        response = APIClient().post(
+            "/api/auth/jwt/token/",
+            {"username": "pending-school-admin", "password": "secret-pass"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertIn("access", response.data)
+
+
+class SchoolAdminBackendLoginTests(TestCase):
+    def test_school_admin_enters_django_admin_for_their_school_only(self):
+        country = Country.objects.create(country_code="IN", country_name="India", slug="india-backend-admin")
+        state = State.objects.create(
+            country=country, state_code="KA", state_name="Karnataka", slug="karnataka-backend-admin"
+        )
+        city = City.objects.create(
+            state=state, city_code="BLR", city_name="Bengaluru", slug="bengaluru-backend-admin"
+        )
+        own = School.objects.create(
+            school_code="OWN-ADMIN",
+            school_name="Own Admin School",
+            slug="own-admin-school",
+            country=country,
+            state=state,
+            city=city,
+            address="Bengaluru",
+            verification_status="PENDING",
+        )
+        other = School.objects.create(
+            school_code="OTHER-ADMIN",
+            school_name="Other Admin School",
+            slug="other-admin-school",
+            country=country,
+            state=state,
+            city=city,
+            address="Bengaluru",
+        )
+        user = User.objects.create_user(
+            username="backend-school-admin",
+            email="principal@own-admin.test",
+            password="secret-pass",
+            role=User.ROLE_SCHOOL_ADMIN,
+        )
+        SchoolAdminProfile.objects.create(user=user, school=own, designation="Principal")
+        parent = User.objects.create_user(
+            username="backend-parent",
+            email="parent@own-admin.test",
+            password="secret-pass",
+            role=User.ROLE_PARENT,
+        )
+        client = APIClient()
+
+        rejected = client.post(
+            "/admin/login/",
+            {"username": parent.username, "password": "secret-pass"},
+        )
+        self.assertEqual(rejected.status_code, 200)
+        self.assertContains(rejected, "Please enter the correct")
+
+        for identifier in (user.username, user.email):
+            client.logout()
+            signed_in = client.post(
+                "/admin/login/",
+                {"username": identifier, "password": "secret-pass", "next": "/admin/"},
+            )
+            self.assertEqual(signed_in.status_code, 302, identifier)
+            self.assertEqual(signed_in.url, "/admin/")
+
+        year = AcademicYear.objects.create(
+            year_code="2026-27-admin",
+            year_name="Academic Year 2026-27",
+            start_date=date(2026, 4, 1),
+            end_date=date(2027, 3, 31),
+        )
+        own_lead = AdmissionEnquiry.objects.create(
+            school=own,
+            academic_year=year,
+            guest_full_name="Visible Parent",
+            guest_phone="919876543210",
+        )
+        AdmissionEnquiry.objects.create(
+            school=other,
+            academic_year=year,
+            guest_full_name="Hidden Parent",
+            guest_phone="919000000000",
+        )
+
+        home = client.get("/admin/")
+        self.assertEqual(home.status_code, 302)
+        self.assertEqual(home.url, reverse("admin:school_workspace"))
+        workspace = client.get(home.url)
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, "Own Admin School")
+        self.assertContains(workspace, "Visible Parent")
+        self.assertNotContains(workspace, "Other Admin School")
+        self.assertNotContains(workspace, "Hidden Parent")
+        self.assertContains(workspace, "Your school")
+        self.assertNotContains(workspace, "Countries")
+
+        leads = client.get(reverse("admin:admissions_admissionenquiry_changelist"))
+        self.assertEqual(leads.status_code, 200)
+        self.assertContains(leads, own_lead.enquiry_code)
+        self.assertNotContains(leads, "Hidden Parent")
+
+        other_page = client.get(reverse("admin:schools_school_change", args=[other.pk]))
+        self.assertEqual(other_page.status_code, 302)
+        self.assertEqual(other_page.url, reverse("admin:index"))
+
+        users_page = client.get(reverse("admin:users_user_changelist"))
+        self.assertEqual(users_page.status_code, 403)

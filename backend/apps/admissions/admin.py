@@ -1,4 +1,7 @@
 from django.contrib import admin
+
+from apps.users.school_admin_scope import AssignedSchoolAdminMixin
+
 from .models import Child, AdmissionEnquiry, CounsellingRequest
 
 
@@ -12,15 +15,21 @@ class ChildAdmin(admin.ModelAdmin):
 
 
 @admin.register(AdmissionEnquiry)
-class AdmissionEnquiryAdmin(admin.ModelAdmin):
+class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_admin_can_add = False
+    school_admin_can_delete = False
     list_display = (
         "enquiry_code",
-        "school",
+        "parent_name",
+        "contact_detail",
+        "applying_for_grade",
         "status",
         "priority",
-        "assigned_to",
         "next_followup_at",
+        "created_at",
     )
+    list_editable = ("status", "priority")
+    list_select_related = ("school", "applying_for_grade", "parent_profile__user")
     list_filter = ("status", "priority", "source", "school")
     search_fields = (
         "enquiry_code",
@@ -40,6 +49,53 @@ class AdmissionEnquiryAdmin(admin.ModelAdmin):
     )
     date_hierarchy = "created_at"
     readonly_fields = ("enquiry_id", "created_at", "updated_at")
+
+    @admin.display(description="Parent")
+    def parent_name(self, obj):
+        if obj.parent_profile_id and obj.parent_profile.user_id:
+            user = obj.parent_profile.user
+            return user.get_full_name().strip() or user.username
+        return obj.guest_full_name or "—"
+
+    @admin.display(description="Contact")
+    def contact_detail(self, obj):
+        if obj.parent_profile_id and obj.parent_profile.user_id:
+            user = obj.parent_profile.user
+            return user.phone or user.email or "—"
+        return obj.guest_phone or obj.guest_email or "—"
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        from apps.users.school_admin_scope import manages_own_school
+
+        if manages_own_school(request.user):
+            fields.extend([
+                "enquiry_code",
+                "source",
+                "message",
+                "parent_profile",
+                "child",
+                "school",
+                "academic_year",
+                "applying_for_grade",
+                "guest_full_name",
+                "guest_email",
+                "guest_phone",
+                "guest_child_name",
+                "guest_child_dob",
+                "guest_child_gender",
+                "assigned_to",
+            ])
+        return fields
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        from apps.users.school_admin_scope import manages_own_school
+
+        if manages_own_school(request.user):
+            extra_context.setdefault("title", "Leads for your school")
+        return super().changelist_view(request, extra_context)
+
     fieldsets = (
         (
             "Enquiry Identity",
@@ -91,6 +147,10 @@ class AdmissionEnquiryAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+AdmissionEnquiry._meta.verbose_name = "Lead"
+AdmissionEnquiry._meta.verbose_name_plural = "Leads"
 
 
 @admin.register(CounsellingRequest)

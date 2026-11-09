@@ -3,6 +3,12 @@ import re
 from django import forms
 from django.contrib import admin
 from django.forms.models import BaseInlineFormSet
+
+from apps.users.school_admin_scope import (
+    AssignedSchoolAdminMixin,
+    CatalogVisibleToSchoolAdminMixin,
+)
+
 from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
 
 
@@ -119,7 +125,7 @@ class FeeItemInline(admin.TabularInline):
 
 
 @admin.register(AcademicYear)
-class AcademicYearAdmin(admin.ModelAdmin):
+class AcademicYearAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "year_code",
         "year_name",
@@ -143,7 +149,7 @@ class AcademicYearAdmin(admin.ModelAdmin):
 
 
 @admin.register(FeeTerm)
-class FeeTermAdmin(admin.ModelAdmin):
+class FeeTermAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "term_code",
         "term_name",
@@ -162,7 +168,7 @@ class FeeTermAdmin(admin.ModelAdmin):
 
 
 @admin.register(FeeStructure)
-class FeeStructureAdmin(admin.ModelAdmin):
+class FeeStructureAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     form = FeeStructureAdminForm
     list_display = (
         "structure_code",
@@ -211,7 +217,8 @@ class FeeStructureAdmin(admin.ModelAdmin):
 
 
 @admin.register(FeeItem)
-class FeeItemAdmin(admin.ModelAdmin):
+class FeeItemAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_filter = "fee_structure__school_id"
     list_display = (
         "item_code",
         "item_name",

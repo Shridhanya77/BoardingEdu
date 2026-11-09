@@ -1,15 +1,18 @@
 from django.contrib import admin
+
+from apps.users.school_admin_scope import CatalogVisibleToSchoolAdminMixin
+
 from .models import Country, State, City, Location
 
 @admin.register(Country)
-class CountryAdmin(admin.ModelAdmin):
+class CountryAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = ('country_name', 'country_code', 'status', 'created_at')
     search_fields = ('country_name', 'country_code', 'slug')
     list_filter = ('status',)
     prepopulated_fields = {'slug': ('country_name',)}
 
 @admin.register(State)
-class StateAdmin(admin.ModelAdmin):
+class StateAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = ('state_name', 'state_code', 'country', 'status')
     search_fields = ('state_name', 'state_code', 'slug')
     list_filter = ('status', 'country')
@@ -17,7 +20,7 @@ class StateAdmin(admin.ModelAdmin):
     autocomplete_fields = ('country',)
 
 @admin.register(City)
-class CityAdmin(admin.ModelAdmin):
+class CityAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = ('city_name', 'city_code', 'state', 'status')
     search_fields = ('city_name', 'city_code', 'slug')
     list_filter = ('status', 'state__country', 'state')
@@ -25,7 +28,7 @@ class CityAdmin(admin.ModelAdmin):
     autocomplete_fields = ('state',)
 
 @admin.register(Location)
-class LocationAdmin(admin.ModelAdmin):
+class LocationAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = ('location_name', 'location_code', 'city', 'status')
     search_fields = ('location_name', 'location_code', 'slug')
     list_filter = ('status', 'city__state__country', 'city__state', 'city')

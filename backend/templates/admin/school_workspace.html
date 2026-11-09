@@ -1,0 +1,101 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block bodyclass %}{{ block.super }} dashboard be-dashboard{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <section class="be-welcome">
+    <div>
+      <p class="be-welcome__kicker">{% translate "School admin" %}</p>
+      <h2>{{ school.school_name }}</h2>
+      <p>
+        {{ school.city.city_name }}, {{ school.state.state_name }} · {{ school.school_code }}
+        · {{ school.get_verification_status_display }}
+        · {% if school.admission_open %}{% translate "Admissions open" %}{% else %}{% translate "Admissions closed" %}{% endif %}
+      </p>
+    </div>
+    <div class="be-welcome__actions">
+      <a href="{{ school_url }}"><strong>{% translate "Edit school profile" %}</strong><span>{% translate "Contact, photos, about" %}</span></a>
+      <a href="{{ leads_url }}"><strong>{% translate "Manage leads" %}</strong><span>{{ lead_new }} {% translate "new" %}</span></a>
+      <a href="{{ facilities_url }}"><strong>{% translate "Facilities" %}</strong><span>{{ facility_count }} {% translate "available" %}</span></a>
+      <a href="{{ grades_url }}"><strong>{% translate "Grades" %}</strong><span>{{ grade_count }} {% translate "active" %}</span></a>
+      <a href="{{ fees_url }}"><strong>{% translate "Fees" %}</strong><span>{% translate "Academic year schedules" %}</span></a>
+    </div>
+  </section>
+
+  <div class="be-cards">
+    <a class="be-card be-card--brand" href="{{ leads_url }}">
+      <span class="be-card__label">{% translate "New leads" %}</span>
+      <strong class="be-card__value">{{ lead_new }}</strong>
+      <span class="be-card__hint">{{ lead_open }} {% translate "still open" %}</span>
+    </a>
+    <a class="be-card be-card--info" href="{{ leads_url }}">
+      <span class="be-card__label">{% translate "All leads" %}</span>
+      <strong class="be-card__value">{{ lead_total }}</strong>
+      <span class="be-card__hint">{% translate "Admission enquiries for this school" %}</span>
+    </a>
+    <a class="be-card be-card--{% if completion_score < 100 %}warn{% else %}info{% endif %}" href="{{ school_url }}">
+      <span class="be-card__label">{% translate "Profile completion" %}</span>
+      <strong class="be-card__value">{{ completion_score }}%</strong>
+      <span class="be-card__hint">{% translate "Filled sections of the public profile" %}</span>
+    </a>
+    <a class="be-card" href="{{ school_url }}">
+      <span class="be-card__label">{% translate "Photographs" %}</span>
+      <strong class="be-card__value">{{ photo_count }}</strong>
+      <span class="be-card__hint">{% translate "Gallery images on the profile" %}</span>
+    </a>
+  </div>
+
+  <div class="be-panels">
+    <section class="be-panel">
+      <h3>{% translate "Lead status" %}</h3>
+      <ul class="be-chips">
+        {% for row in lead_statuses %}
+        <li><span>{{ row.label }}</span><strong>{{ row.total }}</strong></li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="be-panel">
+      <h3>{% translate "Profile still to complete" %}</h3>
+      {% if gaps %}
+      <ul class="be-list">
+        {% for gap in gaps %}
+        <li>
+          <a href="{{ gap.url }}">{{ gap.label }}</a>
+          <strong>{{ gap.score }}%</strong>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="be-empty">{% translate "Every required section has information. BoardingEdu approval still controls whether parents can find the school." %}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="be-panel">
+    <h3>{% translate "Latest leads" %}</h3>
+    {% if recent_leads %}
+    <table class="be-table">
+      <tbody>
+        {% for lead in recent_leads %}
+        <tr>
+          <td><a href="{{ lead.url }}">{{ lead.code }}</a></td>
+          <td>{{ lead.parent }}</td>
+          <td>{{ lead.contact }}</td>
+          <td>{{ lead.grade }}</td>
+          <td><span class="be-tag">{{ lead.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p><a href="{{ leads_url }}">{% translate "Open the full lead list" %}</a></p>
+    {% else %}
+    <p class="be-empty">{% translate "No leads yet. New admission enquiries for this school will appear here." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

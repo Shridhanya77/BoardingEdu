@@ -28,25 +28,18 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         data = super().validate(attrs)
 
-        # School accounts only become usable once an admin verifies the school.
+        # School admins may sign in before verification so they can finish the
+        # profile. Enquiry contact details stay locked until the school is approved.
         user = self.user
         if user.role == UserModel.ROLE_SCHOOL_ADMIN:
             try:
                 school = user.school_admin_profile.school
             except (SchoolAdminProfile.DoesNotExist, AttributeError):
                 school = None
-            if school is not None and school.verification_status != "VERIFIED":
-                if school.verification_status == "PENDING":
-                    message = (
-                        f"'{school.school_name}' is still awaiting verification. "
-                        "You will be able to sign in once our team approves the school."
-                    )
-                else:
-                    message = (
-                        "This school account is not verified yet. "
-                        "Please contact support if you believe this is a mistake."
-                    )
-                raise AuthenticationFailed(message)
+            if school is None:
+                raise AuthenticationFailed(
+                    "This school administrator account is not assigned to a school."
+                )
 
         return data
 

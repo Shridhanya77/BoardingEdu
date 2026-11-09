@@ -1,13 +1,18 @@
 from django import forms
 from django.contrib import admin, messages
 from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
-from django.db.models import Count
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
 
 from apps.users.models import User
+from apps.users.school_admin_scope import (
+    AssignedSchoolAdminMixin,
+    CatalogVisibleToSchoolAdminMixin,
+    manages_own_school,
+)
 from config.school_media import rewrite_school_media_url
 from .services import SchoolVerificationError, set_school_verification_status
 from .models import (
@@ -110,7 +115,7 @@ class SchoolVerificationAdminForm(forms.Form):
 # ============================================================
 
 @admin.register(Board)
-class BoardAdmin(admin.ModelAdmin):
+class BoardAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "board_code",
         "board_name",
@@ -125,7 +130,7 @@ class BoardAdmin(admin.ModelAdmin):
 
 
 @admin.register(SchoolType)
-class SchoolTypeAdmin(admin.ModelAdmin):
+class SchoolTypeAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "type_code",
         "type_name",
@@ -153,7 +158,7 @@ class SchoolTypeAdmin(admin.ModelAdmin):
 
 
 @admin.register(Grade)
-class GradeAdmin(admin.ModelAdmin):
+class GradeAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "grade_code",
         "grade_name",
@@ -185,7 +190,7 @@ class SchoolFAQAdmin(admin.ModelAdmin):
 
 
 @admin.register(Facility)
-class FacilityAdmin(admin.ModelAdmin):
+class FacilityAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "facility_code",
         "facility_name",
@@ -252,8 +257,43 @@ class SchoolVideoInline(admin.TabularInline):
     fields = ("video_url", "thumbnail_url", "caption", "category", "sort_order", "status")
 
 
+class ProfileGapFilter(admin.SimpleListFilter):
+    title = "profile gaps"
+    parameter_name = "profile_gap"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("logo", "Missing logo"),
+            ("cover", "Missing cover photograph"),
+            ("about", "Missing description"),
+            ("contact", "Missing phone and email"),
+            ("locality", "Missing locality"),
+            ("board", "Missing education board"),
+            ("fees", "Missing published fees"),
+        )
+
+    def queryset(self, request, queryset):
+        blank = {
+            "logo": Q(school_logo_url="") | Q(school_logo_url__isnull=True),
+            "cover": Q(school_image_url="") | Q(school_image_url__isnull=True),
+            "about": Q(about="") | Q(about__isnull=True),
+            "contact": (Q(phone="") | Q(phone__isnull=True)) & (Q(email="") | Q(email__isnull=True)),
+            "locality": Q(location__isnull=True),
+        }
+        if self.value() in blank:
+            return queryset.filter(blank[self.value()])
+        if self.value() == "board":
+            return queryset.annotate(board_count=Count("boards", distinct=True)).filter(board_count=0)
+        if self.value() == "fees":
+            return queryset.exclude(fee_structures__published=True, fee_structures__status=True)
+        return queryset
+
+
 @admin.register(School)
-class SchoolAdmin(admin.ModelAdmin):
+class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_filter = "pk"
+    school_admin_can_add = False
+    school_admin_can_delete = False
     change_list_template = "admin/schools/school/change_list.html"
     list_display = (
         "school_code",
@@ -278,6 +318,7 @@ class SchoolAdmin(admin.ModelAdmin):
         "country",
         "state",
         "city",
+        ProfileGapFilter,
     )
 
     search_fields = (
@@ -507,6 +548,21 @@ class SchoolAdmin(admin.ModelAdmin):
     def school_type_names(self, obj):
         return ", ".join(obj.school_types.values_list("type_name", flat=True))
 
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if manages_own_school(request.user):
+            for name in (
+                "school_code",
+                "status",
+                "is_featured",
+                "verification_status",
+                "published_at",
+                "boarding_required",
+            ):
+                if name not in fields:
+                    fields.append(name)
+        return fields
+
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
 
@@ -552,7 +608,7 @@ class SchoolVerificationEventAdmin(admin.ModelAdmin):
 
 
 @admin.register(SchoolFacility)
-class SchoolFacilityAdmin(admin.ModelAdmin):
+class SchoolFacilityAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "school",
         "facility",
@@ -578,7 +634,7 @@ class SchoolFacilityAdmin(admin.ModelAdmin):
     )
 
 @admin.register(SchoolGrade)
-class SchoolGradeAdmin(admin.ModelAdmin):
+class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     list_display = (
         "school",
         "grade",

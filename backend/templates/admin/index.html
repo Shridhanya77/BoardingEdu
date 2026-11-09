@@ -18,7 +18,7 @@
     <div>
       <p class="be-welcome__kicker">{% translate "BoardingEdu backend" %}</p>
       <h2>{% translate "Run schools, parents and admissions from one desk" %}</h2>
-      <p>Signed in as {{ user.get_short_name }}. Verified schools unlock their own admin panel. Pending schools stay hidden from that panel until you approve them.</p>
+      <p>Signed in as {{ user.get_short_name }}. School administrators can complete their own profile before approval. Verification still controls the public listing and parent contact details.</p>
     </div>
     <div class="be-welcome__actions">
       {% for link in s.quick_links %}

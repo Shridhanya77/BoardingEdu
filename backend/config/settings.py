@@ -339,6 +339,27 @@ CSRF_TRUSTED_ORIGINS = _csv_env(
 )
 
 
+def _trust_https_origin(host):
+    host = (host or "").strip().lstrip(".")
+    if not host or host in {"localhost", "127.0.0.1"} or "*" in host:
+        return
+    origin = host if host.startswith("http://") or host.startswith("https://") else f"https://{host}"
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
+
+
+# Django admin login is a browser POST. Railway's public domain has to be
+# trusted or a correct password is rejected before the session starts.
+_trust_https_origin(os.getenv("RAILWAY_PUBLIC_DOMAIN", ""))
+_trust_https_origin(os.getenv("RENDER_EXTERNAL_HOSTNAME", ""))
+for _public_host in (
+    "boardingedu-production-ac84.up.railway.app",
+    "boardingedu-production-4144.up.railway.app",
+    "boardingedu-6ng7.onrender.com",
+):
+    _trust_https_origin(_public_host)
+
+
 # ----------------------------------------------------------------------------
 # Security / proxy (Railway)
 # ----------------------------------------------------------------------------
