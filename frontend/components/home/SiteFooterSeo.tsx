@@ -309,9 +309,9 @@ export default function SiteFooterSeo({
     {
       title: "Popular Boarding Searches",
       links: [
-        { label: "Boarding Schools for Girls in India", href: "/india/?category=boarding-schools&gender=GIRLS" },
-        { label: "Boarding Schools for Boys in India", href: "/india/?category=boarding-schools&gender=BOYS" },
-        { label: "Coed Boarding Schools in India", href: "/india/?category=boarding-schools&gender=COED" },
+        { label: "Boarding Schools for Girls in India", href: "/india/boarding-schools/?gender=GIRLS" },
+        { label: "Boarding Schools for Boys in India", href: "/india/boarding-schools/?gender=BOYS" },
+        { label: "Coed Boarding Schools in India", href: "/india/boarding-schools/?gender=COED" },
         ...footerCities.slice(0, 4).map((city) => ({
           label: `Boarding Schools in ${city.city_name}`,
           href: citySearchPath(city, { category: "residential-school" }),

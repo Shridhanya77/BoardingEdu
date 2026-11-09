@@ -746,6 +746,13 @@ textarea:focus {
   object-fit: cover;
 }
 
+.main-sidebar .nav-sidebar .nav-link,
+.main-sidebar .nav-sidebar .nav-link p,
+.main-sidebar .brand-text,
+.main-sidebar .nav-header {
+  color: #f4f7fb;
+}
+
 .main-sidebar .nav-sidebar .nav-link {
   border-radius: 8px;
   margin: 2px 8px;
@@ -795,11 +802,16 @@ textarea:focus {
 .content-wrapper .card {
   border: 1px solid #e0e6ec;
   border-radius: 12px;
+  background: #fff;
+  color: #1c2b3a;
   box-shadow: 0 5px 18px rgb(16 36 58 / 6%);
 }
 
-.content-wrapper .card-header {
+.content-wrapper .card-header,
+.content-wrapper .card-title {
+  background: #f7fafc;
   border-bottom-color: #e7ebef;
+  color: #17324d;
 }
 
 .content-wrapper .form-control,
@@ -879,23 +891,32 @@ textarea:focus {
 .change-form #content-main > form > .row > .col-lg-9 > .card {
   min-height: 440px;
   overflow: hidden;
-  border: 1px solid #3c3c3c;
+  border: 1px solid #d5dee8;
   border-radius: 12px;
-  background: #303030;
+  background: #fff;
+  color: #1c2b3a;
   box-shadow: 0 10px 28px rgb(16 36 58 / 12%);
 }
 
 .change-form #content-main > form > .row > .col-lg-9 > .card .card-body {
   padding: clamp(16px, 2.2vw, 26px);
-  color: #f5f5f5;
+  background: #fff;
+  color: #1c2b3a;
 }
 
 .change-form #content-main .card .nav-tabs {
-  border-bottom-color: rgb(255 255 255 / 14%);
+  border-bottom-color: #d5dee8;
 }
 
 .change-form #content-main .card .nav-tabs .nav-link {
   border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: #17456b;
+}
+
+.change-form #content-main .card .nav-tabs .nav-link.active {
+  background: #fff;
+  color: #10243a;
 }
 
 .change-form #content-main .card .form-row,
@@ -905,13 +926,17 @@ textarea:focus {
 
 .change-form #content-main .card label,
 .change-form #content-main .card .fieldBox,
-.change-form #content-main .card .help {
-  color: #f5f5f5;
+.change-form #content-main .card .readonly,
+.change-form #content-main .card p,
+.change-form #content-main .card td,
+.change-form #content-main .card th {
+  color: #1c2b3a;
 }
 
 .change-form #content-main .card .help,
-.change-form #content-main .card .helptext {
-  color: #b9c3cc;
+.change-form #content-main .card .helptext,
+.change-form #content-main .card .text-muted {
+  color: #4d6174;
 }
 
 .change-form #content-main .card input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]),
@@ -1500,8 +1525,14 @@ body.be-panel-app {
   color: #7b8b9c;
 }
 
-.be-inst dd {
+.be-inst dd,
+.be-inst a,
+.be-directory header h2,
+.be-pager,
+.be-pager a,
+.be-login__form label {
   margin: 0;
+  color: #1c2b3a;
   overflow-wrap: anywhere;
 }
 
@@ -1577,7 +1608,8 @@ body.be-panel-app {
 }
 
 .be-steps button:disabled {
-  background: #c5ced6;
+  background: #d5dee8;
+  color: #1c2b3a;
 }
 
 .be-steps__note {

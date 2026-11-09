@@ -33,46 +33,45 @@ export function schoolEnquiryPath(school: SchoolPathFields): string {
 }
 
 /**
- * School type is not part of a location or board slug.
- * Direct links, refresh, and back/forward keep the selection in one
- * `category` query (`day-school` or `boarding-schools`). The path stays
- * geographical. Canonical metadata uses the path without that query so
- * day and boarding filters do not create a second indexable URL.
+ * Day/boarding selection is the final path segment (`day-schools` or
+ * `boarding-schools`), never a query string. Direct links, refresh, and
+ * back/forward all keep the selection in the path so every filtered listing
+ * has one indexable, query-free canonical URL.
  */
-export function listingCategoryQuery(category?: HomeSchoolCategory | null): "day-school" | "boarding-schools" | null {
+export function listingCategorySegment(category?: HomeSchoolCategory | null): "day-schools" | "boarding-schools" | null {
   if (!category) return null;
-  return category === "day-school" ? "day-school" : "boarding-schools";
+  return category === "day-school" ? "day-schools" : "boarding-schools";
 }
 
-export function withCategoryQuery(path: string, category?: HomeSchoolCategory | null): string {
+export function withCategorySegment(path: string, category?: HomeSchoolCategory | null): string {
   const url = new URL(path, "https://boardingeu.invalid");
   url.searchParams.delete("school_type");
   url.searchParams.delete("home_category");
   url.searchParams.delete("type");
-  const value = listingCategoryQuery(category);
-  if (value) url.searchParams.set("category", value);
-  else url.searchParams.delete("category");
+  url.searchParams.delete("category");
   const base = withTrailingSlash(url.pathname);
+  const segment = listingCategorySegment(category);
+  const typedPath = segment ? `${base}${segment}/` : base;
   const query = url.searchParams.toString();
-  return query ? `${base}?${query}` : base;
+  return query ? `${typedPath}?${query}` : typedPath;
 }
 
 /**
- * Board listing URL. School type stays off the path:
- *   /board/cbse/                         → all CBSE schools
- *   /board/cbse/?category=day-school     → day + day boarding schools
- *   /board/cbse/?category=boarding-schools → boarding + day boarding schools
+ * Board listing URL. School type is the trailing path segment:
+ *   /board/cbse/                  → all CBSE schools
+ *   /board/cbse/day-schools/      → day + day boarding schools
+ *   /board/cbse/boarding-schools/ → boarding + day boarding schools
  */
 export function boardListingPath(
   slug: string,
   category?: HomeSchoolCategory | null,
 ): string {
-  return withCategoryQuery(`/board/${toSeoSlug(slug)}`, category);
+  return withCategorySegment(`/board/${toSeoSlug(slug)}`, category);
 }
 
-/** Directory URL. Day/boarding selection stays in the query, not the path. */
+/** Directory URL. Day/boarding selection is the trailing path segment. */
 export function schoolDirectoryPath(category?: HomeSchoolCategory | null): string {
-  return withCategoryQuery("/schools", category);
+  return withCategorySegment("/schools", category);
 }
 
 export function indiaRegionListingPath(
@@ -81,7 +80,7 @@ export function indiaRegionListingPath(
 ): string {
   const region = indiaRegionById(regionId);
   if (!region) throw new Error(`Unknown Indian region: ${regionId}`);
-  return withCategoryQuery(`/india/${region.slug}`, category);
+  return withCategorySegment(`/india/${region.slug}`, category);
 }
 
 export function indiaRegionBoardListingPath(
@@ -92,7 +91,7 @@ export function indiaRegionBoardListingPath(
   const region = indiaRegionById(regionId);
   if (!region) throw new Error(`Unknown Indian region: ${regionId}`);
   if (!boardSlugs.length) throw new Error("At least one board is required.");
-  return withCategoryQuery(
+  return withCategorySegment(
     `/india/${region.slug}/board/${boardSlugs.map(toSeoSlug).join(",")}`,
     category,
   );
@@ -104,12 +103,12 @@ export function schoolSearchPath(query: string): string {
 }
 
 /**
- * Geographical listing URL. School type is never a path segment.
+ * Geographical listing URL. School type is the trailing path segment.
  *   /india/
  *   /india/maharashtra/
  *   /india/maharashtra/panchgani/
  *   /india/maharashtra/pune/kothrud/
- *   /india/maharashtra/?category=boarding-schools
+ *   /india/maharashtra/boarding-schools/
  */
 export function placeListingPath(parts: {
   countrySlug: string;
@@ -124,7 +123,7 @@ export function placeListingPath(parts: {
     parts.citySlug,
     parts.locationSlug,
   ].filter((slug): slug is string => Boolean(slug)).map(toSeoSlug);
-  return withCategoryQuery(`/${slugs.join("/")}`, parts.category);
+  return withCategorySegment(`/${slugs.join("/")}`, parts.category);
 }
 
 /**

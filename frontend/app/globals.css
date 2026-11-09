@@ -5056,7 +5056,7 @@ select:focus-visible {
   .header-action--ghost {
     padding: 8px 10px;
   }
-}tr
+}
 
 @media (max-width: 430px) {
   .account-page {
@@ -22045,5 +22045,244 @@ select:focus-visible {
   .sa-sidebar__foot { margin-top: 0; }
   .sa-kpis, .sa-split, .sa-form-grid, .sa-inline, .sa-bars > div { grid-template-columns: 1fr; }
   .sa-top { flex-direction: column; align-items: flex-start; }
+}
+
+/* ============================================================================
+   MOBILE-FRIENDLY OVERRIDES
+   Appended last on purpose: this file contains many duplicated rules, and at
+   equal specificity the last one wins. Everything below targets public pages
+   (home, listing, school detail, compare, guides, reviews, auth and the
+   contact/legal pages).
+   ============================================================================ */
+
+/* --- 1. School listing grid -------------------------------------------------
+   Mobile  (<= 700px) : 2 cards per row
+   Tablet  (701-1200px): 3 cards per row
+   Desktop (>= 1201px) : unchanged (3 up to 1200px, 4 from 1201px)          */
+
+@media (max-width: 700px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 14px;
+  }
+
+  /* Trim the card so a half-width column still reads well. */
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__body {
+    padding: 10px;
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__title h3 {
+    font-size: 14px;
+    line-height: 1.3;
+    min-height: 2.6em;
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__location {
+    font-size: 10px;
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing .school-tag {
+    min-height: 0;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  /* Full-width, finger-sized actions so nothing can overflow the card. */
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > a.school-card__enquire,
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > a.school-card__view,
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > label.school-compare {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    padding: 8px 6px;
+    font-size: 11px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > a.school-card__enquire { grid-row: 1; }
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > label.school-compare { grid-row: 2; }
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > a.school-card__view { grid-row: 3; }
+
+  /* The Top Picks panel sits inside the card grid, so let it span both columns
+     instead of collapsing into a single half-width column. */
+  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1200px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* --- 2. Home featured cards: one per row on small phones -------------------
+   The later `max-width: 800px` rule previously forced two cramped columns.  */
+@media (max-width: 560px) {
+  .discovery-page--home .featured-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- 3. Legal / content pages (contact, about, privacy, terms, cookies,
+   grievance) previously had no styles at all, so text ran edge to edge.    */
+.legal-page {
+  width: min(880px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 28px 0 72px;
+  color: var(--ink);
+}
+
+.legal-page h1 {
+  margin: 8px 0 4px;
+  color: var(--ink);
+  font-size: clamp(26px, 5vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.legal-page .school-breadcrumbs {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.legal-page__updated {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legal-page__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+.legal-page__body h2 {
+  margin: 22px 0 0;
+  color: var(--ink);
+  font-size: clamp(18px, 3.4vw, 22px);
+  line-height: 1.3;
+}
+
+.legal-page__body h3 {
+  margin: 18px 0 0;
+  color: var(--ink);
+  font-size: clamp(16px, 3vw, 18px);
+  line-height: 1.35;
+}
+
+.legal-page__body p {
+  margin: 0;
+}
+
+.legal-page__body a {
+  color: var(--brand-strong);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.legal-page__body ul,
+.legal-page__body ol {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .legal-page {
+    width: calc(100% - 28px);
+    padding: 20px 0 56px;
+  }
+
+  .legal-page__body {
+    font-size: 15px;
+  }
+}
+
+/* --- 4. Stop iOS Safari zooming the page when a field is focused ---------- */
+@media (max-width: 700px) {
+  .field__wrap input,
+  .field__wrap select,
+  .field__wrap textarea {
+    font-size: 16px;
+  }
+}
+
+/* --- 5. Comfortable tap targets on touch screens -------------------------- */
+@media (max-width: 900px) {
+  .compare-bar__school button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .compare-matrix__school > button {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Widened to match the larger remove button so it cannot overlap the name. */
+  .compare-matrix__school {
+    grid-template-columns: 23px 48px minmax(0, 1fr) 40px;
+  }
+
+  .review-star-btn {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  .enquiry-dialog__close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .enquiry-dialog__choice {
+    min-height: 44px;
+  }
+
+  .bot-onboarding__close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .compare-matrix__label,
+  .compare-matrix__value em {
+    font-size: 11px;
+  }
+}
+
+/* --- 6. Keep the floating callback dock clear of the screen edge ---------- */
+@media (max-width: 520px) {
+  .callback-dock {
+    right: 12px;
+    bottom: 12px;
+    gap: 6px;
+  }
+}
+
+/* --- 7. Keep the onboarding pop-up inside short/landscape phone screens --- */
+@media (max-width: 700px) {
+  .bot-onboarding {
+    padding: 14px;
+  }
+
+  .bot-onboarding__modal {
+    max-height: calc(100dvh - 28px);
+    overflow-y: auto;
+  }
 }
 

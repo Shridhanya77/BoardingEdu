@@ -13,11 +13,12 @@ function profileCategory(segments: string[]): ProfileCategory | null {
 }
 
 /**
- * Canonical school profile paths:
- * - Boarding: /boarding-schools/{country}/{state}/{school}/
- * - Day: /day-schools/{country}/{state}/{city}/{school}/
+ * Canonical school profile path: /{country}/{state}/{city}/{school}/ — the
+ * school type is never a path segment, so day and boarding schools share one
+ * shape. Legacy typed forms are still parsed so they can redirect:
+ * - /boarding-schools/{country}/{state}/{school}/
+ * - /day-schools/{country}/{state}/{city}/{school}/
  * - Legacy school-first: /{school}/{city}/{state}/{country}/ or /{school}/{locality}/{city}/{state}/{country}/
- * - Legacy place-first: /{country}/{state}/{city}/{school}/ (optional locality as 5th before school in old links)
  */
 export function profileSegmentsWithoutTypeSuffix(segments: string[]): string[] {
   const last = segments[segments.length - 1]?.toLowerCase().replace(/_/g, "-");

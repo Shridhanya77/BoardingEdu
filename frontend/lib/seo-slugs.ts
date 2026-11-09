@@ -31,15 +31,17 @@ export function canonicalSchoolSlug(slug: string, schoolName = ""): string {
   return cleaned;
 }
 
+/**
+ * Canonical school profile path: /{country}/{state}/{city}/{school}/.
+ * Day and boarding schools share the same shape — the school type is never a
+ * path segment, so each school has exactly one indexable URL.
+ */
 export function schoolProfilePathFromSlugs({
   countrySlug,
   stateSlug,
   citySlug,
   schoolSlug,
   schoolName,
-  schoolTypes,
-  schoolTypeName,
-  schoolTypeNames,
 }: {
   countrySlug: string;
   stateSlug: string;
@@ -51,26 +53,11 @@ export function schoolProfilePathFromSlugs({
   schoolTypeName?: string | null;
   schoolTypeNames?: string[];
 }) {
-  const hasBoardingType = schoolTypes?.some(
-    (type) =>
-      schoolTypeCategory(type.type_code ?? "", type.slug ?? "", type.type_name ?? "") ===
-      "boarding-school",
-  );
-  const typeNames = [
-    ...(schoolTypeNames ?? []),
-    ...(schoolTypeName ? [schoolTypeName] : []),
-  ];
-  const hasBoardingTypeName = typeNames.some(
-    (name) => schoolTypeCategory("", "", name) === "boarding-school",
-  );
-  const isBoardingSchool = hasBoardingType || hasBoardingTypeName;
   const canonicalSlug = canonicalSchoolSlug(schoolSlug, schoolName);
-  const slugs = isBoardingSchool
-    ? ["boarding-schools", countrySlug, stateSlug, canonicalSlug]
-    : ["day-schools", countrySlug, stateSlug, citySlug, canonicalSlug];
+  const slugs = [countrySlug, stateSlug, citySlug, canonicalSlug];
   return withTrailingSlash(`/${slugs
     .filter((slug): slug is string => Boolean(slug))
-    .map((slug) => slug === "boarding-schools" || slug === "day-schools" ? slug : toSeoSlug(slug))
+    .map((slug) => toSeoSlug(slug))
     .join("/")}`);
 }
 
