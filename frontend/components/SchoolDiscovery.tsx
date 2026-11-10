@@ -800,7 +800,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     }
     setReviewsDialogOpen(false);
   };
-  const [citiesSectionCategory, setCitiesSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [boardsSectionCategory, setBoardsSectionCategory] = useState<HomeSchoolCategory | null>(null);
   const [selectedState, setSelectedState] = useState<StateBrowseItem | null>(null);
   const [allStatesOpen, setAllStatesOpen] = useState(false);
@@ -2918,6 +2917,19 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   countrySlug: state.country_slug,
                   stateSlug: state.state_slug,
                 })}
+                onClick={(event) => {
+                  event.preventDefault();
+                  openTypePicker({
+                    title: `Schools in ${state.state_name}`,
+                    subtitle: "Choose the school type you want to explore.",
+                    hrefFor: (category) => placeListingPath({
+                      countrySlug: state.country_slug,
+                      stateSlug: state.state_slug,
+                      category,
+                    }),
+                    showAllOption: false,
+                  });
+                }}
                 style={{ background: placeBackdrop(state.state_slug) }}
                 aria-label={`${state.state_name}, ${state.count} schools listed`}
               >
@@ -3062,10 +3074,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <h2>Top cities for school search</h2>
           </div>
           <div className="home-section__heading-actions">
-            <HomeSectionTypeSelector
-              value={citiesSectionCategory}
-              onChange={setCitiesSectionCategory}
-            />
             {citiesError && (
               <p className="section-error" role="status">
                 Cities unavailable: {citiesError}{" "}
@@ -3084,18 +3092,25 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           tabIndex={0}
         >
           {cityCards.map((city, index) => {
-            const hrefFor = (category?: HomeSchoolCategory | null) =>
-              placeListingPath({
-                countrySlug: city.country_slug ?? city.country_name,
-                stateSlug: city.state_slug ?? city.state_name,
-                citySlug: city.slug,
-                category: category ?? citiesSectionCategory,
-              });
+            const place = {
+              countrySlug: city.country_slug ?? city.country_name,
+              stateSlug: city.state_slug ?? city.state_name,
+              citySlug: city.slug,
+            };
             return (
               <Link
                 className={`city-card city-card--${index + 1}`}
                 key={city.city_id}
-                href={hrefFor(citiesSectionCategory)}
+                href={placeListingPath(place)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  openTypePicker({
+                    title: `Schools in ${city.city_name}`,
+                    subtitle: `Choose the school type you want to explore in ${city.city_name}.`,
+                    hrefFor: (category) => placeListingPath({ ...place, category }),
+                    showAllOption: false,
+                  });
+                }}
                 style={{ background: placeBackdrop(city.slug) }}
               >
                 <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
@@ -4047,7 +4062,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   key={state.state_id}
                   className="state-city-card"
                   href={placeListingPath({ countrySlug: state.country_slug, stateSlug: state.state_slug })}
-                  onClick={() => setAllStatesOpen(false)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setAllStatesOpen(false);
+                    openTypePicker({
+                      title: `Schools in ${state.state_name}`,
+                      subtitle: "Choose the school type you want to explore.",
+                      hrefFor: (category) => placeListingPath({
+                        countrySlug: state.country_slug,
+                        stateSlug: state.state_slug,
+                        category,
+                      }),
+                      showAllOption: false,
+                    });
+                  }}
                 >
                   <div className="state-city-card__heading">
                     <span className="state-city-card__icon"><MapPin size={17} aria-hidden /></span>
@@ -4100,7 +4128,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     stateSlug: city.state_slug ?? city.state_name,
                     citySlug: city.slug,
                   })}
-                  onClick={() => setAllCitiesOpen(false)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setAllCitiesOpen(false);
+                    const place = {
+                      countrySlug: city.country_slug ?? city.country_name,
+                      stateSlug: city.state_slug ?? city.state_name,
+                      citySlug: city.slug,
+                    };
+                    openTypePicker({
+                      title: `Schools in ${city.city_name}`,
+                      subtitle: `Choose the school type you want to explore in ${city.city_name}.`,
+                      hrefFor: (category) => placeListingPath({ ...place, category }),
+                      showAllOption: false,
+                    });
+                  }}
                 >
                   <div className="state-city-card__heading">
                     <span className="state-city-card__icon"><MapPin size={17} aria-hidden /></span>

@@ -25,8 +25,10 @@ school list, and exposes the audit history as read-only.
 
 Set `RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`, and `FRONTEND_URL` in the backend
 environment. `EMAIL_PROVIDER=resend` selects the Resend HTTP API; keep the API
-key on the backend only. Registration and OTP delivery require a configured
-sender. Apply migrations with `python manage.py migrate`.
+key on the backend only. `DEFAULT_FROM_EMAIL` must use a sender/domain verified
+in Resend, and `FRONTEND_URL` should be the deployed frontend origin.
+Registration and OTP delivery require a configured sender. Apply migrations
+with `python manage.py migrate`.
 
 The public verification endpoints are:
 
@@ -41,6 +43,13 @@ whether an account exists. Parent and school-admin JWT access requires verified
 email; school approval remains a separate workflow. Existing `STAFF_ADMIN` and
 `SUPER_ADMIN` permissions are not changed.
 
+A `202 Accepted` response is intentionally generic and does not guarantee that
+the provider delivered an email. Check the `EmailDelivery` record status and
+`error_code`, plus backend logs, when diagnosing delivery; provider-accepted
+emails can still bounce. If an OTP delivery is recorded as failed, a fresh code
+can be requested immediately rather than waiting through the normal resend
+cooldown.
+
 When Redis is configured, non-critical notifications use Celery. Run a worker
 alongside the web process with:
 
@@ -53,6 +62,33 @@ and bounced states. For Resend delivery/bounce callbacks, set
 `RESEND_WEBHOOK_SECRET` and configure Resend to POST its signed webhook events
 to `/api/notifications/resend-webhook/`. A provider-accepted email is not
 reported as delivered until a valid webhook event arrives.
+
+## Meilisearch school autocomplete
+
+The public school autocomplete uses Meilisearch when `MEILI_URL` is configured.
+Location suggestions continue to use the database, and school suggestions fall
+back to the database if Meilisearch is unreachable or its index is unavailable.
+School saves, deletes, and board/school-type changes update the index after the
+database transaction commits.
+
+Start the local search service from the repository root with:
+
+```powershell
+docker compose up -d meilisearch
+```
+
+Set `MEILI_URL` to `http://localhost:7700` when the backend runs on the host, or
+`http://meilisearch:7700` when it runs in the Compose network. Set
+`MEILI_MASTER_KEY` to the Meilisearch master key when authentication is enabled.
+After the backend environment is configured, build or refresh the index from
+the `backend` directory:
+
+```powershell
+python manage.py rebuild_school_search_index
+```
+
+Run this command after first deployment, after changing the index configuration,
+or if the index needs to be rebuilt. `MEILI_INDEX_UID` defaults to `schools`.
 
 ## School images
 

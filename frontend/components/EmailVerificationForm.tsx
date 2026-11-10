@@ -18,20 +18,11 @@ export default function EmailVerificationForm() {
   const initialEmail = params.get("email") ?? "";
   const [email, setEmail] = useState(initialEmail);
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
-  const [remaining, setRemaining] = useState(params.get("email") ? 60 : 0);
+  const [remaining, setRemaining] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
-
-  useEffect(() => {
-    if (!initialEmail) return;
-    emailVerification.send(initialEmail.trim()).catch((reason: unknown) => {
-      if (reason instanceof ApiError && reason.status === 429) {
-        setError("Too many requests. Please wait before requesting another code.");
-      }
-    });
-  }, [initialEmail]);
 
   useEffect(() => {
     if (remaining <= 0) return;
@@ -112,7 +103,6 @@ export default function EmailVerificationForm() {
   }
 
   const schoolAccount = params.get("account") === "school";
-  const deliveryRetry = params.get("delivery") === "retry";
 
   return (
     <main className="account-page">
@@ -136,12 +126,6 @@ export default function EmailVerificationForm() {
             must still be completed before school features are unlocked.
           </p>
         )}
-        {deliveryRetry && (
-          <p className="email-verification__notice">
-            The first email could not be delivered. You can request another code below.
-          </p>
-        )}
-
         <form className="account-form" onSubmit={onVerify}>
           {!params.get("email") && (
             <label className="field">

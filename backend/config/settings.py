@@ -495,6 +495,10 @@ RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "").strip()
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "").strip()
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "resend").strip().lower()
+MEILI_URL = os.getenv("MEILI_URL", "").strip().rstrip("/")
+MEILI_MASTER_KEY = os.getenv("MEILI_MASTER_KEY", "").strip()
+MEILI_INDEX_UID = os.getenv("MEILI_INDEX_UID", "schools").strip() or "schools"
+MEILI_TIMEOUT = 2
 
 
 # ----------------------------------------------------------------------------

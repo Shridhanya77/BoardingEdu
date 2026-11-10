@@ -203,6 +203,7 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
 
 
 class CounsellingRequestSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, allow_blank=True)
     preferred_country = serializers.PrimaryKeyRelatedField(
         queryset=Country.objects.filter(status=True),
         required=False,
@@ -216,12 +217,14 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
     preferred_cities = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=City.objects.filter(status=True),
+        required=False,
         allow_empty=True,
     )
     grades = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Grade.objects.filter(status=True),
-        allow_empty=False,
+        required=False,
+        allow_empty=True,
     )
     school_types = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -268,7 +271,16 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
         country = attrs.get("preferred_country")
         state = attrs.get("preferred_state")
         cities = attrs.get("preferred_cities", [])
-        if not cities and not state:
+        has_school_preferences = bool(
+            country
+            or state
+            or cities
+            or attrs.get("grades")
+            or attrs.get("school_types")
+            or attrs.get("boards")
+            or attrs.get("preferred_school")
+        )
+        if has_school_preferences and not cities and not state:
             raise serializers.ValidationError({
                 "preferred_state": "Choose a state or at least one city."
             })

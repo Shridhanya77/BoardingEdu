@@ -71,6 +71,27 @@ class CounsellingRequestApiTests(APITestCase):
         self.assertEqual(list(request.boards.all()), [self.board])
         self.assertEqual(list(request.school_types.all()), [self.school_type])
 
+    def test_callback_request_needs_only_a_name_and_phone_number(self):
+        response = self.client.post(
+            "/api/admissions/counselling-requests/",
+            {
+                "parent_name": "Ananya Kamath",
+                "phone": "+91 98765 43210",
+                "preferred_cities": [],
+                "grades": [],
+                "message": "Callback requested from the website.",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        request = CounsellingRequest.objects.get(reference=response.data["reference"])
+        self.assertEqual(request.parent_name, "Ananya Kamath")
+        self.assertEqual(request.phone, "919876543210")
+        self.assertEqual(request.email, "")
+        self.assertEqual(list(request.preferred_cities.all()), [])
+        self.assertEqual(list(request.grades.all()), [])
+
     def test_submission_rejects_unknown_grade_and_mismatched_city(self):
         invalid_grade = self.get_payload()
         invalid_grade["grades"] = ["00000000-0000-0000-0000-000000000000"]

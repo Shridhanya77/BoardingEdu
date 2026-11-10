@@ -20,6 +20,7 @@ from apps.geography.models import City, Location, State
 from apps.schools.models import School
 
 from .serializers import LocationSuggestionSerializer, SchoolSuggestionSerializer
+from .meilisearch import search_school_ids
 
 MIN_QUERY_LENGTH = 2
 DEFAULT_LIMIT = 8
@@ -62,6 +63,23 @@ class SuggestionView(APIView):
         })
 
     def _schools(self, query: str, limit: int):
+        indexed_ids = search_school_ids(query, limit)
+        if indexed_ids is not None:
+            queryset = (
+                School.objects.filter(status=True, school_id__in=indexed_ids)
+                .select_related("country", "state", "city", "location")
+                .prefetch_related("boards", "school_types")
+            )
+            schools_by_id = {str(school.pk): school for school in queryset}
+            ordered_schools = [
+                schools_by_id[school_id]
+                for school_id in indexed_ids
+                if school_id in schools_by_id
+            ]
+            return SchoolSuggestionSerializer(
+                ordered_schools, many=True, context={"request": self.request}
+            ).data
+
         rank = Case(
             When(school_name__istartswith=query, then=Value(0)),
             When(short_name__istartswith=query, then=Value(1)),

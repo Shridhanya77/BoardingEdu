@@ -1,25 +1,67 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import LegalPage from "@/components/legal/LegalPage";
+import { ArrowRight, Mail, Phone } from "lucide-react";
+import CallbackRequestForm from "@/components/contact/CallbackRequestForm";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Contact Us | BoardingEdu",
-  description: "Contact BoardingEdu for school search help and admission counselling.",
+  title: "Contact BoardingEdu | School Search Help",
+  description:
+    "Contact BoardingEdu by phone or email, or request a callback for school search and admission guidance.",
   path: "/contact",
 });
 
 export default function ContactPage() {
   return (
-    <LegalPage title="Contact Us" updated="3 November 2026">
-      <p>
-        Email <a href="mailto:hello@boardingedu.com">hello@boardingedu.com</a> or call
-        {" "}<a href="tel:+918046110000">+91 80-4611-0000</a>.
-      </p>
-      <p>
-        Parents can also <Link href="/counselling/">request counselling</Link>. The same form is available
-        from Get Counselling in the site header.
-      </p>
-    </LegalPage>
+    <main className="info-page contact-page">
+      <nav className="school-breadcrumbs" aria-label="Breadcrumb">
+        <Link href="/">Home</Link>
+        <span>/</span>
+        <span aria-current="page">Contact Us</span>
+      </nav>
+      <section className="info-page__hero contact-page__hero">
+        <span className="info-page__eyebrow">CONTACT BOARDINGEDU</span>
+        <h1>Let&apos;s make your school search easier.</h1>
+        <p>
+          Have a question about finding a school or using the directory? Reach
+          out to our team or leave your number and ask us to call.
+        </p>
+      </section>
+
+      <section className="contact-page__options" aria-label="Contact options">
+        <a className="contact-page__option" href="mailto:hello@boardingedu.com">
+          <span className="contact-page__option-icon" aria-hidden="true">
+            <Mail size={21} />
+          </span>
+          <span className="contact-page__option-label">EMAIL OUR TEAM</span>
+          <strong>hello@boardingedu.com</strong>
+          <span className="contact-page__option-action">
+            Send an email <ArrowRight size={15} aria-hidden="true" />
+          </span>
+        </a>
+        <a className="contact-page__option" href="tel:+918046110000">
+          <span className="contact-page__option-icon" aria-hidden="true">
+            <Phone size={21} />
+          </span>
+          <span className="contact-page__option-label">CALL US</span>
+          <strong>+91 80-4611-0000</strong>
+          <span className="contact-page__option-action">
+            Call BoardingEdu <ArrowRight size={15} aria-hidden="true" />
+          </span>
+        </a>
+      </section>
+
+      <section className="contact-page__callback" aria-label="Request a callback">
+        <div className="contact-page__callback-intro">
+          <span className="info-page__eyebrow">PREFER A CALL?</span>
+          <h2>We&apos;ll call you back.</h2>
+          <p>
+            Share just your name and phone number. Our team will follow up
+            about your school search.
+          </p>
+        </div>
+        <CallbackRequestForm titleId="contact-callback-title" />
+      </section>
+    </main>
   );
 }

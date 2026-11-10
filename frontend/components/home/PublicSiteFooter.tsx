@@ -8,7 +8,6 @@ import type {
   CityListItem,
   CountryListItem,
   LocationListItem,
-  SchoolListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
 import SiteFooterSeo from "./SiteFooterSeo";
@@ -20,7 +19,6 @@ export default function PublicSiteFooter() {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [locations, setLocations] = useState<LocationListItem[]>([]);
-  const [topSchools, setTopSchools] = useState<SchoolListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,8 +30,7 @@ export default function PublicSiteFooter() {
       geography.countries().then((page) => fetchAllPages(page)),
       schools.types().then((page) => fetchAllPages(page)),
       geography.locations().then((page) => fetchAllPages(page, 1000)),
-      schools.list({ status: true, ordering: "-average_rating", page_size: 10 }),
-    ]).then(([cityResult, boardResult, countryResult, typeResult, locationResult, schoolsResult]) => {
+    ]).then(([cityResult, boardResult, countryResult, typeResult, locationResult]) => {
       if (cancelled) return;
 
       if (cityResult.status === "fulfilled") {
@@ -65,19 +62,12 @@ export default function PublicSiteFooter() {
         setLocations(locationResult.value.filter((location) => location.status && location.slug));
       }
 
-      if (schoolsResult.status === "fulfilled") {
-        setTopSchools(schoolsResult.value.results.slice(0, 10));
-      } else {
-        setTopSchools([]);
-      }
-
       const rejected = [
         cityResult,
         boardResult,
         countryResult,
         typeResult,
         locationResult,
-        schoolsResult,
       ].filter(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
@@ -112,7 +102,6 @@ export default function PublicSiteFooter() {
       schoolTypes={schoolTypes}
       locations={locations}
       dataError={error}
-      topSchools={topSchools}
     />
   );
 }

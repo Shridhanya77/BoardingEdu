@@ -3,13 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Phone } from "lucide-react";
-import CounsellingModal from "@/components/home/CounsellingModal";
+import CallbackRequestModal from "@/components/contact/CallbackRequestModal";
 import type {
   BoardListItem,
   CityListItem,
   CountryListItem,
   LocationListItem,
-  SchoolListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
 import { INDIA_REGIONS } from "@/lib/india-regions";
@@ -26,7 +25,6 @@ type Props = {
   countries?: CountryListItem[];
   locations?: LocationListItem[];
   schoolTypes?: SchoolTypeListItem[];
-  topSchools?: SchoolListItem[];
   dataError?: string | null;
 };
 
@@ -72,7 +70,6 @@ export default function SiteFooterSeo({
   countries = [],
   locations = [],
   schoolTypes = [],
-  topSchools = [],
   dataError,
 }: Props) {
   const [callbackOpen, setCallbackOpen] = useState(false);
@@ -325,21 +322,32 @@ export default function SiteFooterSeo({
         { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
         { label: "Explore All Schools", href: schoolDirectoryPath() },
         { label: "Compare Schools", href: "/compare/" },
+      ],
+    },
+    {
+      title: "About BoardingEdu",
+      links: [
         { label: "About Us", href: "/about/" },
         { label: "Contact Us", href: "/contact/" },
+        { label: "Privacy Policy", href: "/privacy/" },
+        { label: "Terms of Use", href: "/terms/" },
       ],
     },
   ];
-  void schoolTypeLinks;
-  void boardGroups;
-  void locationGroups;
-  void topSchools;
+  const directoryGroups = [
+    ...footerGroups,
+    ...(schoolTypeLinks.length
+      ? [{ title: "Browse School Types", links: schoolTypeLinks }]
+      : []),
+    ...locationGroups,
+    ...boardGroups,
+  ];
 
   return (
     <footer className="seo-footer seo-footer--directory" id="sitemap">
       {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-      <nav className="seo-footer__directory" aria-label="Popular school searches">
-        {footerGroups.map((group) => (
+      <nav className="seo-footer__directory" aria-label="School directory and popular searches">
+        {directoryGroups.filter((group) => group.links.length > 0).map((group) => (
           <section key={group.title}>
             <h2>{group.title}</h2>
             <ul>
@@ -369,7 +377,7 @@ export default function SiteFooterSeo({
           Request a Callback
         </button>
       </div>
-      {callbackOpen && <CounsellingModal onClose={() => setCallbackOpen(false)} />}
+      <CallbackRequestModal isOpen={callbackOpen} onClose={() => setCallbackOpen(false)} />
     </footer>
   );
 }

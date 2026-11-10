@@ -154,10 +154,19 @@ def issue_and_send_otp(user, *, enforce_cooldown=False):
         if locked_user.is_email_verified:
             return False
         latest = EmailOTP.objects.filter(user=locked_user).first()
+        failed_delivery = False
+        if latest:
+            failed_delivery = EmailDelivery.objects.filter(
+                recipient=locked_user.email.strip().lower(),
+                notification_type="email_verification_otp",
+                created_at__gte=latest.created_at,
+                status=EmailDelivery.Status.FAILED,
+            ).exists()
         if (
             enforce_cooldown
             and latest
             and timezone.now() - latest.created_at < OTP_RESEND_COOLDOWN
+            and not failed_delivery
         ):
             return False
         email = locked_user.email.strip().lower()

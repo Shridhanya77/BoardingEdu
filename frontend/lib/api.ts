@@ -724,7 +724,7 @@ export type EnquiryListItem = {
 
 export type CounsellingRequestInput = {
   parent_name: string;
-  email: string;
+  email?: string;
   phone: string;
   home_city?: string;
   preferred_country?: string;

@@ -275,7 +275,7 @@ class CounsellingRequest(models.Model):
     request_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     reference = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     parent_name = models.CharField(max_length=150)
-    email = models.EmailField()
+    email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30)
     home_city = models.CharField(max_length=100, blank=True)
     preferred_country = models.ForeignKey(

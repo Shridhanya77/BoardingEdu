@@ -130,6 +130,34 @@ class EmailVerificationTests(TestCase):
 
         self.assertEqual(EmailOTP.objects.filter(user=self.parent).count(), 1)
 
+    def test_failed_delivery_can_be_retried_before_the_cooldown(self):
+        patcher, provider = self.mock_provider()
+        provider.send.side_effect = [
+            EmailDeliveryError("provider_temporary_error"),
+            "resend-message-id",
+        ]
+        with patcher:
+            with self.assertRaises(EmailDeliveryError):
+                issue_and_send_otp(self.parent)
+
+            self.assertTrue(resend_otp_for_email(self.parent.email))
+
+        self.assertEqual(EmailOTP.objects.filter(user=self.parent).count(), 2)
+        self.assertEqual(
+            EmailDelivery.objects.filter(
+                notification_type="email_verification_otp",
+                status=EmailDelivery.Status.FAILED,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            EmailDelivery.objects.filter(
+                notification_type="email_verification_otp",
+                status=EmailDelivery.Status.ACCEPTED,
+            ).count(),
+            1,
+        )
+
     def test_resend_after_cooldown_invalidates_the_previous_code(self):
         patcher, provider = self.mock_provider()
         with patcher:
