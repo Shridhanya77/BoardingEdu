@@ -9,67 +9,9 @@ from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .serializers import EmailOTPRequestSerializer, EmailOTPVerifySerializer
-from .email_provider import EmailDeliveryError
 from .models import EmailDelivery
-from .services import resend_otp_for_email, verify_otp_for_email
-from .throttles import OTPEmailThrottle
-
-GENERIC_OTP_RESPONSE = {
-    "detail": "If the account can be verified, an email with further instructions will be sent."
-}
-GENERIC_VERIFY_ERROR = {"detail": "The verification code is invalid or expired."}
-
-
-class OTPAPIView(APIView):
-    permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle, OTPEmailThrottle]
-
-
-class SendOTPView(OTPAPIView):
-    throttle_scope = "otp_send"
-
-    def post(self, request):
-        serializer = EmailOTPRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            resend_otp_for_email(serializer.validated_data["email"])
-        except EmailDeliveryError:
-            return Response(GENERIC_OTP_RESPONSE, status=status.HTTP_202_ACCEPTED)
-        return Response(GENERIC_OTP_RESPONSE, status=status.HTTP_202_ACCEPTED)
-
-
-class ResendOTPView(OTPAPIView):
-    throttle_scope = "otp_send"
-
-    def post(self, request):
-        serializer = EmailOTPRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            resend_otp_for_email(serializer.validated_data["email"])
-        except EmailDeliveryError:
-            return Response(GENERIC_OTP_RESPONSE, status=status.HTTP_202_ACCEPTED)
-        return Response(GENERIC_OTP_RESPONSE, status=status.HTTP_202_ACCEPTED)
-
-
-class VerifyOTPView(OTPAPIView):
-    throttle_scope = "otp_verify"
-
-    def post(self, request):
-        serializer = EmailOTPVerifySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if not verify_otp_for_email(
-            serializer.validated_data["email"],
-            serializer.validated_data["otp"],
-        ):
-            return Response(GENERIC_VERIFY_ERROR, status=status.HTTP_400_BAD_REQUEST)
-        return Response(
-            {"detail": "Email verified successfully."},
-            status=status.HTTP_200_OK,
-        )
 
 
 def _verify_resend_webhook_signature(request):

@@ -21,36 +21,23 @@ and timestamp. Generic school edits cannot change the verification status.
 The Django admin has a paginated pending-verification queue linked from the
 school list, and exposes the audit history as read-only.
 
-## Email verification and notifications
+## Transactional email notifications
 
 Set `RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`, and `FRONTEND_URL` in the backend
 environment. `EMAIL_PROVIDER=resend` selects the Resend HTTP API; keep the API
 key on the backend only. `DEFAULT_FROM_EMAIL` must use a sender/domain verified
-in Resend, and `FRONTEND_URL` should be the deployed frontend origin.
-Registration and OTP delivery require a configured sender. Apply migrations
-with `python manage.py migrate`.
+in Resend, and `FRONTEND_URL` should be the deployed frontend origin. Email
+delivery is used for transactional notifications, not account registration.
+Parent and school-admin accounts can sign in without email OTP verification;
+school approval remains a separate workflow. Apply migrations with
+`python manage.py migrate`.
 
-The public verification endpoints are:
+Delivery records distinguish pending, provider-accepted, delivered, failed,
+and bounced states. Check the `EmailDelivery` record status and `error_code`,
+plus backend logs, when diagnosing notification delivery; provider-accepted
+emails can still bounce.
 
-- `POST /api/notifications/send-otp/` and `/api/notifications/resend-otp/`
-  with `{"email":"parent@example.com"}`
-- `POST /api/notifications/verify-otp/` with
-  `{"email":"parent@example.com","otp":"123456"}`
-
-Verification codes expire after five minutes, are single-use, and are stored
-only as keyed hashes. Send/resend responses intentionally do not disclose
-whether an account exists. Parent and school-admin JWT access requires verified
-email; school approval remains a separate workflow. Existing `STAFF_ADMIN` and
-`SUPER_ADMIN` permissions are not changed.
-
-A `202 Accepted` response is intentionally generic and does not guarantee that
-the provider delivered an email. Check the `EmailDelivery` record status and
-`error_code`, plus backend logs, when diagnosing delivery; provider-accepted
-emails can still bounce. If an OTP delivery is recorded as failed, a fresh code
-can be requested immediately rather than waiting through the normal resend
-cooldown.
-
-When Redis is configured, non-critical notifications use Celery. Run a worker
+When Redis is configured, notifications use Celery. Run a worker
 alongside the web process with:
 
 ```powershell

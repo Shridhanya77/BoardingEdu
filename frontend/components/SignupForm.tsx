@@ -86,14 +86,8 @@ export default function SignupForm() {
     setSubmitting(true);
     try {
       await register({ ...form, email: form.email.trim(), phone: normalizedPhone });
-      router.push(`/verify-email?email=${encodeURIComponent(form.email.trim())}`);
+      router.push("/login?registered=parent");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 503) {
-        router.push(
-          `/verify-email?email=${encodeURIComponent(form.email.trim())}&delivery=retry`,
-        );
-        return;
-      }
       if (err instanceof ApiError) setApiErr(err);
       setFormError(
         err instanceof ApiError

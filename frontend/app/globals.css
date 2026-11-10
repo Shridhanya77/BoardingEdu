@@ -4122,69 +4122,7 @@ select:focus-visible {
   font-weight: 650;
 }
 
-.email-verification__icon {
-  width: 52px;
-  height: 52px;
-  margin-bottom: 18px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  color: #0b5f8a;
-  background: #eaf5fa;
-}
-
-.email-verification__copy,
-.email-verification__notice {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.email-verification__notice {
-  padding: 11px 13px;
-  border-left: 3px solid #e8a317;
-  background: #fff9e9;
-}
-
-.email-verification__digits {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.email-verification__digits input {
-  width: 100%;
-  min-width: 0;
-  height: 52px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: #0b5f8a;
-  font-size: 22px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.email-verification__digits input:focus {
-  border-color: #0b5f8a;
-  outline: 2px solid rgb(11 95 138 / 15%);
-}
-
-.email-verification__resend {
-  border: 0;
-  padding: 0;
-  color: #b65716;
-  background: transparent;
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.email-verification__resend:disabled {
-  color: var(--muted);
-  cursor: not-allowed;
-}
-
-.email-verification__success {
+.account-status__success {
   padding: 10px 12px;
   border-radius: 8px;
   color: #14532d;

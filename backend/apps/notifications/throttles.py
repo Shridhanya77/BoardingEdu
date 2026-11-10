@@ -3,8 +3,8 @@ import hashlib
 from rest_framework.throttling import SimpleRateThrottle
 
 
-class OTPEmailThrottle(SimpleRateThrottle):
-    scope = "otp_email"
+class RegistrationEmailThrottle(SimpleRateThrottle):
+    scope = "registration_email"
 
     def get_cache_key(self, request, view):
         email = request.data.get("email", "")

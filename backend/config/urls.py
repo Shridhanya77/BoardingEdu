@@ -35,10 +35,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
     TokenBlacklistView,
 )
-from apps.users.serializers import (
-    EmailOrUsernameTokenObtainPairSerializer,
-    EmailVerifiedTokenRefreshSerializer,
-)
+from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
 from .health import healthz, readyz
 from .admin_dashboard import install_admin_dashboard
 from .school_media import serve_day_school_media, serve_school_media
@@ -49,10 +46,6 @@ install_admin_dashboard()
 
 class EmailOrUsernameTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
-
-
-class EmailVerifiedTokenRefreshView(TokenRefreshView):
-    serializer_class = EmailVerifiedTokenRefreshSerializer
 
 
 def root_redirect_view(request):
@@ -126,7 +119,7 @@ urlpatterns = [
     ),
     path(
         "api/auth/jwt/token/refresh/",
-        EmailVerifiedTokenRefreshView.as_view(),
+        TokenRefreshView.as_view(),
         name="token_refresh",
     ),
     path(

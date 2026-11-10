@@ -257,8 +257,6 @@ export type UserDetail = {
   role_display: string;
   phone: string;
   is_active: boolean;
-  is_email_verified: boolean;
-  email_verified_at: string | null;
   is_staff: boolean;
   date_joined: string;
   last_login: string | null;
@@ -286,24 +284,6 @@ export const users = {
     request<{ detail: string }>("/users/users/register/", {
       method: "POST",
       body: JSON.stringify(payload),
-    }),
-};
-
-export const emailVerification = {
-  send: (email: string) =>
-    request<{ detail: string }>("/notifications/send-otp/", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    }),
-  verify: (email: string, otp: string) =>
-    request<{ detail: string }>("/notifications/verify-otp/", {
-      method: "POST",
-      body: JSON.stringify({ email, otp }),
-    }),
-  resend: (email: string) =>
-    request<{ detail: string }>("/notifications/resend-otp/", {
-      method: "POST",
-      body: JSON.stringify({ email }),
     }),
 };
 

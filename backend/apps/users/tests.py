@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 from apps.admissions.models import AdmissionEnquiry
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
+from apps.notifications.models import EmailDelivery
 from apps.schools.models import School
 from apps.users.models import SchoolAdminProfile, User
 
@@ -56,7 +57,6 @@ class PendingSchoolAdminLoginTests(TestCase):
             username="pending-school-admin",
             password="secret-pass",
             role=User.ROLE_SCHOOL_ADMIN,
-            is_email_verified=True,
         )
         admin = User.objects.get(username="pending-school-admin")
         SchoolAdminProfile.objects.create(user=admin, school=school, designation="Principal")
@@ -69,6 +69,13 @@ class PendingSchoolAdminLoginTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("access", response.data)
+        refreshed = APIClient().post(
+            "/api/auth/jwt/token/refresh/",
+            {"refresh": response.data["refresh"]},
+            format="json",
+        )
+        self.assertEqual(refreshed.status_code, 200, refreshed.data)
+        self.assertIn("access", refreshed.data)
 
 
 class SchoolAdminBackendLoginTests(TestCase):
@@ -102,7 +109,6 @@ class SchoolAdminBackendLoginTests(TestCase):
         user = User.objects.create_user(
             username="backend-school-admin",
             email="principal@own-admin.test",
-            is_email_verified=True,
             password="secret-pass",
             role=User.ROLE_SCHOOL_ADMIN,
         )
@@ -219,3 +225,32 @@ class PlatformAdminPanelTests(TestCase):
         self.assertContains(schools, "office@srisri.test")
         self.assertContains(schools, "Edit school")
         self.assertContains(schools, "View profile")
+
+
+class ParentRegistrationWithoutEmailVerificationTests(TestCase):
+    def test_registration_creates_account_without_sending_otp_and_allows_login(self):
+        client = APIClient()
+        registration = client.post(
+            "/api/users/users/register/",
+            {
+                "username": "parent-no-otp",
+                "email": "parent-no-otp@example.test",
+                "first_name": "Parent",
+                "last_name": "No OTP",
+                "phone": "+919876543210",
+                "password": "secret-pass",
+                "password_confirm": "secret-pass",
+            },
+            format="json",
+        )
+
+        self.assertEqual(registration.status_code, 201, registration.data)
+        self.assertEqual(EmailDelivery.objects.count(), 0)
+
+        login = client.post(
+            "/api/auth/jwt/token/",
+            {"username": "parent-no-otp", "password": "secret-pass"},
+            format="json",
+        )
+        self.assertEqual(login.status_code, 200, login.data)
+        self.assertIn("access", login.data)

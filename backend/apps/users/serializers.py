@@ -1,14 +1,11 @@
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import update_last_login
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import (
     TokenObtainPairSerializer,
     TokenObtainSerializer,
-    TokenRefreshSerializer,
 )
 from rest_framework_simplejwt.settings import api_settings
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 
 from apps.contact_validation import normalize_phone_number
@@ -36,16 +33,6 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         TokenObtainSerializer.validate(self, attrs)
 
-        if (
-            self.user.role in {UserModel.ROLE_PARENT, UserModel.ROLE_SCHOOL_ADMIN}
-            and not self.user.is_superuser
-            and not self.user.is_email_verified
-        ):
-            raise AuthenticationFailed(
-                "Email verification is required before signing in.",
-                code="email_not_verified",
-            )
-
         user = self.user
         if user.role == UserModel.ROLE_SCHOOL_ADMIN:
             try:
@@ -62,32 +49,6 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
         if api_settings.UPDATE_LAST_LOGIN:
             update_last_login(None, user)
         return data
-
-
-class EmailVerifiedTokenRefreshSerializer(TokenRefreshSerializer):
-    def validate(self, attrs):
-        try:
-            refresh = RefreshToken(attrs["refresh"])
-        except TokenError as exc:
-            raise InvalidToken(str(exc)) from exc
-
-        user_id = refresh.payload.get(api_settings.USER_ID_CLAIM)
-        user = UserModel.objects.filter(
-            **{api_settings.USER_ID_FIELD: user_id}
-        ).first()
-        if (
-            user
-            and user.role in {UserModel.ROLE_PARENT, UserModel.ROLE_SCHOOL_ADMIN}
-            and not user.is_superuser
-            and not user.is_email_verified
-        ):
-            raise AuthenticationFailed(
-                "Email verification is required before signing in.",
-                code="email_not_verified",
-            )
-        return super().validate(attrs)
-
-
 # ======================================================================
 # USER — LIST SERIALIZER
 # ======================================================================
@@ -112,8 +73,6 @@ class UserListSerializer(serializers.ModelSerializer):
             "role_display",
             "phone",
             "is_active",
-            "is_email_verified",
-            "email_verified_at",
             "date_joined",
         ]
 
@@ -160,8 +119,6 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "role_display",
             "phone",
             "is_active",
-            "is_email_verified",
-            "email_verified_at",
             "is_staff",
             "date_joined",
             "last_login",
@@ -176,8 +133,6 @@ class UserDetailSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "role",
-            "is_email_verified",
-            "email_verified_at",
             "is_staff",
             "date_joined",
             "last_login",
@@ -285,17 +240,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
-        email_changed = (
-            "email" in validated_data
-            and validated_data["email"].strip().lower() != instance.email.strip().lower()
-        )
-
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        if email_changed:
-            instance.is_email_verified = False
-            instance.email_verified_at = None
         if password:
             instance.set_password(password)
 

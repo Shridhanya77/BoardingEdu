@@ -125,7 +125,7 @@ type AuthContextValue =
   & {
     /** Log in via username + password. Stores tokens, loads /me user. */
     login: (username: string, password: string) => Promise<UserDetail>;
-    /** Register a Parent user; email verification is required before login. */
+    /** Register a Parent user; the account can sign in immediately. */
     register: (payload: RegisterInput) => Promise<void>;
     /**
      * Register a school. The account stays inactive until an admin verifies the

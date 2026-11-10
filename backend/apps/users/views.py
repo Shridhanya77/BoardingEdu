@@ -1,5 +1,3 @@
-import logging
-
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.permissions import (
@@ -7,13 +5,11 @@ from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
 )
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
-from apps.notifications.email_provider import EmailDeliveryError
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from rest_framework.exceptions import ValidationError
+from apps.notifications.throttles import RegistrationEmailThrottle
 
 from .models import (
     User,
@@ -33,9 +29,6 @@ from .serializers import (
     StaffAdminProfileListSerializer,
     StaffAdminProfileDetailSerializer,
 )
-
-logger = logging.getLogger(__name__)
-
 
 # ============================================================
 # BASE READ/WRITE VIEWSET
@@ -111,10 +104,7 @@ class UserViewSet(ReadWriteModelViewSet):
 
     def get_throttles(self):
         if self.action == "register":
-            from apps.notifications.throttles import OTPEmailThrottle
-
-            self.throttle_scope = "otp_send"
-            return [ScopedRateThrottle(), OTPEmailThrottle()]
+            return [RegistrationEmailThrottle()]
         return super().get_throttles()
 
     def get_serializer_class(self):
@@ -143,34 +133,11 @@ class UserViewSet(ReadWriteModelViewSet):
         user and its ParentProfile where appropriate.
         """
         serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError:
-            submitted_email = request.data.get("email")
-            if (
-                isinstance(submitted_email, str)
-                and submitted_email.strip()
-                and User.objects.filter(email__iexact=submitted_email.strip()).exists()
-            ):
-                return Response(
-                    {"detail": "If this email can be registered, a verification code will be sent."},
-                    status=status.HTTP_202_ACCEPTED,
-                )
-            raise
-        user = serializer.save()
-        from apps.notifications.services import issue_and_send_otp
-
-        try:
-            issue_and_send_otp(user)
-        except EmailDeliveryError as exc:
-            logger.warning(
-                "Parent registration verification email failed",
-                extra={"user_id": user.pk, "error_code": exc.error_code},
-            )
-
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(
-            {"detail": "If this email can be registered, a verification code will be sent."},
-            status=status.HTTP_202_ACCEPTED,
+            {"detail": "Registration complete. You can now sign in."},
+            status=status.HTTP_201_CREATED,
         )
 
     # --------------------------------------------------------

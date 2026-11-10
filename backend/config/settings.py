@@ -396,7 +396,9 @@ if DEBUG:
     _renderers.append('rest_framework.renderers.BrowsableAPIRenderer')
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('apps.users.authentication.EmailVerificationJWTAuthentication',),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',),
     'DEFAULT_RENDERER_CLASSES': _renderers,
     'DEFAULT_PAGINATION_CLASS': 'config.pagination.BoardingEduCursorPagination',
@@ -412,9 +414,7 @@ REST_FRAMEWORK = {
         'counselling': '5/hour',
         'review': '10/hour',
         'enquiry': '10/hour',
-        'otp_send': '10/hour',
-        'otp_verify': '20/hour',
-        'otp_email': '5/hour',
+        'registration_email': '10/hour',
     },
 }
 

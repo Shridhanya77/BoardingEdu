@@ -5,7 +5,6 @@ from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.db.models import (
@@ -526,10 +525,9 @@ class SchoolViewSet(ReadWriteModelViewSet):
 
     def get_throttles(self):
         if self.action == "register":
-            from apps.notifications.throttles import OTPEmailThrottle
+            from apps.notifications.throttles import RegistrationEmailThrottle
 
-            self.throttle_scope = "otp_send"
-            return [ScopedRateThrottle(), OTPEmailThrottle()]
+            return [RegistrationEmailThrottle()]
         return super().get_throttles()
 
     @action(detail=False, methods=['get', 'patch'], url_path='mine')
@@ -568,47 +566,11 @@ class SchoolViewSet(ReadWriteModelViewSet):
         verify the school before that login can obtain a token.
         """
         serializer = SchoolRegistrationSerializer(data=request.data)
-        from rest_framework.exceptions import ValidationError
-
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError:
-            from django.contrib.auth import get_user_model
-
-            submitted_email = request.data.get("email")
-            if (
-                isinstance(submitted_email, str)
-                and submitted_email.strip()
-                and get_user_model().objects.filter(
-                    email__iexact=submitted_email.strip()
-                ).exists()
-            ):
-                return Response(
-                    {"detail": "If this email can be registered, a verification code will be sent."},
-                    status=202,
-                )
-            raise
-        school = serializer.save()
-        from apps.notifications.email_provider import EmailDeliveryError
-        from apps.notifications.services import issue_and_send_otp
-        from apps.users.models import SchoolAdminProfile
-
-        school_admin = SchoolAdminProfile.objects.select_related("user").get(
-            school=school
-        )
-        try:
-            issue_and_send_otp(school_admin.user)
-        except EmailDeliveryError as exc:
-            logger.warning(
-                "School registration verification email failed",
-                extra={
-                    "school_id": str(school.school_id),
-                    "error_code": exc.error_code,
-                },
-            )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(
-            {"detail": "If this email can be registered, a verification code will be sent."},
-            status=202,
+            {"detail": "School registration complete. You can now sign in."},
+            status=201,
         )
 
     @action(detail=False, methods=['get'], url_path='verification-queue')
