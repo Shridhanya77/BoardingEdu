@@ -154,6 +154,15 @@ class AdmissionEnquiryViewSet(viewsets.ModelViewSet):
         "child__name",
     ]
 
+    def get_search_fields(self, request):
+        from apps.subscriptions.access import current_subscription
+
+        if getattr(request.user, "role", None) == User.ROLE_SCHOOL_ADMIN:
+            school = getattr(getattr(request.user, "school_admin_profile", None), "school", None)
+            if current_subscription(school) is None:
+                return ["enquiry_code", "source", "status", "applying_for_grade__grade_name"]
+        return self.search_fields
+
     filterset_fields = [
         "school",
         "status",

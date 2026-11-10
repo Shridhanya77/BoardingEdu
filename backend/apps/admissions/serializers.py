@@ -30,6 +30,27 @@ class ChildSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['child_id', 'created_at', 'updated_at']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if getattr(user, "role", None) != "SCHOOL_ADMIN":
+            return data
+        from apps.subscriptions.access import viewer_can_see_contacts
+        from .models import AdmissionEnquiry
+
+        own_school_id = getattr(getattr(user, "school_admin_profile", None), "school_id", None)
+        enquiries = AdmissionEnquiry.objects.filter(child=instance, school_id=own_school_id)
+        if any(viewer_can_see_contacts(user, enquiry) for enquiry in enquiries[:30]):
+            return data
+        data["name"] = ""
+        data["dob"] = None
+        data["gender"] = ""
+        data["parent_profile"] = None
+        data["parent_profile_user_username"] = ""
+        data["parent_profile_user_email"] = ""
+        return data
+
 
 class AdmissionEnquirySerializer(serializers.ModelSerializer):
     enquiry_id = serializers.UUIDField(read_only=True)
@@ -97,6 +118,34 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
             except Exception:
                 return None
         return obj.guest_child_name or None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if getattr(user, "role", None) != "SCHOOL_ADMIN":
+            return data
+        from apps.subscriptions.access import viewer_can_see_contacts
+
+        if viewer_can_see_contacts(user, instance):
+            data["contacts_locked"] = False
+            return data
+        for field in (
+            "parent_username",
+            "child_display_name",
+            "message",
+            "guest_full_name",
+            "guest_email",
+            "guest_phone",
+            "guest_child_name",
+            "guest_child_gender",
+        ):
+            data[field] = ""
+        data["guest_child_dob"] = None
+        data["parent_profile"] = None
+        data["child"] = None
+        data["contacts_locked"] = True
+        return data
 
     def validate_parent_phone(self, value):
         return normalize_phone_number(value)

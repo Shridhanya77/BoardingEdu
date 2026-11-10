@@ -22290,7 +22290,7 @@ select:focus-visible {
   flex-direction: column;
   gap: 18px;
   padding: 22px 14px;
-  background: #0b2744;
+  background: #0b5f8a;
   color: #fff;
 }
 .sa-brand strong { display: block; font-size: 1.05rem; }
@@ -22311,7 +22311,7 @@ select:focus-visible {
   cursor: pointer;
 }
 .sa-sidebar button.is-active,
-.sa-sidebar button:hover { background: #0b5f8a; color: #fff; }
+.sa-sidebar button:hover { background: #e8a317; color: #1c2430; }
 .sa-sidebar__foot { margin-top: auto; display: flex; flex-direction: column; gap: 8px; color: #d5e4f2; font-size: 0.85rem; }
 .sa-main { padding: 28px 28px 64px; min-width: 0; }
 .sa-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: 18px; }

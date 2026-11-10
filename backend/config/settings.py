@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'apps.schools.apps.SchoolsConfig',
     'apps.fees.apps.FeesConfig',
     'apps.admissions.apps.AdmissionsConfig',
+    'apps.subscriptions.apps.SubscriptionsConfig',
     'apps.users.apps.UsersConfig',
     'apps.notifications.apps.NotificationsConfig',
     'apps.search.apps.SearchConfig',
@@ -351,6 +352,9 @@ def _trust_https_origin(host):
 
 # Public site used by "View profile" in the platform admin.
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://www.boardingedu.com").rstrip("/")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
 
 # Django admin login is a browser POST. Railway's public domain has to be
 # trusted or a correct password is rejected before the session starts.

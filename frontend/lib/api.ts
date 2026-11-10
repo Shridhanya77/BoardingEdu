@@ -1024,11 +1024,47 @@ export type DashboardEnquiry = {
   priority: EnquiryPriority;
   created_at: string;
   school_name: string;
+  source: string;
+  grade_name: string;
+  academic_year: string;
+  contacts_locked: boolean;
   parent_name: string;
   parent_email: string;
   parent_phone: string;
   child_name: string;
   message: string;
+};
+
+export type SubscriptionPlanOffer = {
+  plan_id: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  duration_days: number;
+  lead_access: boolean;
+  lead_quota: number | null;
+};
+
+export type SubscriptionSummary = {
+  active: boolean;
+  status: string;
+  plan_name: string;
+  plan_id: string | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  lead_access: boolean;
+  lead_quota: number | null;
+};
+
+export type SubscriptionPaymentRow = {
+  payment_id: string;
+  plan_name: string;
+  amount: string;
+  currency: string;
+  status: string;
+  created_at: string;
+  verified_at: string | null;
 };
 
 export type PendingSchool = {
@@ -1186,6 +1222,7 @@ export type SchoolDashboardData = {
   };
   enquiry_status: Record<string, number>;
   recent_enquiries: DashboardEnquiry[];
+  subscription: SubscriptionSummary;
 };
 
 export type SchoolPortalData = {
@@ -1424,6 +1461,34 @@ export const dashboards = {
       body: JSON.stringify({ school_id: schoolId }),
     }),
   admin: () => authRequest<AdminDashboardData>("/dashboards/admin/"),
-  staffAdmin: () =>
-    authRequest<StaffAdminDashboardData>("/dashboards/staff-admin/"),
+  staffAdmin: () => authRequest<StaffAdminDashboardData>("/dashboards/staff-admin/"),
+};
+
+export const subscriptions = {
+  plans: () => authRequest<SubscriptionPlanOffer[]>("/subscriptions/plans/"),
+  mine: () =>
+    authRequest<{ subscription: SubscriptionSummary; payments: SubscriptionPaymentRow[] }>(
+      "/subscriptions/mine/",
+    ),
+  order: (planId: string) =>
+    authRequest<{
+      payment_id: string;
+      key_id: string;
+      provider_order_id: string;
+      amount_paise: number;
+      currency: string;
+      plan: SubscriptionPlanOffer;
+    }>("/subscriptions/orders/", {
+      method: "POST",
+      body: JSON.stringify({ plan_id: planId }),
+    }),
+  verify: (payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) =>
+    authRequest<{ subscription: SubscriptionSummary }>("/subscriptions/verify/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

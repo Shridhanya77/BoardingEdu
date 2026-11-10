@@ -32,32 +32,48 @@ def _status_counts(queryset, field, choices):
     return {code: lookup.get(code, 0) for code, _label in choices}
 
 
-def _enquiry_row(enquiry):
-    return {
+def _enquiry_row(enquiry, include_contacts=True):
+    child_name = ""
+    if enquiry.child_id:
+        try:
+            child_name = enquiry.child.name
+        except Exception:
+            child_name = ""
+    if not child_name:
+        child_name = enquiry.guest_child_name
+    parent_name = ""
+    parent_email = ""
+    parent_phone = ""
+    if enquiry.parent_profile_id:
+        try:
+            user = enquiry.parent_profile.user
+            parent_name = user.get_full_name().strip() or user.username
+            parent_email = user.email
+            parent_phone = user.phone
+        except Exception:
+            parent_name = ""
+    else:
+        parent_name = enquiry.guest_full_name
+        parent_email = enquiry.guest_email
+        parent_phone = enquiry.guest_phone
+    row = {
         "enquiry_id": str(enquiry.enquiry_id),
         "enquiry_code": enquiry.enquiry_code,
         "status": enquiry.status,
         "priority": enquiry.priority,
         "created_at": enquiry.created_at,
         "school_name": enquiry.school.school_name if enquiry.school_id else "",
-        "parent_name": (
-            enquiry.parent_profile.user.get_full_name().strip()
-            if enquiry.parent_profile_id
-            else enquiry.guest_full_name
-        ),
-        "parent_email": (
-            enquiry.parent_profile.user.email
-            if enquiry.parent_profile_id
-            else enquiry.guest_email
-        ),
-        "parent_phone": (
-            enquiry.parent_profile.user.phone
-            if enquiry.parent_profile_id
-            else enquiry.guest_phone
-        ),
-        "child_name": enquiry.guest_child_name,
-        "message": enquiry.message,
+        "source": enquiry.source,
+        "grade_name": enquiry.applying_for_grade.grade_name if enquiry.applying_for_grade_id else "",
+        "academic_year": enquiry.academic_year.year_code if enquiry.academic_year_id else "",
+        "contacts_locked": not include_contacts,
+        "parent_name": parent_name if include_contacts else "",
+        "parent_email": parent_email if include_contacts else "",
+        "parent_phone": parent_phone if include_contacts else "",
+        "child_name": child_name if include_contacts else "",
+        "message": enquiry.message if include_contacts else "",
     }
+    return row
 
 
 def _school_admin_school(user):
@@ -113,19 +129,22 @@ class SchoolDashboardView(APIView):
 
         enquiries = AdmissionEnquiry.objects.filter(school=school)
         reviews = Review.objects.filter(school=school)
+        from apps.subscriptions.access import subscription_summary, viewer_can_see_contacts
+
         verified = school.verification_status == "VERIFIED"
 
         def enquiry_rows():
+            rows = enquiries.select_related(
+                "school", "parent_profile__user", "child", "applying_for_grade", "academic_year"
+            ).order_by("-created_at")[:100]
             return [
-                _enquiry_row(row)
-                for row in enquiries.select_related(
-                    "school", "parent_profile__user"
-                ).order_by("-created_at")[:12]
+                _enquiry_row(row, include_contacts=viewer_can_see_contacts(request.user, row))
+                for row in rows
             ]
 
         payload = build_school_admin_payload(
             request.user,
-            enquiry_rows if verified else None,
+            enquiry_rows,
         )
         if payload is None:
             return Response(
@@ -143,11 +162,10 @@ class SchoolDashboardView(APIView):
                 value=Avg("rating")
             )["value"],
         }
-        payload["enquiry_status"] = (
-            _status_counts(enquiries, "status", AdmissionEnquiry.STATUS_CHOICES)
-            if verified
-            else {}
+        payload["enquiry_status"] = _status_counts(
+            enquiries, "status", AdmissionEnquiry.STATUS_CHOICES
         )
+        payload["subscription"] = subscription_summary(school)
         return Response(payload)
 
 
@@ -174,7 +192,11 @@ class SchoolEnquiryStatusView(APIView):
             return Response({"detail": "Enquiry not found."}, status=404)
         enquiry.status = status
         enquiry.save(update_fields=["status", "updated_at"])
-        return Response(_enquiry_row(enquiry))
+        from apps.subscriptions.access import viewer_can_see_contacts
+
+        return Response(
+            _enquiry_row(enquiry, include_contacts=viewer_can_see_contacts(request.user, enquiry))
+        )
 
 
 class ParentShortlistView(APIView):

@@ -143,6 +143,7 @@ urlpatterns = [
     path("api/notifications/", include("apps.notifications.urls", namespace="notifications")),
     # ===== Admissions App =====
     path("api/admissions/", include("apps.admissions.urls", namespace="admissions")),
+    path("api/subscriptions/", include("apps.subscriptions.urls", namespace="subscriptions")),
     # ===== Reviews App =====
     path("api/reviews/", include("apps.reviews.urls", namespace="reviews")),
     # ===== Search App (public autocomplete) =====

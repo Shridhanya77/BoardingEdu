@@ -314,15 +314,18 @@ def school_workspace(request):
         row["status"]: row["total"]
         for row in leads.values("status").annotate(total=Count("pk"))
     }
+    from apps.subscriptions.access import viewer_can_see_contacts
+
     recent = []
     for lead in leads.select_related(
         "applying_for_grade", "parent_profile__user"
     ).order_by("-created_at")[:8]:
+        open_contacts = viewer_can_see_contacts(request.user, lead)
         recent.append({
             "url": reverse("admin:admissions_admissionenquiry_change", args=[lead.pk]),
             "code": lead.enquiry_code,
-            "parent": _lead_parent_name(lead),
-            "contact": _lead_contact(lead),
+            "parent": _lead_parent_name(lead) if open_contacts else "Locked",
+            "contact": _lead_contact(lead) if open_contacts else "Subscription required",
             "grade": lead.applying_for_grade.grade_name if lead.applying_for_grade_id else "—",
             "status": lead.get_status_display(),
         })

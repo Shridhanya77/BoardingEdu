@@ -17,6 +17,7 @@ import {
   LogOut,
   Mail,
   ShieldCheck,
+  UserRound,
   Utensils,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -24,6 +25,7 @@ import {
   apiErrorMessage,
   dashboards,
   schools,
+  subscriptions,
   type CompletionSection,
   type EnquiryStatus,
   type SchoolDashboardData,
@@ -54,7 +56,19 @@ const CAMPUS_GROUPS = [
   { key: "TECHNOLOGY", label: "Student services", hint: "Library, Wi-Fi, counselling, laundry, and other campus services.", Icon: Building2 },
 ] as const;
 
-type SectionId = "overview" | "completion" | "profile" | "academics" | "campus" | "fees" | "gallery" | "enquiries";
+type SectionId =
+  | "overview"
+  | "completion"
+  | "profile"
+  | "academics"
+  | "campus"
+  | "fees"
+  | "gallery"
+  | "enquiries"
+  | "plans"
+  | "subscription"
+  | "payments"
+  | "account";
 
 const NAV: { id: SectionId; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Dashboard", Icon: LayoutDashboard },
@@ -64,7 +78,11 @@ const NAV: { id: SectionId; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: "campus", label: "Campus", Icon: FlaskConical },
   { id: "fees", label: "Fees & admissions", Icon: IndianRupee },
   { id: "gallery", label: "Photographs", Icon: Images },
-  { id: "enquiries", label: "Enquiries", Icon: Mail },
+  { id: "enquiries", label: "Admission leads", Icon: Mail },
+  { id: "plans", label: "Subscription plans", Icon: IndianRupee },
+  { id: "subscription", label: "My subscription", Icon: ShieldCheck },
+  { id: "payments", label: "Payment history", Icon: ClipboardCheck },
+  { id: "account", label: "Account settings", Icon: UserRound },
 ];
 
 function statusLabel(status: string) {
@@ -278,9 +296,17 @@ export default function SchoolAdminConsole() {
           <EnquiryBoard
             data={data}
             busy={busy}
+            onUpgrade={() => setSection("plans")}
             onStatus={(id, next) => run(() => dashboards.updateEnquiryStatus(id, next).then(() => undefined), "Enquiry status updated.")}
           />
         )}
+        {data && section === "plans" && (
+          <PlanList onPurchased={() => { setSection("subscription"); reload(); }} />
+        )}
+        {data && (section === "subscription" || section === "payments") && (
+          <SubscriptionAccount mode={section} onUpgrade={() => setSection("plans")} />
+        )}
+        {section === "account" && <AccountSettings />}
       </section>
     </main>
   );
@@ -883,64 +909,256 @@ function EnquiryBoard({
   data,
   busy,
   onStatus,
+  onUpgrade,
 }: {
   data: SchoolDashboardData;
   busy: boolean;
   onStatus: (id: string, status: EnquiryStatus) => void;
+  onUpgrade: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("ALL");
+  const [selected, setSelected] = useState<string | null>(null);
+  const locked = !data.subscription?.active;
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return data.recent_enquiries;
-    return data.recent_enquiries.filter((row) =>
-      `${row.enquiry_code} ${row.parent_name} ${row.child_name} ${row.parent_email}`.toLowerCase().includes(needle),
-    );
-  }, [data.recent_enquiries, query]);
+    return data.recent_enquiries.filter((row) => {
+      if (status !== "ALL" && row.status !== status) return false;
+      if (!needle) return true;
+      return `${row.enquiry_code} ${row.grade_name} ${row.parent_name} ${row.child_name} ${row.parent_email}`.toLowerCase().includes(needle);
+    });
+  }, [data.recent_enquiries, query, status]);
+  const open = rows.find((row) => row.enquiry_id === selected) ?? null;
 
-  if (data.panel_access === "pending") {
-    return (
+  return (
+    <div className="sa-stack">
+      {locked && (
+        <article className="sa-card">
+          <header><h2>Contacts are locked</h2></header>
+          <p>
+            {data.subscription?.status === "EXPIRED"
+              ? "The subscription has expired. Lead counts stay visible, but parent and student contact details are hidden until you renew."
+              : "You can see that enquiries arrived. Parent names, student names, mobile numbers, and email addresses stay hidden until a subscription is active."}
+          </p>
+          <button className="sa-primary" type="button" onClick={onUpgrade}>
+            {data.subscription?.status === "EXPIRED" ? "Renew subscription" : "Unlock leads"}
+          </button>
+        </article>
+      )}
+      <div className="sa-kpis">
+        <Kpi label="Total leads" value={data.stats.enquiries_total} hint="Received by this school" />
+        <Kpi label="New" value={data.enquiry_status.NEW ?? 0} hint="Not yet handled" tone="blue" />
+        <Kpi label="Follow-up" value={data.enquiry_status.CALL_BACK ?? 0} hint="Call back scheduled" tone="gold" />
+        <Kpi label="Converted" value={data.stats.enquiries_converted} hint="Moved forward" />
+        <Kpi label="In progress" value={(data.enquiry_status.IN_PROGRESS ?? 0) + (data.enquiry_status.ASSIGNED ?? 0)} hint="Being contacted" />
+        <Kpi label="Closed" value={(data.enquiry_status.CLOSED_LOST ?? 0) + (data.enquiry_status.SPAM ?? 0)} hint="Closed or spam" />
+      </div>
       <article className="sa-card">
-        <header><h2>Admission enquiries</h2></header>
-        <p>Parent contact details stay hidden until BoardingEdu verifies {data.school.school_name}. You have {data.stats.enquiries_total} enquiries on file.</p>
+        <header>
+          <h2>Admission leads</h2>
+          <input
+            placeholder={locked ? "Search by lead code or grade" : "Search name, email, or code"}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="ALL">All statuses</option>
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </header>
+        <table className="sa-table">
+          <thead>
+            <tr><th>Lead</th><th>Date</th><th>Grade</th><th>Session</th><th>Parent</th><th>Contact</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={7}>No leads match.</td></tr>}
+            {rows.map((row) => (
+              <tr key={row.enquiry_id}>
+                <td><button type="button" onClick={() => setSelected(row.enquiry_id)}>{row.enquiry_code}</button></td>
+                <td>{new Date(row.created_at).toLocaleDateString()}</td>
+                <td>{row.grade_name || "—"}</td>
+                <td>{row.academic_year || "—"}</td>
+                <td>{row.contacts_locked ? "Locked" : row.parent_name || "—"}</td>
+                <td>{row.contacts_locked ? "Locked" : row.parent_phone || row.parent_email || "—"}</td>
+                <td>
+                  <select
+                    value={row.status}
+                    disabled={busy}
+                    onChange={(event) => onStatus(row.enquiry_id, event.target.value as EnquiryStatus)}
+                  >
+                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </article>
-    );
+      {open && (
+        <article className="sa-card">
+          <header><h2>Lead {open.enquiry_code}</h2></header>
+          {open.contacts_locked ? (
+            <p>Personal details are locked. Upgrade the subscription to see the parent, student, mobile number, and email.</p>
+          ) : (
+            <>
+              <p>Parent: {open.parent_name || "—"}</p>
+              <p>Student: {open.child_name || "—"}</p>
+              <p>Mobile: {open.parent_phone ? <a href={`tel:${open.parent_phone}`}>{open.parent_phone}</a> : "—"}</p>
+              <p>Email: {open.parent_email ? <a href={`mailto:${open.parent_email}`}>{open.parent_email}</a> : "—"}</p>
+              <p>Message: {open.message || "—"}</p>
+            </>
+          )}
+          <p>Grade: {open.grade_name || "—"} · Session: {open.academic_year || "—"} · Source: {open.source || "—"}</p>
+        </article>
+      )}
+    </div>
+  );
+}
+
+function PlanList({ onPurchased }: { onPurchased: () => void }) {
+  const [plans, setPlans] = useState<Awaited<ReturnType<typeof subscriptions.plans>>>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    subscriptions.plans().then(setPlans).catch((reason) => setError(apiErrorMessage(reason)));
+  }, []);
+
+  async function buy(planId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const order = await subscriptions.order(planId);
+      await openCheckout(order);
+      onPurchased();
+    } catch (reason) {
+      setError(apiErrorMessage(reason));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <article className="sa-card">
-      <header>
-        <h2>Admission enquiries</h2>
-        <input placeholder="Search name, email, or code" value={query} onChange={(event) => setQuery(event.target.value)} />
-      </header>
-      <table className="sa-table">
-        <thead>
-          <tr><th>Code</th><th>Parent</th><th>Student</th><th>Contact</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && <tr><td colSpan={5}>No enquiries match.</td></tr>}
-          {rows.map((row) => (
-            <tr key={row.enquiry_id}>
-              <td>{row.enquiry_code}</td>
-              <td>{row.parent_name || "—"}</td>
-              <td>{row.child_name || "—"}</td>
-              <td>{row.parent_email || row.parent_phone || "—"}</td>
-              <td>
-                <select
-                  value={row.status}
-                  disabled={busy}
-                  onChange={(event) => onStatus(row.enquiry_id, event.target.value as EnquiryStatus)}
-                >
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <header><h2>Subscription plans</h2></header>
+      {error && <p role="alert">{error}</p>}
+      {plans.length === 0 && !error && <p>No plans are on sale yet. BoardingEdu adds prices from the platform admin.</p>}
+      <div className="sa-kpis">
+        {plans.map((plan) => (
+          <article key={plan.plan_id} className="sa-kpi">
+            <span>{plan.name}</span>
+            <strong>{plan.currency} {plan.price}</strong>
+            <em>{plan.duration_days} days{plan.lead_quota ? ` · ${plan.lead_quota} leads` : " · all leads"}</em>
+            <p>{plan.description}</p>
+            <button className="sa-primary" type="button" disabled={busy || !plan.lead_access} onClick={() => buy(plan.plan_id)}>
+              {plan.lead_access ? "Purchase" : "No lead access"}
+            </button>
+          </article>
+        ))}
+      </div>
     </article>
   );
+}
+
+function SubscriptionAccount({ mode, onUpgrade }: { mode: "subscription" | "payments"; onUpgrade: () => void }) {
+  const [record, setRecord] = useState<Awaited<ReturnType<typeof subscriptions.mine>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    subscriptions.mine().then(setRecord).catch((reason) => setError(apiErrorMessage(reason)));
+  }, []);
+  if (error) return <p className="sa-state sa-state--error" role="alert">{error}</p>;
+  if (!record) return <p className="sa-state">Loading subscription…</p>;
+  if (mode === "payments") {
+    return (
+      <article className="sa-card">
+        <header><h2>Payment history</h2></header>
+        <table className="sa-table">
+          <thead><tr><th>Plan</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody>
+            {record.payments.length === 0 && <tr><td colSpan={4}>No payments yet.</td></tr>}
+            {record.payments.map((payment) => (
+              <tr key={payment.payment_id}>
+                <td>{payment.plan_name}</td>
+                <td>{payment.currency} {payment.amount}</td>
+                <td>{payment.status}</td>
+                <td>{new Date(payment.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </article>
+    );
+  }
+  const item = record.subscription;
+  return (
+    <article className="sa-card">
+      <header><h2>My subscription</h2></header>
+      <p>Status: {item.status === "NONE" ? "No subscription" : item.status}</p>
+      <p>Plan: {item.plan_name || "—"}</p>
+      <p>Starts: {item.starts_at ? new Date(item.starts_at).toLocaleString() : "—"}</p>
+      <p>Expires: {item.expires_at ? new Date(item.expires_at).toLocaleString() : "—"}</p>
+      <p>{item.active ? "Lead contact details are available." : "Lead contact details are locked."}</p>
+      {!item.active && <button className="sa-primary" type="button" onClick={onUpgrade}>Renew or upgrade</button>}
+    </article>
+  );
+}
+
+function AccountSettings() {
+  const { user } = useAuth();
+  return (
+    <article className="sa-card">
+      <header><h2>Account settings</h2></header>
+      <p>Username: {user?.username}</p>
+      <p>Email: {user?.email || "—"}</p>
+      <p>Role: School administrator</p>
+    </article>
+  );
+}
+
+function openCheckout(order: {
+  key_id: string;
+  provider_order_id: string;
+  amount_paise: number;
+  currency: string;
+  plan: { name: string };
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>("script[data-razorpay]");
+    const start = () => {
+      const Razorpay = (window as unknown as { Razorpay?: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay;
+      if (!Razorpay) {
+        reject(new Error("The payment window could not be opened."));
+        return;
+      }
+      const checkout = new Razorpay({
+        key: order.key_id,
+        order_id: order.provider_order_id,
+        amount: order.amount_paise,
+        currency: order.currency,
+        name: "BoardingEdu",
+        description: order.plan.name,
+        handler: (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          subscriptions.verify(response).then(() => resolve()).catch(reject);
+        },
+        modal: { ondismiss: () => reject(new Error("Payment was closed before it finished.")) },
+      });
+      checkout.open();
+    };
+    if (existing) {
+      start();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.dataset.razorpay = "true";
+    script.onload = start;
+    script.onerror = () => reject(new Error("The payment window could not be loaded."));
+    document.body.appendChild(script);
+  });
 }
 
 function Kpi({ label, value, hint, tone }: { label: string; value: number; hint: string; tone?: "blue" | "gold" }) {

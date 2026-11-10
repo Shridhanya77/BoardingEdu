@@ -256,7 +256,7 @@ def build_school_admin_payload(user, enquiry_rows):
                 {"value": code, "label": label} for code, label in FeeItem.PAYMENT_FREQUENCY_CHOICES
             ],
         },
-        "recent_enquiries": enquiry_rows() if verified and enquiry_rows else [],
+        "recent_enquiries": enquiry_rows() if enquiry_rows else [],
     }
 
 
