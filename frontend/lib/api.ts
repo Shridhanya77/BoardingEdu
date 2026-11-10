@@ -225,11 +225,25 @@ export async function authRequest<T>(path: string, init: RequestInit = {}): Prom
 }
 
 // ---------- Auth (JWT, SimpleJWT w/ rotation enabled on BE) ----------
+export type LoginChallenge =
+  | { access: string; refresh: string }
+  | { otp_required: true; purpose: "login" | "register"; email?: string };
+
 export const auth = {
   obtain: (username: string, password: string) =>
-    request<{ access: string; refresh: string }>("/auth/jwt/token/", {
+    request<LoginChallenge>("/auth/jwt/token/", {
       method: "POST",
       body: JSON.stringify({ username, password }),
+    }),
+  verifyOtp: (payload: { email: string; otp: string; purpose: "register" | "login" | "password_reset"; password?: string }) =>
+    request<{ access?: string; refresh?: string; detail?: string }>("/auth/otp/verify/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  resendOtp: (payload: { email: string; purpose: "register" | "login" | "password_reset" }) =>
+    request<{ detail: string }>("/auth/otp/resend/", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
   refresh: (refreshToken: string) =>
     request<{ access: string; refresh?: string }>("/auth/jwt/token/refresh/", {
@@ -282,6 +296,21 @@ export const users = {
   /** Public Parent registration (role is locked to PARENT on the server). */
   register: (payload: RegisterInput) =>
     request<{ detail: string }>("/users/users/register/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  requestPasswordReset: (email: string) =>
+    request<{ detail: string }>("/users/password-reset/", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  confirmPasswordReset: (payload: { uid: string; token: string; password: string }) =>
+    request<{ detail: string }>("/users/password-reset/confirm/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  changePassword: (payload: { current_password: string; password: string }) =>
+    authRequest<{ detail: string }>("/users/password-change/", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -665,6 +694,17 @@ export type EnquiryStatus =
   | "CONVERTED"
   | "CLOSED_LOST"
   | "SPAM";
+export type ApplicationStatus =
+  | "SUBMITTED"
+  | "RECEIVED"
+  | "UNDER_REVIEW"
+  | "DOCUMENTS_REQUIRED"
+  | "INTERACTION_SCHEDULED"
+  | "INTERACTION_COMPLETED"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "WITHDRAWN";
 export type EnquiryPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 
 export type NewEnquiryInput = {
@@ -1033,6 +1073,8 @@ export type DashboardEnquiry = {
   parent_phone: string;
   child_name: string;
   message: string;
+  application_status?: ApplicationStatus;
+  updated_at?: string;
 };
 
 export type SubscriptionPlanOffer = {
@@ -1276,7 +1318,22 @@ export type ParentDashboardData = {
     reviews_total: number;
     reviews_published: number;
     shortlisted: number;
+    applications_total: number;
+    applications_under_review: number;
+    applications_in_progress: number;
+    applications_accepted: number;
+    applications_rejected: number;
+    applications_action_required: number;
+    notifications_unread: number;
   };
+  notifications: {
+    notification_id: string;
+    title: string;
+    body: string;
+    enquiry_id: string | null;
+    read: boolean;
+    created_at: string;
+  }[];
   shortlist: {
     shortlist_id: string;
     note: string;
@@ -1381,6 +1438,14 @@ export const dashboards = {
     authRequest<DashboardEnquiry>(`/dashboards/school/enquiries/${enquiryId}/status/`, {
       method: "POST",
       body: JSON.stringify({ status }),
+    }),
+  updateApplicationStatus: (
+    enquiryId: string,
+    payload: { application_status: ApplicationStatus; remarks?: string; instructions?: string },
+  ) =>
+    authRequest<DashboardEnquiry>(`/dashboards/school/enquiries/${enquiryId}/status/`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
   saveFacility: (payload: {
     facility: string;
@@ -1490,5 +1555,111 @@ export const subscriptions = {
     authRequest<{ subscription: SubscriptionSummary }>("/subscriptions/verify/", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+};
+
+export type ParentApplication = {
+  enquiry_id: string;
+  enquiry_code: string;
+  application_status: ApplicationStatus;
+  application_status_label: string;
+  created_at: string;
+  updated_at: string;
+  message: string;
+  grade_name: string;
+  academic_year: string;
+  student_name: string;
+  school: {
+    school_id: string;
+    school_name: string;
+    slug: string;
+    logo_url: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+    city_name: string;
+    state_name: string;
+  };
+  student?: {
+    name: string;
+    date_of_birth: string | null;
+    gender: string;
+    current_grade: string;
+  };
+  timeline?: {
+    event_id: string;
+    status: ApplicationStatus;
+    status_label: string;
+    remarks: string;
+    instructions: string;
+    created_at: string;
+  }[];
+  documents?: {
+    document_id: string;
+    document_type: string;
+    document_type_label: string;
+    original_name: string;
+    review_status: string;
+    created_at: string;
+  }[];
+  messages?: {
+    message_id: string;
+    body: string;
+    created_at: string;
+    author_name: string;
+    author_role: string;
+  }[];
+};
+
+export type ParentProfileData = {
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  address: string;
+  occupation: string;
+  has_photo: boolean;
+  children: { child_id: string; name: string; date_of_birth: string; gender: string; current_grade: string }[];
+};
+
+export const parentApplications = {
+  list: () => authRequest<ParentApplication[]>("/admissions/applications/"),
+  detail: (id: string) => authRequest<ParentApplication>(`/admissions/applications/${id}/`),
+  withdraw: (id: string, remarks: string) =>
+    authRequest<ParentApplication>(`/admissions/applications/${id}/withdraw/`, {
+      method: "POST",
+      body: JSON.stringify({ remarks }),
+    }),
+  uploadDocument: (id: string, documentType: string, file: File) => {
+    const body = new FormData();
+    body.set("document_type", documentType);
+    body.set("file", file);
+    return authRequest<NonNullable<ParentApplication["documents"]>[number]>(
+      `/admissions/applications/${id}/documents/`,
+      { method: "POST", body },
+    );
+  },
+  sendMessage: (id: string, body: string) =>
+    authRequest<NonNullable<ParentApplication["messages"]>[number]>(
+      `/admissions/applications/${id}/messages/`,
+      { method: "POST", body: JSON.stringify({ body }) },
+    ),
+  notifications: () =>
+    authRequest<{
+      unread: number;
+      results: ParentDashboardData["notifications"];
+    }>("/admissions/notifications/"),
+  markRead: (id?: string) =>
+    authRequest<{ updated: number }>(
+      id ? `/admissions/notifications/${id}/read/` : "/admissions/notifications/read/",
+      { method: "POST", body: JSON.stringify({}) },
+    ),
+  profile: () => authRequest<ParentProfileData>("/admissions/profile/"),
+  updateProfile: (payload: FormData | Record<string, string>) =>
+    authRequest<ParentProfileData>("/admissions/profile/", {
+      method: "PATCH",
+      body: payload instanceof FormData ? payload : JSON.stringify(payload),
     }),
 };

@@ -1,5 +1,7 @@
 import uuid
 from django.db import models
+
+from apps.admissions.storage import private_application_storage
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 
@@ -32,6 +34,8 @@ class User(AbstractUser):
         message="Phone number must be entered in format: '+919999999999'. Up to 15 digits allowed."
     )
     phone = models.CharField(validators=[phone_regex], max_length=17, blank=True)
+    is_email_verified = models.BooleanField(default=True)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
 
     # Enterprise audit fields
     is_active = models.BooleanField(default=True)
@@ -55,6 +59,11 @@ class ParentProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='parent_profile')
     address = models.TextField(blank=True)
     occupation = models.CharField(max_length=100, blank=True)
+    photo = models.ImageField(
+        upload_to="parent-profiles/",
+        storage=private_application_storage,
+        blank=True,
+    )
     preferred_contact_method = models.CharField(
         max_length=10,
         choices=[('EMAIL', 'Email'), ('PHONE', 'Phone'), ('WHATSAPP', 'WhatsApp')],

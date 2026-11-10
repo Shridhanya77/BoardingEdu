@@ -124,7 +124,7 @@ type AuthContextValue =
   & AuthState
   & {
     /** Log in via username + password. Stores tokens, loads /me user. */
-    login: (username: string, password: string) => Promise<UserDetail>;
+    login: (username: string, password: string) => Promise<UserDetail | { otp_required: true; purpose: "login" | "register"; email?: string }>;
     /** Register a Parent user; the account can sign in immediately. */
     register: (payload: RegisterInput) => Promise<void>;
     /**
@@ -174,6 +174,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SET_LOADING" });
     try {
       const tokens = await auth.obtain(username, password);
+      if ("otp_required" in tokens) {
+        dispatch({ type: "SET_GUEST" });
+        return tokens;
+      }
       writeTokens(tokens);
       const me = await auth.me();
       dispatch({ type: "SET_USER", user: me });

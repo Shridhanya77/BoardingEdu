@@ -1057,6 +1057,7 @@ class SchoolRegistrationSerializer(serializers.Serializer):
             last_name=last_name,
             phone=validated_data['phone'],
             role=User.ROLE_SCHOOL_ADMIN,
+            is_email_verified=False,
         )
         SchoolAdminProfile.objects.create(
             user=user,

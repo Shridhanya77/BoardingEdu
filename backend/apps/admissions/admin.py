@@ -4,7 +4,14 @@ from django.contrib import admin
 
 from apps.users.school_admin_scope import AssignedSchoolAdminMixin, manages_own_school
 
-from .models import Child, AdmissionEnquiry, CounsellingRequest
+from .models import (
+    ApplicationDocument,
+    ApplicationMessage,
+    ApplicationStatusEvent,
+    Child,
+    AdmissionEnquiry,
+    CounsellingRequest,
+)
 
 _admin_request = contextvars.ContextVar("lead_admin_request", default=None)
 
@@ -37,6 +44,7 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         "contact_detail",
         "applying_for_grade",
         "status",
+        "application_status",
         "priority",
         "next_followup_at",
         "created_at",
@@ -108,13 +116,13 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             extra_context.setdefault("title", "Leads for your school")
         return self._with_request(
             request,
-            lambda: super().changelist_view(request, extra_context),
+            lambda: super(AdmissionEnquiryAdmin, self).changelist_view(request, extra_context),
         )
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
         return self._with_request(
             request,
-            lambda: super().changeform_view(request, object_id, form_url, extra_context),
+            lambda: super(AdmissionEnquiryAdmin, self).changeform_view(request, object_id, form_url, extra_context),
         )
 
     def get_search_fields(self, request):
@@ -210,6 +218,7 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             {
                 "fields": (
                     "status",
+                    "application_status",
                     "priority",
                     "assigned_to",
                     "next_followup_at",
@@ -238,3 +247,24 @@ class CounsellingRequestAdmin(admin.ModelAdmin):
     autocomplete_fields = ("preferred_country", "preferred_state", "preferred_school")
     filter_horizontal = ("preferred_cities", "grades", "school_types", "boards")
     readonly_fields = ("request_id", "reference", "created_at", "updated_at")
+
+
+@admin.register(ApplicationStatusEvent)
+class ApplicationStatusEventAdmin(admin.ModelAdmin):
+    list_display = ("enquiry", "status", "created_at")
+    search_fields = ("enquiry__enquiry_code", "remarks")
+    readonly_fields = ("event_id", "created_at")
+
+
+@admin.register(ApplicationDocument)
+class ApplicationDocumentAdmin(admin.ModelAdmin):
+    list_display = ("enquiry", "document_type", "review_status", "created_at")
+    list_filter = ("document_type", "review_status")
+    readonly_fields = ("document_id", "created_at")
+
+
+@admin.register(ApplicationMessage)
+class ApplicationMessageAdmin(admin.ModelAdmin):
+    list_display = ("enquiry", "author", "created_at")
+    search_fields = ("body", "enquiry__enquiry_code")
+    readonly_fields = ("message_id", "created_at")

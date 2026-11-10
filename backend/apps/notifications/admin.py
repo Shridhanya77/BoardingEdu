@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import EmailDelivery
+from .models import EmailDelivery, ParentNotification
 
 
 @admin.register(EmailDelivery)
@@ -31,3 +31,11 @@ class EmailDeliveryAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(ParentNotification)
+class ParentNotificationAdmin(admin.ModelAdmin):
+    list_display = ("title", "user", "kind", "read_at", "created_at")
+    list_filter = ("kind", "created_at")
+    search_fields = ("title", "body", "user__email")
+    readonly_fields = ("notification_id", "created_at")

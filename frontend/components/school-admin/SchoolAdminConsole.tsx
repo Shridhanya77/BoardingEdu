@@ -27,6 +27,7 @@ import {
   schools,
   subscriptions,
   type CompletionSection,
+  type ApplicationStatus,
   type EnquiryStatus,
   type SchoolDashboardData,
   type SchoolPortalUpdate,
@@ -34,6 +35,19 @@ import {
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { useDashboardData } from "@/components/dashboard/DashboardShell";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+
+const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  SUBMITTED: "Enquiry submitted",
+  RECEIVED: "Application received",
+  UNDER_REVIEW: "Under review",
+  DOCUMENTS_REQUIRED: "Documents required",
+  INTERACTION_SCHEDULED: "Interaction scheduled",
+  INTERACTION_COMPLETED: "Interaction completed",
+  OFFERED: "Admission offered",
+  ACCEPTED: "Admission accepted",
+  REJECTED: "Admission rejected",
+  WITHDRAWN: "Withdrawn",
+};
 
 const STATUS_LABELS: Record<string, string> = {
   NEW: "New",
@@ -298,6 +312,7 @@ export default function SchoolAdminConsole() {
             busy={busy}
             onUpgrade={() => setSection("plans")}
             onStatus={(id, next) => run(() => dashboards.updateEnquiryStatus(id, next).then(() => undefined), "Enquiry status updated.")}
+            onApplication={(id, payload) => run(() => dashboards.updateApplicationStatus(id, payload).then(() => undefined), "Parent application status updated.")}
           />
         )}
         {data && section === "plans" && (
@@ -667,15 +682,7 @@ function CampusEditor({
 }) {
   const choices = data.catalog.facilities.filter((item) => item.category === group);
   const rows = data.facilities.filter((item) => item.category === group);
-  const [facility, setFacility] = useState(choices[0]?.facility_id ?? "");
-  const [quantity, setQuantity] = useState("");
-  const [description, setDescription] = useState("");
   const current = CAMPUS_GROUPS.find((item) => item.key === group) ?? CAMPUS_GROUPS[0];
-
-  useEffect(() => {
-    const first = data.catalog.facilities.find((item) => item.category === group);
-    setFacility(first?.facility_id ?? "");
-  }, [group, data]);
 
   return (
     <div className="sa-stack">
@@ -692,42 +699,40 @@ function CampusEditor({
         {choices.length === 0 ? (
           <p>No {current.label.toLowerCase()} options are in the master list yet. A platform admin can add them in Django admin.</p>
         ) : (
-          <form
-            className="sa-inline"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onSave({
-                facility,
-                quantity_or_capacity: quantity ? Number(quantity) : null,
-                description,
-                available: true,
-              });
-              setDescription("");
-              setQuantity("");
-            }}
-          >
-            <select value={facility} onChange={(event) => setFacility(event.target.value)}>
-              {choices.map((item) => <option key={item.facility_id} value={item.facility_id}>{item.facility_name}</option>)}
-            </select>
-            <input inputMode="numeric" placeholder="Capacity" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
-            <input placeholder="Notes" value={description} onChange={(event) => setDescription(event.target.value)} />
-            <button className="sa-primary" type="submit" disabled={busy}>Save</button>
-          </form>
+          <ul className="sa-yesno">
+            {choices.map((item) => {
+              const saved = rows.find((row) => row.facility === item.facility_id && row.available);
+              return (
+                <li key={item.facility_id}>
+                  <span>{item.facility_name}</span>
+                  <div>
+                    <button
+                      type="button"
+                      className={saved ? "is-yes" : ""}
+                      disabled={busy}
+                      onClick={() => {
+                        if (saved) return;
+                        onSave({ facility: item.facility_id, quantity_or_capacity: null, description: "", available: true });
+                      }}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      className={saved ? "" : "is-no"}
+                      disabled={busy}
+                      onClick={() => {
+                        if (saved) onRemove(saved.school_facility_id);
+                      }}
+                    >
+                      No
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         )}
-        <table className="sa-table">
-          <thead><tr><th>Facility</th><th>Capacity</th><th>Notes</th><th /></tr></thead>
-          <tbody>
-            {rows.length === 0 && <tr><td colSpan={4}>Nothing recorded in this group.</td></tr>}
-            {rows.map((row) => (
-              <tr key={row.school_facility_id}>
-                <td>{row.facility_name}</td>
-                <td>{row.quantity_or_capacity ?? "—"}</td>
-                <td>{row.description || "—"}</td>
-                <td><button type="button" onClick={() => onRemove(row.school_facility_id)}>Remove</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </article>
     </div>
   );
@@ -909,11 +914,13 @@ function EnquiryBoard({
   data,
   busy,
   onStatus,
+  onApplication,
   onUpgrade,
 }: {
   data: SchoolDashboardData;
   busy: boolean;
   onStatus: (id: string, status: EnquiryStatus) => void;
+  onApplication: (id: string, payload: { application_status: ApplicationStatus; remarks?: string; instructions?: string }) => void;
   onUpgrade: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -1013,6 +1020,36 @@ function EnquiryBoard({
             </>
           )}
           <p>Grade: {open.grade_name || "—"} · Session: {open.academic_year || "—"} · Source: {open.source || "—"}</p>
+          <form
+            className="sa-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              onApplication(open.enquiry_id, {
+                application_status: String(form.get("application_status")) as ApplicationStatus,
+                remarks: String(form.get("remarks") || ""),
+                instructions: String(form.get("instructions") || ""),
+              });
+            }}
+          >
+            <label>
+              Parent-facing status
+              <select name="application_status" defaultValue={open.application_status || "SUBMITTED"}>
+                {Object.entries(APPLICATION_STATUS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Remarks for the parent
+              <input name="remarks" placeholder="What should the parent know?" />
+            </label>
+            <label>
+              Instructions
+              <input name="instructions" placeholder="Documents, meeting time, or offer details" />
+            </label>
+            <button className="sa-btn" type="submit" disabled={busy}>Update parent application</button>
+          </form>
         </article>
       )}
     </div>

@@ -12,7 +12,7 @@ import {
   UserRound,
   UserRoundPlus,
 } from "lucide-react";
-import { ApiError } from "@/lib/api";
+import { ApiError, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 
@@ -86,12 +86,12 @@ export default function SignupForm() {
     setSubmitting(true);
     try {
       await register({ ...form, email: form.email.trim(), phone: normalizedPhone });
-      router.push("/login?registered=parent");
+      router.push(`/verify-otp/?purpose=register&email=${encodeURIComponent(form.email.trim())}`);
     } catch (err) {
       if (err instanceof ApiError) setApiErr(err);
       setFormError(
         err instanceof ApiError
-          ? "We couldn't create your account. See the errors below each field."
+          ? apiErrorMessage(err)
           : "Sign up failed. Please try again.",
       );
     } finally {

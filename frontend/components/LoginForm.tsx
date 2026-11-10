@@ -30,6 +30,11 @@ export default function LoginForm() {
     setSubmitting(true);
     try {
       const me = await login(username.trim(), password);
+      if ("otp_required" in me) {
+        const email = me.email || (username.includes("@") ? username.trim() : "");
+        router.push(`/verify-otp/?purpose=${me.purpose}&email=${encodeURIComponent(email)}`);
+        return;
+      }
       const roleMatches = accountType === "parent"
         ? me.role === "PARENT"
         : accountType === "school"
@@ -155,6 +160,11 @@ export default function LoginForm() {
               {busy ? "Signing you in…" : "Log in"}
             </button>
 
+            {accountType === "parent" && (
+              <p className="account-card__hint">
+                <Link href="/reset-password">Forgot your password?</Link>
+              </p>
+            )}
             <p className="account-card__hint">
               {accountType === "parent"
                 ? <>New to BoardingEdu? <Link href="/signup">Create a parent account</Link>.</>

@@ -1,8 +1,9 @@
-from rest_framework import generics, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.permissions import (
     IsAuthenticated,
     AllowAny,
 )
+from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -266,6 +267,18 @@ class AdmissionEnquiryViewSet(viewsets.ModelViewSet):
                 return
 
         serializer.save()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        reused = getattr(serializer.instance, "_duplicate_of_existing", False)
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK if reused else status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
 
 class CounsellingRequestCreateView(generics.CreateAPIView):

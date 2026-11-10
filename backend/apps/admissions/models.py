@@ -3,6 +3,8 @@ from django.db import models
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, School, SchoolType
 
+from .storage import private_application_storage
+
 
 class Child(models.Model):
     """
@@ -202,6 +204,26 @@ class AdmissionEnquiry(models.Model):
         choices=STATUS_CHOICES,
     )
 
+    APPLICATION_STATUS_CHOICES = [
+        ("SUBMITTED", "Enquiry Submitted"),
+        ("RECEIVED", "Application Received"),
+        ("UNDER_REVIEW", "Under Review"),
+        ("DOCUMENTS_REQUIRED", "Documents Required"),
+        ("INTERACTION_SCHEDULED", "Interaction Scheduled"),
+        ("INTERACTION_COMPLETED", "Interaction Completed"),
+        ("OFFERED", "Admission Offered"),
+        ("ACCEPTED", "Admission Accepted"),
+        ("REJECTED", "Admission Rejected"),
+        ("WITHDRAWN", "Withdrawn"),
+    ]
+
+    application_status = models.CharField(
+        max_length=32,
+        default="SUBMITTED",
+        db_index=True,
+        choices=APPLICATION_STATUS_CHOICES,
+    )
+
     assigned_to = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
@@ -253,7 +275,14 @@ class AdmissionEnquiry(models.Model):
         if not self.message:
             who = self.guest_full_name or "Website visitor"
             self.message = f"Admission enquiry from {who}."
+        from .tracking import prepare_application_status, sync_application_timeline
+
+        previous = prepare_application_status(self)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and previous and previous["application_status"] != self.application_status:
+            kwargs["update_fields"] = list(set(update_fields) | {"application_status"})
         super().save(*args, **kwargs)
+        sync_application_timeline(self, previous)
 
     def __str__(self):
         school_code = "school not set"
@@ -303,3 +332,97 @@ class CounsellingRequest(models.Model):
 
     def __str__(self):
         return f"{self.reference} — {self.parent_name}"
+
+
+def _application_upload_path(instance, filename):
+    ext = ""
+    if "." in filename:
+        ext = "." + filename.rsplit(".", 1)[-1].lower()[:8]
+    return f"{instance.enquiry_id}/{uuid.uuid4().hex}{ext}"
+
+
+class ApplicationStatusEvent(models.Model):
+    event_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    enquiry = models.ForeignKey(
+        AdmissionEnquiry,
+        on_delete=models.CASCADE,
+        related_name="status_events",
+    )
+    status = models.CharField(max_length=32, choices=AdmissionEnquiry.APPLICATION_STATUS_CHOICES)
+    remarks = models.TextField(blank=True)
+    instructions = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "application_status_events"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.enquiry_id} {self.status}"
+
+
+class ApplicationDocument(models.Model):
+    DOCUMENT_TYPES = [
+        ("BIRTH_CERTIFICATE", "Birth certificate"),
+        ("REPORT_CARD", "Previous academic report card"),
+        ("TRANSFER_CERTIFICATE", "Transfer certificate"),
+        ("PHOTOGRAPH", "Student photograph"),
+        ("IDENTITY", "Identity document"),
+        ("OTHER", "Other document"),
+    ]
+    REVIEW_STATUSES = [
+        ("PENDING", "Pending review"),
+        ("VERIFIED", "Verified"),
+        ("REJECTED", "Rejected"),
+    ]
+
+    document_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    enquiry = models.ForeignKey(
+        AdmissionEnquiry,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+    document_type = models.CharField(max_length=32, choices=DOCUMENT_TYPES)
+    file = models.FileField(upload_to=_application_upload_path, storage=private_application_storage)
+    original_name = models.CharField(max_length=180, blank=True)
+    review_status = models.CharField(max_length=12, choices=REVIEW_STATUSES, default="PENDING")
+    uploaded_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_application_documents",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "application_documents"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.document_type} {self.enquiry_id}"
+
+
+class ApplicationMessage(models.Model):
+    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    enquiry = models.ForeignKey(
+        AdmissionEnquiry,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    author = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="application_messages",
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "application_messages"
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.enquiry_id} message"

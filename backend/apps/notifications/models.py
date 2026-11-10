@@ -32,3 +32,45 @@ class EmailDelivery(models.Model):
 
     def __str__(self):
         return f"{self.notification_type}: {self.status}"
+
+
+class ParentNotification(models.Model):
+    """In-dashboard notice for a parent. Email delivery stays on EmailDelivery."""
+
+    notification_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="parent_notifications",
+    )
+    enquiry = models.ForeignKey(
+        "admissions.AdmissionEnquiry",
+        on_delete=models.CASCADE,
+        related_name="parent_notifications",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=160)
+    body = models.TextField(blank=True)
+    kind = models.CharField(max_length=40, default="application")
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "parent_notifications"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "read_at", "created_at"])]
+
+    def __str__(self):
+        return self.title
+
+
+class OtpRecord(models.Model):
+    """Fallback OTP storage used when Redis cannot be reached."""
+
+    key = models.CharField(max_length=160, unique=True)
+    value = models.TextField()
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "otp_records"

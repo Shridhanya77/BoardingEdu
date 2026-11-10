@@ -199,7 +199,7 @@ export default function SchoolSignupForm() {
         password: form.password,
         password_confirm: form.password_confirm,
       });
-      router.push("/login?registered=school");
+      router.push(`/verify-otp/?purpose=register&email=${encodeURIComponent(form.email.trim())}`);
     } catch (err) {
       if (err instanceof ApiError) setApiErr(err);
       setFormError(

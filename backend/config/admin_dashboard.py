@@ -5,7 +5,7 @@ Statistics are computed only on the admin index request, never on change forms.
 """
 from datetime import timedelta
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from django.shortcuts import redirect, render
@@ -22,6 +22,17 @@ SITE_TITLE = "BoardingEdu Admin"
 INDEX_TITLE = "Platform Overview"
 
 TREND_MONTHS = 6
+
+CAMPUS_GROUPS = (
+    ("ACADEMIC", "Classrooms & laboratories", "Add each classroom, laboratory, or academic space."),
+    ("SPORTS", "Sports", "Indoor sports, outdoor sports, grounds, and courts."),
+    ("ACCOMMODATION", "Hostel", "Hostel capacity only. Do not record which student is in which room."),
+    ("DINING", "Dining", "Dining halls, seating, and meal arrangements."),
+    ("HEALTH", "Healthcare", "Medical room and staff availability. Do not enter private medical records."),
+    ("SAFETY", "Safety", "Facilities parents should know about. Do not publish internal security procedures."),
+    ("TRANSPORT", "Transport", "Vehicles and routes. Do not enter student assignments or driver personal details."),
+    ("TECHNOLOGY", "Student services", "Library, Wi-Fi, counselling, laundry, and other campus services."),
+)
 
 
 def _card(label, value, url_name=None, tone="neutral", hint="", query=""):
@@ -260,6 +271,7 @@ def school_admin_menu(request):
     entries = [
         ("School profile", school_url, None),
         ("Leads", reverse("admin:admissions_admissionenquiry_changelist"), None),
+        ("Campus", f"{reverse('admin:school_workspace')}?campus=ACADEMIC#campus", None),
         ("Facilities", reverse("admin:schools_schoolfacility_changelist"), reverse("admin:schools_schoolfacility_add")),
         ("Grades", reverse("admin:schools_schoolgrade_changelist"), reverse("admin:schools_schoolgrade_add")),
         ("Fees", reverse("admin:fees_feestructure_changelist"), reverse("admin:fees_feestructure_add")),
@@ -283,11 +295,37 @@ def school_admin_menu(request):
     }]
 
 
+def _apply_campus_choice(request, school):
+    """Same Yes/No campus control as the school admin frontend."""
+    from apps.schools.models import Facility, SchoolFacility
+
+    action = request.POST.get("campus_action")
+    group = (request.POST.get("campus") or "ACADEMIC").upper()
+    allowed = {key for key, _label, _hint in CAMPUS_GROUPS}
+    if action not in {"yes", "no"} or group not in allowed:
+        messages.error(request, "Choose Yes or No for a campus facility.")
+        return redirect("admin:school_workspace")
+    facility = Facility.objects.filter(pk=request.POST.get("facility") or "", status=True, category__iexact=group).first()
+    if facility is None:
+        messages.error(request, "That facility is not in this campus group.")
+    elif action == "yes":
+        SchoolFacility.objects.update_or_create(
+            school=school,
+            facility=facility,
+            defaults={"available": True},
+        )
+        messages.success(request, f"{facility.facility_name} is marked available.")
+    else:
+        SchoolFacility.objects.filter(school=school, facility=facility).delete()
+        messages.success(request, f"{facility.facility_name} is marked unavailable.")
+    return redirect(f"{reverse('admin:school_workspace')}?campus={group}#campus")
+
+
 def school_workspace(request):
     """Home for a school administrator: their profile and the leads they received."""
     from apps.admissions.models import AdmissionEnquiry
     from apps.schools.completeness import build_profile_completion
-    from apps.schools.models import School
+    from apps.schools.models import Facility, School
 
     school_id = assigned_school_id(request.user)
     if school_id is None:
@@ -304,6 +342,8 @@ def school_workspace(request):
         )
         .get(pk=school_id)
     )
+    if request.method == "POST":
+        return _apply_campus_choice(request, school)
     leads = AdmissionEnquiry.objects.filter(school_id=school_id)
     counts = leads.aggregate(
         total=Count("pk"),
@@ -330,6 +370,22 @@ def school_workspace(request):
             "status": lead.get_status_display(),
         })
 
+    campus_group = (request.GET.get("campus") or "ACADEMIC").upper()
+    campus_labels = {key: (label, hint) for key, label, hint in CAMPUS_GROUPS}
+    if campus_group not in campus_labels:
+        campus_group = "ACADEMIC"
+    saved = {
+        row.facility_id: row.available
+        for row in school.school_facilities.all()
+    }
+    campus_facilities = [
+        {
+            "id": facility.facility_id,
+            "name": facility.facility_name,
+            "available": saved.get(facility.facility_id, False),
+        }
+        for facility in Facility.objects.filter(status=True, category__iexact=campus_group).order_by("facility_name")
+    ]
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
     section_urls = {
@@ -374,6 +430,14 @@ def school_workspace(request):
         "facilities_url": reverse("admin:schools_schoolfacility_changelist"),
         "grades_url": reverse("admin:schools_schoolgrade_changelist"),
         "fees_url": reverse("admin:fees_feestructure_changelist"),
+        "campus_groups": [
+            {"key": key, "label": label, "active": key == campus_group}
+            for key, label, _hint in CAMPUS_GROUPS
+        ],
+        "campus_group": campus_group,
+        "campus_label": campus_labels[campus_group][0],
+        "campus_hint": campus_labels[campus_group][1],
+        "campus_facilities": campus_facilities,
     }
     return render(request, "admin/school_workspace.html", context)
 

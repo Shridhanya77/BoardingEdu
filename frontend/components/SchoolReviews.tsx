@@ -227,7 +227,7 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={submitting}
                 maxLength={200}
-                placeholder="A short summary of your experience"
+                placeholder="A short summary"
               />
             </label>
             <label className="field">

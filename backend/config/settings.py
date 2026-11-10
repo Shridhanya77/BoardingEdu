@@ -355,6 +355,8 @@ PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://www.boardingedu.com").rs
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+SMS_API_URL = os.getenv("SMS_API_URL", "")
+SMS_API_KEY = os.getenv("SMS_API_KEY", "")
 
 # Django admin login is a browser POST. Railway's public domain has to be
 # trusted or a correct password is rejected before the session starts.
@@ -401,7 +403,7 @@ if DEBUG:
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.users.otp_access.VerifiedEmailJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': ('rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',),
     'DEFAULT_RENDERER_CLASSES': _renderers,
@@ -497,6 +499,17 @@ CELERY_TASK_EAGER_PROPAGATES = True
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "").strip()
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "").strip()
+CLOUDFLARE_EMAIL_API_TOKEN = os.getenv("CLOUDFLARE_EMAIL_API_TOKEN", "").strip()
+CLOUDFLARE_EMAIL_ACCOUNT_ID = os.getenv("CLOUDFLARE_EMAIL_ACCOUNT_ID", "").strip()
+CLOUDFLARE_EMAIL_FROM = os.getenv("CLOUDFLARE_EMAIL_FROM", "no-reply@boardingedu.com").strip()
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
+BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "BoardingEdu").strip()
+BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN", "").strip()
+OTP_EXPIRY_SECONDS = int(os.getenv("OTP_EXPIRY_SECONDS", "300"))
+OTP_RESEND_COOLDOWN = int(os.getenv("OTP_RESEND_COOLDOWN", "60"))
+OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
+OTP_BACKEND = os.getenv("OTP_BACKEND", "redis").strip().lower()
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "resend").strip().lower()
 MEILI_URL = os.getenv("MEILI_URL", "").strip().rstrip("/")

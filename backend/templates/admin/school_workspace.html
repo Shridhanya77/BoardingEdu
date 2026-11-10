@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{% block bodyclass %}{{ block.super }} dashboard be-dashboard{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard be-dashboard be-school-admin{% endblock %}
 
 {% block content_title %}{% endblock %}
 
@@ -75,6 +75,34 @@
       {% endif %}
     </section>
   </div>
+
+  <section class="be-panel" id="campus">
+    <h3>{% translate "Campus" %}</h3>
+    <div class="be-campus-tabs">
+      {% for group in campus_groups %}
+      <a class="{% if group.active %}is-active{% endif %}" href="?campus={{ group.key }}#campus">{{ group.label }}</a>
+      {% endfor %}
+    </div>
+    <p>{{ campus_hint }}</p>
+    {% if campus_facilities %}
+    <ul class="be-yesno">
+      {% for item in campus_facilities %}
+      <li>
+        <span>{{ item.name }}</span>
+        <form method="post" action="?campus={{ campus_group }}#campus">
+          {% csrf_token %}
+          <input type="hidden" name="facility" value="{{ item.id }}">
+          <input type="hidden" name="campus" value="{{ campus_group }}">
+          <button type="submit" name="campus_action" value="yes" class="{% if item.available %}is-yes{% endif %}">{% translate "Yes" %}</button>
+          <button type="submit" name="campus_action" value="no" class="{% if not item.available %}is-no{% endif %}">{% translate "No" %}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="be-empty">{% translate "No facilities are in this group yet. A platform admin can add them to the facility list." %}</p>
+    {% endif %}
+  </section>
 
   <section class="be-panel">
     <h3>{% translate "Latest leads" %}</h3>

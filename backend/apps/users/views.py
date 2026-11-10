@@ -134,9 +134,21 @@ class UserViewSet(ReadWriteModelViewSet):
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        from django.db import transaction
+
+        from apps.notifications.otp import OtpError, issue_otp
+
+        try:
+            with transaction.atomic():
+                user = serializer.save()
+                issue_otp(user, "register", client_ip=request.META.get("REMOTE_ADDR", ""))
+        except OtpError:
+            return Response(
+                {"detail": "The verification email could not be sent, so the account was not created. Try again in a moment."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response(
-            {"detail": "Registration complete. You can now sign in."},
+            {"detail": "Check your email for a verification code.", "otp_required": True, "purpose": "register"},
             status=status.HTTP_201_CREATED,
         )
 

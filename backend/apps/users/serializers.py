@@ -44,6 +44,23 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
                     "This school administrator account is not assigned to a school."
                 )
 
+        from apps.notifications.otp import OTP_ROLES, OtpError, issue_otp
+        from rest_framework.exceptions import APIException
+
+        if user.role in OTP_ROLES:
+            purpose = "login" if user.is_email_verified else "register"
+            request = self.context.get("request")
+            client_ip = request.META.get("REMOTE_ADDR", "") if request is not None else ""
+            try:
+                issue_otp(user, purpose, client_ip=client_ip)
+            except OtpError as exc:
+                failure = APIException(detail="Verification email could not be sent. Try again shortly.")
+                failure.status_code = 429 if exc.code in {"cooldown", "rate_limited"} else 503
+                raise failure from exc
+            if api_settings.UPDATE_LAST_LOGIN:
+                update_last_login(None, user)
+            return {"otp_required": True, "purpose": purpose, "email": user.email}
+
         refresh = self.get_token(user)
         data = {"refresh": str(refresh), "access": str(refresh.access_token)}
         if api_settings.UPDATE_LAST_LOGIN:
@@ -352,6 +369,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
         # Public signup must never choose an elevated role.
         validated_data["role"] = UserModel.ROLE_PARENT
+        validated_data["is_email_verified"] = False
 
         user = UserModel.objects.create_user(
             password=password,

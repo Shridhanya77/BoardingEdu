@@ -723,6 +723,74 @@ textarea:focus {
   border-right: 1px solid var(--hairline-color);
 }
 
+body.be-school-admin #nav-sidebar,
+body.be-school-admin .main-sidebar {
+  background: #1c2836;
+}
+
+.be-campus-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.be-campus-tabs a {
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #eef2f6;
+  color: #1c2836;
+  text-decoration: none;
+}
+
+.be-campus-tabs a.is-active {
+  background: #1c2836;
+  color: #fff;
+}
+
+.be-yesno {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.be-yesno li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline-color);
+}
+
+.be-yesno form {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.be-yesno button {
+  min-width: 64px;
+  border-radius: 6px;
+  border: 1px solid #c5ced6;
+  background: #fff;
+  color: #243140;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.be-yesno button.is-yes {
+  background: #d32f2f;
+  border-color: #d32f2f;
+  color: #fff;
+}
+
+.be-yesno button.is-no {
+  background: #5f6b76;
+  border-color: #5f6b76;
+  color: #fff;
+}
+
 #nav-sidebar .current-model {
   border-left: 3px solid var(--be-accent);
 }

@@ -96,7 +96,7 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
             'academic_year', 'academic_year_id', 'academic_year_code',
             'applying_for_grade', 'applying_for_grade_id',
             'applying_for_grade_name', 'applying_for_grade_display',
-            'message', 'source', 'status', 'priority',
+            'message', 'source', 'status', 'application_status', 'priority',
             'assigned_to', 'assigned_to_id', 'assigned_to_username',
             'next_followup_at', 'closed_at',
             'guest_full_name', 'guest_email', 'guest_phone',
@@ -109,6 +109,7 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
             'enquiry_id', 'enquiry_code', 'created_at', 'updated_at',
             'guest_full_name', 'guest_email', 'guest_phone',
             'guest_child_name', 'guest_child_dob', 'guest_child_gender',
+            'application_status',
         ]
 
     def get_child_display_name(self, obj):
@@ -202,6 +203,13 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
             if grade is not None:
                 validated_data['applying_for_grade'] = grade
 
+        validated_data.pop("status", None)
+        validated_data.pop("application_status", None)
+        validated_data.pop("priority", None)
+        validated_data.pop("assigned_to", None)
+        validated_data["status"] = "NEW"
+        validated_data["application_status"] = "SUBMITTED"
+
         parent_profile = validated_data.get('parent_profile')
         child = validated_data.get('child')
         if parent_profile and child is None and child_name and child_dob and child_gender:
@@ -220,6 +228,19 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
         validated_data['guest_child_name'] = child_name
         validated_data['guest_child_dob'] = child_dob
         validated_data['guest_child_gender'] = child_gender or ''
+
+        from .tracking import find_open_duplicate
+
+        existing = find_open_duplicate(
+            parent_profile,
+            validated_data.get("school"),
+            validated_data.get("academic_year"),
+            validated_data.get("applying_for_grade"),
+            validated_data.get("child"),
+        )
+        if existing is not None:
+            existing._duplicate_of_existing = True
+            return existing
 
         enquiry = AdmissionEnquiry.objects.create(**validated_data)
         parent_email = (
@@ -249,6 +270,14 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
                 )
             )
         return enquiry
+
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role == "PARENT":
+            for field in ("status", "priority", "assigned_to", "application_status", "school"):
+                validated_data.pop(field, None)
+        return super().update(instance, validated_data)
 
 
 class CounsellingRequestSerializer(serializers.ModelSerializer):

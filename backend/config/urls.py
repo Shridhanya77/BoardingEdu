@@ -35,6 +35,12 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
     TokenBlacklistView,
 )
+from apps.notifications.otp_views import (
+    EmailChangeOtpView,
+    EmailChangeVerifyView,
+    OtpResendView,
+    OtpVerifyView,
+)
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
 from .health import healthz, readyz
 from .admin_dashboard import install_admin_dashboard
@@ -117,6 +123,10 @@ urlpatterns = [
         EmailOrUsernameTokenObtainPairView.as_view(),
         name="token_obtain_pair",
     ),
+    path("api/auth/otp/verify/", OtpVerifyView.as_view(), name="otp-verify"),
+    path("api/auth/otp/resend/", OtpResendView.as_view(), name="otp-resend"),
+    path("api/auth/otp/email/", EmailChangeOtpView.as_view(), name="otp-email-change"),
+    path("api/auth/otp/email/verify/", EmailChangeVerifyView.as_view(), name="otp-email-verify"),
     path(
         "api/auth/jwt/token/refresh/",
         TokenRefreshView.as_view(),

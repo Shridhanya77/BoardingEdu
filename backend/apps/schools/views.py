@@ -567,9 +567,25 @@ class SchoolViewSet(ReadWriteModelViewSet):
         """
         serializer = SchoolRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        from django.db import transaction
+
+        from apps.notifications.otp import OtpError, issue_otp
+        from apps.users.models import User
+
+        try:
+            with transaction.atomic():
+                serializer.save()
+                user = User.objects.filter(email__iexact=serializer.validated_data["email"]).first()
+                if user is None:
+                    raise OtpError("email_missing")
+                issue_otp(user, "register", client_ip=request.META.get("REMOTE_ADDR", ""))
+        except OtpError:
+            return Response(
+                {"detail": "The verification email could not be sent, so the school was not registered. Try again in a moment."},
+                status=503,
+            )
         return Response(
-            {"detail": "School registration complete. You can now sign in."},
+            {"detail": "Check your email for a verification code.", "otp_required": True, "purpose": "register"},
             status=201,
         )
 

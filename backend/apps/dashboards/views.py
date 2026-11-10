@@ -72,6 +72,8 @@ def _enquiry_row(enquiry, include_contacts=True):
         "parent_phone": parent_phone if include_contacts else "",
         "child_name": child_name if include_contacts else "",
         "message": enquiry.message if include_contacts else "",
+        "application_status": getattr(enquiry, "application_status", "SUBMITTED"),
+        "updated_at": enquiry.updated_at,
     }
     return row
 
@@ -175,13 +177,16 @@ class SchoolEnquiryStatusView(APIView):
     permission_classes = [IsVerifiedSchoolAdmin]
 
     def post(self, request, enquiry_id):
-        status = request.data.get("status")
+        crm_status = request.data.get("status")
+        application_status = request.data.get("application_status")
         allowed = {code for code, _label in AdmissionEnquiry.STATUS_CHOICES}
-        if status not in allowed:
-            return Response(
-                {"detail": "Choose a valid enquiry status."},
-                status=400,
-            )
+        application_choices = {code for code, _label in AdmissionEnquiry.APPLICATION_STATUS_CHOICES}
+        if crm_status is None and application_status is None:
+            return Response({"detail": "Choose a status to update."}, status=400)
+        if crm_status is not None and crm_status not in allowed:
+            return Response({"detail": "Choose a valid enquiry status."}, status=400)
+        if application_status is not None and application_status not in application_choices:
+            return Response({"detail": "Choose a valid application status."}, status=400)
         school = request.user.school_admin_profile.school
         enquiry = (
             AdmissionEnquiry.objects.select_related("school", "parent_profile__user")
@@ -190,8 +195,13 @@ class SchoolEnquiryStatusView(APIView):
         )
         if enquiry is None:
             return Response({"detail": "Enquiry not found."}, status=404)
-        enquiry.status = status
-        enquiry.save(update_fields=["status", "updated_at"])
+        if crm_status is not None:
+            enquiry.status = crm_status
+        if application_status is not None:
+            enquiry.application_status = application_status
+        enquiry._status_remarks = str(request.data.get("remarks") or "")[:1000]
+        enquiry._status_instructions = str(request.data.get("instructions") or "")[:1000]
+        enquiry.save()
         from apps.subscriptions.access import viewer_can_see_contacts
 
         return Response(
@@ -264,6 +274,9 @@ class ParentDashboardView(APIView):
             )
 
         enquiries = AdmissionEnquiry.objects.filter(parent_profile=profile)
+        from apps.notifications.models import ParentNotification
+
+        notifications = ParentNotification.objects.filter(user=request.user)
         reviews = Review.objects.filter(user=request.user)
         children = Child.objects.filter(parent_profile=profile)
         shortlist = ParentShortlist.objects.filter(parent_profile=profile).select_related(
@@ -287,7 +300,34 @@ class ParentDashboardView(APIView):
                         status=Review.STATUS_PUBLISHED
                     ).count(),
                     "shortlisted": shortlist.count(),
+                    "applications_total": enquiries.count(),
+                    "applications_under_review": enquiries.filter(application_status="UNDER_REVIEW").count(),
+                    "applications_in_progress": enquiries.filter(
+                        application_status__in=[
+                            "RECEIVED",
+                            "INTERACTION_SCHEDULED",
+                            "INTERACTION_COMPLETED",
+                            "OFFERED",
+                        ]
+                    ).count(),
+                    "applications_accepted": enquiries.filter(application_status="ACCEPTED").count(),
+                    "applications_rejected": enquiries.filter(application_status="REJECTED").count(),
+                    "applications_action_required": enquiries.filter(
+                        application_status="DOCUMENTS_REQUIRED"
+                    ).count(),
+                    "notifications_unread": notifications.filter(read_at__isnull=True).count(),
                 },
+                "notifications": [
+                    {
+                        "notification_id": str(note.notification_id),
+                        "title": note.title,
+                        "body": note.body,
+                        "enquiry_id": str(note.enquiry_id) if note.enquiry_id else None,
+                        "read": note.read_at is not None,
+                        "created_at": note.created_at,
+                    }
+                    for note in notifications[:8]
+                ],
                 "shortlist": [_shortlist_row(item) for item in shortlist[:12]],
                 "children": [
                     {

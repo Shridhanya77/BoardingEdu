@@ -9,7 +9,7 @@ from apps.admissions.models import AdmissionEnquiry
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.notifications.models import EmailDelivery
-from apps.schools.models import School
+from apps.schools.models import Facility, School, SchoolFacility
 from apps.users.models import SchoolAdminProfile, User
 
 from .serializers import UserRegisterSerializer
@@ -61,11 +61,40 @@ class PendingSchoolAdminLoginTests(TestCase):
         admin = User.objects.get(username="pending-school-admin")
         SchoolAdminProfile.objects.create(user=admin, school=school, designation="Principal")
 
-        response = APIClient().post(
-            "/api/auth/jwt/token/",
-            {"username": "pending-school-admin", "password": "secret-pass"},
-            format="json",
-        )
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
+        with override_settings(
+            OTP_BACKEND="memory",
+            CLOUDFLARE_EMAIL_API_TOKEN="test-token",
+            CLOUDFLARE_EMAIL_ACCOUNT_ID="test-account",
+            CLOUDFLARE_EMAIL_FROM="no-reply@boardingedu.com",
+        ), patch("apps.notifications.otp.generate_code", return_value="123456"), patch(
+            "apps.notifications.email_provider.requests.post"
+        ) as send:
+            send.return_value.status_code = 200
+            send.return_value.ok = True
+            send.return_value.json.return_value = {
+                "success": True,
+                "result": {"delivered": ["pending-school-admin has no email"], "queued": [], "message_id": "cf-1"},
+            }
+            admin.email = "pending-admin@example.test"
+            admin.save(update_fields=["email"])
+            send.return_value.json.return_value["result"]["delivered"] = [admin.email]
+            challenge = APIClient().post(
+                "/api/auth/jwt/token/",
+                {"username": "pending-school-admin", "password": "secret-pass"},
+                format="json",
+            )
+            self.assertEqual(challenge.status_code, 200, challenge.data)
+            self.assertTrue(challenge.data.get("otp_required"))
+            self.assertNotIn("access", challenge.data)
+            response = APIClient().post(
+                "/api/auth/otp/verify/",
+                {"email": admin.email, "otp": "123456", "purpose": "login"},
+                format="json",
+            )
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("access", response.data)
@@ -169,7 +198,28 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertNotContains(workspace, "Other Admin School")
         self.assertNotContains(workspace, "Hidden Parent")
         self.assertContains(workspace, "Your school")
+        self.assertContains(workspace, "Campus")
+        self.assertContains(workspace, "Classrooms")
         self.assertNotContains(workspace, "Countries")
+
+        library = Facility.objects.create(
+            facility_code="LIB-OWN",
+            category="ACADEMIC",
+            facility_name="Own Admin Library",
+            slug="own-admin-library",
+        )
+        turned_on = client.post(
+            reverse("admin:school_workspace"),
+            {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "yes"},
+        )
+        self.assertEqual(turned_on.status_code, 302)
+        self.assertTrue(SchoolFacility.objects.filter(school=own, facility=library, available=True).exists())
+        turned_off = client.post(
+            reverse("admin:school_workspace"),
+            {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "no"},
+        )
+        self.assertEqual(turned_off.status_code, 302)
+        self.assertFalse(SchoolFacility.objects.filter(school=own, facility=library).exists())
 
         leads = client.get(reverse("admin:admissions_admissionenquiry_changelist"))
         self.assertEqual(leads.status_code, 200)
@@ -231,29 +281,51 @@ class PlatformAdminPanelTests(TestCase):
 
 
 class ParentRegistrationWithoutEmailVerificationTests(TestCase):
-    def test_registration_creates_account_without_sending_otp_and_allows_login(self):
+    def test_registration_requires_otp_before_tokens(self):
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
         client = APIClient()
-        registration = client.post(
-            "/api/users/users/register/",
-            {
-                "username": "parent-no-otp",
-                "email": "parent-no-otp@example.test",
-                "first_name": "Parent",
-                "last_name": "No OTP",
-                "phone": "+919876543210",
-                "password": "secret-pass",
-                "password_confirm": "secret-pass",
-            },
-            format="json",
-        )
+        with override_settings(
+            OTP_BACKEND="memory",
+            CLOUDFLARE_EMAIL_API_TOKEN="test-token",
+            CLOUDFLARE_EMAIL_ACCOUNT_ID="test-account",
+            CLOUDFLARE_EMAIL_FROM="no-reply@boardingedu.com",
+        ), patch("apps.notifications.otp.generate_code", return_value="654321"), patch(
+            "apps.notifications.email_provider.requests.post"
+        ) as send:
+            send.return_value.status_code = 200
+            send.return_value.ok = True
+            send.return_value.json.return_value = {
+                "success": True,
+                "result": {"delivered": ["parent-otp@example.test"], "queued": [], "message_id": "cf-2"},
+            }
+            registration = client.post(
+                "/api/users/users/register/",
+                {
+                    "username": "parent-otp",
+                    "email": "parent-otp@example.test",
+                    "first_name": "Parent",
+                    "last_name": "OTP",
+                    "phone": "+919876543210",
+                    "password": "secret-pass",
+                    "password_confirm": "secret-pass",
+                },
+                format="json",
+            )
+            self.assertEqual(registration.status_code, 201, registration.data)
+            self.assertTrue(registration.data.get("otp_required"))
+            self.assertNotIn("access", registration.data)
+            from apps.notifications.otp import get_store
+            from apps.users.models import User
 
-        self.assertEqual(registration.status_code, 201, registration.data)
-        self.assertEqual(EmailDelivery.objects.count(), 0)
-
-        login = client.post(
-            "/api/auth/jwt/token/",
-            {"username": "parent-no-otp", "password": "secret-pass"},
-            format="json",
-        )
-        self.assertEqual(login.status_code, 200, login.data)
-        self.assertIn("access", login.data)
+            get_store().delete(f"otp:cooldown:register:{User.objects.get(username='parent-otp').pk}")
+            blocked = client.post(
+                "/api/auth/jwt/token/",
+                {"username": "parent-otp", "password": "secret-pass"},
+                format="json",
+            )
+        self.assertEqual(blocked.status_code, 200, blocked.data)
+        self.assertEqual(blocked.data.get("purpose"), "register")
+        self.assertNotIn("access", blocked.data)
