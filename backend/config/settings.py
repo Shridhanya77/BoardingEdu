@@ -2,6 +2,7 @@ import os
 import re
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 import dj_database_url
 from dotenv import load_dotenv
@@ -46,7 +47,9 @@ ALLOWED_HOSTS = [
         "localhost,127.0.0.1,.up.railway.app,"
         "boardingedu-production-ac84.up.railway.app,"
         "boardingedu-production-4144.up.railway.app,"
-        "boardingedu-6ng7.onrender.com",
+        "boardingedu-6ng7.onrender.com,"
+        "boardingedu-backend.onrender.com,"
+        "boardingedu-bay.vercel.app",
     ).split(",")
     if host.strip()
 ]
@@ -61,8 +64,6 @@ for _extra in (
 _railway_static = os.getenv("RAILWAY_STATIC_URL", "").strip()
 if _railway_static:
     try:
-        from urllib.parse import urlparse
-
         _railway_host = urlparse(_railway_static).hostname
         if _railway_host and _railway_host not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(_railway_host)
@@ -203,12 +204,26 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is missing. Configure it in your environment.")
 
+
+def _database_requires_ssl(url):
+    """External Render hosts require TLS. An explicit DATABASE_SSL_REQUIRE wins."""
+    explicit = os.getenv("DATABASE_SSL_REQUIRE", "").strip().lower()
+    if explicit in {"1", "true", "yes"}:
+        return True
+    if explicit in {"0", "false", "no"}:
+        return False
+    host = urlparse(url).hostname or ""
+    if host.endswith(".render.com"):
+        return True
+    return not DEBUG
+
+
 DATABASES = {
     "default": dj_database_url.parse(
         DATABASE_URL,
         conn_max_age=600,
         conn_health_checks=True,
-        ssl_require=os.getenv("DATABASE_SSL_REQUIRE", str(not DEBUG)).lower() == "true",
+        ssl_require=_database_requires_ssl(DATABASE_URL),
     )
 }
 
@@ -316,6 +331,8 @@ AUTH_USER_MODEL = 'users.User'
 # Exact frontend origins (add your production domain via the env variable).
 CORS_ALLOWED_ORIGINS = _csv_env(
     "CORS_ALLOWED_ORIGINS",
+    "https://boardingedu-bay.vercel.app,"
+    "https://boardingedu.vercel.app,"
     "https://boardingedu-ewj8l6i4h-shridhanya77s-projects.vercel.app",
 )
 
@@ -324,7 +341,7 @@ CORS_ALLOWED_ORIGINS = _csv_env(
 CORS_ALLOWED_ORIGIN_REGEXES = [
     os.getenv(
         "CORS_ORIGIN_REGEX",
-        r"^https://boardingedu(-[a-z0-9-]+-shridhanya77s-projects)?\.vercel\.app$",
+        r"^https://boardingedu(-[a-z0-9-]+)?\.vercel\.app$",
     )
 ]
 if DEBUG:
@@ -366,6 +383,7 @@ for _public_host in (
     "boardingedu-production-ac84.up.railway.app",
     "boardingedu-production-4144.up.railway.app",
     "boardingedu-6ng7.onrender.com",
+    "boardingedu-backend.onrender.com",
 ):
     _trust_https_origin(_public_host)
 
@@ -374,7 +392,9 @@ for _public_host in (
 # Security / proxy (Railway)
 # ----------------------------------------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-USE_X_FORWARDED_HOST = True
+# Vercel’s proxy sends the browser host in X-Forwarded-Host. Trusting that
+# header makes Django reject boardingedu-bay.vercel.app with HTTP 400.
+USE_X_FORWARDED_HOST = False
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
@@ -457,7 +477,22 @@ SIMPLE_JWT = {
 # Redis is used only when REDIS_URL is explicitly set. No probing at startup,
 # so a brief Redis hiccup during boot can no longer silently switch the app to
 # per-process memory caches and run Celery tasks inside web requests.
-REDIS_URL = os.getenv("REDIS_URL", "").strip()
+def _usable_redis_url(url):
+    """Ignore Railway's private Redis hostname outside Railway.
+
+    That hostname does not resolve on Render or a local machine, and the DNS
+    lookup hangs longer than the Redis socket timeout.
+    """
+    url = (url or "").strip()
+    if not url:
+        return ""
+    host = urlparse(url).hostname or ""
+    if host.endswith(".internal") and not os.getenv("RAILWAY_ENVIRONMENT"):
+        return ""
+    return url
+
+
+REDIS_URL = _usable_redis_url(os.getenv("REDIS_URL", ""))
 REDIS_IS_AVAILABLE = bool(REDIS_URL)
 
 if REDIS_IS_AVAILABLE:

@@ -1,50 +1,46 @@
-# Deploy BoardingEdu (Railway API/database + Vercel frontend)
+# Deploy BoardingEdu (Render API/database + Vercel frontend)
 
-Deploy the Railway PostgreSQL database and Django API first, then the Vercel
-frontend. Set the Vercel API URL before building the frontend. The Next.js
-frontend proxies browser API requests through its own origin, so Django CORS
-allow-list entries are not needed for the frontend.
+Deploy the Render PostgreSQL database and Django API first, then the Vercel
+frontend. The API already in use is `https://boardingedu-backend.onrender.com`.
+Set the Vercel API URL before building the frontend. The Next.js frontend
+proxies browser API requests through its own origin.
 
-## 1. Railway — PostgreSQL and Django API
+## 1. Render — PostgreSQL and Django API
 
-1. Create a Railway project and add a PostgreSQL service.
-2. Add a service from this GitHub repository. Set its **Root Directory** to
-   `backend`.
-3. Configure the service commands:
+`render.yaml` at the repository root is the blueprint. In the Render dashboard,
+choose **New → Blueprint** and connect this repository. It creates:
 
-   | Setting | Value |
-   |---|---|
-   | Build | `bash ./build.sh` |
-   | Start | `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --timeout 120` |
+| Resource | Name |
+|---|---|
+| PostgreSQL 16 | `boardingedu-db` |
+| Web service | `boardingedu-backend` (root directory `backend`) |
 
-4. In the Django service's variables, set:
+Build command: `chmod +x ./build.sh && ./build.sh`  
+Start command: `bash ./start.sh` (collects static files, migrates, then runs Gunicorn)  
+Health check: `/healthz`
 
-   | Key | Value |
-   |---|---|
-   | `SECRET_KEY` | A generated, private Django secret |
-   | `DEBUG` | `False` |
-   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (replace `Postgres` if your service has a different name) |
-   | `DATABASE_SSL_REQUIRE` | `false` when using Railway's private database URL |
-   | `ALLOWED_HOSTS` | The Railway API hostname, without `https://` |
-   | `CORS_ALLOWED_ORIGINS` | Optional origins for other browser clients. The Next.js frontend uses a same-origin backend proxy and does not require CORS access to Django. |
-   | `CSRF_TRUSTED_ORIGINS` | The Vercel origin; include the API origin if using Django admin |
-   | `CLOUDFLARE_R2_ACCOUNT_ID` | Cloudflare account ID for the R2 media bucket |
-   | `CLOUDFLARE_R2_ACCESS_KEY_ID` / `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 credentials with read access to school images |
-   | `CLOUDFLARE_R2_BUCKET` | Bucket name (defaults to `boardingedu-media`) |
-   | `CLOUDFLARE_R2_PUBLIC_BASE` | Optional public bucket URL ending in `/schools`; use the actual R2 public URL, not `media.boardingeu.com` |
+If the web service already exists, set those same commands on it instead of creating a second service. Point `DATABASE_URL` at the Render database **Internal Database URL**. Leave `DATABASE_SSL_REQUIRE` empty: hosts ending in `.render.com` use TLS, and Render's private hostname does not. Do not copy a `REDIS_URL` from Railway. The blueprint stores OTP codes in the database (`OTP_BACKEND=database`).
 
-   Keep `DATABASE_URL` private. Use Railway's private Postgres URL when the
-   services are in the same project/environment. If using a public database
-   URL, set `DATABASE_SSL_REQUIRE` according to that URL's TLS requirements.
-   Upload school images to the R2 bucket under `schools/<filename>`; the
-   filename must match the one saved in the school's image URL. Railway's
-   application filesystem is ephemeral and is not persistent media storage.
+Set these on the web service. Do not commit the secret values:
 
-5. Generate a public domain for the Django service. Wait for the deployment to
-   finish, then open `https://YOUR-API-DOMAIN/api/`. It should return the API
-   root response.
-6. Create an administrator from the Railway service's shell with
-   `python manage.py createsuperuser` if you need Django admin access.
+| Key | Value |
+|---|---|
+| `SECRET_KEY` | A generated, private Django secret |
+| `DEBUG` | `False` |
+| `DATABASE_URL` | Render Postgres internal connection string |
+| `CORS_ALLOWED_ORIGINS` | `https://boardingedu-bay.vercel.app` |
+| `CSRF_TRUSTED_ORIGINS` | `https://boardingedu-bay.vercel.app` |
+| `FRONTEND_URL` | `https://boardingedu-bay.vercel.app` |
+| `CLOUDFLARE_R2_ACCOUNT_ID` | Cloudflare account ID for the R2 media bucket |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID` / `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 credentials with read access to school images |
+| `CLOUDFLARE_R2_BUCKET` | Bucket name |
+| `CLOUDFLARE_R2_PUBLIC_BASE` | Public bucket URL ending in `/schools` |
+| `BREVO_API_KEY` | A Brevo API key (`xkeysib-...`) if verification email should send |
+| `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` | Verified sender |
+
+`RENDER_EXTERNAL_HOSTNAME` is provided by Render and is added to `ALLOWED_HOSTS` and trusted CSRF origins. Upload school images to the R2 bucket under `schools/<filename>`. Render's filesystem is ephemeral and is not media storage.
+
+Open `https://boardingedu-backend.onrender.com/api/` after the deploy. It should return the API root. Open `https://boardingedu-backend.onrender.com/healthz` for the liveness check. Create an administrator from the Render shell with `python manage.py createsuperuser` if you need Django admin access.
 
 ## 2. Vercel — frontend
 
@@ -55,7 +51,9 @@ allow-list entries are not needed for the frontend.
 
    | Key | Value |
    |---|---|
-   | `NEXT_PUBLIC_API_BASE` | `https://YOUR-API-DOMAIN/api` |
+   | `NEXT_PUBLIC_API_BASE` | `https://boardingedu-backend.onrender.com/api` |
+
+   The frontend that is deployed is `https://boardingedu-bay.vercel.app`.
 
    Include `/api` and do not add a trailing slash. The frontend calls Django
    through its same-origin `/backend-api/` rewrite, avoiding browser CORS
@@ -67,9 +65,8 @@ allow-list entries are not needed for the frontend.
 
 ## 3. Verify the deployment
 
-1. `https://YOUR-API-DOMAIN/api/` responds successfully.
-2. The Railway service has a successful database connection and completed
-   migrations.
+1. `https://boardingedu-backend.onrender.com/api/` responds successfully.
+2. The Render service log shows `migrate` finishing, and `/healthz` returns `{"status":"ok"}`.
 3. The Vercel site loads data. In browser DevTools → Network, frontend API
    requests should target the Vercel site's `/backend-api/` path and return
    successful responses. Next.js forwards those requests to Django server-side.
@@ -84,19 +81,19 @@ deployment was removed, that deployment cannot be restored by changing API
 settings. Deploy a new Vercel build and use its active URL (or the configured
 production domain).
 
-If `/backend-api/` requests fail with a server error, check the Railway API
-service and its logs. An unavailable or suspended API cannot serve data even
-when the browser-to-frontend proxy is working.
+If `/backend-api/` requests fail with a server error, check the Render API
+service and its logs. A suspended service, including the old
+`boardingedu-6ng7.onrender.com` service, cannot serve data.
 
 If the Vercel directory reports `API 500 on /schools/schools/` while
-geography and board endpoints still respond, inspect the Railway Django logs
+geography and board endpoints still respond, inspect the Render Django logs
 for the failing request and verify the deployed backend is from the same code
 revision as the frontend. School model changes require the migrations shipped
-with that backend revision. From the Railway service shell, check
+with that backend revision. From the Render shell, check
 `python manage.py showmigrations schools admissions` and run
-`python manage.py migrate --noinput` if migrations are pending. The configured
-Railway build command (`bash ./build.sh`) also runs migrations; confirm that
-the latest backend build completed successfully before redeploying Vercel.
+`python manage.py migrate --noinput` if migrations are pending. `bash ./start.sh`
+runs that migrate command on every boot. Confirm the latest Render build
+completed successfully before redeploying Vercel.
 The school image fields require `schools.0004_add_school_logo_url` and
 `schools.0005_add_school_image_url`. School detail galleries require
 `schools.0006_schoolphoto` and `schools.0007_schoolphoto_category_schoolvideo`;

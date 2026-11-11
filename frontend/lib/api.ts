@@ -1,11 +1,13 @@
 // Central BoardingEdu DRF API client — single source of truth
+const RENDER_API_BASE = "https://boardingedu-backend.onrender.com/api";
 const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE;
-if (!configuredApiBase && process.env.NODE_ENV === "production") {
+const usesRetiredRailwayHost = (configuredApiBase ?? "").includes("railway.app");
+if (!configuredApiBase && !usesRetiredRailwayHost && process.env.NODE_ENV === "production") {
   throw new Error("NEXT_PUBLIC_API_BASE must be set to the deployed API URL.");
 }
 
 export const API_BASE = (
-  configuredApiBase ?? "https://boardingedu-production-ac84.up.railway.app/api"
+  !configuredApiBase || usesRetiredRailwayHost ? RENDER_API_BASE : configuredApiBase
 ).replace(/\/+$/, "");
 const API_PATH = new URL(API_BASE).pathname.replace(/\/+$/, "");
 
