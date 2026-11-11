@@ -42,7 +42,7 @@ from apps.notifications.otp_views import (
     OtpVerifyView,
 )
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
-from .health import healthz, readyz
+from .health import healthz, outbound_ip, readyz
 from .admin_dashboard import install_admin_dashboard
 from .school_media import serve_day_school_media, serve_school_media
 
@@ -163,6 +163,7 @@ urlpatterns = [
     # ===== Health probes (liveness / readiness) =====
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
+    path("outbound-ip", outbound_ip, name="outbound-ip"),  # TEMPORARY - remove after Brevo IP allowlist
     path("media/schools/<path:filename>", serve_school_media, name="school-media"),
     path("media/schools/<path:filename>/", serve_school_media, name="school-media-slash"),
     path("media/day-schools/<path:filename>", serve_day_school_media, name="day-school-media"),
