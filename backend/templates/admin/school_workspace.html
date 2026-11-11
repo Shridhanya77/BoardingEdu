@@ -2,179 +2,239 @@
 {% load i18n %}
 
 {% block bodyclass %}{{ block.super }} dashboard be-dashboard be-school-admin{% endblock %}
-
 {% block content_title %}{% endblock %}
 
 {% block content %}
 <div id="content-main">
-  <section class="be-welcome">
-    <div>
-      <p class="be-welcome__kicker">{% translate "School admin" %}</p>
-      <h2>{{ school.school_name }}</h2>
-      <p>
-        {{ school.city.city_name }}, {{ school.state.state_name }} · {{ school.school_code }}
-        · {{ school.get_verification_status_display }}
-        · {% if school.admission_open %}{% translate "Admissions open" %}{% else %}{% translate "Admissions closed" %}{% endif %}
-      </p>
-    </div>
-    <div class="be-welcome__actions">
-      <a href="{{ school_url }}"><strong>{% translate "Edit school profile" %}</strong><span>{% translate "Contact, photos, about" %}</span></a>
-      <a href="{{ leads_url }}"><strong>{% translate "Manage leads" %}</strong><span>{{ lead_new }} {% translate "new" %}</span></a>
-      <a href="{{ facilities_url }}"><strong>{% translate "Facilities" %}</strong><span>{{ facility_count }} {% translate "available" %}</span></a>
-      <a href="{{ grades_url }}"><strong>{% translate "Grades" %}</strong><span>{{ grade_count }} {% translate "active" %}</span></a>
-      <a href="{{ fees_url }}"><strong>{% translate "Fees" %}</strong><span>{% translate "Academic year schedules" %}</span></a>
-    </div>
-  </section>
+  <div class="be-workspace">
+    <aside class="be-workspace__sidebar" aria-label="{% translate 'School workspace navigation' %}">
+      <a class="be-workspace__brand" href="#overview">
+        <span class="be-workspace__brand-mark" aria-hidden="true">B</span>
+        <span><strong>BoardingEdu</strong><small>{% translate "School workspace" %}</small></span>
+      </a>
+      <nav class="be-workspace__nav">
+        <a class="is-active" href="#overview" aria-current="page"><span aria-hidden="true">⌂</span>{% translate "Overview" %}</a>
+        <a href="{{ school_url }}"><span aria-hidden="true">▤</span>{% translate "School profile" %}</a>
+        <a href="#academics"><span aria-hidden="true">▣</span>{% translate "Academics" %}</a>
+        <a href="?campus=ACADEMIC#campus"><span aria-hidden="true">⌂</span>{% translate "Campus & facilities" %}</a>
+        <a href="{{ fees_url }}"><span aria-hidden="true">₹</span>{% translate "Fees & admissions" %}</a>
+        <a href="{{ school_url }}"><span aria-hidden="true">▧</span>{% translate "Photos & media" %}</a>
+        <a href="{{ leads_url }}"><span aria-hidden="true">✉</span>{% translate "Admission leads" %}</a>
+      </nav>
+      <div class="be-workspace__sidebar-foot">
+        <span class="be-workspace__sidebar-dot" aria-hidden="true"></span>
+        <span>{% translate "Managing" %}<strong>{{ school.short_name|default:school.school_name }}</strong></span>
+      </div>
+    </aside>
 
-  <div class="be-cards">
-    <a class="be-card be-card--brand" href="{{ leads_url }}">
-      <span class="be-card__label">{% translate "New leads" %}</span>
-      <strong class="be-card__value">{{ lead_new }}</strong>
-      <span class="be-card__hint">{{ lead_open }} {% translate "still open" %}</span>
-    </a>
-    <a class="be-card be-card--info" href="{{ leads_url }}">
-      <span class="be-card__label">{% translate "All leads" %}</span>
-      <strong class="be-card__value">{{ lead_total }}</strong>
-      <span class="be-card__hint">{% translate "Admission enquiries for this school" %}</span>
-    </a>
-    <a class="be-card be-card--{% if completion_score < 100 %}warn{% else %}info{% endif %}" href="{{ school_url }}">
-      <span class="be-card__label">{% translate "Profile completion" %}</span>
-      <strong class="be-card__value">{{ completion_score }}%</strong>
-      <span class="be-card__hint">{% translate "Filled sections of the public profile" %}</span>
-    </a>
-    <a class="be-card" href="{{ school_url }}">
-      <span class="be-card__label">{% translate "Photographs" %}</span>
-      <strong class="be-card__value">{{ photo_count }}</strong>
-      <span class="be-card__hint">{% translate "Gallery images on the profile" %}</span>
-    </a>
+    <main class="be-workspace__main">
+      <header class="be-workspace__hero" id="overview">
+        <div class="be-workspace__hero-copy">
+          <p class="be-workspace__eyebrow">{% translate "School administration" %}</p>
+          <h1>{{ school.school_name }}</h1>
+          <p class="be-workspace__subtitle">
+            {{ school.city.city_name }}, {{ school.state.state_name }}
+            <span aria-hidden="true">·</span> {{ school.school_code }}
+          </p>
+        </div>
+        <div class="be-workspace__hero-actions">
+          <span class="be-workspace__status be-workspace__status--{{ school.verification_status|lower }}">
+            <span aria-hidden="true"></span>{{ school.get_verification_status_display }}
+          </span>
+          <a class="be-workspace__button be-workspace__button--light" href="{{ school_url }}">{% translate "Edit profile" %}</a>
+          {% if public_profile_url %}
+          <a class="be-workspace__button be-workspace__button--outline" href="{{ public_profile_url }}" target="_blank" rel="noopener noreferrer">{% translate "Preview public profile" %}</a>
+          {% endif %}
+        </div>
+        <div class="be-workspace__admission">
+          <span class="be-workspace__admission-dot{% if not school.admission_open %} is-closed{% endif %}" aria-hidden="true"></span>
+          {% if school.admission_open %}{% translate "Admissions open" %}{% else %}{% translate "Admissions closed" %}{% endif %}
+        </div>
+      </header>
+
+      <section class="be-workspace__metrics" aria-label="{% translate 'School overview metrics' %}">
+        <a class="be-workspace__metric be-workspace__metric--primary" href="{{ leads_url }}">
+          <span>{% translate "New leads" %}</span><strong>{{ lead_new }}</strong><small>{% translate "Needs a response" %}</small>
+        </a>
+        <a class="be-workspace__metric" href="{{ leads_url }}">
+          <span>{% translate "Open enquiries" %}</span><strong>{{ lead_open }}</strong><small>{% translate "In the admission pipeline" %}</small>
+        </a>
+        <a class="be-workspace__metric" href="{{ school_url }}">
+          <span>{% translate "Profile completion" %}</span><strong>{{ completion_score }}%</strong><small>{% translate "Required information" %}</small>
+        </a>
+        <a class="be-workspace__metric" href="{{ school_url }}">
+          <span>{% translate "Photographs" %}</span><strong>{{ photo_count }}</strong><small>{% translate "In your public gallery" %}</small>
+        </a>
+        <a class="be-workspace__metric" href="{{ facilities_url }}">
+          <span>{% translate "Facilities" %}</span><strong>{{ facility_count }}</strong><small>{% translate "Marked available" %}</small>
+        </a>
+        <a class="be-workspace__metric" href="#academics">
+          <span>{% translate "Grades offered" %}</span><strong>{{ grade_count }}</strong><small>{% translate "Active classes" %}</small>
+        </a>
+      </section>
+
+      <section class="be-workspace__panel be-workspace__completion">
+        <div class="be-workspace__section-heading">
+          <div>
+            <p class="be-workspace__eyebrow">{% translate "Your next steps" %}</p>
+            <h2>{% translate "Profile completion" %}</h2>
+          </div>
+          <strong class="be-workspace__score">{{ completion_score }}%</strong>
+        </div>
+        <div class="be-workspace__progress" role="progressbar" aria-label="{% translate 'Profile completion' %}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ completion_score }}">
+          <span style="width: {{ completion_score }}%"></span>
+        </div>
+        <p class="be-workspace__hint">
+          {% if school.verification_status == "VERIFIED" %}
+            {% translate "Published information appears on your public profile. You can update it at any time." %}
+          {% elif school.verification_status == "PENDING" %}
+            {% translate "Your school is awaiting BoardingEdu review. Complete any missing details while you wait." %}
+          {% else %}
+            {% translate "Complete your school profile. BoardingEdu approval controls when families can find it." %}
+          {% endif %}
+        </p>
+        <div class="be-workspace__completion-grid">
+          {% for section in completion_sections %}
+          <details class="be-workspace__completion-item" {% if forloop.first %}open{% endif %}>
+            <summary>
+              <span class="be-workspace__completion-title">{{ section.label }}</span>
+              <span class="be-workspace__completion-score">{{ section.score }}%</span>
+              <span class="be-workspace__status-tag be-workspace__status-tag--{{ section.status }}">{{ section.status_label }}</span>
+            </summary>
+            <ul>
+              {% for item in section.items %}
+              <li>
+                <span><strong>{{ item.label }}</strong><small>{{ item.detail }}</small></span>
+                <span class="be-workspace__status-tag be-workspace__status-tag--{{ item.status }}">{{ item.status_label }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+            <a class="be-workspace__text-link" href="{{ section.url }}">{% translate "Update this section" %} <span aria-hidden="true">→</span></a>
+          </details>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="be-workspace__quick-links" aria-label="{% translate 'Quick actions' %}">
+        <a href="{{ school_url }}"><span aria-hidden="true">▤</span><strong>{% translate "School profile" %}</strong><small>{% translate "Contact, location, and description" %}</small></a>
+        <a href="#academics"><span aria-hidden="true">▣</span><strong>{% translate "Grades & seats" %}</strong><small>{% translate "Manage classes and intake" %}</small></a>
+        <a href="?campus=ACADEMIC#campus"><span aria-hidden="true">⌂</span><strong>{% translate "Campus facilities" %}</strong><small>{% translate "Keep facility information current" %}</small></a>
+        <a href="{{ fees_url }}"><span aria-hidden="true">₹</span><strong>{% translate "Fee structures" %}</strong><small>{% translate "Add or publish academic-year fees" %}</small></a>
+        <a href="{{ school_url }}"><span aria-hidden="true">▧</span><strong>{% translate "Photos & media" %}</strong><small>{% translate "Update your logo and gallery" %}</small></a>
+        <a href="{{ leads_url }}"><span aria-hidden="true">✉</span><strong>{% translate "Admission leads" %}</strong><small>{{ lead_new }} {% translate "new enquiries" %}</small></a>
+      </section>
+
+      <div class="be-workspace__two-column">
+        <section class="be-workspace__panel" id="campus">
+          <div class="be-workspace__section-heading">
+            <div><p class="be-workspace__eyebrow">{% translate "School information" %}</p><h2>{% translate "Campus & facilities" %}</h2></div>
+            <a class="be-workspace__text-link" href="{{ facilities_url }}">{% translate "View all" %} <span aria-hidden="true">→</span></a>
+          </div>
+          <nav class="be-workspace__tabs" aria-label="{% translate 'Facility categories' %}">
+            {% for group in campus_groups %}
+            <a class="{% if group.active %}is-active{% endif %}" href="?campus={{ group.key }}#campus" {% if group.active %}aria-current="page"{% endif %}>{{ group.label }}</a>
+            {% endfor %}
+          </nav>
+          <p class="be-workspace__hint">{{ campus_hint }}</p>
+          {% if campus_facilities %}
+          <ul class="be-workspace__facility-list">
+            {% for item in campus_facilities %}
+            <li>
+              <span>{{ item.name }}</span>
+              <form method="post" action="?campus={{ campus_group }}#campus">
+                {% csrf_token %}
+                <input type="hidden" name="facility" value="{{ item.id }}">
+                <input type="hidden" name="campus" value="{{ campus_group }}">
+                <button type="submit" name="campus_action" value="yes" class="{% if item.available %}is-selected{% endif %}">{% translate "Available" %}</button>
+                <button type="submit" name="campus_action" value="no" class="{% if not item.available %}is-selected{% endif %}">{% translate "Not available" %}</button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="be-workspace__empty">{% translate "No facilities are in this category yet. Ask a platform administrator to add them to the facility catalogue." %}</p>
+          {% endif %}
+        </section>
+
+        <section class="be-workspace__panel" id="academics">
+          <div class="be-workspace__section-heading">
+            <div><p class="be-workspace__eyebrow">{% translate "Admissions" %}</p><h2>{% translate "Grades offered" %}</h2></div>
+            <a class="be-workspace__text-link" href="{{ grades_url }}">{% translate "Manage grades" %} <span aria-hidden="true">→</span></a>
+          </div>
+          <p class="be-workspace__hint">{% translate "Add the classes your school admits. Seat counts are optional." %}</p>
+          <form class="be-workspace__grade-form" method="post">
+            {% csrf_token %}
+            <label class="be-workspace__sr-only" for="workspace-grade">{% translate "Choose a grade" %}</label>
+            <select id="workspace-grade" name="grade" required>
+              <option value="">{% translate "Choose a grade" %}</option>
+              {% for grade in grade_catalog %}
+              <option value="{{ grade.id }}">{{ grade.name }}</option>
+              {% endfor %}
+            </select>
+            <label class="be-workspace__sr-only" for="workspace-seats">{% translate "Seats available" %}</label>
+            <input id="workspace-seats" type="number" name="seats_available" min="0" inputmode="numeric" placeholder="{% translate 'Seats' %}">
+            <button type="submit" name="grade_action" value="add" class="be-workspace__button be-workspace__button--primary">{% translate "Add grade" %}</button>
+          </form>
+          {% if grades %}
+          <div class="be-workspace__table-wrap">
+            <table class="be-workspace__table">
+              <thead><tr><th>{% translate "Grade" %}</th><th>{% translate "Seats" %}</th><th><span class="be-workspace__sr-only">{% translate "Actions" %}</span></th></tr></thead>
+              <tbody>
+                {% for row in grades %}
+                <tr>
+                  <td><strong>{{ row.name }}</strong></td>
+                  <td>
+                    <form class="be-workspace__seat-form" method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="school_grade" value="{{ row.id }}">
+                      <label class="be-workspace__sr-only" for="seats-{{ row.id }}">{% translate "Seats for" %} {{ row.name }}</label>
+                      <input id="seats-{{ row.id }}" type="number" name="seats_available" min="0" inputmode="numeric" value="{% if row.seats is not None %}{{ row.seats }}{% endif %}" placeholder="—">
+                      <button type="submit" name="grade_action" value="seats" class="be-workspace__button be-workspace__button--small">{% translate "Save" %}</button>
+                    </form>
+                  </td>
+                  <td class="be-workspace__table-action">
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="school_grade" value="{{ row.id }}">
+                      <button type="submit" name="grade_action" value="remove" class="be-workspace__remove">{% translate "Remove" %}</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="be-workspace__empty">{% translate "No grades recorded yet. Add the classes currently accepting students." %}</p>
+          {% endif %}
+        </section>
+      </div>
+
+      <section class="be-workspace__panel">
+        <div class="be-workspace__section-heading">
+          <div><p class="be-workspace__eyebrow">{% translate "Parent enquiries" %}</p><h2>{% translate "Latest admission leads" %}</h2></div>
+          <a class="be-workspace__button be-workspace__button--primary" href="{{ leads_url }}">{% translate "Open lead inbox" %}</a>
+        </div>
+        {% if recent_leads %}
+        <div class="be-workspace__table-wrap">
+          <table class="be-workspace__table be-workspace__leads">
+            <thead><tr><th>{% translate "Lead" %}</th><th>{% translate "Parent" %}</th><th>{% translate "Contact" %}</th><th>{% translate "Grade" %}</th><th>{% translate "Status" %}</th></tr></thead>
+            <tbody>
+              {% for lead in recent_leads %}
+              <tr>
+                <td><a href="{{ lead.url }}"><strong>{{ lead.code }}</strong></a></td>
+                <td>{{ lead.parent }}</td><td>{{ lead.contact }}</td><td>{{ lead.grade }}</td>
+                <td><span class="be-workspace__lead-status">{{ lead.status }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="be-workspace__empty">{% translate "No leads yet. New admission enquiries for this school will appear here." %}</p>
+        {% endif %}
+      </section>
+    </main>
   </div>
-
-  <div class="be-panels">
-    <section class="be-panel">
-      <h3>{% translate "Lead status" %}</h3>
-      <ul class="be-chips">
-        {% for row in lead_statuses %}
-        <li><span>{{ row.label }}</span><strong>{{ row.total }}</strong></li>
-        {% endfor %}
-      </ul>
-    </section>
-
-    <section class="be-panel">
-      <h3>{% translate "Profile still to complete" %}</h3>
-      {% if gaps %}
-      <ul class="be-list">
-        {% for gap in gaps %}
-        <li>
-          <a href="{{ gap.url }}">{{ gap.label }}</a>
-          <strong>{{ gap.score }}%</strong>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="be-empty">{% translate "Every required section has information. BoardingEdu approval still controls whether parents can find the school." %}</p>
-      {% endif %}
-    </section>
-  </div>
-
-  <section class="be-panel" id="campus">
-    <h3>{% translate "Campus" %}</h3>
-    <div class="be-campus-tabs">
-      {% for group in campus_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?campus={{ group.key }}#campus">{{ group.label }}</a>
-      {% endfor %}
-    </div>
-    <p>{{ campus_hint }}</p>
-    {% if campus_facilities %}
-    <ul class="be-yesno">
-      {% for item in campus_facilities %}
-      <li>
-        <span>{{ item.name }}</span>
-        <form method="post" action="?campus={{ campus_group }}#campus">
-          {% csrf_token %}
-          <input type="hidden" name="facility" value="{{ item.id }}">
-          <input type="hidden" name="campus" value="{{ campus_group }}">
-          <button type="submit" name="campus_action" value="yes" class="{% if item.available %}is-yes{% endif %}">{% translate "Yes" %}</button>
-          <button type="submit" name="campus_action" value="no" class="{% if not item.available %}is-no{% endif %}">{% translate "No" %}</button>
-        </form>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="be-empty">{% translate "No facilities are in this group yet. A platform admin can add them to the facility list." %}</p>
-    {% endif %}
-  </section>
-
-  <section class="be-panel" id="grades">
-    <h3>{% translate "Grades offered" %}</h3>
-    <p>{% translate "Grades are the classes this school admits. Seats are optional; leave the field blank if they are not decided yet." %}</p>
-    <form class="be-grade-form" method="post">
-      {% csrf_token %}
-      <select name="grade" required>
-        <option value="">{% translate "Choose a grade" %}</option>
-        {% for grade in grade_catalog %}
-        <option value="{{ grade.id }}">{{ grade.name }}</option>
-        {% endfor %}
-      </select>
-      <input type="number" name="seats_available" min="0" inputmode="numeric" placeholder="{% translate 'Seats' %}">
-      <button type="submit" name="grade_action" value="add" class="be-btn">{% translate "Add grade" %}</button>
-    </form>
-    {% if grades %}
-    <table class="be-table">
-      <thead>
-        <tr>
-          <th>{% translate "Grade" %}</th>
-          <th>{% translate "Seats" %}</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in grades %}
-        <tr>
-          <td>{{ row.name }}</td>
-          <td>
-            <form class="be-grade-seats" method="post">
-              {% csrf_token %}
-              <input type="hidden" name="school_grade" value="{{ row.id }}">
-              <input type="number" name="seats_available" min="0" inputmode="numeric" value="{% if row.seats is not None %}{{ row.seats }}{% endif %}" placeholder="—" aria-label="{% translate 'Seats available' %}">
-              <button type="submit" name="grade_action" value="seats">{% translate "Save" %}</button>
-            </form>
-          </td>
-          <td class="be-table__action">
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="school_grade" value="{{ row.id }}">
-              <button type="submit" name="grade_action" value="remove">{% translate "Remove" %}</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="be-empty">{% translate "No grades recorded yet." %}</p>
-    {% endif %}
-  </section>
-
-  <section class="be-panel">
-    <h3>{% translate "Latest leads" %}</h3>
-    {% if recent_leads %}
-    <table class="be-table">
-      <tbody>
-        {% for lead in recent_leads %}
-        <tr>
-          <td><a href="{{ lead.url }}">{{ lead.code }}</a></td>
-          <td>{{ lead.parent }}</td>
-          <td>{{ lead.contact }}</td>
-          <td>{{ lead.grade }}</td>
-          <td><span class="be-tag">{{ lead.status }}</span></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p><a href="{{ leads_url }}">{% translate "Open the full lead list" %}</a></p>
-    {% else %}
-    <p class="be-empty">{% translate "No leads yet. New admission enquiries for this school will appear here." %}</p>
-    {% endif %}
-  </section>
 </div>
 {% endblock %}

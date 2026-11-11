@@ -4,13 +4,16 @@ Kept out of settings.py so the whole admin configuration lives in one place.
 Statistics are computed only on the admin index request, never on change forms.
 """
 from datetime import timedelta
+from urllib.parse import quote
 
 from django.contrib import admin, messages
+from django.conf import settings
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
@@ -466,18 +469,51 @@ def school_workspace(request):
         if grade.grade_id not in offered_ids
     ]
     completion = build_profile_completion(school)
+    workspace_url = reverse("admin:school_workspace")
     school_url = reverse("admin:schools_school_change", args=[school.pk])
+    leads_url = reverse("admin:admissions_admissionenquiry_changelist")
+    facilities_url = reverse("admin:schools_schoolfacility_changelist")
+    grades_url = reverse("admin:schools_schoolgrade_changelist")
+    fees_url = reverse("admin:fees_feestructure_changelist")
     section_urls = {
-        "fees": reverse("admin:fees_feestructure_changelist"),
-        "campus": reverse("admin:schools_schoolfacility_changelist"),
-        "sports": reverse("admin:schools_schoolfacility_changelist"),
-        "hostel": reverse("admin:schools_schoolfacility_changelist"),
-        "dining": reverse("admin:schools_schoolfacility_changelist"),
-        "healthcare": reverse("admin:schools_schoolfacility_changelist"),
-        "safety": reverse("admin:schools_schoolfacility_changelist"),
-        "transport": reverse("admin:schools_schoolfacility_changelist"),
-        "academics": reverse("admin:schools_schoolgrade_changelist"),
+        "basic": school_url,
+        "contact": school_url,
+        "location": school_url,
+        "academics": f"{workspace_url}#academics",
+        "fees": fees_url,
+        "campus": f"{workspace_url}?campus=ACADEMIC#campus",
+        "sports": f"{workspace_url}?campus=SPORTS#campus",
+        "hostel": f"{workspace_url}?campus=ACCOMMODATION#campus",
+        "dining": f"{workspace_url}?campus=DINING#campus",
+        "healthcare": f"{workspace_url}?campus=HEALTH#campus",
+        "safety": f"{workspace_url}?campus=SAFETY#campus",
+        "transport": f"{workspace_url}?campus=TRANSPORT#campus",
+        "gallery": school_url,
+        "publishing": f"{workspace_url}#overview",
     }
+    status_labels = {
+        "missing": _("Missing"),
+        "awaiting_approval": _("Awaiting approval"),
+        "needs_correction": _("Needs correction"),
+        "published": _("Published"),
+        "optional": _("Optional"),
+    }
+    completion_sections = [
+        {
+            **section,
+            "url": section_urls.get(section["key"], school_url),
+            "status_label": status_labels.get(section["status"], section["status"]),
+            "items": [
+                {
+                    **item,
+                    "url": section_urls.get(section["key"], school_url),
+                    "status_label": status_labels.get(item["status"], item["status"]),
+                }
+                for item in section["items"]
+            ],
+        }
+        for section in completion["sections"]
+    ]
     gaps = [
         {
             "label": section["label"],
@@ -487,11 +523,27 @@ def school_workspace(request):
         for section in completion["sections"]
         if section["key"] != "publishing" and section["status"] == "missing"
     ]
+    public_profile_path = "/" + "/".join(
+        quote(value, safe="-")
+        for value in (
+            school.country.slug,
+            school.state.slug,
+            school.city.slug,
+            school.slug,
+        )
+    ) + "/"
+    public_profile_url = (
+        f"{settings.PUBLIC_SITE_URL}{public_profile_path}"
+        if school.verification_status == "VERIFIED"
+        else ""
+    )
     context = {
         **admin.site.each_context(request),
         "title": school.school_name,
         "school": school,
+        "public_profile_url": public_profile_url,
         "completion_score": completion["score"],
+        "completion_sections": completion_sections,
         "gaps": gaps,
         "lead_total": counts["total"],
         "lead_new": counts["new"],
@@ -504,11 +556,12 @@ def school_workspace(request):
         "photo_count": sum(1 for photo in school.photos.all() if photo.status),
         "grade_count": sum(1 for row in school.school_grades.all() if row.is_active),
         "facility_count": sum(1 for row in school.school_facilities.all() if row.available),
+        "workspace_url": workspace_url,
         "school_url": school_url,
-        "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
-        "facilities_url": reverse("admin:schools_schoolfacility_changelist"),
-        "grades_url": reverse("admin:schools_schoolgrade_changelist"),
-        "fees_url": reverse("admin:fees_feestructure_changelist"),
+        "leads_url": leads_url,
+        "facilities_url": facilities_url,
+        "grades_url": grades_url,
+        "fees_url": fees_url,
         "campus_groups": [
             {"key": key, "label": label, "active": key == campus_group}
             for key, label, _hint in CAMPUS_GROUPS
