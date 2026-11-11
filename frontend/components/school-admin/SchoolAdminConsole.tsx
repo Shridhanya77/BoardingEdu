@@ -233,6 +233,11 @@ export default function SchoolAdminConsole() {
         )}
         {notice && <p className="sa-banner" role="status">{notice}</p>}
         {formError && <p className="sa-banner sa-banner--error" role="alert">{formError}</p>}
+        {data?.school.pending_profile_change && (
+          <p className="sa-banner" role="status">
+            Profile changes are awaiting BoardingEdu review. The approved public profile remains live until they are approved.
+          </p>
+        )}
 
         {data && section === "overview" && (
           <Overview
@@ -253,7 +258,7 @@ export default function SchoolAdminConsole() {
           />
         )}
         {data && section === "profile" && (
-          <ProfileEditor data={data} busy={busy} onSave={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "School profile saved.")} />
+          <ProfileEditor data={data} busy={busy} onSave={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "School profile changes submitted for admin review.")} />
         )}
         {data && section === "academics" && (
           <AcademicsEditor
@@ -299,7 +304,7 @@ export default function SchoolAdminConsole() {
           <GalleryEditor
             data={data}
             busy={busy}
-            onSaveProfile={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "Logo and cover photograph saved.")}
+            onSaveProfile={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "Logo and cover changes submitted for admin review.")}
             onAddUrl={(payload) => run(() => dashboards.savePhoto(payload).then(() => undefined), "Photograph added.")}
             onUpload={(file, category, caption) => run(() => dashboards.uploadPhoto(file, category, caption).then(() => undefined), "Photograph uploaded.")}
             onRemove={(id) => {

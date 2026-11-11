@@ -22,6 +22,7 @@ from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
 from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
 from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
+from .profile_changes import submit_school_profile_changes
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -554,8 +555,13 @@ class SchoolViewSet(ReadWriteModelViewSet):
                 partial=True,
             )
             serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
+            pending = submit_school_profile_changes(
+                school,
+                request.user,
+                serializer.validated_data,
+            )
+            response_status = 202 if pending else 200
+            return Response(SchoolPortalSerializer(school).data, status=response_status)
         return Response(SchoolPortalSerializer(school).data)
 
     @action(detail=False, methods=['post'], url_path='register')

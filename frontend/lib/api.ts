@@ -1222,6 +1222,10 @@ export type SchoolDashboardData = {
     school_type_ids: string[];
     school_types_detail: SchoolTypeListItem[];
     profile_completeness: number;
+    pending_profile_change: {
+      submitted_at: string;
+      changed_fields: string[];
+    } | null;
     profile_gaps: string[];
   };
   completion: {
@@ -1290,6 +1294,10 @@ export type SchoolPortalData = {
   school_types: string[];
   admission_open: boolean;
   verification_status: VerificationStatus;
+  pending_profile_change: {
+    submitted_at: string;
+    changed_fields: string[];
+  } | null;
 };
 
 export type SchoolPortalUpdate = Pick<

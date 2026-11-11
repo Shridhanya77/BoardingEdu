@@ -1076,6 +1076,7 @@ class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         max_length=50,
     )
     email = serializers.EmailField(required=False, allow_blank=True)
+    pending_profile_change = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -1100,13 +1101,28 @@ class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "boards",
             "school_types",
             "verification_status",
+            "pending_profile_change",
         ]
         read_only_fields = [
             "school_id",
             "school_name",
             "school_code",
             "verification_status",
+            "pending_profile_change",
         ]
+
+    def get_pending_profile_change(self, obj):
+        from .models import SchoolProfileChange
+
+        pending = obj.profile_changes.filter(
+            status=SchoolProfileChange.STATUS_PENDING
+        ).order_by("-submitted_at", "-pk").first()
+        if pending is None:
+            return None
+        return {
+            "submitted_at": pending.submitted_at,
+            "changed_fields": list(pending.changes),
+        }
 
     def validate_phone(self, value):
         return normalize_phone_number(value) if value.strip() else value

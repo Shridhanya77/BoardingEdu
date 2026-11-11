@@ -2030,6 +2030,49 @@ body.be-school-admin .be-campus-tabs a.is-active {
   color: #fff;
 }
 
+.be-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.be-panel--review {
+  border-left: 4px solid #d98324;
+}
+
+.be-review-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.be-review-links a {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  background: var(--darkened-bg);
+  color: var(--body-fg);
+  text-decoration: none;
+}
+
+.be-review-links a:hover {
+  border-color: var(--be-primary);
+}
+
+.be-review-links span {
+  color: var(--body-quiet-color);
+  font-size: 12px;
+}
+
+.be-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 body.be-school-admin .be-yesno button,
 body.be-school-admin .be-grade-form button,
 body.be-school-admin .be-grade-seats button,

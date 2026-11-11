@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
@@ -27,7 +28,15 @@ from .models import (
     SchoolGrade,
     SchoolFAQ,
     SchoolVerificationEvent,
+    SchoolProfileChange,
 )
+from .profile_changes import (
+    PROFILE_CHANGE_FIELDS,
+    profile_change_rows,
+    review_school_profile_change,
+    submit_school_profile_changes,
+)
+from .public_urls import public_school_url
 
 
 def media_preview_html(url):
@@ -373,6 +382,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         "fee_structures_panel",
         "school_logo_preview",
         "school_image_preview",
+        "profile_review_status",
     )
 
     fieldsets = (
@@ -443,10 +453,12 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                     "tagline",
                     "about",
                     "admission_open",
+                    "profile_review_status",
                 ),
                 "description": (
-                    "Keep the public profile factual and current. This overview "
-                    "appears on the school detail page."
+                    "Keep the public profile factual and current. Core school details "
+                    "edited by a school administrator wait for platform review; related "
+                    "facilities, grades, fees, and gallery records keep their own controls."
                 ),
             },
         ),
@@ -503,12 +515,80 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     def get_urls(self):
         custom_urls = [
             path(
+                "profile-review/",
+                self.admin_site.admin_view(self.profile_review_queue_view),
+                name="schools_school_profile_review_queue",
+            ),
+            path(
                 "verification-queue/",
                 self.admin_site.admin_view(self.verification_queue_view),
                 name="schools_school_verification_queue",
             ),
         ]
         return custom_urls + super().get_urls()
+
+    def profile_review_queue_view(self, request):
+        if not is_verification_admin(request.user):
+            return HttpResponseForbidden(
+                "Profile review access requires Staff Admin or Super Admin."
+            )
+
+        if request.method == "POST":
+            action = request.POST.get("action")
+            change_id = request.POST.get("change_id")
+            note = request.POST.get("review_note", "").strip()
+            if action not in {"approve", "reject"}:
+                messages.error(request, "Choose whether to approve or reject this submission.")
+            elif action == "reject" and not note:
+                messages.error(request, "Add a reason before rejecting a profile submission.")
+            else:
+                try:
+                    change_id = forms.UUIDField().clean(change_id)
+                except ValidationError:
+                    messages.error(request, "Choose a valid profile submission.")
+                else:
+                    try:
+                        change = review_school_profile_change(
+                            change_id=change_id,
+                            reviewer=request.user,
+                            approve=action == "approve",
+                            note=note,
+                        )
+                    except SchoolProfileChange.DoesNotExist:
+                        messages.error(request, "That profile submission no longer exists.")
+                    except ValueError as error:
+                        messages.error(request, str(error))
+                    else:
+                        messages.success(
+                            request,
+                            f"{change.school.school_name} profile submission {change.get_status_display().lower()}.",
+                        )
+                        return redirect("admin:schools_school_profile_review_queue")
+
+        pending_changes = (
+            SchoolProfileChange.objects.filter(status=SchoolProfileChange.STATUS_PENDING)
+            .select_related("school", "submitted_by", "school__country", "school__state", "school__city")
+            .order_by("submitted_at")
+        )
+        rows = [
+            {
+                "change": change,
+                "fields": profile_change_rows(change),
+                "school_url": reverse("admin:schools_school_change", args=[change.school_id]),
+            }
+            for change in pending_changes
+        ]
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "title": "Pending school profile changes",
+            "pending_changes": rows,
+        }
+        return render(
+            request,
+            "admin/schools/school/profile_change_queue.html",
+            context,
+        )
 
     def verification_queue_view(self, request):
         if not is_verification_admin(request.user):
@@ -572,6 +652,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         if manages_own_school(request.user):
             for name in (
                 "school_code",
+                "slug",
                 "status",
                 "is_featured",
                 "verification_status",
@@ -582,8 +663,71 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                     fields.append(name)
         return fields
 
+    def get_prepopulated_fields(self, request, obj=None):
+        if manages_own_school(request.user):
+            return {}
+        return super().get_prepopulated_fields(request, obj)
+
+    @admin.display(description="Profile review")
+    def profile_review_status(self, obj):
+        if obj is None or obj.pk is None:
+            return "Save the profile before submitting changes for review."
+        latest = obj.profile_changes.order_by("-submitted_at", "-pk").first()
+        if latest is None:
+            return "No profile edits are awaiting review."
+        if latest.status == SchoolProfileChange.STATUS_PENDING:
+            return (
+                f"Submitted {latest.submitted_at:%b %d, %Y at %H:%M}. "
+                "The currently approved profile remains public until these edits are approved."
+            )
+        if latest.status == SchoolProfileChange.STATUS_REJECTED:
+            return (
+                f"Your last profile submission was rejected on {latest.reviewed_at:%b %d, %Y}. "
+                f"Review note: {latest.review_note or 'No reason was recorded.'}"
+            )
+        reviewed = (
+            f" on {latest.reviewed_at:%b %d, %Y}"
+            if latest.reviewed_at
+            else ""
+        )
+        return f"Your last profile submission was {latest.get_status_display().lower()}{reviewed}."
+
+    view_on_site = True
+
+    def has_view_on_site_permission(self, request, obj=None):
+        return bool(
+            obj
+            and obj.status
+            and obj.verification_status == "VERIFIED"
+        )
+
+    def get_view_on_site_url(self, obj):
+        return public_school_url(obj)
+
     def save_model(self, request, obj, form, change):
+        if manages_own_school(request.user):
+            values = {
+                field_name: form.cleaned_data[field_name]
+                for field_name in form.changed_data
+                if field_name in PROFILE_CHANGE_FIELDS
+            }
+            pending = submit_school_profile_changes(obj, request.user, values)
+            if pending:
+                messages.success(
+                    request,
+                    "Your profile edits were submitted for admin review. The approved public profile remains live.",
+                )
+            elif values:
+                messages.info(request, "There are no profile changes awaiting review.")
+            return
         super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        if manages_own_school(request.user):
+            for formset in formsets:
+                self.save_formset(request, form, formset, change)
+            return
+        super().save_related(request, form, formsets, change)
 
     def save_formset(self, request, form, formset, change):
         super().save_formset(request, form, formset, change)

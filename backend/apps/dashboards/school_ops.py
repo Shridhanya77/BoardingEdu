@@ -18,7 +18,17 @@ from rest_framework.views import APIView
 
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.schools.completeness import build_profile_completion
-from apps.schools.models import Board, Facility, Grade, School, SchoolFacility, SchoolGrade, SchoolPhoto, SchoolType
+from apps.schools.models import (
+    Board,
+    Facility,
+    Grade,
+    School,
+    SchoolFacility,
+    SchoolGrade,
+    SchoolPhoto,
+    SchoolProfileChange,
+    SchoolType,
+)
 from apps.users.models import User
 from config.school_media import _public_media_url, _r2_bucket, _r2_client
 
@@ -155,6 +165,11 @@ def build_school_admin_payload(user, enquiry_rows):
     if school is None:
         return None
     verified = school.verification_status == "VERIFIED"
+    pending_profile_change = (
+        school.profile_changes.filter(status=SchoolProfileChange.STATUS_PENDING)
+        .order_by("-submitted_at", "-pk")
+        .first()
+    )
     current_year = AcademicYear.objects.filter(is_current=True, status=True).first()
     completion = build_profile_completion(school)
     return {
@@ -200,6 +215,14 @@ def build_school_admin_payload(user, enquiry_rows):
                 for school_type in school.school_types.all()
             ],
             "profile_completeness": completion["score"],
+            "pending_profile_change": (
+                {
+                    "submitted_at": pending_profile_change.submitted_at.isoformat(),
+                    "changed_fields": list(pending_profile_change.changes),
+                }
+                if pending_profile_change
+                else None
+            ),
             "profile_gaps": [
                 item["label"]
                 for section in completion["sections"]

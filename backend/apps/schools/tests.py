@@ -18,11 +18,13 @@ from apps.admissions.models import CounsellingRequest
 from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.fees.admin import FeeItemInline
 from apps.geography.models import City, Country, Location, State
-from apps.users.models import User
+from apps.users.models import SchoolAdminProfile, User
 from .management.commands.manage_school_photos import Command as ManageSchoolPhotosCommand
+from config.admin_dashboard import _grade_group
 from config.school_media import cover_image_url_for_school
 from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
 from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
+from .profile_changes import review_school_profile_change
 from .serializers import (
     SchoolDetailSerializer,
     SchoolListSerializer,
@@ -77,6 +79,16 @@ class SchoolBulkEntryAdminTests(SimpleTestCase):
         self.assertIn("seats_available", SchoolGradeInline.fields)
         self.assertIn("amount", FeeItemInline.fields)
         self.assertIn("grade", FeeItemInline.fields)
+
+
+class SchoolAdminGradeGroupingTests(SimpleTestCase):
+    def test_grade_names_are_grouped_into_school_levels(self):
+        self.assertEqual(_grade_group("Nursery"), "EARLY")
+        self.assertEqual(_grade_group("Class 4"), "PRIMARY")
+        self.assertEqual(_grade_group("Grade 7"), "MIDDLE")
+        self.assertEqual(_grade_group("Standard 10"), "SECONDARY")
+        self.assertEqual(_grade_group("Grade 12"), "SENIOR")
+        self.assertEqual(_grade_group("Foundation"), "OTHER")
 
 
 class SchoolImageAdminTests(SimpleTestCase):
@@ -218,6 +230,7 @@ class SchoolClassificationTests(TestCase):
             unique_school_slug(school.school_name, school.school_id),
             'existing-school',
         )
+
 
     def test_inactive_school_is_not_available_by_public_slug(self):
         school = self.create_school('INACTIVE')
@@ -1167,6 +1180,116 @@ class SchoolClassificationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+
+class SchoolProfileReviewWorkflowTests(TestCase):
+    def setUp(self):
+        country = Country.objects.create(
+            country_code="IN",
+            country_name="India",
+            slug="india-profile-review",
+        )
+        state = State.objects.create(
+            country=country,
+            state_code="KA",
+            state_name="Karnataka",
+            slug="karnataka-profile-review",
+        )
+        city = City.objects.create(
+            state=state,
+            city_code="BLR",
+            city_name="Bengaluru",
+            slug="bengaluru-profile-review",
+        )
+        self.school = School.objects.create(
+            school_code="PROFILE-REVIEW",
+            school_name="Profile Review School",
+            slug="profile-review-school",
+            country=country,
+            state=state,
+            city=city,
+            address="Old address",
+            phone="919000000000",
+            about="Approved profile",
+            verification_status="VERIFIED",
+        )
+        self.school_admin = User.objects.create_user(
+            username="profile-review-school-admin",
+            email="profile-review-school-admin@example.test",
+            password="secret-pass",
+            role=User.ROLE_SCHOOL_ADMIN,
+        )
+        SchoolAdminProfile.objects.create(user=self.school_admin, school=self.school)
+        self.reviewer = User.objects.create_user(
+            username="profile-review-staff",
+            email="profile-review-staff@example.test",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+        )
+
+    def test_api_submissions_stay_draft_until_approved_and_merge(self):
+        client = APIClient()
+        client.force_authenticate(user=self.school_admin)
+
+        first = client.patch(
+            "/api/schools/schools/mine/",
+            {"about": "Proposed profile"},
+            format="json",
+        )
+        self.assertEqual(first.status_code, 202, first.data)
+        self.assertEqual(first.data["about"], "Approved profile")
+        self.assertEqual(
+            first.data["pending_profile_change"]["changed_fields"],
+            ["about"],
+        )
+
+        second = client.patch(
+            "/api/schools/schools/mine/",
+            {"phone": "919111111111"},
+            format="json",
+        )
+        self.assertEqual(second.status_code, 202, second.data)
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.about, "Approved profile")
+        self.assertEqual(self.school.phone, "919000000000")
+
+        pending = self.school.profile_changes.get(status="PENDING")
+        self.assertEqual(pending.changes["about"], "Proposed profile")
+        self.assertEqual(pending.changes["phone"], "919111111111")
+
+        review_school_profile_change(
+            pending.change_id,
+            self.reviewer,
+            approve=True,
+            note="Reviewed",
+        )
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.about, "Proposed profile")
+        self.assertEqual(self.school.phone, "919111111111")
+        self.assertEqual(self.school.verification_status, "VERIFIED")
+
+    def test_rejected_submission_does_not_change_live_profile(self):
+        client = APIClient()
+        client.force_authenticate(user=self.school_admin)
+        response = client.patch(
+            "/api/schools/schools/mine/",
+            {"about": "Rejected profile"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 202, response.data)
+
+        pending = self.school.profile_changes.get(status="PENDING")
+        review_school_profile_change(
+            pending.change_id,
+            self.reviewer,
+            approve=False,
+            note="Please correct the description.",
+        )
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.about, "Approved profile")
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, "REJECTED")
+        self.assertEqual(pending.review_note, "Please correct the description.")
 
 
 class SchoolFAQApiTests(TestCase):

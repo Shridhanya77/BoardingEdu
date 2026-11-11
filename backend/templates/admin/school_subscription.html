@@ -1,0 +1,102 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block bodyclass %}{{ block.super }} dashboard be-dashboard be-school-admin{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <section class="be-welcome">
+    <div>
+      <p class="be-welcome__kicker">{% translate "Subscription" %}</p>
+      <h2>{{ school.school_name }}</h2>
+      <p>{% translate "Review available plans, your plan status, and payment history." %}</p>
+    </div>
+    <div class="be-welcome__actions">
+      <a href="{{ purchase_url }}" target="_blank" rel="noopener">
+        <strong>{% translate "Purchase or change a plan" %}</strong>
+        <span>{% translate "Continue in the School Admin Console" %}</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="be-panel" id="plans">
+    <h3>{% translate "Subscription plans" %}</h3>
+    <p>{% translate "Lead contacts are shown only while an eligible plan is active." %}</p>
+    {% if plans %}
+    <div class="be-cards">
+      {% for plan in plans %}
+      <article class="be-card">
+        <span class="be-card__label">{{ plan.name }}</span>
+        <strong class="be-card__value">{{ plan.currency }} {{ plan.price|floatformat:2 }}</strong>
+        <span class="be-card__hint">{{ plan.duration_days }} {% translate "days" %}</span>
+        {% if plan.description %}<p>{{ plan.description }}</p>{% endif %}
+        <p>
+          {% if plan.lead_access %}{% translate "Lead contacts included" %}{% else %}{% translate "Lead contacts not included" %}{% endif %}
+          {% if plan.lead_quota %} · {{ plan.lead_quota }} {% translate "leads" %}{% endif %}
+        </p>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="be-empty">{% translate "No subscription plans are available right now." %}</p>
+    {% endif %}
+  </section>
+
+  <section class="be-panel" id="plan">
+    <h3>{% translate "My plan" %}</h3>
+    {% if current_subscription %}
+    <ul class="be-chips">
+      <li><span>{% translate "Plan" %}</span><strong>{{ current_subscription.plan.name }}</strong></li>
+      <li><span>{% translate "Status" %}</span><strong>{{ current_subscription.get_status_display }}</strong></li>
+      <li><span>{% translate "Starts" %}</span><strong>{{ current_subscription.starts_at|date:"M j, Y" }}</strong></li>
+      <li><span>{% translate "Expires" %}</span><strong>{{ current_subscription.expires_at|date:"M j, Y" }}</strong></li>
+    </ul>
+    {% else %}
+    <p class="be-empty">{% translate "No active plan currently unlocks lead contacts." %}</p>
+    {% endif %}
+    {% if subscriptions %}
+    <h4>{% translate "Subscription history" %}</h4>
+    <div class="be-table-wrap">
+      <table class="be-table">
+        <thead><tr><th>{% translate "Plan" %}</th><th>{% translate "Status" %}</th><th>{% translate "Start" %}</th><th>{% translate "Expiry" %}</th></tr></thead>
+        <tbody>
+          {% for subscription in subscriptions %}
+          <tr>
+            <td>{{ subscription.plan.name }}</td>
+            <td>{{ subscription.get_status_display }}</td>
+            <td>{{ subscription.starts_at|date:"M j, Y"|default:"—" }}</td>
+            <td>{{ subscription.expires_at|date:"M j, Y"|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="be-panel" id="payments">
+    <h3>{% translate "Payment history" %}</h3>
+    {% if payments %}
+    <div class="be-table-wrap">
+      <table class="be-table">
+        <thead><tr><th>{% translate "Date" %}</th><th>{% translate "Plan" %}</th><th>{% translate "Amount" %}</th><th>{% translate "Status" %}</th><th>{% translate "Payment reference" %}</th></tr></thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td>{{ payment.created_at|date:"M j, Y" }}</td>
+            <td>{{ payment.plan.name }}</td>
+            <td>{{ payment.currency }} {{ payment.amount|floatformat:2 }}</td>
+            <td>{{ payment.get_status_display }}</td>
+            <td>{{ payment.provider_payment_id|default:payment.provider_order_id }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="be-empty">{% translate "No payments have been recorded for this school." %}</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

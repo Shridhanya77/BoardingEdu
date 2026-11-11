@@ -14,6 +14,17 @@
 
 <section class="be-directory">
   <header>
+    <h2>{% translate "Review and administration" %}</h2>
+  </header>
+  <div class="be-review-links">
+    {% for item in s.quick_links %}
+      <a href="{{ item.url }}"><strong>{{ item.label }}</strong><span>{{ item.hint }}</span></a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="be-directory">
+  <header>
     <h2>{% translate "Schools" %}</h2>
     <a href="{% url 'admin:schools_school_changelist' %}">{% translate "View all" %}</a>
   </header>

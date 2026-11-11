@@ -1,7 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
+from django.contrib import admin
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
@@ -9,7 +13,13 @@ from apps.admissions.models import AdmissionEnquiry
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.notifications.models import EmailDelivery
-from apps.schools.models import Facility, School, SchoolFacility
+from apps.schools.admin import SchoolAdmin
+from apps.schools.models import Facility, School, SchoolFacility, SchoolProfileChange
+from apps.subscriptions.models import (
+    SchoolSubscription,
+    SubscriptionPayment,
+    SubscriptionPlan,
+)
 from apps.users.models import SchoolAdminProfile, User
 
 from .serializers import UserRegisterSerializer
@@ -177,6 +187,8 @@ class SchoolAdminBackendLoginTests(TestCase):
             academic_year=year,
             guest_full_name="Visible Parent",
             guest_phone="919876543210",
+            guest_email="visible-parent@example.test",
+            guest_child_name="Private Child",
         )
         AdmissionEnquiry.objects.create(
             school=other,
@@ -190,18 +202,129 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertEqual(home.url, reverse("admin:school_workspace"))
         workspace = client.get(home.url)
         self.assertEqual(workspace.status_code, 200)
-        self.assertContains(workspace, 'id="nav-sidebar"')
+        self.assertContains(workspace, 'id="jazzy-sidebar"')
+        self.assertContains(workspace, 'id="jazzy-navigation"')
         self.assertContains(workspace, "Own Admin School")
         self.assertContains(workspace, own_lead.enquiry_code)
         self.assertNotContains(workspace, "Visible Parent")
         self.assertNotContains(workspace, "919876543210")
+        self.assertNotContains(workspace, "visible-parent@example.test")
+        self.assertNotContains(workspace, "Private Child")
         self.assertContains(workspace, "Subscription required")
         self.assertNotContains(workspace, "Other Admin School")
         self.assertNotContains(workspace, "Hidden Parent")
         self.assertContains(workspace, "Your school")
-        self.assertContains(workspace, "Campus")
+        self.assertContains(workspace, "Facilities")
         self.assertContains(workspace, "Classrooms")
+        self.assertContains(workspace, "Grade levels")
+        self.assertContains(workspace, "Subscription plans")
         self.assertNotContains(workspace, "Countries")
+
+        school_change = client.get(reverse("admin:schools_school_change", args=[own.pk]))
+        self.assertEqual(school_change.status_code, 200)
+        self.assertContains(school_change, "Profile review")
+        self.assertNotContains(school_change, 'id="id_slug"')
+
+        model_admin = SchoolAdmin(School, admin.site)
+        admin_request = SimpleNamespace(user=user)
+        form = SimpleNamespace(
+            changed_data=["about"],
+            cleaned_data={"about": "Pending from the Django profile editor"},
+            save_m2m=Mock(),
+        )
+        with patch("apps.schools.admin.messages.success"):
+            model_admin.save_model(admin_request, own, form, change=True)
+            model_admin.save_related(admin_request, form, [], change=True)
+        own.refresh_from_db()
+        self.assertEqual(own.about, "")
+        self.assertIn("slug", model_admin.get_readonly_fields(admin_request, own))
+        self.assertNotIn("slug", model_admin.get_prepopulated_fields(admin_request, own))
+        form.save_m2m.assert_not_called()
+        pending_profile = SchoolProfileChange.objects.get(
+            school=own,
+            status=SchoolProfileChange.STATUS_PENDING,
+        )
+        self.assertEqual(
+            pending_profile.changes["about"],
+            "Pending from the Django profile editor",
+        )
+
+        self.assertEqual(
+            client.get(reverse("admin:schools_school_profile_review_queue")).status_code,
+            403,
+        )
+        reviewer = User.objects.create_user(
+            username="profile-reviewer",
+            email="profile-reviewer@example.test",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+            is_staff=True,
+        )
+        reviewer_client = APIClient()
+        reviewer_client.force_login(reviewer)
+        queue_url = reverse("admin:schools_school_profile_review_queue")
+        queue = reviewer_client.get(queue_url)
+        self.assertEqual(queue.status_code, 200)
+        self.assertContains(queue, "Pending from the Django profile editor")
+        approved = reviewer_client.post(
+            queue_url,
+            {
+                "change_id": str(pending_profile.pk),
+                "action": "approve",
+                "review_note": "Reviewed",
+            },
+        )
+        self.assertEqual(approved.status_code, 302)
+        own.refresh_from_db()
+        self.assertEqual(own.about, "Pending from the Django profile editor")
+
+        own_lead_page = client.get(
+            reverse("admin:admissions_admissionenquiry_change", args=[own_lead.pk])
+        )
+        self.assertEqual(own_lead_page.status_code, 200)
+        self.assertNotContains(own_lead_page, "Visible Parent")
+        self.assertNotContains(own_lead_page, "919876543210")
+        self.assertNotContains(own_lead_page, "visible-parent@example.test")
+        self.assertNotContains(own_lead_page, "Private Child")
+
+        plan = SubscriptionPlan.objects.create(
+            name="Admin Contact Plan",
+            price="100.00",
+            duration_days=365,
+            lead_access=True,
+        )
+        now = timezone.now()
+        SchoolSubscription.objects.create(
+            school=own,
+            plan=plan,
+            status=SchoolSubscription.STATUS_ACTIVE,
+            starts_at=now - timedelta(days=1),
+            expires_at=now + timedelta(days=30),
+        )
+        unlocked_lead_page = client.get(
+            reverse("admin:admissions_admissionenquiry_change", args=[own_lead.pk])
+        )
+        self.assertContains(unlocked_lead_page, "Visible Parent")
+        self.assertContains(unlocked_lead_page, "visible-parent@example.test")
+        self.assertContains(unlocked_lead_page, "Private Child")
+
+        own_payment = SubscriptionPayment.objects.create(
+            school=own,
+            plan=plan,
+            amount="100.00",
+            provider_order_id="own-admin-payment",
+        )
+        SubscriptionPayment.objects.create(
+            school=other,
+            plan=plan,
+            amount="100.00",
+            provider_order_id="other-admin-payment",
+        )
+        subscription_page = client.get(reverse("admin:school_subscriptions"))
+        self.assertEqual(subscription_page.status_code, 200)
+        self.assertContains(subscription_page, "Admin Contact Plan")
+        self.assertContains(subscription_page, own_payment.provider_order_id)
+        self.assertNotContains(subscription_page, "other-admin-payment")
 
         library = Facility.objects.create(
             facility_code="LIB-OWN",

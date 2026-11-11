@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+  <div class="module">
+    <h2>{% translate "Pending school profile changes" %}</h2>
+    <p>{% translate "Approving a submission updates the public profile. Rejecting it keeps the approved information unchanged." %}</p>
+    {% for item in pending_changes %}
+    <section class="be-panel">
+      <h3><a href="{{ item.school_url }}">{{ item.change.school.school_name }}</a></h3>
+      <p>
+        {% translate "Submitted by" %} {{ item.change.submitted_by.get_full_name|default:item.change.submitted_by.username }}
+        · {{ item.change.submitted_at|date:"M j, Y, H:i" }}
+      </p>
+      <div class="be-table-wrap">
+        <table class="be-table">
+          <thead><tr><th>{% translate "Field" %}</th><th>{% translate "Currently public" %}</th><th>{% translate "Proposed" %}</th></tr></thead>
+          <tbody>
+            {% for field in item.fields %}
+            <tr><th>{{ field.label }}</th><td>{{ field.current }}</td><td>{{ field.proposed }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="change_id" value="{{ item.change.pk }}">
+        <label for="review-note-{{ item.change.pk }}">{% translate "Review note (required when rejecting)" %}</label>
+        <textarea id="review-note-{{ item.change.pk }}" name="review_note" rows="2" maxlength="1000"></textarea>
+        <div class="be-review-actions">
+          <button type="submit" name="action" value="approve" class="button default">{% translate "Approve and publish" %}</button>
+          <button type="submit" name="action" value="reject" class="button">{% translate "Reject" %}</button>
+        </div>
+      </form>
+    </section>
+    {% empty %}
+    <p class="be-empty">{% translate "There are no school profile changes awaiting review." %}</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,7 @@
 import uuid
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils.text import slugify
 from apps.geography.models import Country, State, City, Location
 
@@ -235,6 +236,71 @@ class SchoolVerificationEvent(models.Model):
 
     def __str__(self):
         return f"{self.school.school_name}: {self.previous_status} to {self.new_status}"
+
+
+class SchoolProfileChange(models.Model):
+    STATUS_PENDING = "PENDING"
+    STATUS_APPROVED = "APPROVED"
+    STATUS_REJECTED = "REJECTED"
+    STATUS_SUPERSEDED = "SUPERSEDED"
+    STATUS_WITHDRAWN = "WITHDRAWN"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending review"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REJECTED, "Rejected"),
+        (STATUS_SUPERSEDED, "Replaced by a newer submission"),
+        (STATUS_WITHDRAWN, "Withdrawn"),
+    ]
+
+    change_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="profile_changes",
+        db_column="school_id",
+    )
+    changes = models.JSONField()
+    status = models.CharField(
+        max_length=12,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="submitted_school_profile_changes",
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reviewed_school_profile_changes",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, max_length=1000)
+
+    class Meta:
+        db_table = "school_profile_changes"
+        ordering = ["-submitted_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school"],
+                condition=Q(status="PENDING"),
+                name="uq_school_profile_pending_change",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["status", "submitted_at"],
+                name="school_prof_status_sub_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.school.school_name}: {self.get_status_display()}"
 
 
 class SchoolPhoto(models.Model):

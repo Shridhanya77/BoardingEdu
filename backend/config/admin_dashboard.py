@@ -4,8 +4,10 @@ Kept out of settings.py so the whole admin configuration lives in one place.
 Statistics are computed only on the admin index request, never on change forms.
 """
 from datetime import timedelta
+import re
 
 from django.contrib import admin, messages
+from django.conf import settings
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from django.shortcuts import redirect, render
@@ -16,6 +18,7 @@ from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
     assigned_school_id,
 )
+from apps.schools.public_urls import public_school_url
 
 SITE_HEADER = "BoardingEdu Administration"
 SITE_TITLE = "BoardingEdu Admin"
@@ -32,6 +35,15 @@ CAMPUS_GROUPS = (
     ("SAFETY", "Safety", "Facilities parents should know about. Do not publish internal security procedures."),
     ("TRANSPORT", "Transport", "Vehicles and routes. Do not enter student assignments or driver personal details."),
     ("TECHNOLOGY", "Student services", "Library, Wi-Fi, counselling, laundry, and other campus services."),
+)
+
+GRADE_GROUPS = (
+    ("EARLY", "Early years"),
+    ("PRIMARY", "Primary (Classes 1-5)"),
+    ("MIDDLE", "Middle (Classes 6-8)"),
+    ("SECONDARY", "Secondary (Classes 9-10)"),
+    ("SENIOR", "Senior secondary (Classes 11-12)"),
+    ("OTHER", "Other grades"),
 )
 
 
@@ -91,7 +103,7 @@ def build_stats():
     from apps.admissions.models import AdmissionEnquiry
     from apps.geography.models import City, Country, Location, State
     from apps.reviews.models import Review
-    from apps.schools.models import School
+    from apps.schools.models import School, SchoolProfileChange
     from apps.users.models import User
 
     now = timezone.now()
@@ -198,11 +210,19 @@ def build_stats():
     ]
 
     pending = schools["pending_verification"]
+    pending_profile_changes = SchoolProfileChange.objects.filter(
+        status=SchoolProfileChange.STATUS_PENDING
+    ).count()
     quick_links = [
         {
             "label": "Verify schools",
             "hint": f"{pending} waiting" if pending else "Queue is clear",
             "url": reverse("admin:schools_school_verification_queue"),
+        },
+        {
+            "label": "Review school profile edits",
+            "hint": f"{pending_profile_changes} waiting" if pending_profile_changes else "Queue is clear",
+            "url": reverse("admin:schools_school_profile_review_queue"),
         },
         {
             "label": "Review enquiries",
@@ -268,14 +288,28 @@ def school_admin_menu(request):
     """Sidebar for a school administrator: their school and the records they can change."""
     school_id = assigned_school_id(request.user)
     school_url = reverse("admin:schools_school_change", args=[school_id])
+    from apps.schools.models import School
+
+    school = (
+        School.objects.select_related("country", "state", "city")
+        .filter(pk=school_id)
+        .first()
+    )
+    subscription_url = reverse("admin:school_subscriptions")
     entries = [
         ("School profile", school_url, None),
         ("Leads", reverse("admin:admissions_admissionenquiry_changelist"), None),
-        ("Campus", f"{reverse('admin:school_workspace')}?campus=ACADEMIC#campus", None),
-        ("Facilities", reverse("admin:schools_schoolfacility_changelist"), reverse("admin:schools_schoolfacility_add")),
-        ("Grades", reverse("admin:schools_schoolgrade_changelist"), reverse("admin:schools_schoolgrade_add")),
+        ("Facilities", f"{reverse('admin:school_workspace')}?campus=ACADEMIC#facilities", None),
+        ("Grades", f"{reverse('admin:school_workspace')}?grade_group=PRIMARY#grades", None),
         ("Fees", reverse("admin:fees_feestructure_changelist"), reverse("admin:fees_feestructure_add")),
+        ("Subscription plans", f"{subscription_url}?section=plans#plans", None),
+        ("My plan", f"{subscription_url}?section=plan#plan", None),
+        ("Payment history", f"{subscription_url}?section=payments#payments", None),
     ]
+    if school and school.status and school.verification_status == "VERIFIED":
+        entries.insert(1, ("View in public site", public_school_url(school), None))
+    else:
+        entries.insert(1, ("Public profile status", school_url, None))
     return [{
         "name": "Your school",
         "app_label": "school_admin",
@@ -369,7 +403,10 @@ def _apply_grade_choice(request, school):
             messages.error(request, "That grade is not on this school.")
     else:
         messages.error(request, "Choose an action for the grade.")
-    return redirect(f"{reverse('admin:school_workspace')}#grades")
+    group = (request.POST.get("grade_group") or "PRIMARY").upper()
+    if group not in {key for key, _label in GRADE_GROUPS}:
+        group = "PRIMARY"
+    return redirect(f"{reverse('admin:school_workspace')}?grade_group={group}#grades")
 
 
 def _clean_seats(raw):
@@ -389,13 +426,13 @@ def school_workspace(request):
     """Home for a school administrator: their profile and the leads they received."""
     from apps.admissions.models import AdmissionEnquiry
     from apps.schools.completeness import build_profile_completion
-    from apps.schools.models import Facility, Grade, School, SchoolGrade
+    from apps.schools.models import Facility, Grade, School, SchoolGrade, SchoolProfileChange
 
     school_id = assigned_school_id(request.user)
     if school_id is None:
         return redirect("admin:index")
     school = (
-        School.objects.select_related("city", "state")
+        School.objects        .select_related("country", "city", "state")
         .prefetch_related(
             "school_types",
             "boards",
@@ -460,10 +497,17 @@ def school_workspace(request):
         for row in offered_grades
     ]
     offered_ids = {row.grade_id for row in offered_grades}
+    grade_group = (request.GET.get("grade_group") or "PRIMARY").upper()
+    if grade_group not in {key for key, _label in GRADE_GROUPS}:
+        grade_group = "PRIMARY"
     grade_catalog = [
         {"id": grade.grade_id, "name": grade.grade_name}
         for grade in Grade.objects.filter(status=True).order_by("sort_order")
-        if grade.grade_id not in offered_ids
+        if grade.grade_id not in offered_ids and _grade_group(grade.grade_name) == grade_group
+    ]
+    grades = [
+        row for row in grades
+        if _grade_group(row["name"]) == grade_group
     ]
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
@@ -491,6 +535,15 @@ def school_workspace(request):
         **admin.site.each_context(request),
         "title": school.school_name,
         "school": school,
+        "view_public_url": (
+            public_school_url(school)
+            if school.status and school.verification_status == "VERIFIED"
+            else None
+        ),
+        "pending_profile_change": SchoolProfileChange.objects.filter(
+            school=school,
+            status=SchoolProfileChange.STATUS_PENDING,
+        ).first(),
         "completion_score": completion["score"],
         "gaps": gaps,
         "lead_total": counts["total"],
@@ -506,9 +559,14 @@ def school_workspace(request):
         "facility_count": sum(1 for row in school.school_facilities.all() if row.available),
         "school_url": school_url,
         "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
-        "facilities_url": reverse("admin:schools_schoolfacility_changelist"),
-        "grades_url": reverse("admin:schools_schoolgrade_changelist"),
+        "facilities_url": f"{reverse('admin:school_workspace')}?campus={campus_group}#facilities",
+        "grades_url": f"{reverse('admin:school_workspace')}?grade_group={grade_group}#grades",
         "fees_url": reverse("admin:fees_feestructure_changelist"),
+        "grade_group": grade_group,
+        "grade_groups": [
+            {"key": key, "label": label, "active": key == grade_group}
+            for key, label in GRADE_GROUPS
+        ],
         "campus_groups": [
             {"key": key, "label": label, "active": key == campus_group}
             for key, label, _hint in CAMPUS_GROUPS
@@ -521,6 +579,54 @@ def school_workspace(request):
         "grade_catalog": grade_catalog,
     }
     return render(request, "admin/school_workspace.html", context)
+
+
+def _grade_group(grade_name):
+    normalized = grade_name.lower()
+    if any(token in normalized for token in ("nursery", "pre-primary", "preschool", "playgroup", "lkg", "ukg", "kindergarten")):
+        return "EARLY"
+    numbers = re.findall(r"\d+", normalized)
+    if not numbers:
+        return "OTHER"
+    grade_number = int(numbers[0])
+    if grade_number <= 0:
+        return "OTHER"
+    if grade_number <= 5:
+        return "PRIMARY"
+    if grade_number <= 8:
+        return "MIDDLE"
+    if grade_number <= 10:
+        return "SECONDARY"
+    if grade_number <= 12:
+        return "SENIOR"
+    return "OTHER"
+
+
+def school_subscription_page(request):
+    """Read-only plan, subscription, and payment details for one school."""
+    from apps.schools.models import School
+    from apps.subscriptions.access import current_subscription
+    from apps.subscriptions.models import SchoolSubscription, SubscriptionPayment, SubscriptionPlan
+
+    school_id = assigned_school_id(request.user)
+    if school_id is None:
+        return redirect("admin:index")
+    school = School.objects.get(pk=school_id)
+    context = {
+        **admin.site.each_context(request),
+        "title": f"Subscription · {school.school_name}",
+        "school": school,
+        "plans": SubscriptionPlan.objects.filter(status=True),
+        "subscriptions": SchoolSubscription.objects.filter(school=school)
+        .select_related("plan")
+        .order_by("-created_at"),
+        "payments": SubscriptionPayment.objects.filter(school=school)
+        .select_related("plan")
+        .order_by("-created_at")[:50],
+        "current_subscription": current_subscription(school),
+        "purchase_url": f"{settings.FRONTEND_URL}/dashboard/school",
+    }
+    return render(request, "admin/school_subscription.html", context)
 
 
 def install_admin_dashboard():
@@ -566,6 +672,11 @@ def install_admin_dashboard():
                 "school-workspace/",
                 admin.site.admin_view(school_workspace),
                 name="school_workspace",
+            ),
+            path(
+                "school-subscriptions/",
+                admin.site.admin_view(school_subscription_page),
+                name="school_subscriptions",
             ),
             path(
                 "records/",

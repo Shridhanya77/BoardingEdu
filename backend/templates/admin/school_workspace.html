@@ -19,12 +19,24 @@
     </div>
     <div class="be-welcome__actions">
       <a href="{{ school_url }}"><strong>{% translate "Edit school profile" %}</strong><span>{% translate "Contact, photos, about" %}</span></a>
+      {% if view_public_url %}
+      <a href="{{ view_public_url }}" target="_blank" rel="noopener"><strong>{% translate "View in public site" %}</strong><span>{% translate "See the approved profile" %}</span></a>
+      {% else %}
+      <a href="{{ school_url }}"><strong>{% translate "Public profile" %}</strong><span>{% translate "Available after admin approval" %}</span></a>
+      {% endif %}
       <a href="{{ leads_url }}"><strong>{% translate "Manage leads" %}</strong><span>{{ lead_new }} {% translate "new" %}</span></a>
       <a href="{{ facilities_url }}"><strong>{% translate "Facilities" %}</strong><span>{{ facility_count }} {% translate "available" %}</span></a>
       <a href="{{ grades_url }}"><strong>{% translate "Grades" %}</strong><span>{{ grade_count }} {% translate "active" %}</span></a>
       <a href="{{ fees_url }}"><strong>{% translate "Fees" %}</strong><span>{% translate "Academic year schedules" %}</span></a>
     </div>
   </section>
+
+  {% if pending_profile_change %}
+  <div class="be-panel be-panel--review" role="status">
+    <strong>{% translate "Profile edits awaiting admin review" %}</strong>
+    <p>{% translate "Your currently approved profile remains public until the submitted edits are approved." %}</p>
+  </div>
+  {% endif %}
 
   <div class="be-cards">
     <a class="be-card be-card--brand" href="{{ leads_url }}">
@@ -76,11 +88,11 @@
     </section>
   </div>
 
-  <section class="be-panel" id="campus">
-    <h3>{% translate "Campus" %}</h3>
+  <section class="be-panel" id="facilities">
+    <h3>{% translate "Facilities" %}</h3>
     <div class="be-campus-tabs">
       {% for group in campus_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?campus={{ group.key }}#campus">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="?campus={{ group.key }}#facilities">{{ group.label }}</a>
       {% endfor %}
     </div>
     <p>{{ campus_hint }}</p>
@@ -89,7 +101,7 @@
       {% for item in campus_facilities %}
       <li>
         <span>{{ item.name }}</span>
-        <form method="post" action="?campus={{ campus_group }}#campus">
+        <form method="post" action="?campus={{ campus_group }}#facilities">
           {% csrf_token %}
           <input type="hidden" name="facility" value="{{ item.id }}">
           <input type="hidden" name="campus" value="{{ campus_group }}">
@@ -107,8 +119,14 @@
   <section class="be-panel" id="grades">
     <h3>{% translate "Grades offered" %}</h3>
     <p>{% translate "Grades are the classes this school admits. Seats are optional; leave the field blank if they are not decided yet." %}</p>
+    <div class="be-campus-tabs" aria-label="{% translate 'Grade levels' %}">
+      {% for group in grade_groups %}
+      <a class="{% if group.active %}is-active{% endif %}" href="?grade_group={{ group.key }}#grades">{{ group.label }}</a>
+      {% endfor %}
+    </div>
     <form class="be-grade-form" method="post">
       {% csrf_token %}
+      <input type="hidden" name="grade_group" value="{{ grade_group }}">
       <select name="grade" required>
         <option value="">{% translate "Choose a grade" %}</option>
         {% for grade in grade_catalog %}
@@ -135,6 +153,7 @@
             <form class="be-grade-seats" method="post">
               {% csrf_token %}
               <input type="hidden" name="school_grade" value="{{ row.id }}">
+              <input type="hidden" name="grade_group" value="{{ grade_group }}">
               <input type="number" name="seats_available" min="0" inputmode="numeric" value="{% if row.seats is not None %}{{ row.seats }}{% endif %}" placeholder="—" aria-label="{% translate 'Seats available' %}">
               <button type="submit" name="grade_action" value="seats">{% translate "Save" %}</button>
             </form>
@@ -143,6 +162,7 @@
             <form method="post">
               {% csrf_token %}
               <input type="hidden" name="school_grade" value="{{ row.id }}">
+              <input type="hidden" name="grade_group" value="{{ grade_group }}">
               <button type="submit" name="grade_action" value="remove">{% translate "Remove" %}</button>
             </form>
           </td>
