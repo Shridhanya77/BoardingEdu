@@ -27,7 +27,7 @@ function ResetPasswordForm() {
               : otp
                 ? auth.verifyOtp({ email, otp, purpose: "password_reset", password })
                 : users.requestPasswordReset(email);
-            action.then((result) => setMessage(result.detail)).catch((reason) => setMessage(apiErrorMessage(reason)));
+            action.then((result) => setMessage(result.detail ?? "Your password was updated.")).catch((reason) => setMessage(apiErrorMessage(reason)));
           }}
         >
           {confirming ? (
@@ -36,18 +36,20 @@ function ResetPasswordForm() {
               <input type="password" value={password} minLength={8} onChange={(event) => setPassword(event.target.value)} required />
             </label>
           ) : (
-            <label>
-              Email
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            </label>
-            <label>
-              Email code
-              <input inputMode="numeric" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} />
-            </label>
-            <label>
-              New password
-              <input type="password" value={password} minLength={8} onChange={(event) => setPassword(event.target.value)} />
-            </label>
+            <>
+              <label>
+                Email
+                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              </label>
+              <label>
+                Email code
+                <input inputMode="numeric" maxLength={6} value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+              </label>
+              <label>
+                New password
+                <input type="password" value={password} minLength={8} onChange={(event) => setPassword(event.target.value)} />
+              </label>
+            </>
           )}
           <button className="primary-button" type="submit">{confirming ? "Update password" : "Send reset link"}</button>
         </form>
