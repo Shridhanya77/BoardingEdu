@@ -1474,6 +1474,11 @@ export const dashboards = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  updateGrade: (id: string, payload: { seats_available?: number | null; is_active?: boolean }) =>
+    authRequest<SchoolGradeRecord>(`/dashboards/school/grades/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   removeGrade: (id: string) =>
     authRequest<void>(`/dashboards/school/grades/${id}/`, { method: "DELETE" }),
   savePhoto: (payload: { photo_url: string; caption?: string; alt_text?: string; category: string }) =>

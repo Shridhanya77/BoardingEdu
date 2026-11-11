@@ -47,11 +47,13 @@ function ResetPasswordForm() {
               </label>
               <label>
                 New password
-                <input type="password" value={password} minLength={8} onChange={(event) => setPassword(event.target.value)} />
+                <input type="password" value={password} minLength={8} required={Boolean(otp)} onChange={(event) => setPassword(event.target.value)} />
               </label>
             </>
           )}
-          <button className="primary-button" type="submit">{confirming ? "Update password" : "Send reset link"}</button>
+          <button className="primary-button" type="submit">
+            {confirming ? "Update password" : otp ? "Verify & update password" : "Send reset code"}
+          </button>
         </form>
         {message && <p>{message}</p>}
         <p><Link href="/login">Back to sign in</Link></p>

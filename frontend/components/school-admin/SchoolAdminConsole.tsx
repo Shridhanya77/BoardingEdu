@@ -30,6 +30,7 @@ import {
   type ApplicationStatus,
   type EnquiryStatus,
   type SchoolDashboardData,
+  type SchoolGradeRecord,
   type SchoolPortalUpdate,
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
@@ -259,6 +260,7 @@ export default function SchoolAdminConsole() {
             data={data}
             busy={busy}
             onAddGrade={(grade, seats) => run(() => dashboards.saveGrade({ grade, seats_available: seats }).then(() => undefined), "Grade added.")}
+            onUpdateGrade={(id, seats) => run(() => dashboards.updateGrade(id, { seats_available: seats }).then(() => undefined), "Seat count updated.")}
             onRemoveGrade={(id) => {
               if (!window.confirm("Remove this grade from the school?")) return;
               void run(() => dashboards.removeGrade(id).then(() => undefined), "Grade removed.");
@@ -612,20 +614,46 @@ function AcademicsEditor({
   data,
   busy,
   onAddGrade,
+  onUpdateGrade,
   onRemoveGrade,
 }: {
   data: SchoolDashboardData;
   busy: boolean;
   onAddGrade: (grade: string, seats: number | null) => void;
+  onUpdateGrade: (id: string, seats: number | null) => void;
   onRemoveGrade: (id: string) => void;
 }) {
   const [grade, setGrade] = useState(data.catalog.grades[0]?.grade_id ?? "");
   const [seats, setSeats] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [rowError, setRowError] = useState<string | null>(null);
   const offered = new Set(data.grades.map((row) => row.grade));
+
+  function draftFor(row: SchoolGradeRecord) {
+    return drafts[row.school_grade_id] ?? (row.seats_available === null ? "" : String(row.seats_available));
+  }
+
+  function commitSeats(row: SchoolGradeRecord) {
+    const raw = draftFor(row).trim();
+    if (raw === "") {
+      setRowError(null);
+      onUpdateGrade(row.school_grade_id, null);
+      return;
+    }
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value < 0) {
+      setRowError("Seats must be a whole number of 0 or more. Leave the field blank if they are not decided yet.");
+      return;
+    }
+    setRowError(null);
+    onUpdateGrade(row.school_grade_id, value);
+  }
+
   return (
     <div className="sa-stack">
       <article className="sa-card">
         <header><h2>Grades offered</h2></header>
+        <p>Seats are the intake for each class. Leave a seat count blank if it is not decided yet, then save the row.</p>
         <form
           className="sa-inline"
           onSubmit={(event) => {
@@ -643,6 +671,7 @@ function AcademicsEditor({
           <input inputMode="numeric" placeholder="Seats" value={seats} onChange={(event) => setSeats(event.target.value)} />
           <button className="sa-primary" type="submit" disabled={busy || offered.has(grade)}>Add grade</button>
         </form>
+        {rowError && <p className="sa-banner sa-banner--error" role="alert">{rowError}</p>}
         <table className="sa-table">
           <thead><tr><th>Grade</th><th>Seats</th><th /></tr></thead>
           <tbody>
@@ -650,8 +679,26 @@ function AcademicsEditor({
             {data.grades.map((row) => (
               <tr key={row.school_grade_id}>
                 <td>{row.grade_name}</td>
-                <td>{row.seats_available ?? "—"}</td>
-                <td><button type="button" onClick={() => onRemoveGrade(row.school_grade_id)}>Remove</button></td>
+                <td>
+                  <input
+                    className="sa-seat"
+                    inputMode="numeric"
+                    placeholder="—"
+                    aria-label={`Seats for ${row.grade_name}`}
+                    value={draftFor(row)}
+                    onChange={(event) => setDrafts({ ...drafts, [row.school_grade_id]: event.target.value })}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitSeats(row);
+                      }
+                    }}
+                  />
+                </td>
+                <td className="sa-table__actions">
+                  <button type="button" className="sa-mini sa-mini--go" disabled={busy} onClick={() => commitSeats(row)}>Save</button>
+                  <button type="button" className="sa-mini" disabled={busy} onClick={() => onRemoveGrade(row.school_grade_id)}>Remove</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -659,7 +706,7 @@ function AcademicsEditor({
       </article>
       <article className="sa-card">
         <header><h2>Boards on this profile</h2></header>
-        <p>Change boards and school type from School profile. Grades below are the classes this school admits.</p>
+        <p>Change boards and school type from School profile. The grades above are the classes this school admits.</p>
       </article>
     </div>
   );

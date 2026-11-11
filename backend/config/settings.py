@@ -547,6 +547,7 @@ OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
 OTP_BACKEND = os.getenv("OTP_BACKEND", "redis").strip().lower()
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "resend").strip().lower()
+OTP_EMAIL_PROVIDER = os.getenv("OTP_EMAIL_PROVIDER", "auto").strip().lower()
 MEILI_URL = os.getenv("MEILI_URL", "").strip().rstrip("/")
 MEILI_MASTER_KEY = os.getenv("MEILI_MASTER_KEY", "").strip()
 MEILI_INDEX_UID = os.getenv("MEILI_INDEX_UID", "schools").strip() or "schools"

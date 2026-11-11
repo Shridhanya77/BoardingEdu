@@ -791,6 +791,89 @@ body.be-school-admin .main-sidebar {
   color: #fff;
 }
 
+/* ---------------- School workspace: grades panel ---------------- */
+.be-grade-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 14px;
+}
+
+.be-grade-form select,
+.be-grade-form input {
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--body-bg);
+  color: var(--body-fg);
+}
+
+.be-grade-form input {
+  width: 110px;
+}
+
+.be-table th {
+  text-align: left;
+  padding: 6px;
+  border-bottom: 1px solid var(--hairline-color);
+  color: var(--body-quiet-color);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.be-table__action {
+  text-align: right;
+}
+
+.be-table__action form {
+  margin: 0;
+}
+
+.be-table__action button {
+  border-radius: 6px;
+  border: 1px solid #c5ced6;
+  background: #fff;
+  color: #9b1c1c;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* Editable seat count inside the grades table — mirrors the frontend console. */
+.be-grade-seats {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+}
+
+.be-grade-seats input {
+  width: 110px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  background: var(--body-bg);
+  color: var(--body-fg);
+}
+
+.be-grade-seats button {
+  border-radius: 6px;
+  border: 1px solid #0b5f8a;
+  background: #0b5f8a;
+  color: #fff;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.be-grade-seats button:hover {
+  background: #084a6d;
+  border-color: #084a6d;
+}
+
 #nav-sidebar .current-model {
   border-left: 3px solid var(--be-accent);
 }

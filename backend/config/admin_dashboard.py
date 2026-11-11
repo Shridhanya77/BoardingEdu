@@ -321,11 +321,75 @@ def _apply_campus_choice(request, school):
     return redirect(f"{reverse('admin:school_workspace')}?campus={group}#campus")
 
 
+def _apply_grade_choice(request, school):
+    """Add or remove a grade on the school profile, mirroring the frontend grades panel."""
+    from apps.schools.models import Grade, SchoolGrade
+
+    action = request.POST.get("grade_action")
+    if action == "add":
+        grade = Grade.objects.filter(pk=request.POST.get("grade") or "", status=True).first()
+        if grade is None:
+            messages.error(request, "Choose a grade from the list.")
+        else:
+            seats, invalid = _clean_seats(request.POST.get("seats_available"))
+            if invalid:
+                messages.error(request, "Seats must be a whole number.")
+            else:
+                row, created = SchoolGrade.objects.get_or_create(
+                    school=school,
+                    grade=grade,
+                    defaults={"seats_available": seats, "is_active": True},
+                )
+                if not created:
+                    row.seats_available = seats
+                    row.is_active = True
+                    row.save(update_fields=["seats_available", "is_active", "updated_at"])
+                messages.success(request, f"{grade.grade_name} is on the profile.")
+    elif action == "seats":
+        row = SchoolGrade.objects.filter(
+            pk=request.POST.get("school_grade") or "", school=school
+        ).first()
+        if row is None:
+            messages.error(request, "That grade is not on this school.")
+        else:
+            seats, invalid = _clean_seats(request.POST.get("seats_available"))
+            if invalid:
+                messages.error(request, "Seats must be a whole number.")
+            else:
+                row.seats_available = seats
+                row.save(update_fields=["seats_available", "updated_at"])
+                messages.success(request, f"Seats updated for {row.grade.grade_name}.")
+    elif action == "remove":
+        removed, _ = SchoolGrade.objects.filter(
+            pk=request.POST.get("school_grade") or "", school=school
+        ).delete()
+        if removed:
+            messages.success(request, "Grade removed from the profile.")
+        else:
+            messages.error(request, "That grade is not on this school.")
+    else:
+        messages.error(request, "Choose an action for the grade.")
+    return redirect(f"{reverse('admin:school_workspace')}#grades")
+
+
+def _clean_seats(raw):
+    """Returns (seats, invalid). Blank means 'not recorded', which is allowed."""
+    if raw in ("", None):
+        return None, False
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None, True
+    if value < 0:
+        return None, True
+    return value, False
+
+
 def school_workspace(request):
     """Home for a school administrator: their profile and the leads they received."""
     from apps.admissions.models import AdmissionEnquiry
     from apps.schools.completeness import build_profile_completion
-    from apps.schools.models import Facility, School
+    from apps.schools.models import Facility, Grade, School, SchoolGrade
 
     school_id = assigned_school_id(request.user)
     if school_id is None:
@@ -343,6 +407,8 @@ def school_workspace(request):
         .get(pk=school_id)
     )
     if request.method == "POST":
+        if request.POST.get("grade_action"):
+            return _apply_grade_choice(request, school)
         return _apply_campus_choice(request, school)
     leads = AdmissionEnquiry.objects.filter(school_id=school_id)
     counts = leads.aggregate(
@@ -385,6 +451,19 @@ def school_workspace(request):
             "available": saved.get(facility.facility_id, False),
         }
         for facility in Facility.objects.filter(status=True, category__iexact=campus_group).order_by("facility_name")
+    ]
+    offered_grades = list(
+        SchoolGrade.objects.filter(school=school).select_related("grade").order_by("grade__sort_order")
+    )
+    grades = [
+        {"id": row.school_grade_id, "name": row.grade.grade_name, "seats": row.seats_available}
+        for row in offered_grades
+    ]
+    offered_ids = {row.grade_id for row in offered_grades}
+    grade_catalog = [
+        {"id": grade.grade_id, "name": grade.grade_name}
+        for grade in Grade.objects.filter(status=True).order_by("sort_order")
+        if grade.grade_id not in offered_ids
     ]
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
@@ -438,6 +517,8 @@ def school_workspace(request):
         "campus_label": campus_labels[campus_group][0],
         "campus_hint": campus_labels[campus_group][1],
         "campus_facilities": campus_facilities,
+        "grades": grades,
+        "grade_catalog": grade_catalog,
     }
     return render(request, "admin/school_workspace.html", context)
 

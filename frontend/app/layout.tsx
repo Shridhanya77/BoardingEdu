@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/auth";
 import { SearchExperienceProvider } from "@/lib/search-experience";
 import SearchAnalyticsConsent from "@/components/SearchAnalyticsConsent";
 import PublicSiteFooter from "@/components/home/PublicSiteFooter";
+import { ToastProvider } from "@/components/ui/Toast";
 import { homeSeoKeywords } from "@/lib/home-content";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
@@ -86,12 +87,14 @@ export default function RootLayout({
         */}
         <AuthProvider>
           <SearchExperienceProvider>
-            <JsonLd data={organizationJsonLd()} />
-            <JsonLd data={websiteJsonLd()} />
-            <NavBar />
-            {children}
-            <SearchAnalyticsConsent />
-            <PublicSiteFooter />
+            <ToastProvider>
+              <JsonLd data={organizationJsonLd()} />
+              <JsonLd data={websiteJsonLd()} />
+              <NavBar />
+              {children}
+              <SearchAnalyticsConsent />
+              <PublicSiteFooter />
+            </ToastProvider>
           </SearchExperienceProvider>
         </AuthProvider>
       </body>

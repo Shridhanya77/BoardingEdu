@@ -378,6 +378,34 @@ class SchoolGradeWriteView(SchoolAdminAPIView):
         row.grade = grade
         return Response(_grade_row(row), status=201)
 
+    def patch(self, request, school_grade_id):
+        school, error = self.owned_school(request)
+        if error:
+            return error
+        row = (
+            SchoolGrade.objects.select_related("grade")
+            .filter(pk=school_grade_id, school=school)
+            .first()
+        )
+        if row is None:
+            return Response({"detail": "Grade not found."}, status=404)
+        if "seats_available" in request.data:
+            seats = request.data.get("seats_available")
+            if seats in ("", None):
+                row.seats_available = None
+            else:
+                try:
+                    seats = int(seats)
+                except (TypeError, ValueError):
+                    return Response({"detail": "Seats must be a whole number."}, status=400)
+                if seats < 0:
+                    return Response({"detail": "Seats cannot be negative."}, status=400)
+                row.seats_available = seats
+        if "is_active" in request.data:
+            row.is_active = bool(request.data.get("is_active"))
+        row.save()
+        return Response(_grade_row(row))
+
     def delete(self, request, school_grade_id):
         school, error = self.owned_school(request)
         if error:

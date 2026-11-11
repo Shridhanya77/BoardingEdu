@@ -14,6 +14,7 @@ import {
 import { useAuth, dashboardPathForRole } from "@/lib/auth";
 import type { UserRole } from "@/lib/api";
 import CounsellingModal from "@/components/home/CounsellingModal";
+import { Button } from "@/components/ui/Button";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -210,12 +211,12 @@ export default function NavBar() {
           </div>
         ) : (
           <>
-            <Link href="/login" className="header-login">
+            <Button href="/login" variant="ghost" size="md">
               Log in
-            </Link>
-            <Link href="/signup" className="header-action header-action--primary">
+            </Button>
+            <Button href="/signup" variant="primary" size="md">
               Register <ArrowRight size={14} />
-            </Link>
+            </Button>
           </>
         )}
       </div>
@@ -284,8 +285,8 @@ export default function NavBar() {
               </button>
               </>
             ) : <>
-              <Link href="/login" onClick={() => setMobileNavOpen(false)}>Log in</Link>
-              <Link href="/signup" onClick={() => setMobileNavOpen(false)}>Register</Link>
+              <Button href="/login" variant="secondary" size="sm" onClick={() => setMobileNavOpen(false)}>Log in</Button>
+              <Button href="/signup" variant="primary" size="sm" onClick={() => setMobileNavOpen(false)}>Register</Button>
             </>}
           </nav>
         </>

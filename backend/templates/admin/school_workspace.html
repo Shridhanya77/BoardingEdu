@@ -104,6 +104,57 @@
     {% endif %}
   </section>
 
+  <section class="be-panel" id="grades">
+    <h3>{% translate "Grades offered" %}</h3>
+    <p>{% translate "Grades are the classes this school admits. Seats are optional; leave the field blank if they are not decided yet." %}</p>
+    <form class="be-grade-form" method="post">
+      {% csrf_token %}
+      <select name="grade" required>
+        <option value="">{% translate "Choose a grade" %}</option>
+        {% for grade in grade_catalog %}
+        <option value="{{ grade.id }}">{{ grade.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="seats_available" min="0" inputmode="numeric" placeholder="{% translate 'Seats' %}">
+      <button type="submit" name="grade_action" value="add" class="be-btn">{% translate "Add grade" %}</button>
+    </form>
+    {% if grades %}
+    <table class="be-table">
+      <thead>
+        <tr>
+          <th>{% translate "Grade" %}</th>
+          <th>{% translate "Seats" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in grades %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td>
+            <form class="be-grade-seats" method="post">
+              {% csrf_token %}
+              <input type="hidden" name="school_grade" value="{{ row.id }}">
+              <input type="number" name="seats_available" min="0" inputmode="numeric" value="{% if row.seats is not None %}{{ row.seats }}{% endif %}" placeholder="—" aria-label="{% translate 'Seats available' %}">
+              <button type="submit" name="grade_action" value="seats">{% translate "Save" %}</button>
+            </form>
+          </td>
+          <td class="be-table__action">
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="school_grade" value="{{ row.id }}">
+              <button type="submit" name="grade_action" value="remove">{% translate "Remove" %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="be-empty">{% translate "No grades recorded yet." %}</p>
+    {% endif %}
+  </section>
+
   <section class="be-panel">
     <h3>{% translate "Latest leads" %}</h3>
     {% if recent_leads %}

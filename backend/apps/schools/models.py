@@ -123,7 +123,7 @@ class School(models.Model):
     VERIFICATION_CHOICES = [('UNVERIFIED', 'Unverified'), ('PENDING', 'Pending Verification'), ('VERIFIED', 'Verified')]
 
     school_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    school_code = models.CharField(max_length=20, unique=True, null=False)  # SCH001
+    school_code = models.CharField(max_length=64, unique=True, null=False)  # SCH001 / MIGRATE-FULL-BOARDING
     school_name = models.CharField(max_length=255, null=False)
     short_name = models.CharField(max_length=50, blank=True)
     school_logo_url = models.URLField(max_length=500, blank=True)
