@@ -190,6 +190,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertEqual(home.url, reverse("admin:school_workspace"))
         workspace = client.get(home.url)
         self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, 'id="nav-sidebar"')
         self.assertContains(workspace, "Own Admin School")
         self.assertContains(workspace, own_lead.enquiry_code)
         self.assertNotContains(workspace, "Visible Parent")
