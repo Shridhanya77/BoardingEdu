@@ -6,6 +6,7 @@ refuses the challenge instead of skipping verification.
 import hashlib
 import hmac
 import json
+import logging
 import secrets
 from datetime import timedelta
 
@@ -13,6 +14,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.users.models import User
+
+logger = logging.getLogger(__name__)
 
 OTP_ROLES = {User.ROLE_PARENT, User.ROLE_SCHOOL_ADMIN}
 PURPOSES = {"register", "login", "password_reset", "email_change"}
@@ -238,6 +241,13 @@ def _send(recipient, purpose, code):
         delivery.status = EmailDelivery.Status.FAILED
         delivery.error_code = exc.error_code
         delivery.save(update_fields=["status", "error_code", "updated_at"])
+        logger.error(
+            "OTP email send failed | delivery_id=%s recipient=%s purpose=%s error_code=%s",
+            delivery.delivery_id,
+            recipient,
+            purpose,
+            exc.error_code,
+        )
         raise OtpError(exc.error_code) from exc
     delivery.status = EmailDelivery.Status.ACCEPTED
     delivery.provider_message_id = message_id or ""

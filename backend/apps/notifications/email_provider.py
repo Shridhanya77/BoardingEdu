@@ -1,5 +1,9 @@
+import logging
+
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmailDeliveryError(Exception):
@@ -38,8 +42,10 @@ class ResendEmailProvider:
             raise EmailDeliveryError("provider_connection_error") from exc
 
         if response.status_code >= 500 or response.status_code == 429:
+            logger.error("Resend temporary error status=%s body=%s", response.status_code, response.text[:500])
             raise EmailDeliveryError("provider_temporary_error")
         if not response.ok:
+            logger.error("Resend rejected status=%s body=%s", response.status_code, response.text[:500])
             raise EmailDeliveryError("provider_rejected")
 
         try:
@@ -131,8 +137,10 @@ class BrevoEmailProvider:
         except requests.RequestException as exc:
             raise EmailDeliveryError("provider_connection_error") from exc
         if response.status_code >= 500 or response.status_code == 429:
+            logger.error("Brevo temporary error status=%s body=%s", response.status_code, response.text[:500])
             raise EmailDeliveryError("provider_temporary_error")
         if not response.ok:
+            logger.error("Brevo rejected status=%s body=%s", response.status_code, response.text[:500])
             raise EmailDeliveryError("provider_rejected")
         try:
             result = response.json()
@@ -167,17 +175,37 @@ class BrevoEmailProvider:
             raise EmailDeliveryError("provider_connection_error") from exc
         return "brevo-smtp"
 
-
 def get_otp_email_provider():
-    """Use Cloudflare when it is configured, otherwise the mail account already on the server."""
-    if settings.CLOUDFLARE_EMAIL_API_TOKEN and settings.CLOUDFLARE_EMAIL_ACCOUNT_ID:
-        return CloudflareEmailProvider()
-    if getattr(settings, "BREVO_API_KEY", "") and getattr(settings, "BREVO_SENDER_EMAIL", ""):
-        return BrevoEmailProvider()
-    if settings.EMAIL_PROVIDER == "resend":
-        return ResendEmailProvider()
-    raise EmailDeliveryError("email_not_configured")
+    """Select the configured provider specifically for OTP emails."""
 
+    provider = getattr(settings, "OTP_EMAIL_PROVIDER", "auto")
+
+    if provider == "brevo":
+        if not settings.BREVO_API_KEY or not settings.BREVO_SENDER_EMAIL:
+            raise EmailDeliveryError("email_not_configured")
+        return BrevoEmailProvider()
+
+    if provider == "cloudflare":
+        if not settings.CLOUDFLARE_EMAIL_API_TOKEN or not settings.CLOUDFLARE_EMAIL_ACCOUNT_ID:
+            raise EmailDeliveryError("email_not_configured")
+        return CloudflareEmailProvider()
+
+    if provider == "resend":
+        if not settings.RESEND_API_KEY:
+            raise EmailDeliveryError("email_not_configured")
+        return ResendEmailProvider()
+
+    if provider == "auto":
+        if settings.CLOUDFLARE_EMAIL_API_TOKEN and settings.CLOUDFLARE_EMAIL_ACCOUNT_ID:
+            return CloudflareEmailProvider()
+
+        if settings.BREVO_API_KEY and settings.BREVO_SENDER_EMAIL:
+            return BrevoEmailProvider()
+
+        if settings.RESEND_API_KEY:
+            return ResendEmailProvider()
+
+    raise EmailDeliveryError("email_not_configured")
 
 def get_email_provider():
     if settings.EMAIL_PROVIDER == "cloudflare":
