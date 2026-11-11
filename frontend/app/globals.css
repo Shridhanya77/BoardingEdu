@@ -19424,6 +19424,237 @@ select:focus-visible {
   color: #9aa6bb;
 }
 
+/* ===== Accordion Footer (category-wise dropdown) ===== */
+.footer-brand-strip {
+  background: linear-gradient(135deg, #17456b 0%, #0d2c47 100%);
+  border-bottom: 3px solid #e8650f;
+}
+
+.footer-brand-strip__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-brand__logo {
+  width: 120px;
+  height: auto;
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px;
+}
+
+.footer-brand__tagline {
+  margin: 0;
+  color: #c9d2e3;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.footer-contact {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.footer-contact__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e8eef8;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-contact__item:hover {
+  color: #ffb27a;
+}
+
+.footer-directory {
+  background: #0d2c47;
+  padding: 32px 24px 12px;
+}
+
+.footer-directory__grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.footer-accordion {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footer-accordion__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: transparent;
+  border: none;
+  border-left: 4px solid #17456b;
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.footer-accordion__toggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.footer-accordion__chevron {
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+
+.footer-accordion__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.footer-accordion__sub {
+  padding: 6px 14px 14px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.footer-state-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-state-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.footer-state-item:last-child {
+  border-bottom: none;
+}
+
+.footer-state-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  background: transparent;
+  border: none;
+  color: #c9d2e3;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s;
+}
+
+.footer-state-toggle:hover {
+  color: #fff;
+}
+
+.footer-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.footer-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.footer-city-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px 12px;
+}
+
+.footer-city-list a {
+  display: block;
+  padding: 4px 0;
+  color: #8fa2c0;
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-city-list a:hover {
+  color: #ffb27a;
+}
+
+.footer-flat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px 12px;
+}
+
+.footer-flat-list--boards {
+  grid-template-columns: 1fr;
+}
+
+.footer-flat-list a {
+  display: block;
+  padding: 5px 0;
+  color: #c9d2e3;
+  font-size: 13px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-flat-list a:hover {
+  color: #ffb27a;
+}
+
+/* Hide the old flat directory grid when accordion is active */
+.seo-footer__directory {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .footer-brand-strip__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .footer-contact {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footer-directory__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-city-list,
+  .footer-flat-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .callback-dock {
   position: fixed;
   z-index: 40;

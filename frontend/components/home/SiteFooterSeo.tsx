@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Phone } from "lucide-react";
+import { ChevronDown, Phone, Mail, MapPin } from "lucide-react";
 import CallbackRequestModal from "@/components/contact/CallbackRequestModal";
 import type {
   BoardListItem,
@@ -11,13 +11,12 @@ import type {
   LocationListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
-import { INDIA_REGIONS } from "@/lib/india-regions";
 import {
   homeSchoolCategories,
   toSeoSlug,
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
-import { boardListingPath, indiaRegionListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
+import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 
 type Props = {
   cities?: CityListItem[];
@@ -28,29 +27,28 @@ type Props = {
   dataError?: string | null;
 };
 
-const CITY_LINK_LIMIT = 12;
+type Category = {
+  key: "day-school" | "boarding-school" | "day-boarding-school";
+  label: string;
+  category: HomeSchoolCategory | null;
+  accent: string;
+};
 
-function citySearchPath(
-  city: CityListItem,
-  options?: { category?: HomeSchoolCategory; board?: string },
-) {
-  const path = placeListingPath({
-    countrySlug: city.country_slug ?? city.country_name,
-    stateSlug: city.state_slug ?? city.state_name,
-    citySlug: city.slug,
-    category: options?.category,
-  });
-  if (!options?.board) return path;
-  const url = new URL(path, "https://boardingeu.invalid");
-  url.searchParams.set("board", options.board);
-  return `${url.pathname}${url.search}`;
-}
-const STATE_LINK_LIMIT = 24;
-const LOCALITY_LINK_LIMIT = 16;
-const FOOTER_CATEGORIES: { category: HomeSchoolCategory; label: string }[] = [
-  { category: "day-school", label: "Day Schools" },
-  { category: "residential-school", label: "Boarding Schools" },
+const CATEGORIES: Category[] = [
+  { key: "day-school", label: "Day Schools", category: "day-school", accent: "#17456b" },
+  { key: "boarding-school", label: "Boarding Schools", category: "residential-school", accent: "#e8650f" },
+  { key: "day-boarding-school", label: "Day Boarding Schools", category: null, accent: "#2e7d32" },
 ];
+
+const TOP_STATE_LIMIT = 8;
+const TOP_CITY_LIMIT = 8;
+
+type StateGroup = {
+  countrySlug: string;
+  stateSlug: string;
+  name: string;
+  cities: CityListItem[];
+};
 
 function uniqueBy<T>(items: T[], keyOf: (item: T) => string): T[] {
   const seen = new Set<string>();
@@ -64,45 +62,98 @@ function uniqueBy<T>(items: T[], keyOf: (item: T) => string): T[] {
   return output;
 }
 
+function categoryHref(
+  cat: Category,
+  pathParts: { countrySlug: string; stateSlug?: string | null; citySlug?: string | null },
+  dayBoardingTypeIds: string[],
+): string {
+  if (cat.category) {
+    return placeListingPath({
+      countrySlug: pathParts.countrySlug,
+      stateSlug: pathParts.stateSlug,
+      citySlug: pathParts.citySlug,
+      category: cat.category,
+    });
+  }
+  // Day Boarding: filter by day-boarding school type IDs via query param
+  const base = placeListingPath({
+    countrySlug: pathParts.countrySlug,
+    stateSlug: pathParts.stateSlug,
+    citySlug: pathParts.citySlug,
+  });
+  const url = new URL(base, "https://boardingeu.invalid");
+  if (dayBoardingTypeIds.length) {
+    dayBoardingTypeIds.forEach((id) => url.searchParams.append("school_type", id));
+  }
+  return `${url.pathname}${url.search}`;
+}
+
 export default function SiteFooterSeo({
   cities = [],
   boards = [],
   countries = [],
-  locations = [],
   schoolTypes = [],
   dataError,
 }: Props) {
   const [callbackOpen, setCallbackOpen] = useState(false);
+  const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({});
+  const [openStates, setOpenStates] = useState<Record<string, boolean>>({});
+
+  const togglePanel = (key: string) =>
+    setOpenPanels((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleState = (key: string) =>
+    setOpenStates((prev) => ({ ...prev, [key]: !prev[key] }));
+
   const uniqueCities = useMemo(() => uniqueBy(cities, (city) => city.city_id), [cities]);
 
-  const popularCities = useMemo(
-    () => uniqueCities.filter((city) => (city.schools_count ?? 0) > 0).slice(0, CITY_LINK_LIMIT),
-    [uniqueCities],
+  const dayBoardingTypeIds = useMemo(
+    () =>
+      schoolTypes
+        .filter((t) => homeSchoolCategories(t.type_code, t.slug, t.type_name).length === 2)
+        .map((t) => t.school_type_id),
+    [schoolTypes],
   );
 
-  const stateSearches = useMemo(() => {
-    const totals = new Map<
-      string,
-      { countrySlug: string; stateSlug: string; name: string; count: number }
-    >();
+  // Group cities by state, sorted by total schools desc
+  const stateGroups = useMemo<StateGroup[]>(() => {
+    const map = new Map<string, StateGroup>();
     for (const city of uniqueCities) {
+      if ((city.schools_count ?? 0) <= 0) continue;
       const countrySlug = city.country_slug ?? toSeoSlug(city.country_name);
       const stateSlug = city.state_slug ?? toSeoSlug(city.state_name);
       const key = `${countrySlug}/${stateSlug}`;
-      const entry = totals.get(key) ?? {
+      const group = map.get(key) ?? {
         countrySlug,
         stateSlug,
         name: city.state_name,
-        count: 0,
+        cities: [],
       };
-      entry.count += city.schools_count ?? 0;
-      totals.set(key, entry);
+      group.cities.push(city);
+      map.set(key, group);
     }
-    return [...totals.entries()]
-      .filter(([, state]) => state.count > 0)
-      .sort((a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name))
-      .slice(0, STATE_LINK_LIMIT);
+    return [...map.values()]
+      .sort((a, b) => {
+        const aTotal = a.cities.reduce((s, c) => s + (c.schools_count ?? 0), 0);
+        const bTotal = b.cities.reduce((s, c) => s + (c.schools_count ?? 0), 0);
+        return bTotal - aTotal || a.name.localeCompare(b.name);
+      })
+      .map((g) => ({
+        ...g,
+        cities: [...g.cities].sort(
+          (a, b) => (b.schools_count ?? 0) - (a.schools_count ?? 0) || a.city_name.localeCompare(b.city_name),
+        ),
+      }))
+      .slice(0, TOP_STATE_LIMIT);
   }, [uniqueCities]);
+
+  const popularCities = useMemo(
+    () =>
+      uniqueCities
+        .filter((c) => (c.schools_count ?? 0) > 0)
+        .sort((a, b) => (b.schools_count ?? 0) - (a.schools_count ?? 0))
+        .slice(0, 12),
+    [uniqueCities],
+  );
 
   const topBoards = useMemo(
     () =>
@@ -112,254 +163,186 @@ export default function SiteFooterSeo({
     [boards],
   );
 
-  const localitySearches = useMemo(() => {
-    const cityById = new Map(uniqueCities.map((city) => [city.city_id, city]));
-    return uniqueBy(
-      locations.filter((location) => location.status && location.slug),
-      (location) => location.location_id,
-    )
-      .flatMap((location) => {
-        const city = cityById.get(location.city_id);
-        if (!city || (city.schools_count ?? 0) <= 0) return [];
-        return [{
-          location,
-          city,
-          href: placeListingPath({
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-            locationSlug: location.slug,
-          }),
-        }];
-      })
-      .sort(
-        (left, right) =>
-          (right.city.schools_count ?? 0) - (left.city.schools_count ?? 0) ||
-          left.location.location_name.localeCompare(right.location.location_name),
-      )
-      .slice(0, LOCALITY_LINK_LIMIT);
-  }, [locations, uniqueCities]);
+  const india = countries.find((c) => toSeoSlug(c.slug || c.country_name) === "india");
 
-  const availableCategories = useMemo(
-    () =>
-      FOOTER_CATEGORIES.filter(({ category }) =>
-        schoolTypes.some((type) =>
-          homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(category),
-        ),
+  const renderStateCityPanel = (cat: Category) => (
+    <div className="footer-accordion__sub">
+      <div className="footer-state-list">
+        {stateGroups.map((state) => {
+          const stateKey = `${cat.key}-${state.stateSlug}`;
+          const stateOpen = openStates[stateKey];
+          return (
+            <div key={stateKey} className="footer-state-item">
+              <button
+                type="button"
+                className="footer-state-toggle"
+                onClick={() => toggleState(stateKey)}
+                aria-expanded={stateOpen}
+              >
+                <span>{state.name}</span>
+                <ChevronDown size={14} className={`footer-chevron ${stateOpen ? "is-open" : ""}`} />
+              </button>
+              {stateOpen && (
+                <ul className="footer-city-list">
+                  {state.cities.slice(0, TOP_CITY_LIMIT).map((city) => (
+                    <li key={city.city_id}>
+                      <Link
+                        href={categoryHref(
+                          cat,
+                          {
+                            countrySlug: state.countrySlug,
+                            stateSlug: state.stateSlug,
+                            citySlug: city.slug,
+                          },
+                          dayBoardingTypeIds,
+                        )}
+                      >
+                        {city.city_name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const panels = [
+    ...CATEGORIES.map((cat) => ({
+      key: cat.key,
+      title: cat.label,
+      accent: cat.accent,
+      content: renderStateCityPanel(cat),
+    })),
+    {
+      key: "boards",
+      title: "Browse by Board",
+      accent: "#17456b",
+      content: (
+        <div className="footer-accordion__sub">
+          <ul className="footer-flat-list footer-flat-list--boards">
+            {topBoards.map((board) => (
+              <li key={board.board_id}>
+                <Link href={boardListingPath(board.slug)}>{board.board_name}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       ),
-    [schoolTypes],
-  );
-
-  const countrySearches = useMemo(() => {
-    const schoolCounts = new Map<string, number>();
-    for (const city of uniqueCities) {
-      schoolCounts.set(
-        city.country_id,
-        (schoolCounts.get(city.country_id) ?? 0) + (city.schools_count ?? 0),
-      );
-    }
-    return countries
-      .filter((country) => schoolCounts.has(country.country_id))
-      .sort(
-        (left, right) =>
-          (schoolCounts.get(right.country_id) ?? 0) - (schoolCounts.get(left.country_id) ?? 0) ||
-          left.country_name.localeCompare(right.country_name),
-      );
-  }, [countries, uniqueCities]);
-
-  const indiaRegionLinks = useMemo(() => {
-    const india = countrySearches.find(
-      (country) => toSeoSlug(country.slug || country.country_name) === "india",
-    );
-    if (!india) return [];
-    return INDIA_REGIONS.flatMap((region) => [
-      {
-        label: `All schools in ${region.label}`,
-        href: indiaRegionListingPath(region.id),
-      },
-      ...availableCategories.map(({ category, label }) => ({
-        label: `${label} in ${region.label}`,
-        href: indiaRegionListingPath(region.id, category),
-      })),
-    ]);
-  }, [availableCategories, countrySearches]);
-
-  const locationGroups = useMemo(() => {
-    const locationLinks = (
-      label: string,
-      path: Parameters<typeof placeListingPath>[0],
-    ) => [
-      { label: `All schools in ${label}`, href: placeListingPath(path) },
-      ...availableCategories.map(({ category, label: categoryLabel }) => ({
-        label: `${categoryLabel} in ${label}`,
-        href: placeListingPath({ ...path, category }),
-      })),
-    ];
-
-    return [
-      {
-        title: "By country",
-        links: countrySearches.flatMap((country) =>
-          locationLinks(country.country_name, { countrySlug: country.slug }),
-        ),
-      },
-      {
-        title: "By region",
-        links: indiaRegionLinks,
-      },
-      {
-        title: "By state",
-        links: stateSearches.flatMap(([, state]) =>
-          locationLinks(state.name, {
-            countrySlug: state.countrySlug,
-            stateSlug: state.stateSlug,
-          }),
-        ),
-      },
-      {
-        title: "By city",
-        links: popularCities.flatMap((city) =>
-          locationLinks(city.city_name, {
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-          }),
-        ),
-      },
-      {
-        title: "By locality",
-        links: localitySearches.flatMap(({ location, city }) =>
-          locationLinks(location.location_name, {
-            countrySlug: city.country_slug ?? city.country_name,
-            stateSlug: city.state_slug ?? city.state_name,
-            citySlug: city.slug,
-            locationSlug: location.slug,
-          }),
-        ),
-      },
-    ];
-  }, [availableCategories, countrySearches, indiaRegionLinks, localitySearches, popularCities, stateSearches]);
-
-  const boardGroups = useMemo(
-    () =>
-      availableCategories.map(({ category, label }) => ({
-        title: `${label} by board`,
-        links: topBoards.map((board) => ({
-          label: `${board.board_name} ${label}`,
-          href: boardListingPath(board.slug, category),
-        })),
-      })),
-    [availableCategories, topBoards],
-  );
-
-  const schoolTypeLinks = useMemo(
-    () =>
-      availableCategories.map(({ category, label }) => ({
-        label,
-        href: schoolDirectoryPath(category),
-      })),
-    [availableCategories],
-  );
-
-  const footerCities = popularCities.slice(0, 10);
-  const cbse = topBoards.find((board) => /cbse/i.test(`${board.board_code} ${board.slug} ${board.board_name}`));
-  const ib = topBoards.find((board) => /\bib\b/i.test(`${board.board_code} ${board.slug} ${board.board_name}`));
-  const international = topBoards.find((board) =>
-    board !== ib && /cambridge|igcse|international/i.test(`${board.board_code} ${board.slug} ${board.board_name}`),
-  );
-  const footerGroups = [
-    {
-      title: "Boarding Schools in Popular Cities",
-      links: footerCities.map((city) => ({
-        label: `Boarding Schools in ${city.city_name}`,
-        href: citySearchPath(city, { category: "residential-school" }),
-      })),
     },
     {
-      title: "Day Schools in Popular Cities",
-      links: footerCities.map((city) => ({
-        label: `Schools in ${city.city_name}`,
-        href: citySearchPath(city, { category: "day-school" }),
-      })),
-    },
-    ...(cbse ? [{
-      title: "CBSE Schools in Popular Cities",
-      links: footerCities.map((city) => ({
-        label: `CBSE Schools in ${city.city_name}`,
-        href: citySearchPath(city, { board: cbse.slug }),
-      })),
-    }] : []),
-    ...(international ? [{
-      title: "International Schools in Popular Cities",
-      links: footerCities.map((city) => ({
-        label: `International Schools in ${city.city_name}`,
-        href: citySearchPath(city, { board: international.slug }),
-      })),
-    }] : []),
-    ...(ib ? [{
-      title: "IB Schools in Popular Cities",
-      links: footerCities.map((city) => ({
-        label: `IB Schools in ${city.city_name}`,
-        href: citySearchPath(city, { board: ib.slug }),
-      })),
-    }] : []),
-    {
-      title: "Popular Boarding Searches",
-      links: [
-        { label: "Boarding Schools for Girls in India", href: "/india/boarding-schools/?gender=GIRLS" },
-        { label: "Boarding Schools for Boys in India", href: "/india/boarding-schools/?gender=BOYS" },
-        { label: "Coed Boarding Schools in India", href: "/india/boarding-schools/?gender=COED" },
-        ...footerCities.slice(0, 4).map((city) => ({
-          label: `Boarding Schools in ${city.city_name}`,
-          href: citySearchPath(city, { category: "residential-school" }),
-        })),
-      ],
+      key: "popular-cities",
+      title: "Popular Cities",
+      accent: "#e8650f",
+      content: (
+        <div className="footer-accordion__sub">
+          <ul className="footer-flat-list">
+            {popularCities.map((city) => (
+              <li key={city.city_id}>
+                <Link
+                  href={placeListingPath({
+                    countrySlug: city.country_slug ?? city.country_name,
+                    stateSlug: city.state_slug ?? city.state_name,
+                    citySlug: city.slug,
+                  })}
+                >
+                  {city.city_name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
     },
     {
-      title: "Schools by Category",
-      links: [
-        { label: "Day Schools in India", href: placeListingPath({ countrySlug: "india", category: "day-school" }) },
-        { label: "Boarding Schools in India", href: placeListingPath({ countrySlug: "india", category: "residential-school" }) },
-        { label: "Explore All Schools", href: schoolDirectoryPath() },
-        { label: "Compare Schools", href: "/compare/" },
-      ],
+      key: "about",
+      title: "About & Resources",
+      accent: "#17456b",
+      content: (
+        <div className="footer-accordion__sub">
+          <ul className="footer-flat-list">
+            <li><Link href="/about/">About Us</Link></li>
+            <li><Link href="/contact/">Contact Us</Link></li>
+            <li><Link href="/counselling/">Counselling</Link></li>
+            <li><Link href="/reviews/">Reviews</Link></li>
+            <li><Link href="/compare/">Compare Schools</Link></li>
+            <li><Link href={schoolDirectoryPath()}>All Schools</Link></li>
+            <li><Link href="/privacy/">Privacy Policy</Link></li>
+            <li><Link href="/terms/">Terms of Use</Link></li>
+          </ul>
+        </div>
+      ),
     },
-    {
-      title: "About BoardingEdu",
-      links: [
-        { label: "About Us", href: "/about/" },
-        { label: "Contact Us", href: "/contact/" },
-        { label: "Privacy Policy", href: "/privacy/" },
-        { label: "Terms of Use", href: "/terms/" },
-      ],
-    },
-  ];
-  const directoryGroups = [
-    ...footerGroups,
-    ...(schoolTypeLinks.length
-      ? [{ title: "Browse School Types", links: schoolTypeLinks }]
-      : []),
-    ...locationGroups,
-    ...boardGroups,
   ];
 
   return (
     <footer className="seo-footer seo-footer--directory" id="sitemap">
       {dataError && <p className="seo-footer__error" role="status">{dataError}</p>}
-      <nav className="seo-footer__directory" aria-label="School directory and popular searches">
-        {directoryGroups.filter((group) => group.links.length > 0).map((group) => (
-          <section key={group.title}>
-            <h2>{group.title}</h2>
-            <ul>
-              {uniqueBy(group.links, (item) => `${item.label}-${item.href}`).map((item) => (
-                <li key={`${group.title}-${item.href}`}>
-                  <Link href={item.href}>{item.label}</Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+
+      {/* Brand strip */}
+      <div className="footer-brand-strip">
+        <div className="footer-brand-strip__inner">
+          <div className="footer-brand">
+            <img
+              src="/BoardingEdu_LOGO.jpeg"
+              alt="BoardingEdu"
+              className="footer-brand__logo"
+              width={120}
+              height={40}
+            />
+            <p className="footer-brand__tagline">
+              Connecting Parents & Schools Across India
+            </p>
+          </div>
+          <div className="footer-contact">
+            <a href="tel:+918046110000" className="footer-contact__item">
+              <Phone size={16} />
+              <span>+91 80 4611 0000</span>
+            </a>
+            <a href="mailto:support@boardingedu.com" className="footer-contact__item">
+              <Mail size={16} />
+              <span>support@boardingedu.com</span>
+            </a>
+            <div className="footer-contact__item">
+              <MapPin size={16} />
+              <span>{india ? "India" : "India"}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Accordion directory */}
+      <nav className="footer-directory" aria-label="School directory and popular searches">
+        <div className="footer-directory__grid">
+          {panels.map((panel) => {
+            const isOpen = openPanels[panel.key];
+            return (
+              <section key={panel.key} className="footer-accordion">
+                <button
+                  type="button"
+                  className="footer-accordion__toggle"
+                  onClick={() => togglePanel(panel.key)}
+                  aria-expanded={isOpen}
+                  style={{ borderColor: panel.accent }}
+                >
+                  <span className="footer-accordion__title">{panel.title}</span>
+                  <ChevronDown
+                    size={18}
+                    className={`footer-accordion__chevron ${isOpen ? "is-open" : ""}`}
+                    style={{ color: panel.accent }}
+                  />
+                </button>
+                {isOpen && panel.content}
+              </section>
+            );
+          })}
+        </div>
       </nav>
+
+      {/* Legal */}
       <div className="seo-footer__legal">
         <p>© 2026 BoardingEdu Technologies Pvt. Ltd. · All rights reserved.</p>
         <nav aria-label="Legal">
@@ -369,6 +352,7 @@ export default function SiteFooterSeo({
           <Link href="/contact/">Contact</Link>
         </nav>
       </div>
+
       <div className="callback-dock">
         <a className="callback-dock__phone" href="tel:+918046110000" aria-label="Call BoardingEdu">
           <Phone size={18} />
