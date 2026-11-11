@@ -14,7 +14,7 @@ services:
   - type: web
     name: boardingedu-backend
     runtime: python
-    plan: free
+    plan: starter
     rootDir: backend
     buildCommand: chmod +x ./build.sh && ./build.sh
     startCommand: bash ./start.sh
@@ -50,9 +50,25 @@ services:
         sync: false
       - key: CLOUDFLARE_R2_PUBLIC_BASE
         sync: false
+      # ---- Email provider (pick ONE and set its keys in the Render dashboard) ----
+      # Brevo (transactional email, free tier 300/day)
+      - key: EMAIL_PROVIDER
+        value: brevo
+      - key: DEFAULT_FROM_EMAIL
+        value: "BoardingEdu <no-reply@boardingedu.com>"
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL
         sync: false
       - key: BREVO_SENDER_NAME
-        sync: false
+        value: BoardingEdu
+      # Resend (alternative — uncomment and set EMAIL_PROVIDER=resend)
+      # - key: RESEND_API_KEY
+      #   sync: false
+      # Cloudflare Email Service (alternative — set EMAIL_PROVIDER=cloudflare)
+      # - key: CLOUDFLARE_EMAIL_API_TOKEN
+      #   sync: false
+      # - key: CLOUDFLARE_EMAIL_ACCOUNT_ID
+      #   sync: false
+      # - key: CLOUDFLARE_EMAIL_FROM
+      #   value: no-reply@boardingedu.com
