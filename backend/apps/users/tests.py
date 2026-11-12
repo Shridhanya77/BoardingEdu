@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from apps.admissions.models import AdmissionEnquiry
-from apps.fees.models import AcademicYear
+from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, State
 from apps.notifications.models import EmailDelivery
 from apps.schools.admin import SchoolAdmin
@@ -256,6 +256,98 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertContains(grades_page, "Grade levels")
         self.assertNotContains(grades_page, 'id="facilities"')
 
+        fees_page = client.get(workspace_url, {"section": "fees"})
+        self.assertEqual(fees_page.status_code, 200)
+        self.assertContains(fees_page, 'id="fees"')
+        self.assertContains(fees_page, "Add fee")
+        self.assertContains(fees_page, "Academic year")
+        fee_add = client.post(
+            workspace_url + "?section=fees",
+            {
+                "fee_action": "add",
+                "academic_year": str(year.pk),
+                "item_name": "Tuition fee",
+                "item_category": "TUITION",
+                "payment_frequency": "ANNUAL",
+                "amount": "12000.00",
+            },
+        )
+        self.assertEqual(fee_add.status_code, 302)
+        own_structure = FeeStructure.objects.get(school=own, academic_year=year)
+        own_fee = FeeItem.objects.get(fee_structure=own_structure)
+        self.assertEqual(own_fee.amount, 12000)
+        self.assertFalse(own_structure.published)
+        rejected_fee = client.post(
+            workspace_url + "?section=fees",
+            {
+                "fee_action": "add",
+                "academic_year": str(year.pk),
+                "item_name": "Negative fee",
+                "item_category": "TUITION",
+                "payment_frequency": "ANNUAL",
+                "amount": "-1",
+            },
+        )
+        self.assertEqual(rejected_fee.status_code, 302)
+        self.assertFalse(FeeItem.objects.filter(item_name="Negative fee").exists())
+
+        fee_update = client.post(
+            workspace_url + "?section=fees",
+            {
+                "fee_action": "update",
+                "fee_item_id": str(own_fee.pk),
+                "item_name": "Annual tuition",
+                "amount": "15000.00",
+            },
+        )
+        self.assertEqual(fee_update.status_code, 302)
+        own_fee.refresh_from_db()
+        self.assertEqual(own_fee.item_name, "Annual tuition")
+        self.assertEqual(own_fee.amount, 15000)
+
+        fee_publish = client.post(
+            workspace_url + "?section=fees",
+            {"fee_action": "publish", "fee_structure_id": str(own_structure.pk)},
+        )
+        self.assertEqual(fee_publish.status_code, 302)
+        own_structure.refresh_from_db()
+        self.assertTrue(own_structure.published)
+        fee_unpublish = client.post(
+            workspace_url + "?section=fees",
+            {"fee_action": "unpublish", "fee_structure_id": str(own_structure.pk)},
+        )
+        self.assertEqual(fee_unpublish.status_code, 302)
+        own_structure.refresh_from_db()
+        self.assertFalse(own_structure.published)
+
+        other_structure = FeeStructure.objects.create(
+            structure_code="OTHER-FEES-2026",
+            structure_name="Other school fees",
+            school=other,
+            academic_year=year,
+            effective_from=year.start_date,
+        )
+        foreign_fee = FeeItem.objects.create(
+            fee_structure=other_structure,
+            item_code="OTHER-TUITION",
+            item_name="Other school's tuition",
+            payment_frequency="ANNUAL",
+            amount="20000.00",
+        )
+        foreign_fee_delete = client.post(
+            workspace_url + "?section=fees",
+            {"fee_action": "delete", "fee_item_id": str(foreign_fee.pk)},
+        )
+        self.assertEqual(foreign_fee_delete.status_code, 302)
+        self.assertTrue(FeeItem.objects.filter(pk=foreign_fee.pk).exists())
+
+        fee_delete = client.post(
+            workspace_url + "?section=fees",
+            {"fee_action": "delete", "fee_item_id": str(own_fee.pk)},
+        )
+        self.assertEqual(fee_delete.status_code, 302)
+        self.assertFalse(FeeItem.objects.filter(pk=own_fee.pk).exists())
+
         photographs_page = client.get(workspace_url, {"section": "photographs"})
         self.assertContains(photographs_page, photo.photo_url)
         self.assertContains(photographs_page, "Own campus")
@@ -375,6 +467,10 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertNotContains(own_lead_page, "919876543210")
         self.assertNotContains(own_lead_page, "visible-parent@example.test")
         self.assertNotContains(own_lead_page, "Private Child")
+        locked_leads = client.get(reverse("admin:admissions_admissionenquiry_changelist"))
+        self.assertNotContains(locked_leads, "Visible Parent")
+        self.assertNotContains(locked_leads, "919876543210")
+        self.assertNotContains(locked_leads, "visible-parent@example.test")
 
         plan = SubscriptionPlan.objects.create(
             name="Admin Contact Plan",
@@ -400,6 +496,9 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertContains(unlocked_workspace, "Visible Parent")
         self.assertContains(unlocked_workspace, "919876543210")
         self.assertContains(unlocked_workspace, "visible-parent@example.test")
+        unlocked_leads = client.get(reverse("admin:admissions_admissionenquiry_changelist"))
+        self.assertContains(unlocked_leads, "Visible Parent")
+        self.assertContains(unlocked_leads, "919876543210")
 
         own_payment = SubscriptionPayment.objects.create(
             school=own,
@@ -441,6 +540,8 @@ class SchoolAdminBackendLoginTests(TestCase):
         leads = client.get(reverse("admin:admissions_admissionenquiry_changelist"))
         self.assertEqual(leads.status_code, 200)
         self.assertContains(leads, own_lead.enquiry_code)
+        self.assertContains(leads, "Visible Parent")
+        self.assertContains(leads, "919876543210")
         self.assertNotContains(leads, "Hidden Parent")
 
         other_page = client.get(reverse("admin:schools_school_change", args=[other.pk]))

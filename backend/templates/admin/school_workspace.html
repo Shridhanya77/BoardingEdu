@@ -27,7 +27,7 @@
       <a href="{{ leads_url }}"><strong>{% translate "Manage leads" %}</strong><span>{{ lead_new }} {% translate "new" %}</span></a>
       <a href="{{ facilities_url }}"><strong>{% translate "Facilities" %}</strong><span>{{ facility_count }} {% translate "available" %}</span></a>
       <a href="{{ grades_url }}"><strong>{% translate "Grades" %}</strong><span>{{ grade_count }} {% translate "active" %}</span></a>
-      <a href="{{ fees_url }}"><strong>{% translate "Fees" %}</strong><span>{% translate "Academic year schedules" %}</span></a>
+      <a href="{{ fees_url }}"><strong>{% translate "Fees & admissions" %}</strong><span>{% translate "Academic year schedules" %}</span></a>
       <a href="{{ photos_url }}"><strong>{% translate "Photographs" %}</strong><span>{{ photo_count }} {% translate "images" %}</span></a>
       <a href="{{ documents_url }}"><strong>{% translate "Brochure & documents" %}</strong><span>{% translate "School resources" %}</span></a>
       <a href="{{ reviews_url }}"><strong>{% translate "Reviews" %}</strong><span>{{ review_stats.total }} {% translate "reviews" %}</span></a>
@@ -181,6 +181,125 @@
     </table>
     {% else %}
     <p class="be-empty">{% translate "No grades recorded yet." %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if active_section == "fees" %}
+  <section class="be-panel" id="fees">
+    <h3>{% translate "Fees & admissions" %}</h3>
+    <p>{% translate "Create and maintain a clear fee schedule for each academic year. Changes are saved to this school's schedule only." %}</p>
+    {% if fee_years %}
+    <form class="be-fee-form" method="post" action="?section=fees#fees">
+      {% csrf_token %}
+      <label>
+        {% translate "Academic year" %}
+        <select name="academic_year" required>
+          {% for year in fee_years %}
+          <option value="{{ year.pk }}" {% if current_fee_year.pk == year.pk %}selected{% endif %}>{{ year.year_name }} ({{ year.year_code }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        {% translate "Fee name" %}
+        <input type="text" name="item_name" maxlength="200" required placeholder="{% translate 'e.g. Tuition fee' %}">
+      </label>
+      <label>
+        {% translate "Category" %}
+        <select name="item_category" required>
+          {% for value, label in fee_category_choices %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        {% translate "Frequency" %}
+        <select name="payment_frequency" required>
+          {% for value, label in fee_frequency_choices %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        {% translate "Grade (optional)" %}
+        <select name="grade">
+          <option value="">{% translate "All grades" %}</option>
+          {% for school_grade in fee_grades %}
+          <option value="{{ school_grade.grade_id }}">{{ school_grade.grade.grade_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        {% translate "Amount (₹)" %}
+        <input type="number" name="amount" min="0" step="0.01" inputmode="decimal" placeholder="{% translate 'Leave blank for variable fees' %}">
+      </label>
+      <button type="submit" name="fee_action" value="add" class="be-btn">{% translate "Add fee" %}</button>
+    </form>
+    {% else %}
+    <p class="be-empty">{% translate "No active academic years are configured. Contact a platform administrator to add one before creating a fee schedule." %}</p>
+    {% endif %}
+
+    {% if fee_structures %}
+    <div class="be-fee-years">
+      {% for structure in fee_structures %}
+      <section class="be-fee-year">
+        <header class="be-fee-year__header">
+          <div>
+            <h4>{{ structure.academic_year.year_name }}</h4>
+            <span class="be-tag">{{ structure.academic_year.year_code }}</span>
+            {% if structure.published %}
+            <span class="be-tag be-tag--published">{% translate "Published" %}</span>
+            {% else %}
+            <span class="be-tag">{% translate "Draft" %}</span>
+            {% endif %}
+          </div>
+          <form method="post" action="?section=fees#fees">
+            {% csrf_token %}
+            <input type="hidden" name="fee_structure_id" value="{{ structure.fee_structure_id }}">
+            {% if structure.published %}
+            <button type="submit" name="fee_action" value="unpublish" class="be-btn be-btn--ghost">{% translate "Unpublish" %}</button>
+            {% else %}
+            <button type="submit" name="fee_action" value="publish" class="be-btn">{% translate "Publish" %}</button>
+            {% endif %}
+          </form>
+        </header>
+        {% if structure.fee_items.all %}
+        <div class="be-fee-list">
+          {% for item in structure.fee_items.all %}
+          <article class="be-fee-item">
+            <div class="be-fee-item__details">
+              <strong>{{ item.item_name }}</strong>
+              <span>{{ item.get_item_category_display }} · {{ item.get_payment_frequency_display }}{% if item.grade %} · {{ item.grade.grade_name }}{% endif %}</span>
+            </div>
+            <form method="post" action="?section=fees#fees" class="be-fee-item__edit">
+              {% csrf_token %}
+              <input type="hidden" name="fee_item_id" value="{{ item.fee_item_id }}">
+              <label>
+                {% translate "Fee name" %}
+                <input type="text" name="item_name" maxlength="200" value="{{ item.item_name }}" required>
+              </label>
+              <label>
+                {% translate "Amount (₹)" %}
+                <input type="number" name="amount" min="0" step="0.01" inputmode="decimal" value="{{ item.amount|default_if_none:'' }}" placeholder="{% translate 'Variable' %}">
+              </label>
+              <button type="submit" name="fee_action" value="update" class="be-btn be-btn--ghost">{% translate "Save" %}</button>
+            </form>
+            <form method="post" action="?section=fees#fees" class="be-fee-item__delete">
+              {% csrf_token %}
+              <input type="hidden" name="fee_item_id" value="{{ item.fee_item_id }}">
+              <button type="submit" name="fee_action" value="delete">{% translate "Delete" %}</button>
+            </form>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="be-empty">{% translate "No fees have been added to this academic year yet." %}</p>
+        {% endif %}
+      </section>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="be-empty">{% translate "No fee schedules have been created yet." %}</p>
     {% endif %}
   </section>
   {% endif %}

@@ -1,5 +1,3 @@
-import contextvars
-
 from django.contrib import admin
 
 from apps.users.school_admin_scope import AssignedSchoolAdminMixin, manages_own_school
@@ -12,18 +10,6 @@ from .models import (
     AdmissionEnquiry,
     CounsellingRequest,
 )
-
-_admin_request = contextvars.ContextVar("lead_admin_request", default=None)
-
-
-def _contacts_open(enquiry):
-    request = _admin_request.get()
-    if request is None or not manages_own_school(request.user):
-        return True
-    from apps.subscriptions.access import viewer_can_see_contacts
-
-    return viewer_can_see_contacts(request.user, enquiry)
-
 
 @admin.register(Child)
 class ChildAdmin(admin.ModelAdmin):
@@ -71,10 +57,36 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     readonly_fields = ("enquiry_id", "created_at", "updated_at")
 
+    def get_list_display(self, request):
+        if not manages_own_school(request.user):
+            return self.list_display
+
+        from apps.subscriptions.access import viewer_can_see_contacts
+
+        access_by_enquiry = {}
+
+        def contacts_open(obj):
+            if obj.pk not in access_by_enquiry:
+                access_by_enquiry[obj.pk] = viewer_can_see_contacts(request.user, obj)
+            return access_by_enquiry[obj.pk]
+
+        @admin.display(description="Parent")
+        def parent_name(obj):
+            return self.parent_name(obj) if contacts_open(obj) else "Locked"
+
+        @admin.display(description="Contact")
+        def contact_detail(obj):
+            return self.contact_detail(obj) if contacts_open(obj) else "Subscription required"
+
+        return (
+            self.list_display[0],
+            parent_name,
+            contact_detail,
+            *self.list_display[3:],
+        )
+
     @admin.display(description="Parent")
     def parent_name(self, obj):
-        if not _contacts_open(obj):
-            return "Locked"
         if obj.parent_profile_id and obj.parent_profile.user_id:
             user = obj.parent_profile.user
             return user.get_full_name().strip() or user.username
@@ -82,19 +94,10 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
 
     @admin.display(description="Contact")
     def contact_detail(self, obj):
-        if not _contacts_open(obj):
-            return "Subscription required"
         if obj.parent_profile_id and obj.parent_profile.user_id:
             user = obj.parent_profile.user
             return user.phone or user.email or "—"
         return obj.guest_phone or obj.guest_email or "—"
-
-    def _with_request(self, request, view):
-        token = _admin_request.set(request)
-        try:
-            return view()
-        finally:
-            _admin_request.reset(token)
 
     @admin.display(description="Contacts")
     def contact_lock_notice(self, obj):
@@ -114,16 +117,7 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         extra_context = extra_context or {}
         if manages_own_school(request.user):
             extra_context.setdefault("title", "Leads for your school")
-        return self._with_request(
-            request,
-            lambda: super(AdmissionEnquiryAdmin, self).changelist_view(request, extra_context),
-        )
-
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        return self._with_request(
-            request,
-            lambda: super(AdmissionEnquiryAdmin, self).changeform_view(request, object_id, form_url, extra_context),
-        )
+        return super().changelist_view(request, extra_context)
 
     def get_search_fields(self, request):
         if manages_own_school(request.user):

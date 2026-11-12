@@ -2164,6 +2164,151 @@ body.be-school-admin .be-resource-form__wide {
   grid-column: 1 / -1;
 }
 
+body.be-school-admin .be-fee-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0 22px;
+  padding: 16px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 12px;
+  background: var(--darkened-bg);
+}
+
+body.be-school-admin .be-fee-form label,
+body.be-school-admin .be-fee-item__edit label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--body-quiet-color);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+body.be-school-admin .be-fee-form input,
+body.be-school-admin .be-fee-form select,
+body.be-school-admin .be-fee-item__edit input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--body-bg);
+  color: var(--body-fg);
+  font: inherit;
+}
+
+body.be-school-admin .be-fee-years {
+  display: grid;
+  gap: 14px;
+}
+
+body.be-school-admin .be-fee-year {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 12px;
+  background: var(--body-bg);
+}
+
+body.be-school-admin .be-fee-year__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline-color);
+}
+
+body.be-school-admin .be-fee-year__header h4 {
+  display: inline;
+  margin: 0 8px 0 0;
+  color: var(--body-fg);
+}
+
+body.be-school-admin .be-fee-year__header form,
+body.be-school-admin .be-fee-item__edit,
+body.be-school-admin .be-fee-item__delete {
+  margin: 0;
+}
+
+body.be-school-admin .be-tag--published {
+  background: #e7f5ec;
+  color: #17613a;
+}
+
+body.be-school-admin .be-fee-list {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+body.be-school-admin .be-fee-item {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(300px, 1.5fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  background: var(--darkened-bg);
+}
+
+body.be-school-admin .be-fee-item__details {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+body.be-school-admin .be-fee-item__details span {
+  color: var(--body-quiet-color);
+  font-size: 12px;
+}
+
+body.be-school-admin .be-fee-item__edit {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(110px, .7fr) auto;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+body.be-school-admin .be-fee-item__edit button,
+body.be-school-admin .be-fee-form > button {
+  min-height: 38px;
+  border-color: #0b5f8a;
+  background: #0b5f8a;
+  color: #fff;
+}
+
+body.be-school-admin .be-fee-item__edit button.be-btn--ghost,
+body.be-school-admin .be-fee-year__header button.be-btn--ghost {
+  border: 1px solid #0b5f8a;
+  background: var(--body-bg);
+  color: #0b5f8a;
+}
+
+body.be-school-admin .be-fee-item__delete button {
+  min-height: 36px;
+  border: 1px solid #c5ced6;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--body-bg);
+  color: #9b1c1c;
+  cursor: pointer;
+}
+
+body.be-school-admin .be-fee-form > button,
+body.be-school-admin .be-fee-item__edit button,
+body.be-school-admin .be-fee-year__header button {
+  border-radius: 8px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
 body.be-school-admin .be-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -2223,8 +2368,25 @@ body.be-school-admin .be-review-card__meta {
     grid-template-columns: 1fr;
   }
 
+  body.be-school-admin .be-fee-form {
+    grid-template-columns: 1fr;
+  }
+
   body.be-school-admin .be-resource-form__wide {
     grid-column: auto;
+  }
+
+  body.be-school-admin .be-fee-year__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  body.be-school-admin .be-fee-item {
+    grid-template-columns: 1fr;
+  }
+
+  body.be-school-admin .be-fee-item__edit {
+    grid-template-columns: 1fr 1fr;
   }
 
   body.be-school-admin .be-review-card__meta {

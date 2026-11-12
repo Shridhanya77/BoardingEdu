@@ -1,5 +1,21 @@
 # BoardingEdu backend operations
 
+## Local development on Windows
+
+Start the backend from PowerShell in the `backend` directory:
+
+```powershell
+.\start-local.ps1
+```
+
+The script uses the backend virtual environment when available, overrides
+`DATABASE_URL` for that process with the ignored local `db.sqlite3`, applies
+migrations, and starts Django at `http://127.0.0.1:8000/`. It does not change
+the `.env` file or connect to its configured database. Keep the server running
+while using the frontend; its local API base should be
+`http://127.0.0.1:8000/api`. The local database starts empty, so schools and
+other records must be seeded or restored locally when needed.
+
 ## School verification
 
 Apply the school verification audit migration before using the verification

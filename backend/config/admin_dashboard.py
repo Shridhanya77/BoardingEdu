@@ -4,6 +4,7 @@ Kept out of settings.py so the whole admin configuration lives in one place.
 Statistics are computed only on the admin index request, never on change forms.
 """
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 import re
 import uuid
 
@@ -310,7 +311,7 @@ def school_admin_menu(request):
         ("Leads", reverse("admin:admissions_admissionenquiry_changelist"), None),
         ("Facilities", f"{workspace_url}?section=facilities&campus=ACADEMIC#facilities", None),
         ("Grades", f"{workspace_url}?section=grades&grade_group=PRIMARY#grades", None),
-        ("Fees", reverse("admin:fees_feestructure_changelist"), reverse("admin:fees_feestructure_add")),
+        ("Fees & admissions", f"{workspace_url}?section=fees#fees", None),
         ("Photographs", f"{workspace_url}?section=photographs#photographs", None),
         ("Brochure & documents", f"{workspace_url}?section=documents#documents", None),
         ("Reviews", f"{workspace_url}?section=reviews#reviews", None),
@@ -498,6 +499,208 @@ def _apply_admission_resource(request, school):
     return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
 
 
+def _fee_workspace_redirect():
+    return redirect(f"{reverse('admin:school_workspace')}?section=fees#fees")
+
+
+def _fee_amount(raw, frequency):
+    if raw in ("", None):
+        if frequency in {"DYNAMIC", "BY_DISTANCE"}:
+            return None
+        raise DjangoValidationError("Enter an amount for this fee.")
+    try:
+        amount = Decimal(str(raw))
+    except (InvalidOperation, ValueError):
+        raise DjangoValidationError("Enter a valid fee amount.") from None
+    if not amount.is_finite():
+        raise DjangoValidationError("Enter a finite fee amount.")
+    if amount < 0:
+        raise DjangoValidationError("Fee amounts cannot be negative.")
+    return amount
+
+
+def _school_fee_structure(school, academic_year):
+    from apps.fees.models import FeeStructure
+
+    base_code = re.sub(
+        r"[^A-Za-z0-9]+",
+        "-",
+        f"{school.school_code}-{academic_year.year_code}",
+    ).strip("-").upper()[:40].rstrip("-") or "SCHOOL"
+    structure_code = base_code
+    suffix = 2
+    while FeeStructure.objects.filter(structure_code=structure_code).exclude(
+        school=school,
+        academic_year=academic_year,
+    ).exists():
+        suffix_text = f"-{suffix}"
+        structure_code = f"{base_code[:40 - len(suffix_text)].rstrip('-')}{suffix_text}"
+        suffix += 1
+    structure, _ = FeeStructure.objects.get_or_create(
+        school=school,
+        academic_year=academic_year,
+        defaults={
+            "structure_code": structure_code,
+            "structure_name": f"{school.short_name or school.school_name} fees {academic_year.year_code}"[:200],
+            "effective_from": academic_year.start_date,
+            "effective_to": academic_year.end_date,
+            "status": True,
+            "published": False,
+        },
+    )
+    return structure
+
+
+def _apply_fee_action(request, school):
+    from apps.fees.models import AcademicYear, FeeItem, FeeStructure
+    from apps.schools.models import SchoolGrade
+
+    action = request.POST.get("fee_action")
+    if action == "add":
+        name = (request.POST.get("item_name") or "").strip()
+        category = request.POST.get("item_category") or ""
+        frequency = request.POST.get("payment_frequency") or ""
+        if not name or len(name) > 200:
+            messages.error(request, "Enter a fee name of 200 characters or fewer.")
+            return _fee_workspace_redirect()
+        if category not in dict(FeeItem.CATEGORY_CHOICES):
+            messages.error(request, "Choose a fee category.")
+            return _fee_workspace_redirect()
+        if frequency not in dict(FeeItem.PAYMENT_FREQUENCY_CHOICES):
+            messages.error(request, "Choose how often this fee is charged.")
+            return _fee_workspace_redirect()
+        try:
+            amount = _fee_amount(request.POST.get("amount"), frequency)
+        except DjangoValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+            return _fee_workspace_redirect()
+        grade_id = request.POST.get("grade") or ""
+        grade = None
+        if grade_id:
+            try:
+                grade_id = uuid.UUID(grade_id)
+            except (TypeError, ValueError):
+                messages.error(request, "Choose a valid grade offered by this school.")
+                return _fee_workspace_redirect()
+            school_grade = SchoolGrade.objects.select_related("grade").filter(
+                school=school,
+                grade_id=grade_id,
+                is_active=True,
+                grade__status=True,
+            ).first()
+            if school_grade is None:
+                messages.error(request, "Choose a valid grade offered by this school.")
+                return _fee_workspace_redirect()
+            grade = school_grade.grade
+        academic_year_id = request.POST.get("academic_year") or ""
+        if academic_year_id:
+            try:
+                academic_year_id = uuid.UUID(academic_year_id)
+            except (TypeError, ValueError):
+                messages.error(request, "Choose a valid active academic year.")
+                return _fee_workspace_redirect()
+            academic_year = AcademicYear.objects.filter(
+                pk=academic_year_id,
+                status=True,
+            ).first()
+        else:
+            academic_year = AcademicYear.objects.filter(status=True).order_by(
+                "-is_current",
+                "-start_date",
+            ).first()
+        if academic_year is None:
+            messages.error(request, "Choose an active academic year before adding fees.")
+            return _fee_workspace_redirect()
+        structure = _school_fee_structure(school, academic_year)
+        item_code = re.sub(r"[^A-Z0-9]+", "-", name.upper()).strip("-")[:24] or "FEE"
+        suffix = 2
+        while structure.fee_items.filter(
+            item_code=item_code,
+            grade=grade,
+            school_type__isnull=True,
+        ).exists():
+            suffix_text = f"-{suffix}"
+            item_code = f"{item_code[:30 - len(suffix_text)].rstrip('-')}{suffix_text}"
+            suffix += 1
+        item = FeeItem(
+            fee_structure=structure,
+            item_code=item_code,
+            item_name=name,
+            item_category=category,
+            payment_frequency=frequency,
+            grade=grade,
+            amount=amount,
+            sort_order=structure.fee_items.count(),
+        )
+        try:
+            item.full_clean()
+        except DjangoValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        else:
+            item.save()
+            messages.success(request, f"{name} was added to {academic_year.year_code}.")
+    elif action in {"update", "delete"}:
+        try:
+            fee_item_id = uuid.UUID(request.POST.get("fee_item_id") or "")
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a valid fee item.")
+            return _fee_workspace_redirect()
+        item = FeeItem.objects.select_related("fee_structure").filter(
+            fee_item_id=fee_item_id,
+            fee_structure__school=school,
+        ).first()
+        if item is None:
+            messages.error(request, "That fee item is not on this school.")
+            return _fee_workspace_redirect()
+        if action == "delete":
+            item.delete()
+            messages.success(request, "Fee item deleted.")
+        else:
+            name = (request.POST.get("item_name") or "").strip()
+            if not name or len(name) > 200:
+                messages.error(request, "Enter a fee name of 200 characters or fewer.")
+                return _fee_workspace_redirect()
+            try:
+                item.amount = _fee_amount(request.POST.get("amount"), item.payment_frequency)
+            except DjangoValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
+                return _fee_workspace_redirect()
+            item.item_name = name
+            try:
+                item.full_clean()
+            except DjangoValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
+            else:
+                item.save()
+                messages.success(request, f"{name} was updated.")
+    elif action in {"publish", "unpublish"}:
+        try:
+            structure_id = uuid.UUID(request.POST.get("fee_structure_id") or "")
+        except (TypeError, ValueError):
+            messages.error(request, "Choose a valid fee structure.")
+            return _fee_workspace_redirect()
+        structure = FeeStructure.objects.filter(
+            fee_structure_id=structure_id,
+            school=school,
+        ).first()
+        if structure is None:
+            messages.error(request, "That fee structure is not on this school.")
+            return _fee_workspace_redirect()
+        publish = action == "publish"
+        if publish and not structure.fee_items.exclude(amount__isnull=True).exists():
+            messages.error(request, "Add at least one fee amount before publishing.")
+            return _fee_workspace_redirect()
+        structure.published = publish
+        structure.status = True
+        if publish:
+            structure.published_at = timezone.now()
+        structure.save(update_fields=["published", "status", "published_at", "updated_at"])
+        messages.success(request, "Fee structure published." if publish else "Fee structure unpublished.")
+    else:
+        messages.error(request, "Choose an action for fees.")
+    return _fee_workspace_redirect()
+
+
 def _clean_seats(raw):
     """Returns (seats, invalid). Blank means 'not recorded', which is allowed."""
     if raw in ("", None):
@@ -537,11 +740,14 @@ def school_workspace(request):
             "school_facilities__facility",
             "photos",
             "admission_resources",
-            "fee_structures__fee_items",
+            "fee_structures__academic_year",
+            "fee_structures__fee_items__grade",
         )
         .get(pk=school_id)
     )
     if request.method == "POST":
+        if request.POST.get("fee_action"):
+            return _apply_fee_action(request, school)
         if request.POST.get("resource_action"):
             return _apply_admission_resource(request, school)
         if request.POST.get("grade_action"):
@@ -576,7 +782,15 @@ def school_workspace(request):
         })
 
     active_section = request.GET.get("section") or "overview"
-    allowed_sections = {"overview", "facilities", "grades", "photographs", "documents", "reviews"}
+    allowed_sections = {
+        "overview",
+        "facilities",
+        "grades",
+        "fees",
+        "photographs",
+        "documents",
+        "reviews",
+    }
     if active_section not in allowed_sections:
         active_section = "overview"
     campus_group = (request.GET.get("campus") or "ACADEMIC").upper()
@@ -623,6 +837,21 @@ def school_workspace(request):
         (resource for resource in school.admission_resources.all() if resource.status),
         key=lambda resource: (resource.sort_order, resource.created_at),
     )
+    from apps.fees.models import AcademicYear, FeeItem
+
+    fee_years = list(AcademicYear.objects.filter(status=True).order_by("-is_current", "-start_date"))
+    requested_fee_year = request.GET.get("academic_year")
+    current_fee_year = next(
+        (year for year in fee_years if str(year.pk) == requested_fee_year),
+        None,
+    )
+    if current_fee_year is None and fee_years:
+        current_fee_year = fee_years[0]
+    fee_structures = list(
+        school.fee_structures.select_related("academic_year").prefetch_related(
+            "fee_items__grade"
+        ).order_by("-academic_year__start_date")
+    )
     review_queryset = Review.objects.filter(school=school).select_related("user")
     review_stats = review_queryset.aggregate(
         total=Count("pk"),
@@ -632,8 +861,9 @@ def school_workspace(request):
     reviews = list(review_queryset.order_by("-created_at")[:50])
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
+    workspace_url = reverse("admin:school_workspace")
     section_urls = {
-        "fees": reverse("admin:fees_feestructure_changelist"),
+        "fees": f"{workspace_url}?section=fees#fees",
         "campus": reverse("admin:schools_schoolfacility_changelist"),
         "sports": reverse("admin:schools_schoolfacility_changelist"),
         "hostel": reverse("admin:schools_schoolfacility_changelist"),
@@ -683,7 +913,7 @@ def school_workspace(request):
         "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
         "facilities_url": f"{reverse('admin:school_workspace')}?section=facilities&campus={campus_group}#facilities",
         "grades_url": f"{reverse('admin:school_workspace')}?section=grades&grade_group={grade_group}#grades",
-        "fees_url": reverse("admin:fees_feestructure_changelist"),
+        "fees_url": f"{workspace_url}?section=fees#fees",
         "photos_url": f"{reverse('admin:school_workspace')}?section=photographs#photographs",
         "documents_url": f"{reverse('admin:school_workspace')}?section=documents#documents",
         "reviews_url": f"{reverse('admin:school_workspace')}?section=reviews#reviews",
@@ -706,6 +936,15 @@ def school_workspace(request):
         "photos": photos,
         "admission_resources": admission_resources,
         "resource_type_choices": SchoolAdmissionResource.RESOURCE_TYPE_CHOICES,
+        "fee_years": fee_years,
+        "current_fee_year": current_fee_year,
+        "fee_structures": fee_structures,
+        "fee_category_choices": FeeItem.CATEGORY_CHOICES,
+        "fee_frequency_choices": FeeItem.PAYMENT_FREQUENCY_CHOICES,
+        "fee_grades": [
+            row for row in offered_grades
+            if row.is_active and row.grade.status
+        ],
         "reviews": reviews,
         "review_stats": review_stats,
     }
