@@ -2119,6 +2119,121 @@ body.be-school-admin .be-table tbody tr:hover {
   background: var(--darkened-bg);
 }
 
+body.be-school-admin .be-resource-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0 20px;
+}
+
+body.be-school-admin .be-resource-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+body.be-school-admin .be-yesno {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+body.be-school-admin .be-yesno li {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 14px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  background: var(--body-bg);
+}
+
+body.be-school-admin .be-yesno form {
+  justify-content: flex-end;
+}
+
+body.be-school-admin .be-resource-form input,
+body.be-school-admin .be-resource-form select,
+body.be-school-admin .be-resource-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+body.be-school-admin .be-resource-form__wide {
+  grid-column: 1 / -1;
+}
+
+body.be-school-admin .be-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+body.be-school-admin .be-photo-card,
+body.be-school-admin .be-review-card {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  background: var(--body-bg);
+}
+
+body.be-school-admin .be-photo-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+body.be-school-admin .be-photo-card figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+body.be-school-admin .be-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+body.be-school-admin .be-review-card__heading,
+body.be-school-admin .be-review-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+body.be-school-admin .be-review-card p {
+  margin: 10px 0;
+}
+
+body.be-school-admin .be-review-card__meta {
+  color: var(--body-quiet-color);
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  body.be-school-admin .be-resource-form {
+    grid-template-columns: 1fr;
+  }
+
+  body.be-school-admin .be-resource-form__wide {
+    grid-column: auto;
+  }
+
+  body.be-school-admin .be-review-card__meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 body.be-school-admin .be-grade-seats input,
 body.be-school-admin .be-grade-form input,
 body.be-school-admin .be-grade-form select {

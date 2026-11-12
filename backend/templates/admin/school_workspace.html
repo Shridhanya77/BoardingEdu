@@ -28,6 +28,9 @@
       <a href="{{ facilities_url }}"><strong>{% translate "Facilities" %}</strong><span>{{ facility_count }} {% translate "available" %}</span></a>
       <a href="{{ grades_url }}"><strong>{% translate "Grades" %}</strong><span>{{ grade_count }} {% translate "active" %}</span></a>
       <a href="{{ fees_url }}"><strong>{% translate "Fees" %}</strong><span>{% translate "Academic year schedules" %}</span></a>
+      <a href="{{ photos_url }}"><strong>{% translate "Photographs" %}</strong><span>{{ photo_count }} {% translate "images" %}</span></a>
+      <a href="{{ documents_url }}"><strong>{% translate "Brochure & documents" %}</strong><span>{% translate "School resources" %}</span></a>
+      <a href="{{ reviews_url }}"><strong>{% translate "Reviews" %}</strong><span>{{ review_stats.total }} {% translate "reviews" %}</span></a>
     </div>
   </section>
 
@@ -38,6 +41,7 @@
   </div>
   {% endif %}
 
+  {% if active_section == "overview" %}
   <div class="be-cards">
     <a class="be-card be-card--brand" href="{{ leads_url }}">
       <span class="be-card__label">{% translate "New leads" %}</span>
@@ -87,12 +91,15 @@
       {% endif %}
     </section>
   </div>
+  {% endif %}
 
+  {% if active_section == "facilities" %}
   <section class="be-panel" id="facilities">
     <h3>{% translate "Facilities" %}</h3>
+    <p>{% translate "Choose the facilities available at your school. These details help families understand your campus." %}</p>
     <div class="be-campus-tabs">
       {% for group in campus_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?campus={{ group.key }}#facilities">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="?section=facilities&amp;campus={{ group.key }}#facilities">{{ group.label }}</a>
       {% endfor %}
     </div>
     <p>{{ campus_hint }}</p>
@@ -101,7 +108,7 @@
       {% for item in campus_facilities %}
       <li>
         <span>{{ item.name }}</span>
-        <form method="post" action="?campus={{ campus_group }}#facilities">
+        <form method="post" action="?section=facilities&amp;campus={{ campus_group }}#facilities">
           {% csrf_token %}
           <input type="hidden" name="facility" value="{{ item.id }}">
           <input type="hidden" name="campus" value="{{ campus_group }}">
@@ -115,16 +122,18 @@
     <p class="be-empty">{% translate "No facilities are in this group yet. A platform admin can add them to the facility list." %}</p>
     {% endif %}
   </section>
+  {% endif %}
 
+  {% if active_section == "grades" %}
   <section class="be-panel" id="grades">
     <h3>{% translate "Grades offered" %}</h3>
     <p>{% translate "Grades are the classes this school admits. Seats are optional; leave the field blank if they are not decided yet." %}</p>
     <div class="be-campus-tabs" aria-label="{% translate 'Grade levels' %}">
       {% for group in grade_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?grade_group={{ group.key }}#grades">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="?section=grades&amp;grade_group={{ group.key }}#grades">{{ group.label }}</a>
       {% endfor %}
     </div>
-    <form class="be-grade-form" method="post">
+    <form class="be-grade-form" method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
       {% csrf_token %}
       <input type="hidden" name="grade_group" value="{{ grade_group }}">
       <select name="grade" required>
@@ -150,7 +159,7 @@
         <tr>
           <td>{{ row.name }}</td>
           <td>
-            <form class="be-grade-seats" method="post">
+            <form class="be-grade-seats" method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
               {% csrf_token %}
               <input type="hidden" name="school_grade" value="{{ row.id }}">
               <input type="hidden" name="grade_group" value="{{ grade_group }}">
@@ -159,7 +168,7 @@
             </form>
           </td>
           <td class="be-table__action">
-            <form method="post">
+            <form method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
               {% csrf_token %}
               <input type="hidden" name="school_grade" value="{{ row.id }}">
               <input type="hidden" name="grade_group" value="{{ grade_group }}">
@@ -174,17 +183,169 @@
     <p class="be-empty">{% translate "No grades recorded yet." %}</p>
     {% endif %}
   </section>
+  {% endif %}
 
+  {% if active_section == "photographs" %}
+  <section class="be-panel" id="photographs">
+    <h3>{% translate "Photographs" %}</h3>
+    <p>{% translate "School logo, cover image, and active gallery photographs." %}</p>
+    <div class="be-photo-grid">
+      {% if school.school_logo_url %}
+      <figure class="be-photo-card">
+        <img src="{{ school.school_logo_url }}" alt="{% translate 'School logo' %}" loading="lazy">
+        <figcaption>{% translate "School logo" %}</figcaption>
+      </figure>
+      {% endif %}
+      {% if school.school_image_url %}
+      <figure class="be-photo-card">
+        <img src="{{ school.school_image_url }}" alt="{% translate 'School cover image' %}" loading="lazy">
+        <figcaption>{% translate "School cover image" %}</figcaption>
+      </figure>
+      {% endif %}
+      {% for photo in photos %}
+      <figure class="be-photo-card">
+        <img src="{{ photo.photo_url }}" alt="{{ photo.alt_text|default:photo.caption|default:school.school_name }}" loading="lazy">
+        <figcaption>
+          {{ photo.caption|default:photo.get_category_display }}
+          {% if photo.category %}<span class="be-tag">{{ photo.get_category_display }}</span>{% endif %}
+        </figcaption>
+      </figure>
+      {% empty %}
+      {% if not school.school_logo_url and not school.school_image_url %}
+      <p class="be-empty">{% translate "No school photographs have been added yet." %}</p>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <p><a href="{{ school_url }}">{% translate "Manage profile images" %}</a></p>
+  </section>
+  {% endif %}
+
+  {% if active_section == "documents" %}
+  <section class="be-panel" id="documents">
+    <h3>{% translate "Brochure & admission documents" %}</h3>
+    <p>{% translate "Add public links to your school brochure and documents families need for admission." %}</p>
+    <form class="be-resource-form" method="post" action="?section=documents#documents" enctype="multipart/form-data">
+      {% csrf_token %}
+      <select name="resource_type" required aria-label="{% translate 'Document type' %}">
+        {% for value, label in resource_type_choices %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <label>
+        {% translate "Document title" %}
+        <input type="text" name="title" maxlength="180" required>
+      </label>
+      <label class="be-resource-form__wide">
+        {% translate "Upload a PDF" %}
+        <input type="file" name="file" accept="application/pdf,.pdf">
+      </label>
+      <label class="be-resource-form__wide">
+        {% translate "Or enter a public document URL" %}
+        <input type="url" name="document_url" placeholder="{% translate 'https://…' %}">
+      </label>
+      <label class="be-resource-form__wide">
+        {% translate "Description (optional)" %}
+        <textarea name="description" maxlength="500" rows="2"></textarea>
+      </label>
+      <button type="submit" name="resource_action" value="add" class="be-btn">{% translate "Add document" %}</button>
+    </form>
+    {% if admission_resources %}
+    <table class="be-table">
+      <thead>
+        <tr>
+          <th>{% translate "Type" %}</th>
+          <th>{% translate "Document" %}</th>
+          <th>{% translate "Description" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for resource in admission_resources %}
+        <tr>
+          <td>{{ resource.get_resource_type_display }}</td>
+          <td><a href="{{ resource.document_url }}" target="_blank" rel="noopener">{{ resource.title }}</a></td>
+          <td>{{ resource.description|default:"—" }}</td>
+          <td class="be-table__action">
+            <form method="post" action="?section=documents#documents">
+              {% csrf_token %}
+              <input type="hidden" name="resource_id" value="{{ resource.resource_id }}">
+              <button type="submit" name="resource_action" value="remove">{% translate "Remove" %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="be-empty">{% translate "No brochure or admission documents have been added yet." %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if active_section == "reviews" %}
+  <section class="be-panel" id="reviews">
+    <h3>{% translate "Reviews" %}</h3>
+    <ul class="be-chips">
+      <li><span>{% translate "Total" %}</span><strong>{{ review_stats.total }}</strong></li>
+      <li><span>{% translate "Published" %}</span><strong>{{ review_stats.published }}</strong></li>
+      <li><span>{% translate "Pending" %}</span><strong>{{ review_stats.pending }}</strong></li>
+    </ul>
+    <p class="be-panel--review" role="note">{% translate "Reviews are view-only here. BoardingEdu staff manage review moderation and publishing." %}</p>
+    {% if reviews %}
+    <div class="be-review-list">
+      {% for review in reviews %}
+      <article class="be-review-card">
+        <div class="be-review-card__heading">
+          <strong>{{ review.title|default:"School review" }}</strong>
+          <span class="be-tag">{{ review.get_status_display }}</span>
+        </div>
+        <p>{{ review.body }}</p>
+        <div class="be-review-card__meta">
+          <span>{{ review.display_name|default:"Parent" }}</span>
+          <span>{{ review.rating }}/5</span>
+          <time datetime="{{ review.created_at|date:'c' }}">{{ review.created_at|date:"M j, Y" }}</time>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="be-empty">{% translate "No reviews have been submitted for this school yet." %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if active_section == "overview" %}
   <section class="be-panel">
     <h3>{% translate "Latest leads" %}</h3>
+    <p>
+      {% translate "Parent names, phone numbers, and email addresses are available only with an active lead-access subscription." %}
+      <a href="{{ subscription_url }}">{% translate "Manage or claim a plan" %}</a>
+    </p>
     {% if recent_leads %}
     <table class="be-table">
+      <thead>
+        <tr>
+          <th>{% translate "Lead" %}</th>
+          <th>{% translate "Parent name" %}</th>
+          <th>{% translate "Phone" %}</th>
+          <th>{% translate "Email" %}</th>
+          <th>{% translate "Grade" %}</th>
+          <th>{% translate "Status" %}</th>
+        </tr>
+      </thead>
       <tbody>
         {% for lead in recent_leads %}
         <tr>
           <td><a href="{{ lead.url }}">{{ lead.code }}</a></td>
+          {% if lead.contacts_locked %}
+          <td><a href="{{ subscription_url }}">{{ lead.parent }}</a></td>
+          <td><a href="{{ subscription_url }}">{{ lead.phone }}</a></td>
+          <td><a href="{{ subscription_url }}">{{ lead.email }}</a></td>
+          {% else %}
           <td>{{ lead.parent }}</td>
-          <td>{{ lead.contact }}</td>
+          <td>{{ lead.phone }}</td>
+          <td>{{ lead.email }}</td>
+          {% endif %}
           <td>{{ lead.grade }}</td>
           <td><span class="be-tag">{{ lead.status }}</span></td>
         </tr>
@@ -196,5 +357,6 @@
     <p class="be-empty">{% translate "No leads yet. New admission enquiries for this school will appear here." %}</p>
     {% endif %}
   </section>
+  {% endif %}
 </div>
 {% endblock %}

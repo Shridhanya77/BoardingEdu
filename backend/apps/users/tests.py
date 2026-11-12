@@ -196,6 +196,28 @@ class SchoolAdminBackendLoginTests(TestCase):
             guest_full_name="Hidden Parent",
             guest_phone="919000000000",
         )
+        from apps.reviews.models import Review
+        from apps.schools.models import SchoolAdmissionResource, SchoolPhoto
+
+        brochure = SchoolAdmissionResource.objects.create(
+            school=own,
+            resource_type=SchoolAdmissionResource.RESOURCE_BROCHURE,
+            title="Own school brochure",
+            document_url="https://files.example.test/own-brochure.pdf",
+        )
+        photo = SchoolPhoto.objects.create(
+            school=own,
+            photo_url="https://files.example.test/own-campus.webp",
+            caption="Own campus",
+        )
+        review = Review.objects.create(
+            school=own,
+            author_name="Own school reviewer",
+            rating=4,
+            title="Own school review",
+            body="A detailed school review.",
+            status=Review.STATUS_PENDING,
+        )
 
         home = client.get("/admin/")
         self.assertEqual(home.status_code, 302)
@@ -215,10 +237,77 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertNotContains(workspace, "Hidden Parent")
         self.assertContains(workspace, "Your school")
         self.assertContains(workspace, "Facilities")
-        self.assertContains(workspace, "Classrooms")
-        self.assertContains(workspace, "Grade levels")
         self.assertContains(workspace, "Subscription plans")
         self.assertNotContains(workspace, "Countries")
+        self.assertContains(workspace, "section=facilities")
+        self.assertContains(workspace, "section=grades")
+        self.assertContains(workspace, "section=documents")
+        self.assertContains(workspace, "section=reviews")
+
+        workspace_url = reverse("admin:school_workspace")
+        facilities_page = client.get(workspace_url, {"section": "facilities"})
+        self.assertEqual(facilities_page.status_code, 200)
+        self.assertContains(facilities_page, 'id="facilities"')
+        self.assertContains(facilities_page, "Classrooms")
+        self.assertNotContains(facilities_page, 'id="grades"')
+        grades_page = client.get(workspace_url, {"section": "grades"})
+        self.assertEqual(grades_page.status_code, 200)
+        self.assertContains(grades_page, 'id="grades"')
+        self.assertContains(grades_page, "Grade levels")
+        self.assertNotContains(grades_page, 'id="facilities"')
+
+        photographs_page = client.get(workspace_url, {"section": "photographs"})
+        self.assertContains(photographs_page, photo.photo_url)
+        self.assertContains(photographs_page, "Own campus")
+
+        documents_page = client.get(workspace_url, {"section": "documents"})
+        self.assertContains(documents_page, brochure.title)
+        added_document = client.post(
+            workspace_url + "?section=documents",
+            {
+                "resource_action": "add",
+                "resource_type": SchoolAdmissionResource.RESOURCE_REQUIRED_DOCUMENT,
+                "title": "Birth certificate",
+                "description": "Required for admission",
+                "document_url": "https://files.example.test/birth-certificate.pdf",
+            },
+        )
+        self.assertEqual(added_document.status_code, 302)
+        self.assertTrue(
+            SchoolAdmissionResource.objects.filter(
+                school=own,
+                title="Birth certificate",
+                status=True,
+            ).exists()
+        )
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        rejected_upload = client.post(
+            workspace_url + "?section=documents",
+            {
+                "resource_action": "add",
+                "resource_type": SchoolAdmissionResource.RESOURCE_BROCHURE,
+                "title": "Invalid brochure",
+                "file": SimpleUploadedFile("brochure.pdf", b"not a PDF", content_type="application/pdf"),
+            },
+        )
+        self.assertEqual(rejected_upload.status_code, 302)
+        self.assertFalse(
+            SchoolAdmissionResource.objects.filter(school=own, title="Invalid brochure").exists()
+        )
+        removed_document = client.post(
+            workspace_url + "?section=documents",
+            {"resource_action": "remove", "resource_id": str(brochure.pk)},
+        )
+        self.assertEqual(removed_document.status_code, 302)
+        brochure.refresh_from_db()
+        self.assertFalse(brochure.status)
+
+        reviews_page = client.get(workspace_url, {"section": "reviews"})
+        self.assertContains(reviews_page, review.title)
+        self.assertContains(reviews_page, review.body)
+        self.assertContains(reviews_page, "view-only")
+        self.assertNotContains(reviews_page, 'name="review_action"')
 
         school_change = client.get(reverse("admin:schools_school_change", args=[own.pk]))
         self.assertEqual(school_change.status_code, 200)
@@ -307,6 +396,10 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertContains(unlocked_lead_page, "Visible Parent")
         self.assertContains(unlocked_lead_page, "visible-parent@example.test")
         self.assertContains(unlocked_lead_page, "Private Child")
+        unlocked_workspace = client.get(workspace_url)
+        self.assertContains(unlocked_workspace, "Visible Parent")
+        self.assertContains(unlocked_workspace, "919876543210")
+        self.assertContains(unlocked_workspace, "visible-parent@example.test")
 
         own_payment = SubscriptionPayment.objects.create(
             school=own,
@@ -333,13 +426,13 @@ class SchoolAdminBackendLoginTests(TestCase):
             slug="own-admin-library",
         )
         turned_on = client.post(
-            reverse("admin:school_workspace"),
+            workspace_url + "?section=facilities",
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "yes"},
         )
         self.assertEqual(turned_on.status_code, 302)
         self.assertTrue(SchoolFacility.objects.filter(school=own, facility=library, available=True).exists())
         turned_off = client.post(
-            reverse("admin:school_workspace"),
+            workspace_url + "?section=facilities",
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "no"},
         )
         self.assertEqual(turned_off.status_code, 302)

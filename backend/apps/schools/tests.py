@@ -53,7 +53,7 @@ class PublicSchoolUrlTests(SimpleTestCase):
         FRONTEND_URL="https://boardingedu-bay.vercel.app",
         PUBLIC_SITE_URL="https://www.boardingedu.com",
     )
-    def test_public_school_url_uses_deployed_frontend_and_canonical_profile_path(self):
+    def test_public_school_url_uses_public_site_domain_and_canonical_profile_path(self):
         school = SimpleNamespace(
             country=SimpleNamespace(slug="india", country_name="India"),
             state=SimpleNamespace(slug="karnataka", state_name="Karnataka"),
@@ -63,7 +63,7 @@ class PublicSchoolUrlTests(SimpleTestCase):
 
         self.assertEqual(
             public_school_url(school),
-            "https://boardingedu-bay.vercel.app/india/karnataka/bengaluru/sample-public-school/",
+            "https://www.boardingedu.com/india/karnataka/bengaluru/sample-public-school/",
         )
 
 

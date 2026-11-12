@@ -5,11 +5,14 @@ Statistics are computed only on the admin index request, never on change forms.
 """
 from datetime import timedelta
 import re
+import uuid
 
 from django.contrib import admin, messages
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
+from django.core.validators import URLValidator
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
@@ -277,17 +280,23 @@ def _lead_parent_name(lead):
     return lead.guest_full_name or "—"
 
 
-def _lead_contact(lead):
+def _lead_phone(lead):
     if lead.parent_profile_id and lead.parent_profile.user_id:
-        user = lead.parent_profile.user
-        return user.phone or user.email or "—"
-    return lead.guest_phone or lead.guest_email or "—"
+        return lead.parent_profile.user.phone or "—"
+    return lead.guest_phone or "—"
+
+
+def _lead_email(lead):
+    if lead.parent_profile_id and lead.parent_profile.user_id:
+        return lead.parent_profile.user.email or "—"
+    return lead.guest_email or "—"
 
 
 def school_admin_menu(request):
     """Sidebar for a school administrator: their school and the records they can change."""
     school_id = assigned_school_id(request.user)
     school_url = reverse("admin:schools_school_change", args=[school_id])
+    workspace_url = reverse("admin:school_workspace")
     from apps.schools.models import School
 
     school = (
@@ -299,9 +308,12 @@ def school_admin_menu(request):
     entries = [
         ("School profile", school_url, None),
         ("Leads", reverse("admin:admissions_admissionenquiry_changelist"), None),
-        ("Facilities", f"{reverse('admin:school_workspace')}?campus=ACADEMIC#facilities", None),
-        ("Grades", f"{reverse('admin:school_workspace')}?grade_group=PRIMARY#grades", None),
+        ("Facilities", f"{workspace_url}?section=facilities&campus=ACADEMIC#facilities", None),
+        ("Grades", f"{workspace_url}?section=grades&grade_group=PRIMARY#grades", None),
         ("Fees", reverse("admin:fees_feestructure_changelist"), reverse("admin:fees_feestructure_add")),
+        ("Photographs", f"{workspace_url}?section=photographs#photographs", None),
+        ("Brochure & documents", f"{workspace_url}?section=documents#documents", None),
+        ("Reviews", f"{workspace_url}?section=reviews#reviews", None),
         ("Subscription plans", f"{subscription_url}?section=plans#plans", None),
         ("My plan", f"{subscription_url}?section=plan#plan", None),
         ("Payment history", f"{subscription_url}?section=payments#payments", None),
@@ -338,7 +350,7 @@ def _apply_campus_choice(request, school):
     allowed = {key for key, _label, _hint in CAMPUS_GROUPS}
     if action not in {"yes", "no"} or group not in allowed:
         messages.error(request, "Choose Yes or No for a campus facility.")
-        return redirect("admin:school_workspace")
+        return redirect(f"{reverse('admin:school_workspace')}?section=facilities")
     facility = Facility.objects.filter(pk=request.POST.get("facility") or "", status=True, category__iexact=group).first()
     if facility is None:
         messages.error(request, "That facility is not in this campus group.")
@@ -352,7 +364,9 @@ def _apply_campus_choice(request, school):
     else:
         SchoolFacility.objects.filter(school=school, facility=facility).delete()
         messages.success(request, f"{facility.facility_name} is marked unavailable.")
-    return redirect(f"{reverse('admin:school_workspace')}?campus={group}#campus")
+    return redirect(
+        f"{reverse('admin:school_workspace')}?section=facilities&campus={group}#facilities"
+    )
 
 
 def _apply_grade_choice(request, school):
@@ -406,7 +420,82 @@ def _apply_grade_choice(request, school):
     group = (request.POST.get("grade_group") or "PRIMARY").upper()
     if group not in {key for key, _label in GRADE_GROUPS}:
         group = "PRIMARY"
-    return redirect(f"{reverse('admin:school_workspace')}?grade_group={group}#grades")
+    return redirect(
+        f"{reverse('admin:school_workspace')}?section=grades&grade_group={group}#grades"
+    )
+
+
+def _apply_admission_resource(request, school):
+    from apps.schools.models import SchoolAdmissionResource
+
+    action = request.POST.get("resource_action")
+    if action == "remove":
+        try:
+            resource_id = uuid.UUID(request.POST.get("resource_id") or "")
+        except (ValueError, TypeError):
+            messages.error(request, "Choose a valid admission document.")
+            return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+        updated = SchoolAdmissionResource.objects.filter(
+            resource_id=resource_id,
+            school=school,
+            status=True,
+        ).update(status=False)
+        if updated:
+            messages.success(request, "Admission document removed from the profile.")
+        else:
+            messages.error(request, "That document is not on this school.")
+    elif action == "add":
+        resource_type = request.POST.get("resource_type") or ""
+        title = (request.POST.get("title") or "").strip()
+        document_url = (request.POST.get("document_url") or "").strip()
+        if resource_type not in dict(SchoolAdmissionResource.RESOURCE_TYPE_CHOICES):
+            messages.error(request, "Choose a valid document type.")
+        elif not title:
+            messages.error(request, "Add a document title.")
+        else:
+            upload = request.FILES.get("file")
+            if upload is not None and document_url:
+                messages.error(request, "Choose a PDF upload or a document URL, not both.")
+                return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+            if upload is not None:
+                from apps.dashboards.school_ops import _store_school_document
+
+                document_url, failure = _store_school_document(upload)
+                if failure:
+                    messages.error(
+                        request,
+                        str(failure.data.get("detail") or "The PDF could not be uploaded."),
+                    )
+                    return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+            elif document_url:
+                try:
+                    URLValidator(schemes=["http", "https"])(document_url)
+                except DjangoValidationError:
+                    messages.error(request, "Enter a valid public HTTP or HTTPS document URL.")
+                    return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+            if not document_url:
+                messages.error(request, "Add a PDF upload or a public document URL.")
+            else:
+                resource = SchoolAdmissionResource(
+                    school=school,
+                    resource_type=resource_type,
+                    title=title,
+                    description=(request.POST.get("description") or "").strip(),
+                    document_url=document_url,
+                    sort_order=school.admission_resources.filter(
+                        resource_type=resource_type
+                    ).count(),
+                )
+                try:
+                    resource.full_clean()
+                except DjangoValidationError as exc:
+                    messages.error(request, " ".join(exc.messages))
+                else:
+                    resource.save()
+                    messages.success(request, f"{title} was added to the school profile.")
+    else:
+        messages.error(request, "Choose an action for the admission document.")
+    return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
 
 
 def _clean_seats(raw):
@@ -425,8 +514,16 @@ def _clean_seats(raw):
 def school_workspace(request):
     """Home for a school administrator: their profile and the leads they received."""
     from apps.admissions.models import AdmissionEnquiry
+    from apps.reviews.models import Review
     from apps.schools.completeness import build_profile_completion
-    from apps.schools.models import Facility, Grade, School, SchoolGrade, SchoolProfileChange
+    from apps.schools.models import (
+        Facility,
+        Grade,
+        School,
+        SchoolAdmissionResource,
+        SchoolGrade,
+        SchoolProfileChange,
+    )
 
     school_id = assigned_school_id(request.user)
     if school_id is None:
@@ -439,11 +536,14 @@ def school_workspace(request):
             "school_grades",
             "school_facilities__facility",
             "photos",
+            "admission_resources",
             "fee_structures__fee_items",
         )
         .get(pk=school_id)
     )
     if request.method == "POST":
+        if request.POST.get("resource_action"):
+            return _apply_admission_resource(request, school)
         if request.POST.get("grade_action"):
             return _apply_grade_choice(request, school)
         return _apply_campus_choice(request, school)
@@ -467,12 +567,18 @@ def school_workspace(request):
         recent.append({
             "url": reverse("admin:admissions_admissionenquiry_change", args=[lead.pk]),
             "code": lead.enquiry_code,
-            "parent": _lead_parent_name(lead) if open_contacts else "Locked",
-            "contact": _lead_contact(lead) if open_contacts else "Subscription required",
+            "parent": _lead_parent_name(lead) if open_contacts else "Subscription required",
+            "phone": _lead_phone(lead) if open_contacts else "Subscription required",
+            "email": _lead_email(lead) if open_contacts else "Subscription required",
+            "contacts_locked": not open_contacts,
             "grade": lead.applying_for_grade.grade_name if lead.applying_for_grade_id else "—",
             "status": lead.get_status_display(),
         })
 
+    active_section = request.GET.get("section") or "overview"
+    allowed_sections = {"overview", "facilities", "grades", "photographs", "documents", "reviews"}
+    if active_section not in allowed_sections:
+        active_section = "overview"
     campus_group = (request.GET.get("campus") or "ACADEMIC").upper()
     campus_labels = {key: (label, hint) for key, label, hint in CAMPUS_GROUPS}
     if campus_group not in campus_labels:
@@ -509,6 +615,21 @@ def school_workspace(request):
         row for row in grades
         if _grade_group(row["name"]) == grade_group
     ]
+    photos = sorted(
+        (photo for photo in school.photos.all() if photo.status),
+        key=lambda photo: photo.sort_order,
+    )
+    admission_resources = sorted(
+        (resource for resource in school.admission_resources.all() if resource.status),
+        key=lambda resource: (resource.sort_order, resource.created_at),
+    )
+    review_queryset = Review.objects.filter(school=school).select_related("user")
+    review_stats = review_queryset.aggregate(
+        total=Count("pk"),
+        published=Count("pk", filter=Q(status=Review.STATUS_PUBLISHED)),
+        pending=Count("pk", filter=Q(status=Review.STATUS_PENDING)),
+    )
+    reviews = list(review_queryset.order_by("-created_at")[:50])
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
     section_urls = {
@@ -554,14 +675,19 @@ def school_workspace(request):
             for code, label in AdmissionEnquiry.STATUS_CHOICES
         ],
         "recent_leads": recent,
-        "photo_count": sum(1 for photo in school.photos.all() if photo.status),
+        "photo_count": len(photos),
         "grade_count": sum(1 for row in school.school_grades.all() if row.is_active),
         "facility_count": sum(1 for row in school.school_facilities.all() if row.available),
+        "active_section": active_section,
         "school_url": school_url,
         "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
-        "facilities_url": f"{reverse('admin:school_workspace')}?campus={campus_group}#facilities",
-        "grades_url": f"{reverse('admin:school_workspace')}?grade_group={grade_group}#grades",
+        "facilities_url": f"{reverse('admin:school_workspace')}?section=facilities&campus={campus_group}#facilities",
+        "grades_url": f"{reverse('admin:school_workspace')}?section=grades&grade_group={grade_group}#grades",
         "fees_url": reverse("admin:fees_feestructure_changelist"),
+        "photos_url": f"{reverse('admin:school_workspace')}?section=photographs#photographs",
+        "documents_url": f"{reverse('admin:school_workspace')}?section=documents#documents",
+        "reviews_url": f"{reverse('admin:school_workspace')}?section=reviews#reviews",
+        "subscription_url": reverse("admin:school_subscriptions"),
         "grade_group": grade_group,
         "grade_groups": [
             {"key": key, "label": label, "active": key == grade_group}
@@ -577,6 +703,11 @@ def school_workspace(request):
         "campus_facilities": campus_facilities,
         "grades": grades,
         "grade_catalog": grade_catalog,
+        "photos": photos,
+        "admission_resources": admission_resources,
+        "resource_type_choices": SchoolAdmissionResource.RESOURCE_TYPE_CHOICES,
+        "reviews": reviews,
+        "review_stats": review_stats,
     }
     return render(request, "admin/school_workspace.html", context)
 
