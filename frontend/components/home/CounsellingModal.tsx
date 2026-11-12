@@ -17,7 +17,6 @@ import {
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
-import { indiaRegionForState, INDIA_REGIONS } from "@/lib/india-regions";
 import { homeSchoolTypeIds, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 export default function CounsellingModal({
@@ -29,10 +28,8 @@ export default function CounsellingModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("");
   const [schoolCategory, setSchoolCategory] = useState<HomeSchoolCategory>("residential-school");
   const [countryId, setCountryId] = useState("");
-  const [regionId, setRegionId] = useState("");
   const [stateId, setStateId] = useState("");
   const [cityId, setCityId] = useState("");
   const [gradeId, setGradeId] = useState("");
@@ -115,13 +112,6 @@ export default function CounsellingModal({
     };
   }, [countryId]);
 
-  const isIndia = countries.some((country) => country.country_id === countryId && toSeoSlug(country.slug || country.country_name) === "india");
-  const regionStates = useMemo(() => {
-    return states.filter((state) => {
-      if (!isIndia || !regionId) return true;
-      return indiaRegionForState(state.state_name, state.slug)?.id === regionId;
-    });
-  }, [isIndia, regionId, states]);
   const dayCities = useMemo(() => {
     return cities
       .filter((city) => !stateId || city.state_id === stateId)
@@ -145,8 +135,8 @@ export default function CounsellingModal({
     }
     const state = states.find((item) => item.state_id === stateId);
     const city = cities.find((item) => item.city_id === cityId);
-    if (boarding && !state) {
-      setError("Choose a state for boarding school counselling.");
+    if (!state) {
+      setError("Choose a state for counselling.");
       return;
     }
     if (!boarding && !city) {
@@ -164,22 +154,17 @@ export default function CounsellingModal({
         parent_name: name.trim(),
         email: email.trim(),
         phone: digits,
-        home_city: boarding ? state?.state_name ?? "" : city?.city_name ?? "",
-        preferred_country: countryId || city?.country_id || state?.country_id,
-        preferred_state: state?.state_id || city?.state_id,
-        preferred_cities: city && !boarding ? [city.city_id] : [],
+        home_city: city?.city_name ?? state.state_name,
+        preferred_country: countryId || state.country_id,
+        preferred_state: state.state_id,
+        preferred_cities: city ? [city.city_id] : [],
         grades: [gradeId],
         school_types: homeSchoolTypeIds(schoolTypes, schoolCategory),
-        message: [
-          message.trim(),
-          boarding ? "School type: Boarding School. Tehsil records are not published for this state, so no tehsil was selected." : "School type: Day School.",
-        ].filter(Boolean).join("\n"),
       });
       setReference(result.reference);
       setName("");
       setEmail("");
       setPhone("");
-      setMessage("");
       setCityId("");
       setStateId("");
       setGradeId("");
@@ -240,24 +225,20 @@ export default function CounsellingModal({
               <select
                 value={schoolCategory}
                 disabled={submitting}
-                onChange={(event) => {
-                  setSchoolCategory(event.target.value as HomeSchoolCategory);
-                  setCityId("");
-                  setStateId("");
-                }}
+                onChange={(event) => setSchoolCategory(event.target.value as HomeSchoolCategory)}
               >
                 <option value="residential-school">Boarding School</option>
                 <option value="day-school">Day School</option>
               </select>
             </label>
             <label>
-              Country
+              Country <span aria-hidden="true">*</span>
               <select
                 value={countryId}
+                required
                 disabled={submitting}
                 onChange={(event) => {
                   setCountryId(event.target.value);
-                  setRegionId("");
                   setStateId("");
                   setCityId("");
                 }}
@@ -268,30 +249,11 @@ export default function CounsellingModal({
                 ))}
               </select>
             </label>
-            {isIndia && (
-              <label>
-                Region
-                <select
-                  value={regionId}
-                  disabled={submitting || statesLoading}
-                  onChange={(event) => {
-                    setRegionId(event.target.value);
-                    setStateId("");
-                    setCityId("");
-                  }}
-                >
-                  <option value="">{statesLoading ? "Loading regions…" : "All regions"}</option>
-                  {INDIA_REGIONS.map((region) => (
-                    <option key={region.id} value={region.id}>{region.label}</option>
-                  ))}
-                </select>
-              </label>
-            )}
             <label>
-              State {boarding && <span aria-hidden="true">*</span>}
+              State <span aria-hidden="true">*</span>
               <select
                 value={stateId}
-                required={boarding}
+                required
                 disabled={submitting || !countryId || statesLoading}
                 onChange={(event) => {
                   setStateId(event.target.value);
@@ -299,34 +261,26 @@ export default function CounsellingModal({
                 }}
               >
                 <option value="">{statesLoading ? "Loading states…" : "Choose a state"}</option>
-                {regionStates.map((state) => (
+                {states.map((state) => (
                   <option key={state.state_id} value={state.state_id}>{state.state_name}</option>
                 ))}
               </select>
             </label>
-            {boarding ? (
-              <label>
-                Tehsil
-                <select value="" disabled aria-describedby="tehsil-note">
-                  <option value="">{stateId ? "No tehsils published" : "Choose a state first"}</option>
-                </select>
-                <small id="tehsil-note">
-                  {stateId
-                    ? "This state has no tehsil records in the directory. Cities and localities are not used here."
-                    : "Tehsils load only after a state is selected."}
-                </small>
-              </label>
-            ) : (
-              <label>
-                City <span aria-hidden="true">*</span>
-                <select value={cityId} required disabled={submitting} onChange={(event) => setCityId(event.target.value)}>
-                  <option value="">Choose a city</option>
-                  {dayCities.map((city) => (
-                    <option key={city.city_id} value={city.city_id}>{city.city_name}, {city.state_name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
+            <label>
+              City {!boarding && <span aria-hidden="true">*</span>}
+              {boarding && <span> (optional)</span>}
+              <select
+                value={cityId}
+                required={!boarding}
+                disabled={submitting || !stateId}
+                onChange={(event) => setCityId(event.target.value)}
+              >
+                <option value="">{stateId ? "Choose a city" : "Choose a state first"}</option>
+                {dayCities.map((city) => (
+                  <option key={city.city_id} value={city.city_id}>{city.city_name}</option>
+                ))}
+              </select>
+            </label>
             <label>
               Preferred class <span aria-hidden="true">*</span>
               <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required disabled={submitting}>
@@ -335,10 +289,6 @@ export default function CounsellingModal({
                   <option value={grade.grade_id} key={grade.grade_id}>{grade.grade_name}</option>
                 ))}
               </select>
-            </label>
-            <label className="counselling-modal__wide">
-              Additional message
-              <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={3} disabled={submitting} />
             </label>
             {error && <p className="counselling-modal__error" role="alert">{error}</p>}
             {reference && (

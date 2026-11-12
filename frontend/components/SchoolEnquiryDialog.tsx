@@ -503,6 +503,7 @@ function SchoolEnquiryDialog({
                       disabled={submitting}
                       autoComplete="name"
                       placeholder="Anjali Sharma"
+                      required
                     />
                   </span>
                 </label>
@@ -520,6 +521,7 @@ function SchoolEnquiryDialog({
                       autoComplete="email"
                       maxLength={254}
                       placeholder="you@example.com"
+                      required
                     />
                   </span>
                 </label>
@@ -527,7 +529,7 @@ function SchoolEnquiryDialog({
                 <div className="field">
                   <CountryPhoneInput
                     id="enquiry-phone"
-                    label="Phone"
+                    label="Phone number *"
                     value={form.parent_phone}
                     onChange={(value) => patch("parent_phone", value)}
                     disabled={submitting}
