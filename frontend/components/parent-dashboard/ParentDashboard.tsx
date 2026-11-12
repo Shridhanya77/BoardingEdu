@@ -442,7 +442,7 @@ function Shortlist({
   return (
     <DashboardPanel
       title="Shortlisted schools"
-      action={<Link className="dash-link" href="/compare">Compare schools</Link>}
+      action={<Link className="dash-link" href="/compare?source=shortlist">Compare schools</Link>}
     >
       <ul className="dash-cards">
         {data.shortlist.filter((item) => !removed[item.school_id]).map((item) => (

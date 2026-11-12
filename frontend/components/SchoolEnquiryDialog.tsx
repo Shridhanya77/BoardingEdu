@@ -19,7 +19,14 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { admissions, ApiError, type NewEnquiryInput, type SchoolDetail } from "@/lib/api";
+import {
+  admissions,
+  ApiError,
+  parentChildren,
+  type NewEnquiryInput,
+  type ParentChildRecord,
+  type SchoolDetail,
+} from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import { useAuth } from "@/lib/auth";
@@ -58,6 +65,7 @@ const EMPTY: FormState = {
   message: "",
 };
 
+const NEW_CHILD_ID = "__new_child__";
 const STEPS = ["Student details", "How to reach you", "Finish"] as const;
 
 export default function SchoolEnquiryProvider({
@@ -120,6 +128,10 @@ function SchoolEnquiryDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [savedChildren, setSavedChildren] = useState<ParentChildRecord[]>([]);
+  const [selectedChildId, setSelectedChildId] = useState("");
+  const [childrenLoading, setChildrenLoading] = useState(false);
+  const [childrenError, setChildrenError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ code: string; status: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -149,7 +161,55 @@ function SchoolEnquiryDialog({
       preferred_contact:
         currentUser?.parent_profile?.preferred_contact_method ?? "EMAIL",
     });
+    setSelectedChildId("");
   }, [open]);
+
+  useEffect(() => {
+    if (!open || user?.role !== "PARENT") {
+      setSavedChildren([]);
+      setChildrenLoading(false);
+      setChildrenError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setSavedChildren([]);
+    setChildrenLoading(true);
+    setChildrenError(null);
+    parentChildren.list()
+      .then((response) => Array.isArray(response) ? response : response.results)
+      .then((records) => {
+        if (cancelled) return;
+        setSavedChildren(records);
+        setSelectedChildId(records.length ? "" : NEW_CHILD_ID);
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        setChildrenError(
+          reason instanceof ApiError
+            ? reason.message
+            : "Saved child profiles could not be loaded.",
+        );
+        setSelectedChildId(NEW_CHILD_ID);
+      })
+      .finally(() => {
+        if (!cancelled) setChildrenLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.role]);
+
+  const isParent = user?.role === "PARENT";
+  const selectedChild = savedChildren.find(
+    (child) => child.child_id === selectedChildId,
+  );
+  const showNewChildFields =
+    !isParent ||
+    Boolean(childrenError) ||
+    (!childrenLoading && savedChildren.length === 0) ||
+    selectedChildId === NEW_CHILD_ID;
 
   function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
     setError(null);
@@ -157,9 +217,19 @@ function SchoolEnquiryDialog({
   }
 
   function next() {
-    if (step === 0 && !form.child_name.trim()) {
-      setError("Tell us who this enquiry is for by adding the student's name.");
-      return;
+    if (step === 0) {
+      if (isParent && childrenLoading) {
+        setError("Please wait while your saved children are loading.");
+        return;
+      }
+      if (isParent && savedChildren.length > 0 && !selectedChildId) {
+        setError("Choose which child this enquiry is for, or add a new child.");
+        return;
+      }
+      if (!selectedChild && showNewChildFields && !form.child_name.trim()) {
+        setError("Tell us who this enquiry is for by adding the student's name.");
+        return;
+      }
     }
     if (step === 1) {
       if (!form.parent_full_name.trim() || !form.parent_email.trim() || !form.parent_phone.trim()) {
@@ -202,9 +272,10 @@ function SchoolEnquiryDialog({
         parent_full_name: form.parent_full_name.trim(),
         parent_email: form.parent_email.trim(),
         parent_phone: phoneDigits,
-        child_name: form.child_name.trim(),
-        child_dob: form.child_dob || undefined,
-        child_gender: form.child_gender || undefined,
+        child: selectedChild?.child_id,
+        child_name: selectedChild ? undefined : form.child_name.trim(),
+        child_dob: selectedChild ? undefined : form.child_dob || undefined,
+        child_gender: selectedChild ? undefined : form.child_gender || undefined,
         applying_for_grade_name: form.applying_for_grade_name.trim() || undefined,
         message:
           (form.message || "") +
@@ -297,20 +368,111 @@ function SchoolEnquiryDialog({
 
             {step === 0 && (
               <div className="enquiry-dialog__body">
-                <label className="field">
-                  <span className="field__label">
-                    Student&apos;s name <em>*</em>
-                  </span>
-                  <span className="field__wrap">
-                    <input
-                      type="text"
-                      value={form.child_name}
-                      onChange={(event) => patch("child_name", event.target.value)}
-                      disabled={submitting}
-                      placeholder="Aarav Sharma"
-                    />
-                  </span>
-                </label>
+                {isParent && (
+                  <label className="field">
+                    <span className="field__label">
+                      Which child is this enquiry for? <em>*</em>
+                    </span>
+                    <span className="field__wrap">
+                      <select
+                        value={selectedChildId}
+                        onChange={(event) => {
+                          setError(null);
+                          setSelectedChildId(event.target.value);
+                        }}
+                        disabled={submitting || childrenLoading || Boolean(childrenError)}
+                      >
+                        <option value="">
+                          {childrenLoading ? "Loading children…" : "Select a child"}
+                        </option>
+                        {savedChildren.map((child) => (
+                          <option value={child.child_id} key={child.child_id}>
+                            {child.name}
+                            {child.current_grade_name ? ` · ${child.current_grade_name}` : ""}
+                          </option>
+                        ))}
+                        <option value={NEW_CHILD_ID}>Add a new child</option>
+                      </select>
+                    </span>
+                  </label>
+                )}
+
+                {childrenError && (
+                  <p className="enquiry-dialog__error" role="alert">
+                    Saved child profiles could not be loaded. You can continue with
+                    student details; if the child is already saved, this may create a duplicate profile.
+                  </p>
+                )}
+                {childrenLoading && isParent && (
+                  <p role="status">Loading your saved children…</p>
+                )}
+                {selectedChild && (
+                  <p role="status">
+                    This enquiry will be linked to {selectedChild.name}
+                    {selectedChild.current_grade_name
+                      ? ` · ${selectedChild.current_grade_name}`
+                      : ""}.
+                  </p>
+                )}
+                {isParent && !childrenLoading && savedChildren.length === 0 && !childrenError && (
+                  <p>You have no saved children yet. Add the student details below.</p>
+                )}
+                {isParent && savedChildren.length > 0 && !selectedChildId && (
+                  <p>Select a child above, or choose “Add a new child” to enter different details.</p>
+                )}
+
+                {showNewChildFields && (
+                  <>
+                    <label className="field">
+                      <span className="field__label">
+                        Student&apos;s name <em>*</em>
+                      </span>
+                      <span className="field__wrap">
+                        <input
+                          type="text"
+                          value={form.child_name}
+                          onChange={(event) => patch("child_name", event.target.value)}
+                          disabled={submitting}
+                          placeholder="Aarav Sharma"
+                        />
+                      </span>
+                    </label>
+
+                    <div className="enquiry-dialog__choices">
+                      <span className="field__label">Gender</span>
+                      <div className="enquiry-dialog__choice-row">
+                        {[
+                          { value: "" as const, label: "Prefer not to say" },
+                          { value: "BOY" as const, label: "Boy" },
+                          { value: "GIRL" as const, label: "Girl" },
+                        ].map((option) => (
+                          <label className="enquiry-dialog__choice" key={option.label}>
+                            <input
+                              type="radio"
+                              name="child_gender"
+                              checked={form.child_gender === option.value}
+                              onChange={() => patch("child_gender", option.value)}
+                              disabled={submitting}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <label className="field">
+                      <span className="field__label">Date of birth</span>
+                      <span className="field__wrap">
+                        <input
+                          type="date"
+                          value={form.child_dob}
+                          onChange={(event) => patch("child_dob", event.target.value)}
+                          disabled={submitting}
+                        />
+                      </span>
+                    </label>
+                  </>
+                )}
 
                 <label className="field">
                   <span className="field__label">Applying for grade</span>
@@ -321,40 +483,6 @@ function SchoolEnquiryDialog({
                       onChange={(event) => patch("applying_for_grade_name", event.target.value)}
                       disabled={submitting}
                       placeholder="e.g. Grade 6, Nursery, Class 11"
-                    />
-                  </span>
-                </label>
-
-                <div className="enquiry-dialog__choices">
-                  <span className="field__label">Gender</span>
-                  <div className="enquiry-dialog__choice-row">
-                    {[
-                      { value: "" as const, label: "Prefer not to say" },
-                      { value: "BOY" as const, label: "Boy" },
-                      { value: "GIRL" as const, label: "Girl" },
-                    ].map((option) => (
-                      <label className="enquiry-dialog__choice" key={option.label}>
-                        <input
-                          type="radio"
-                          name="child_gender"
-                          checked={form.child_gender === option.value}
-                          onChange={() => patch("child_gender", option.value)}
-                          disabled={submitting}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <label className="field">
-                  <span className="field__label">Date of birth</span>
-                  <span className="field__wrap">
-                    <input
-                      type="date"
-                      value={form.child_dob}
-                      onChange={(event) => patch("child_dob", event.target.value)}
-                      disabled={submitting}
                     />
                   </span>
                 </label>
@@ -449,7 +577,7 @@ function SchoolEnquiryDialog({
                   <div>
                     <dt>Student</dt>
                     <dd>
-                      {form.child_name}
+                      {selectedChild?.name || form.child_name}
                       {form.applying_for_grade_name && ` · ${form.applying_for_grade_name}`}
                     </dd>
                   </div>

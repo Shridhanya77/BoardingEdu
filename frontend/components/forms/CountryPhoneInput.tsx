@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const COUNTRY_DIAL_CODES = [
   { country: "India", code: "+91" },
@@ -59,11 +59,15 @@ const COUNTRY_DIAL_CODES = [
 ] as const;
 
 function dialCodeFromValue(value: string): string | undefined {
-  if (value.replace(/\D/g, "").length <= 10) return undefined;
   const digits = value.replace(/\D/g, "");
+  if (digits.length <= 10) return undefined;
   return [...new Set(COUNTRY_DIAL_CODES.map((item) => item.code))]
     .sort((left, right) => right.length - left.length)
-    .find((code) => digits.startsWith(code.slice(1)));
+    .find(
+      (code) =>
+        digits.startsWith(code.slice(1)) &&
+        digits.length - (code.length - 1) === 10,
+    );
 }
 
 export default function CountryPhoneInput({
@@ -80,15 +84,36 @@ export default function CountryPhoneInput({
   disabled?: boolean;
 }) {
   const [fallbackDialCode, setFallbackDialCode] = useState("+91");
-  const dialCode = dialCodeFromValue(value) ?? fallbackDialCode;
-  const nationalNumber = value.replace(/\D/g, "").startsWith(dialCode.slice(1))
-    ? value.replace(/\D/g, "").slice(dialCode.length - 1, dialCode.length - 1 + 10)
-    : value.replace(/\D/g, "").slice(-10);
+  const onChangeRef = useRef(onChange);
+  const lastEmittedValue = useRef<string | null>(null);
+  const digits = value.replace(/\D/g, "");
+  const detectedDialCode = dialCodeFromValue(value);
+  const dialCode = detectedDialCode ?? fallbackDialCode;
+  const dialCodeDigits = dialCode.slice(1);
+  const hasEmittedDialCode = lastEmittedValue.current === value;
+  const nationalNumber = detectedDialCode
+    ? digits.slice(detectedDialCode.length - 1)
+    : hasEmittedDialCode && digits.startsWith(dialCodeDigits)
+      ? digits.slice(dialCodeDigits.length)
+      : digits.length <= 10
+        ? digits
+        : digits.slice(-10);
 
   useEffect(() => {
-    const digits = value.replace(/\D/g, "");
-    if (digits.length === 10) onChange(`${fallbackDialCode}${digits}`);
-  }, [fallbackDialCode, onChange, value]);
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (detectedDialCode) setFallbackDialCode(detectedDialCode);
+  }, [detectedDialCode]);
+
+  useEffect(() => {
+    if (digits.length === 10 && !hasEmittedDialCode) {
+      const normalizedValue = `${fallbackDialCode}${digits}`;
+      lastEmittedValue.current = normalizedValue;
+      onChangeRef.current(normalizedValue);
+    }
+  }, [digits, fallbackDialCode, hasEmittedDialCode]);
 
   return (
     <div className="country-phone-field">
@@ -102,7 +127,9 @@ export default function CountryPhoneInput({
           onChange={(event) => {
             const nextCode = event.target.value;
             setFallbackDialCode(nextCode);
-            onChange(`${nextCode}${nationalNumber}`);
+            const nextValue = `${nextCode}${nationalNumber}`;
+            lastEmittedValue.current = nextValue;
+            onChange(nextValue);
           }}
         >
           {[...new Map(COUNTRY_DIAL_CODES.map((item) => [item.code, item])).values()].map((item) => (
@@ -119,11 +146,20 @@ export default function CountryPhoneInput({
           placeholder="10-digit phone number"
           pattern="[0-9]{10}"
           minLength={10}
-          maxLength={10}
+          maxLength={20}
           required
           onChange={(event) => {
-            const digits = event.target.value.replace(/\D/g, "").slice(0, 10);
-            onChange(`${dialCode}${digits}`);
+            const input = event.target.value;
+            const inputDigits = input.replace(/\D/g, "");
+            const pastedDialCode = dialCodeFromValue(input);
+            const nextCode = pastedDialCode ?? dialCode;
+            const nextNumber = pastedDialCode
+              ? inputDigits.slice(pastedDialCode.length - 1)
+              : inputDigits.slice(0, 10);
+            if (pastedDialCode) setFallbackDialCode(pastedDialCode);
+            const nextValue = `${nextCode}${nextNumber}`;
+            lastEmittedValue.current = nextValue;
+            onChange(nextValue);
           }}
         />
       </div>

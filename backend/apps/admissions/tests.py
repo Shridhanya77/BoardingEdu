@@ -1,7 +1,9 @@
-from rest_framework.test import APITestCase
+from rest_framework.test import APIRequestFactory, APITestCase
 
+from apps.admissions.models import Child
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, SchoolType
+from apps.users.models import ParentProfile, User
 
 from .serializers import AdmissionEnquirySerializer
 from .models import CounsellingRequest
@@ -166,3 +168,55 @@ class CounsellingRequestApiTests(APITestCase):
         )
         self.assertFalse(serializer.is_valid())
         self.assertIn("parent_email", serializer.errors)
+
+
+class AdmissionEnquiryChildOwnershipTests(APITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.parent_user = User.objects.create_user(
+            username="enquiry-parent",
+            email="parent@example.com",
+            password="test-password",
+            role=User.ROLE_PARENT,
+        )
+        cls.parent_profile = ParentProfile.objects.create(user=cls.parent_user)
+        cls.other_parent_user = User.objects.create_user(
+            username="other-enquiry-parent",
+            email="other@example.com",
+            password="test-password",
+            role=User.ROLE_PARENT,
+        )
+        cls.other_parent_profile = ParentProfile.objects.create(user=cls.other_parent_user)
+        cls.own_child = Child.objects.create(
+            parent_profile=cls.parent_profile,
+            name="Own Child",
+            date_of_birth="2015-03-10",
+            gender="FEMALE",
+        )
+        cls.other_child = Child.objects.create(
+            parent_profile=cls.other_parent_profile,
+            name="Other Child",
+            date_of_birth="2016-04-12",
+            gender="MALE",
+        )
+
+    def _serializer_for(self, user, child):
+        request = APIRequestFactory().post("/api/admissions/enquiries/")
+        request.user = user
+        return AdmissionEnquirySerializer(
+            data={"child": str(child.child_id)},
+            context={"request": request},
+            partial=True,
+        )
+
+    def test_parent_can_select_their_own_child(self):
+        serializer = self._serializer_for(self.parent_user, self.own_child)
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["child"], self.own_child)
+
+    def test_parent_cannot_select_another_parents_child(self):
+        serializer = self._serializer_for(self.parent_user, self.other_child)
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("child", serializer.errors)

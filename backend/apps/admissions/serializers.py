@@ -5,6 +5,7 @@ from apps.contact_validation import normalize_phone_number
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, School, SchoolType
+from apps.users.models import ParentProfile
 
 from .models import Child, AdmissionEnquiry, CounsellingRequest
 from .utils import normalize_child_gender
@@ -157,6 +158,18 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
         is_parent = bool(
             user and user.is_authenticated and getattr(user, 'role', None) == 'PARENT'
         )
+        child = attrs.get('child')
+        if child is not None:
+            parent_profile_id = (
+                ParentProfile.objects.filter(user=user).values_list('pk', flat=True).first()
+                if is_parent
+                else None
+            )
+            if parent_profile_id is None or child.parent_profile_id != parent_profile_id:
+                raise serializers.ValidationError({
+                    'child': 'You can only select one of your own child profiles.'
+                })
+
         parent_email = attrs.get('parent_email') or ''
         parent_name = attrs.get('parent_full_name') or ''
         parent_phone = attrs.get('parent_phone') or ''

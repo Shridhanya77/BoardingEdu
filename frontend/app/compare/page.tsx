@@ -9,6 +9,13 @@ export const metadata: Metadata = pageMetadata({
   keywords: ["compare schools", "school comparison"],
 });
 
-export default function CompareSchoolsRoute() {
-  return <ComparePage />;
+export default function CompareSchoolsRoute({
+  searchParams,
+}: {
+  searchParams?: { source?: string | string[] };
+}) {
+  const source = Array.isArray(searchParams?.source)
+    ? searchParams.source[0]
+    : searchParams?.source;
+  return <ComparePage shortlistOnly={source === "shortlist"} />;
 }

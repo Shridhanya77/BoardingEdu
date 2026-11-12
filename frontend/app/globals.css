@@ -24195,20 +24195,24 @@ select:focus-visible {
   .discovery-page--listing .filters-panel {
     position: sticky;
     top: 96px;
-    max-height: calc(100vh - 112px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    max-height: none;
+    overflow: visible;
   }
+}
+
+.discovery-page--listing .filter-checklist {
+  max-height: none;
+  overflow: visible;
 }
 
 @media (min-width: 1201px) {
   .discovery-page--listing .results-layout {
-    grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     gap: 20px;
   }
   .discovery-page--listing .results-layout > .school-results,
   .discovery-page--listing .results-layout--school-grid > .school-results {
-    grid-column: 2 / -1;
+    grid-column: 2;
   }
   .discovery-page--listing .school-list--grid.school-list--listing {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -24218,7 +24222,7 @@ select:focus-visible {
   }
   .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
     grid-column: auto;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
