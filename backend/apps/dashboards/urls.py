@@ -2,6 +2,7 @@ from django.urls import path
 
 from .school_ops import (
     SchoolFacilityWriteView,
+    SchoolAdmissionResourceWriteView,
     SchoolFeeItemWriteView,
     SchoolFeePublishView,
     SchoolGradeWriteView,
@@ -39,6 +40,16 @@ urlpatterns = [
     ),
     path("school/photos/", SchoolPhotoWriteView.as_view(), name="school-photos"),
     path("school/photos/<uuid:photo_id>/", SchoolPhotoWriteView.as_view(), name="school-photo"),
+    path(
+        "school/admission-resources/",
+        SchoolAdmissionResourceWriteView.as_view(),
+        name="school-admission-resources",
+    ),
+    path(
+        "school/admission-resources/<uuid:resource_id>/",
+        SchoolAdmissionResourceWriteView.as_view(),
+        name="school-admission-resource",
+    ),
     path("school/fees/items/", SchoolFeeItemWriteView.as_view(), name="school-fee-items"),
     path(
         "school/fees/items/<uuid:fee_item_id>/",

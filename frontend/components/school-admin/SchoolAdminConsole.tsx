@@ -8,6 +8,7 @@ import {
   Bus,
   ClipboardCheck,
   Dumbbell,
+  FileText,
   FlaskConical,
   GraduationCap,
   Images,
@@ -17,6 +18,7 @@ import {
   LogOut,
   Mail,
   ShieldCheck,
+  Star,
   UserRound,
   Utensils,
 } from "lucide-react";
@@ -29,6 +31,7 @@ import {
   type CompletionSection,
   type ApplicationStatus,
   type EnquiryStatus,
+  type SchoolAdmissionResourceRecord,
   type SchoolDashboardData,
   type SchoolGradeRecord,
   type SchoolPortalUpdate,
@@ -75,10 +78,12 @@ type SectionId =
   | "overview"
   | "completion"
   | "profile"
-  | "academics"
-  | "campus"
+  | "grades"
+  | "facilities"
   | "fees"
   | "gallery"
+  | "resources"
+  | "reviews"
   | "enquiries"
   | "plans"
   | "subscription"
@@ -89,16 +94,35 @@ const NAV: { id: SectionId; label: string; Icon: typeof LayoutDashboard }[] = [
   { id: "overview", label: "Dashboard", Icon: LayoutDashboard },
   { id: "completion", label: "Profile completion", Icon: ClipboardCheck },
   { id: "profile", label: "School profile", Icon: Building2 },
-  { id: "academics", label: "Academics", Icon: GraduationCap },
-  { id: "campus", label: "Campus", Icon: FlaskConical },
+  { id: "grades", label: "Grades offered", Icon: GraduationCap },
+  { id: "facilities", label: "Facilities", Icon: FlaskConical },
   { id: "fees", label: "Fees & admissions", Icon: IndianRupee },
   { id: "gallery", label: "Photographs", Icon: Images },
+  { id: "resources", label: "Brochure & documents", Icon: FileText },
+  { id: "reviews", label: "Reviews", Icon: Star },
   { id: "enquiries", label: "Admission leads", Icon: Mail },
   { id: "plans", label: "Subscription plans", Icon: IndianRupee },
   { id: "subscription", label: "My subscription", Icon: ShieldCheck },
   { id: "payments", label: "Payment history", Icon: ClipboardCheck },
   { id: "account", label: "Account settings", Icon: UserRound },
 ];
+
+const SECTION_COPY: Partial<Record<SectionId, string>> = {
+  overview: "A quick view of your school profile, admissions activity, and next steps.",
+  completion: "Review what is published, awaiting approval, or still missing.",
+  profile: "Maintain the core information shown to parents.",
+  grades: "Manage the classes your school offers and their available seats.",
+  facilities: "Set availability, capacity, and parent-facing details by campus area.",
+  fees: "Add fee items and decide when they are published to parents.",
+  gallery: "Preview and manage the logo, cover image, and school photographs.",
+  resources: "Share a school brochure and make admission requirements clear.",
+  reviews: "View parent feedback and track its moderation status.",
+  enquiries: "Review admission enquiries and follow their progress.",
+  plans: "Compare plans available to your school.",
+  subscription: "Review your current subscription.",
+  payments: "Review subscription payment history.",
+  account: "Manage your school administrator account.",
+};
 
 function statusLabel(status: string) {
   if (status === "published") return "Published";
@@ -179,6 +203,7 @@ export default function SchoolAdminConsole() {
               key={item.id}
               type="button"
               className={section === item.id ? "is-active" : ""}
+              aria-current={section === item.id ? "page" : undefined}
               onClick={() => {
                 setSection(item.id);
                 setNotice(null);
@@ -207,6 +232,28 @@ export default function SchoolAdminConsole() {
               {school ? `${school.city_name}, ${school.state_name}` : "Manage the information parents see."}
               {school?.school_code ? ` · ${school.school_code}` : ""}
             </p>
+            {school && (school.school_image_url || school.school_logo_url || data?.photos[0]?.photo_url) && (
+              <div className="sa-top__media" aria-label="School photographs">
+                {(school.school_image_url || data?.photos[0]?.photo_url) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="sa-top__cover"
+                    src={school.school_image_url || data?.photos[0]?.photo_url}
+                    alt={`${school.school_name} cover`}
+                    onError={(event) => { event.currentTarget.hidden = true; }}
+                  />
+                )}
+                {school.school_logo_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    className="sa-top__logo"
+                    src={school.school_logo_url}
+                    alt={`${school.school_name} logo`}
+                    onError={(event) => { event.currentTarget.hidden = true; }}
+                  />
+                )}
+              </div>
+            )}
           </div>
           {school && (
             <div className="sa-top__meta">
@@ -238,6 +285,16 @@ export default function SchoolAdminConsole() {
             Profile changes are awaiting BoardingEdu review. The approved public profile remains live until they are approved.
           </p>
         )}
+        {data && (
+          <div className="sa-section-heading">
+            <div>
+              <p>School workspace</p>
+              <h2>{NAV.find((item) => item.id === section)?.label ?? "Dashboard"}</h2>
+              <span>{SECTION_COPY[section]}</span>
+            </div>
+            <span className="sa-section-step">{NAV.findIndex((item) => item.id === section) + 1} of {NAV.length} sections</span>
+          </div>
+        )}
 
         {data && section === "overview" && (
           <Overview
@@ -260,7 +317,7 @@ export default function SchoolAdminConsole() {
         {data && section === "profile" && (
           <ProfileEditor data={data} busy={busy} onSave={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "School profile changes submitted for admin review.")} />
         )}
-        {data && section === "academics" && (
+        {data && section === "grades" && (
           <AcademicsEditor
             data={data}
             busy={busy}
@@ -272,17 +329,13 @@ export default function SchoolAdminConsole() {
             }}
           />
         )}
-        {data && section === "campus" && (
-          <CampusEditor
+        {data && section === "facilities" && (
+          <FacilitiesEditor
             data={data}
             group={campusGroup}
             busy={busy}
             onGroup={setCampusGroup}
-            onSave={(payload) => run(() => dashboards.saveFacility(payload).then(() => undefined), "Facility saved for this school.")}
-            onRemove={(id) => {
-              if (!window.confirm("Remove this facility from the school profile?")) return;
-              void run(() => dashboards.removeFacility(id).then(() => undefined), "Facility removed.");
-            }}
+            onSave={(payload) => run(() => dashboards.saveFacility(payload).then(() => undefined), "Facility details saved.")}
           />
         )}
         {data && section === "fees" && (
@@ -313,6 +366,18 @@ export default function SchoolAdminConsole() {
             }}
           />
         )}
+        {data && section === "resources" && (
+          <AdmissionResourcesEditor
+            data={data}
+            busy={busy}
+            onAdd={(payload) => run(() => dashboards.saveAdmissionResource(payload).then(() => undefined), "Brochure or admission requirement added.")}
+            onRemove={(id) => {
+              if (!window.confirm("Remove this brochure or admission requirement?")) return;
+              void run(() => dashboards.removeAdmissionResource(id).then(() => undefined), "Admission resource removed.");
+            }}
+          />
+        )}
+        {data && section === "reviews" && <ReviewsEditor data={data} />}
         {data && section === "enquiries" && (
           <EnquiryBoard
             data={data}
@@ -354,7 +419,12 @@ function Overview({
         <Kpi label="Classrooms recorded" value={data.metrics.classrooms} hint={`${data.metrics.laboratories} laboratories`} />
         <Kpi label="Sports facilities" value={data.metrics.sports_facilities} hint={`${data.metrics.academic_facilities} academic facilities`} />
         <Kpi label="Hostel capacity" value={data.metrics.hostel_capacity} hint="From accommodation facilities" />
-        <Kpi label="Photographs" value={data.metrics.photographs} hint={`${data.stats.reviews_published} published reviews`} />
+        <Kpi label="Photographs" value={data.metrics.photographs} hint="School gallery" />
+        <Kpi
+          label="Published reviews"
+          value={data.stats.reviews_published}
+          hint={data.stats.average_rating === null ? "No published ratings yet" : `${data.stats.average_rating.toFixed(1)} average rating`}
+        />
       </div>
 
       <div className="sa-split">
@@ -409,12 +479,15 @@ function Overview({
           <header><h2>Quick actions</h2></header>
           <div className="sa-actions">
             <button type="button" onClick={() => onOpen("profile")}>Edit school profile</button>
-            <button type="button" onClick={() => onOpen("campus", "ACADEMIC")}>Add classroom or lab</button>
-            <button type="button" onClick={() => onOpen("campus", "SPORTS")}>Add sports facility</button>
+            <button type="button" onClick={() => onOpen("facilities", "ACADEMIC")}>Add classroom or lab</button>
+            <button type="button" onClick={() => onOpen("facilities", "SPORTS")}>Add sports facility</button>
             <button type="button" onClick={() => onOpen("fees")}>Update fees</button>
             <button type="button" onClick={() => onOpen("gallery")}>Upload photographs</button>
-            <button type="button" onClick={() => onOpen("campus", "ACCOMMODATION")}>Manage hostel</button>
-            <button type="button" onClick={() => onOpen("campus", "DINING")}>Manage meals</button>
+            <button type="button" onClick={() => onOpen("facilities", "ACCOMMODATION")}>Manage hostel</button>
+            <button type="button" onClick={() => onOpen("facilities", "DINING")}>Manage meals</button>
+            <button type="button" onClick={() => onOpen("grades")}>Manage grades</button>
+            <button type="button" onClick={() => onOpen("resources")}>Add brochure or documents</button>
+            <button type="button" onClick={() => onOpen("reviews")}>Track reviews</button>
             <button type="button" onClick={() => onOpen("enquiries")}>View enquiries</button>
           </div>
         </article>
@@ -709,81 +782,153 @@ function AcademicsEditor({
           </tbody>
         </table>
       </article>
-      <article className="sa-card">
-        <header><h2>Boards on this profile</h2></header>
-        <p>Change boards and school type from School profile. The grades above are the classes this school admits.</p>
-      </article>
     </div>
   );
 }
 
-function CampusEditor({
+function FacilitiesEditor({
   data,
   group,
   busy,
   onGroup,
   onSave,
-  onRemove,
 }: {
   data: SchoolDashboardData;
   group: string;
   busy: boolean;
   onGroup: (group: string) => void;
   onSave: (payload: { facility: string; quantity_or_capacity: number | null; description: string; available: boolean }) => void;
-  onRemove: (id: string) => void;
 }) {
   const choices = data.catalog.facilities.filter((item) => item.category === group);
   const rows = data.facilities.filter((item) => item.category === group);
   const current = CAMPUS_GROUPS.find((item) => item.key === group) ?? CAMPUS_GROUPS[0];
+  const [drafts, setDrafts] = useState<Record<string, { available: boolean; quantity: string; description: string }>>({});
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDrafts(Object.fromEntries(
+      data.facilities.map((row) => [
+        row.facility,
+        {
+          available: row.available,
+          quantity: row.quantity_or_capacity === null ? "" : String(row.quantity_or_capacity),
+          description: row.description,
+        },
+      ]),
+    ));
+  }, [data.facilities]);
+
+  function draftFor(facilityId: string) {
+    const saved = rows.find((row) => row.facility === facilityId);
+    return drafts[facilityId] ?? {
+      available: saved?.available ?? false,
+      quantity: saved?.quantity_or_capacity === null || saved?.quantity_or_capacity === undefined
+        ? ""
+        : String(saved.quantity_or_capacity),
+      description: saved?.description ?? "",
+    };
+  }
 
   return (
     <div className="sa-stack">
-      <div className="sa-pills" role="tablist">
+      <div className="sa-pills" role="tablist" aria-label="Facility category">
         {CAMPUS_GROUPS.map((item) => (
-          <button key={item.key} type="button" className={group === item.key ? "is-active" : ""} onClick={() => onGroup(item.key)}>
+          <button
+            key={item.key}
+            type="button"
+            role="tab"
+            aria-selected={group === item.key}
+            className={group === item.key ? "is-active" : ""}
+            onClick={() => onGroup(item.key)}
+          >
             {item.label}
           </button>
         ))}
       </div>
       <article className="sa-card">
-        <header><h2>{current.label}</h2></header>
+        <header><h2><current.Icon size={20} aria-hidden /> {current.label}</h2></header>
         <p>{current.hint}</p>
+        {rowError && <p className="sa-banner sa-banner--error" role="alert">{rowError}</p>}
         {choices.length === 0 ? (
           <p>No {current.label.toLowerCase()} options are in the master list yet. A platform admin can add them in Django admin.</p>
         ) : (
-          <ul className="sa-yesno">
+          <div className="sa-facility-list">
             {choices.map((item) => {
-              const saved = rows.find((row) => row.facility === item.facility_id && row.available);
+              const saved = rows.find((row) => row.facility === item.facility_id);
+              const draft = draftFor(item.facility_id);
               return (
-                <li key={item.facility_id}>
-                  <span>{item.facility_name}</span>
-                  <div>
+                <article className="sa-facility-card" key={item.facility_id}>
+                  <header>
+                    <h3>{item.facility_name}</h3>
+                    <label className="sa-checkline">
+                      <input
+                        type="checkbox"
+                        checked={draft.available}
+                        onChange={(event) => setDrafts({
+                          ...drafts,
+                          [item.facility_id]: { ...draft, available: event.target.checked },
+                        })}
+                      />
+                      Available
+                    </label>
+                  </header>
+                  <div className="sa-form-grid">
+                    <label>
+                      Quantity or capacity
+                      <input
+                        inputMode="numeric"
+                        placeholder="Optional"
+                        value={draft.quantity}
+                        onChange={(event) => setDrafts({
+                          ...drafts,
+                          [item.facility_id]: { ...draft, quantity: event.target.value },
+                        })}
+                      />
+                    </label>
+                    <label>
+                      Parent-facing details
+                      <input
+                        maxLength={500}
+                        placeholder="Optional description"
+                        value={draft.description}
+                        onChange={(event) => setDrafts({
+                          ...drafts,
+                          [item.facility_id]: { ...draft, description: event.target.value },
+                        })}
+                      />
+                    </label>
+                  </div>
+                  <div className="sa-facility-card__foot">
+                    <span className="sa-muted">
+                      {saved ? (saved.available ? "Listed on your profile" : "Currently marked unavailable") : "Not added yet"}
+                    </span>
                     <button
+                      className="sa-primary"
                       type="button"
-                      className={saved ? "is-yes" : ""}
-                      disabled={busy}
+                      disabled={busy || (!saved && !draft.available)}
                       onClick={() => {
-                        if (saved) return;
-                        onSave({ facility: item.facility_id, quantity_or_capacity: null, description: "", available: true });
+                        const rawQuantity = draft.quantity.trim();
+                        const quantity = rawQuantity ? Number(rawQuantity) : null;
+                        if (quantity !== null && (!Number.isInteger(quantity) || quantity < 0)) {
+                          setRowError("Quantity or capacity must be a whole number of 0 or more.");
+                          return;
+                        }
+                        setRowError(null);
+                        onSave({
+                          facility: item.facility_id,
+                          quantity_or_capacity: quantity,
+                          description: draft.description,
+                          available: draft.available,
+                        });
                       }}
                     >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      className={saved ? "" : "is-no"}
-                      disabled={busy}
-                      onClick={() => {
-                        if (saved) onRemove(saved.school_facility_id);
-                      }}
-                    >
-                      No
+                      Save facility
                     </button>
                   </div>
-                </li>
+                </article>
               );
             })}
-          </ul>
+          </div>
         )}
       </article>
     </div>
@@ -957,6 +1102,206 @@ function GalleryEditor({
             </figure>
           ))}
         </div>
+      </article>
+    </div>
+  );
+}
+
+function AdmissionResourcesEditor({
+  data,
+  busy,
+  onAdd,
+  onRemove,
+}: {
+  data: SchoolDashboardData;
+  busy: boolean;
+  onAdd: (payload: {
+    resource_type: "BROCHURE" | "REQUIRED_DOCUMENT";
+    title: string;
+    description: string;
+    document_url: string;
+    file: File | null;
+  }) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [resourceType, setResourceType] = useState<"BROCHURE" | "REQUIRED_DOCUMENT">("BROCHURE");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [documentUrl, setDocumentUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+  const brochures = data.admission_resources.filter((item) => item.resource_type === "BROCHURE");
+  const requiredDocuments = data.admission_resources.filter((item) => item.resource_type === "REQUIRED_DOCUMENT");
+
+  function addResource(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (file && documentUrl.trim()) {
+      setRowError("Choose a PDF upload or a document URL, not both.");
+      return;
+    }
+    if (resourceType === "BROCHURE" && !file && !documentUrl.trim()) {
+      setRowError("Add a brochure PDF or a public PDF URL.");
+      return;
+    }
+    setRowError(null);
+    onAdd({
+      resource_type: resourceType,
+      title: title.trim(),
+      description: description.trim(),
+      document_url: documentUrl.trim(),
+      file,
+    });
+    setTitle("");
+    setDescription("");
+    setDocumentUrl("");
+    setFile(null);
+    event.currentTarget.reset();
+  }
+
+  function resourceList(label: string, rows: SchoolAdmissionResourceRecord[]) {
+    return (
+      <article className="sa-card">
+        <header><h2>{label}</h2><span className="sa-pill">{rows.length}</span></header>
+        {rows.length === 0 ? (
+          <p>Nothing added yet.</p>
+        ) : (
+          <ul className="sa-resource-list">
+            {rows.map((item) => (
+              <li key={item.resource_id}>
+                <div>
+                  <strong>{item.title}</strong>
+                  {item.description && <p>{item.description}</p>}
+                  {item.document_url ? (
+                    <a href={item.document_url} target="_blank" rel="noopener noreferrer">Open document</a>
+                  ) : (
+                    <span className="sa-muted">Checklist item only</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="sa-mini"
+                  disabled={busy}
+                  onClick={() => onRemove(item.resource_id)}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+    );
+  }
+
+  return (
+    <div className="sa-stack">
+      <article className="sa-card">
+        <header><h2>Add brochure or admission requirement</h2></header>
+        <p>Upload a public PDF or paste a public link. Required documents can also be added as checklist items without a file.</p>
+        <form className="sa-inline sa-resource-form" onSubmit={addResource}>
+          <select
+            value={resourceType}
+            onChange={(event) => setResourceType(event.target.value as "BROCHURE" | "REQUIRED_DOCUMENT")}
+          >
+            <option value="BROCHURE">School brochure</option>
+            <option value="REQUIRED_DOCUMENT">Required admission document</option>
+          </select>
+          <input
+            maxLength={180}
+            placeholder={resourceType === "BROCHURE" ? "Brochure title" : "Document name, e.g. Birth certificate"}
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            required
+          />
+          <input
+            maxLength={500}
+            placeholder="Notes or instructions (optional)"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            aria-label="Upload a PDF"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+          <input
+            type="url"
+            placeholder="or paste a public PDF URL"
+            value={documentUrl}
+            onChange={(event) => setDocumentUrl(event.target.value)}
+          />
+          <button className="sa-primary" type="submit" disabled={busy}>Add resource</button>
+        </form>
+        {rowError && <p className="sa-banner sa-banner--error" role="alert">{rowError}</p>}
+      </article>
+      {resourceList("School brochures", brochures)}
+      {resourceList("Required admission documents", requiredDocuments)}
+    </div>
+  );
+}
+
+function ReviewsEditor({ data }: { data: SchoolDashboardData }) {
+  const [status, setStatus] = useState("ALL");
+  const [query, setQuery] = useState("");
+  const rows = data.reviews.filter((review) => {
+    const matchesStatus = status === "ALL" || review.status === status;
+    const haystack = `${review.author_name} ${review.title} ${review.body}`.toLowerCase();
+    return matchesStatus && haystack.includes(query.trim().toLowerCase());
+  });
+
+  return (
+    <div className="sa-stack">
+      <article className="sa-card">
+        <header><h2>Review activity</h2><span className="sa-pill">Read only</span></header>
+        <p>Use this section to view feedback and track moderation. Only BoardingEdu staff can approve or reject reviews.</p>
+        <div className="sa-review-summary">
+          <div><span>Published</span><strong>{data.stats.reviews_published}</strong></div>
+          <div><span>Awaiting moderation</span><strong>{data.stats.reviews_pending}</strong></div>
+          <div><span>Average rating</span><strong>{data.stats.average_rating === null ? "—" : `${data.stats.average_rating.toFixed(1)} / 5`}</strong></div>
+        </div>
+      </article>
+      <article className="sa-card">
+        <header><h2>Parent reviews</h2><span className="sa-muted">Most recent 100</span></header>
+        <div className="sa-review-filters">
+          <input
+            type="search"
+            placeholder="Search reviews"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter reviews by status">
+            <option value="ALL">All statuses</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="PENDING">Awaiting moderation</option>
+            <option value="REJECTED">Not published</option>
+          </select>
+        </div>
+        {rows.length === 0 ? (
+          <p>No reviews match these filters.</p>
+        ) : (
+          <div className="sa-review-list">
+            {rows.map((review) => (
+              <article key={review.review_id}>
+                <header>
+                  <div>
+                    <strong>{review.author_name}</strong>
+                    <span className="sa-muted">{new Date(review.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div className="sa-review-list__meta">
+                    <span className="sa-pill">{review.rating} / 5</span>
+                    <span className={`sa-pill sa-pill--${review.status.toLowerCase()}`}>
+                      {review.status === "PENDING" ? "Awaiting moderation" : review.status === "PUBLISHED" ? "Published" : "Not published"}
+                    </span>
+                    {review.is_verified && <span className="sa-pill sa-pill--verified">Verified parent</span>}
+                  </div>
+                </header>
+                {review.title && <h3>{review.title}</h3>}
+                {review.body && <p>{review.body}</p>}
+              </article>
+            ))}
+          </div>
+        )}
       </article>
     </div>
   );
@@ -1250,7 +1595,7 @@ function openCheckout(order: {
   });
 }
 
-function Kpi({ label, value, hint, tone }: { label: string; value: number; hint: string; tone?: "blue" | "gold" }) {
+function Kpi({ label, value, hint, tone }: { label: string; value: number | string; hint: string; tone?: "blue" | "gold" }) {
   return (
     <article className={`sa-kpi${tone ? ` sa-kpi--${tone}` : ""}`}>
       <span>{label}</span>
@@ -1261,10 +1606,10 @@ function Kpi({ label, value, hint, tone }: { label: string; value: number; hint:
 }
 
 function destination(sectionKey: string): SectionId {
-  if (sectionKey === "academics") return "academics";
+  if (sectionKey === "academics") return "grades";
   if (sectionKey === "fees") return "fees";
   if (sectionKey === "gallery") return "gallery";
-  if (["campus", "sports", "hostel", "dining", "healthcare", "safety", "transport"].includes(sectionKey)) return "campus";
+  if (["campus", "sports", "hostel", "dining", "healthcare", "safety", "transport"].includes(sectionKey)) return "facilities";
   if (sectionKey === "publishing") return "completion";
   return "profile";
 }

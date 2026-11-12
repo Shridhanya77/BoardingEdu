@@ -4,9 +4,16 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.geography.models import City, Country, State
+from apps.reviews.models import Review
 from apps.schools.admin import ProfileGapFilter, SchoolAdmin
 from apps.schools.completeness import build_profile_completion
-from apps.schools.models import Facility, School, SchoolFacility, SchoolType
+from apps.schools.models import (
+    Facility,
+    School,
+    SchoolAdmissionResource,
+    SchoolFacility,
+    SchoolType,
+)
 from apps.users.models import SchoolAdminProfile
 
 User = get_user_model()
@@ -145,10 +152,60 @@ class SchoolAdminIsolationTests(TestCase):
     def test_dashboard_lists_only_the_assigned_school(self):
         client = APIClient()
         client.force_authenticate(self.admin)
+        own_review = Review.objects.create(
+            school=self.own,
+            rating=5,
+            title="Great school",
+            body="A review for this school.",
+            status=Review.STATUS_PUBLISHED,
+        )
+        Review.objects.create(
+            school=self.other,
+            rating=1,
+            title="Another school",
+            body="Must not appear in this dashboard.",
+            status=Review.STATUS_PUBLISHED,
+        )
         response = client.get("/api/dashboards/school/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["school"]["school_code"], "OWN1")
         self.assertIn("completion", response.data)
+        self.assertEqual(
+            [row["review_id"] for row in response.data["reviews"]],
+            [str(own_review.review_id)],
+        )
+
+    def test_school_admin_can_add_brochure_link_but_cannot_manage_other_school_resources(self):
+        resource = SchoolAdmissionResource.objects.create(
+            school=self.other,
+            resource_type=SchoolAdmissionResource.RESOURCE_BROCHURE,
+            title="Other school brochure",
+            document_url="https://documents.example.com/other.pdf",
+        )
+        client = APIClient()
+        client.force_authenticate(self.admin)
+
+        response = client.post(
+            "/api/dashboards/school/admission-resources/",
+            {
+                "school": str(self.other.pk),
+                "resource_type": SchoolAdmissionResource.RESOURCE_BROCHURE,
+                "title": "Own school brochure",
+                "document_url": "https://documents.example.com/own.pdf",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            SchoolAdmissionResource.objects.get(pk=response.data["resource_id"]).school,
+            self.own,
+        )
+
+        denied = client.delete(
+            f"/api/dashboards/school/admission-resources/{resource.resource_id}/"
+        )
+        self.assertEqual(denied.status_code, 404)
+        self.assertTrue(SchoolAdmissionResource.objects.filter(pk=resource.pk).exists())
 
 
 class ProfileGapFilterTests(TestCase):

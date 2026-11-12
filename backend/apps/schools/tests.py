@@ -23,8 +23,20 @@ from .management.commands.manage_school_photos import Command as ManageSchoolPho
 from config.admin_dashboard import _grade_group
 from config.school_media import cover_image_url_for_school
 from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
-from .models import Board, Grade, School, SchoolFAQ, SchoolGrade, SchoolPhoto, SchoolType, SchoolVerificationEvent, SchoolVideo
+from .models import (
+    Board,
+    Grade,
+    School,
+    SchoolAdmissionResource,
+    SchoolFAQ,
+    SchoolGrade,
+    SchoolPhoto,
+    SchoolType,
+    SchoolVerificationEvent,
+    SchoolVideo,
+)
 from .profile_changes import review_school_profile_change
+from .public_urls import public_school_url
 from .serializers import (
     SchoolDetailSerializer,
     SchoolListSerializer,
@@ -34,6 +46,25 @@ from .serializers import (
 from .seo import school_seo_keywords
 from .utils import unique_school_slug
 from .views import SchoolFilter, SchoolViewSet
+
+
+class PublicSchoolUrlTests(SimpleTestCase):
+    @override_settings(
+        FRONTEND_URL="https://boardingedu-bay.vercel.app",
+        PUBLIC_SITE_URL="https://www.boardingedu.com",
+    )
+    def test_public_school_url_uses_deployed_frontend_and_canonical_profile_path(self):
+        school = SimpleNamespace(
+            country=SimpleNamespace(slug="india", country_name="India"),
+            state=SimpleNamespace(slug="karnataka", state_name="Karnataka"),
+            city=SimpleNamespace(slug="bengaluru", city_name="Bengaluru"),
+            slug="sample-public-school",
+        )
+
+        self.assertEqual(
+            public_school_url(school),
+            "https://boardingedu-bay.vercel.app/india/karnataka/bengaluru/sample-public-school/",
+        )
 
 
 class SchoolRegistrationContactValidationTests(SimpleTestCase):
@@ -421,6 +452,33 @@ class SchoolClassificationTests(TestCase):
             [str(first.photo_id), str(second.photo_id)],
         )
         self.assertEqual(photos[0]['caption'], 'Campus')
+
+    def test_school_detail_includes_only_active_admission_resources(self):
+        school = self.create_school('WITH-ADMISSION-RESOURCES')
+        brochure = SchoolAdmissionResource.objects.create(
+            school=school,
+            resource_type=SchoolAdmissionResource.RESOURCE_BROCHURE,
+            title='Admissions brochure',
+            document_url='https://example.com/admissions.pdf',
+        )
+        requirement = SchoolAdmissionResource.objects.create(
+            school=school,
+            resource_type=SchoolAdmissionResource.RESOURCE_REQUIRED_DOCUMENT,
+            title='Birth certificate',
+        )
+        SchoolAdmissionResource.objects.create(
+            school=school,
+            resource_type=SchoolAdmissionResource.RESOURCE_REQUIRED_DOCUMENT,
+            title='Hidden requirement',
+            status=False,
+        )
+
+        resources = SchoolDetailSerializer(school).data['admission_resources_detail']
+        self.assertEqual(
+            [resource['resource_id'] for resource in resources],
+            [str(brochure.resource_id), str(requirement.resource_id)],
+        )
+        self.assertEqual(resources[0]['document_url'], brochure.document_url)
 
     def test_selected_school_image_url_takes_precedence_over_cover_marked_photo(self):
         school = self.create_school('SELECTED-COVER')

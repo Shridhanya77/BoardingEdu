@@ -515,6 +515,7 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     grades_offered_detail = serializers.SerializerMethodField()
     school_image_url = serializers.SerializerMethodField()
     facilities_detail = serializers.SerializerMethodField()
+    admission_resources_detail = serializers.SerializerMethodField()
     photos_detail = serializers.SerializerMethodField()
     videos_detail = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
@@ -576,6 +577,7 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
 
             'grades_offered_detail',
             'facilities_detail',
+            'admission_resources_detail',
             'photos_detail',
             'videos_detail',
         ]
@@ -726,6 +728,19 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             })
 
         return result
+
+    def get_admission_resources_detail(self, obj):
+        resources = obj.admission_resources.filter(status=True)
+        return [
+            {
+                "resource_id": str(resource.resource_id),
+                "resource_type": resource.resource_type,
+                "title": resource.title,
+                "description": resource.description,
+                "document_url": resource.document_url,
+            }
+            for resource in resources
+        ]
 
     def get_photos_detail(self, obj):
         photos = getattr(obj, 'active_photos', None)

@@ -367,7 +367,7 @@ def _trust_https_origin(host):
         CSRF_TRUSTED_ORIGINS.append(origin)
 
 
-# Public site used by "View profile" in the platform admin.
+# Canonical public host used by server-rendered school-card links.
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://www.boardingedu.com").rstrip("/")
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")

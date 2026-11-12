@@ -164,6 +164,19 @@ class SchoolDashboardView(APIView):
                 value=Avg("rating")
             )["value"],
         }
+        payload["reviews"] = [
+            {
+                "review_id": str(review.review_id),
+                "author_name": review.display_name,
+                "rating": review.rating,
+                "title": review.title,
+                "body": review.body[:1200],
+                "status": review.status,
+                "is_verified": review.is_verified,
+                "created_at": review.created_at.isoformat(),
+            }
+            for review in reviews.select_related("user").order_by("-created_at")[:100]
+        ]
         payload["enquiry_status"] = _status_counts(
             enquiries, "status", AdmissionEnquiry.STATUS_CHOICES
         )

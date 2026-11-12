@@ -21134,7 +21134,7 @@ select:focus-visible {
     width: 100%;
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
   }
 }
@@ -21186,6 +21186,20 @@ select:focus-visible {
 .discovery-page--listing .school-list--list.school-list--listing .school-card__tags {
   max-height: none;
   overflow: visible;
+}
+
+@media (min-width: 801px) {
+  .discovery-page--listing .filters-column {
+    align-self: stretch;
+  }
+
+  .discovery-page--listing .filters-panel {
+    position: sticky;
+    top: 96px;
+    max-height: calc(100vh - 112px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 .discovery-page--listing .school-list--list.school-list--listing .school-card__tags {
@@ -22970,6 +22984,57 @@ select:focus-visible {
 .sa-yesno button:hover:not(:disabled) { transform: translateY(-1px); }
 .sa-yesno button.is-yes { background: linear-gradient(135deg, #e8650f, #c8540a); border-color: transparent; }
 .sa-badge { border: 1px solid rgba(16, 35, 58, 0.06); }
+.sa-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 0;
+  padding: 16px 18px;
+  border: 1px solid #e4ebf3;
+  border-radius: 16px;
+  background: linear-gradient(110deg, #fff, #f8fbfe);
+}
+.sa-section-heading p { margin: 0 0 4px; color: #60758b; font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.sa-section-heading h2 { margin: 0 0 4px; font-size: 1.25rem; }
+.sa-section-heading span { color: #60758b; font-size: 0.88rem; }
+.sa-section-heading .sa-section-step { flex: 0 0 auto; border-radius: 999px; padding: 7px 10px; background: #eef3f8; color: #52657a; font-weight: 650; }
+.sa-top__media { display: flex; align-items: flex-end; gap: 10px; margin-top: 12px; }
+.sa-top__cover { width: min(100%, 360px); height: 110px; object-fit: cover; border-radius: 12px; background: #e8eef5; }
+.sa-top__logo { width: 68px; height: 68px; object-fit: contain; padding: 5px; border: 1px solid #e4ebf3; border-radius: 12px; background: #fff; }
+.sa-facility-list, .sa-review-list { display: grid; gap: 12px; }
+.sa-facility-card { padding: 14px; border: 1px solid #e4ebf3; border-radius: 14px; background: #fbfdff; }
+.sa-facility-card > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sa-facility-card h3, .sa-review-list h3 { margin: 0; font-size: 0.98rem; }
+.sa-facility-card .sa-form-grid { grid-template-columns: minmax(140px, 0.6fr) minmax(220px, 1fr); }
+.sa-facility-card__foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.sa-resource-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sa-resource-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e8eef5; }
+.sa-resource-list li:last-child { border-bottom: 0; }
+.sa-resource-list p { margin: 4px 0; color: #60758b; }
+.sa-resource-list a { font-size: 0.88rem; font-weight: 650; }
+.sa-resource-form { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px; }
+.sa-review-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.sa-review-summary > div { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid #e4ebf3; border-radius: 12px; background: #f8fbfe; }
+.sa-review-summary span { color: #60758b; font-size: 0.82rem; }
+.sa-review-summary strong { font-size: 1.2rem; }
+.sa-review-filters { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 10px; margin: 12px 0; }
+.sa-review-filters input, .sa-review-filters select { min-width: 0; border: 1px solid #d5e0ea; border-radius: 10px; padding: 9px 10px; font: inherit; background: #fff; }
+.sa-review-list > article { padding: 14px 0; border-bottom: 1px solid #e8eef5; }
+.sa-review-list > article:last-child { border-bottom: 0; }
+.sa-review-list > article > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.sa-review-list > article > header > div:first-child { display: flex; flex-direction: column; gap: 3px; }
+.sa-review-list__meta { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.sa-pill--pending { color: #8a5a00; background: #fff4d6; }
+.sa-pill--rejected { color: #9b1c1c; background: #fde8e8; }
+.sa-pill--verified { color: #0d6b45; background: #e5f6ee; }
+.school-admission-resources { display: grid; gap: 18px; }
+.school-admission-resources h3 { margin: 0 0 8px; font-size: 1rem; }
+.school-admission-resources ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.school-admission-resources li { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px solid #e8eef5; }
+.school-admission-resources li:last-child { border-bottom: 0; }
+.school-admission-resources p { margin: 4px 0 0; color: #60758b; }
+.school-admission-resources a { flex: 0 0 auto; font-weight: 650; }
 
 @media (max-width: 980px) {
   .sa-app {
@@ -22985,6 +23050,11 @@ select:focus-visible {
   .sa-sidebar button { width: auto; white-space: nowrap; }
   .sa-sidebar__foot { margin-top: 0; }
   .sa-kpis, .sa-split, .sa-form-grid, .sa-inline, .sa-bars > div { grid-template-columns: 1fr; }
+  .sa-section-heading { align-items: flex-start; }
+  .sa-facility-card .sa-form-grid, .sa-review-summary, .sa-review-filters, .sa-resource-form { grid-template-columns: 1fr; }
+  .sa-review-list > article > header { flex-direction: column; }
+  .sa-review-list__meta { justify-content: flex-start; }
+  .sa-top__cover { width: min(100%, 280px); height: 90px; }
   .sa-top { flex-direction: column; align-items: flex-start; }
 }
 

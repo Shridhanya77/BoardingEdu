@@ -344,6 +344,38 @@ class SchoolPhoto(models.Model):
         return self.caption or f"Photo for {self.school.school_name}"
 
 
+class SchoolAdmissionResource(models.Model):
+    RESOURCE_BROCHURE = "BROCHURE"
+    RESOURCE_REQUIRED_DOCUMENT = "REQUIRED_DOCUMENT"
+    RESOURCE_TYPE_CHOICES = [
+        (RESOURCE_BROCHURE, "School brochure"),
+        (RESOURCE_REQUIRED_DOCUMENT, "Required admission document"),
+    ]
+
+    resource_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="admission_resources",
+        db_column="school_id",
+    )
+    resource_type = models.CharField(max_length=32, choices=RESOURCE_TYPE_CHOICES)
+    title = models.CharField(max_length=180)
+    description = models.CharField(max_length=500, blank=True)
+    document_url = models.URLField(max_length=1000, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    status = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "school_admission_resources"
+        ordering = ["resource_type", "sort_order", "created_at"]
+        indexes = [models.Index(fields=["school", "resource_type", "status"])]
+
+    def __str__(self):
+        return f"{self.title} — {self.school.school_name}"
+
+
 class SchoolVideo(models.Model):
     CATEGORY_CHOICES = [
         ("CAMPUS", "Campus"),

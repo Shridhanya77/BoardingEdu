@@ -387,6 +387,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
         setRegionPickerOpen(false);
         setDismissedRegionPickerFor(value.country);
         patch({ region, state: "", city: "", location: "" });
+        onSubmit(indiaRegionListingPath(region, listingCategory));
       }}
       onClose={() => {
         setRegionPickerOpen(false);

@@ -428,6 +428,62 @@ export default async function SchoolProfile({
               }))}
             />
 
+            <article className="detail-panel" id="admissions">
+              <div className="detail-panel__heading">
+                <span className="detail-panel__icon"><BookOpen size={18} /></span>
+                <div>
+                  <h2>Admission documents</h2>
+                  <p>Brochures and documents shared by the school.</p>
+                </div>
+              </div>
+              {school.admission_resources_detail.length === 0 ? (
+                <p className="empty-state">The school has not shared a brochure or admission document list yet.</p>
+              ) : (
+                <div className="school-admission-resources">
+                  {school.admission_resources_detail.some((item) => item.resource_type === "BROCHURE") && (
+                    <section>
+                      <h3>School brochures</h3>
+                      <ul>
+                        {school.admission_resources_detail
+                          .filter((item) => item.resource_type === "BROCHURE")
+                          .map((item) => (
+                            <li key={item.resource_id}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                {item.description && <p>{item.description}</p>}
+                              </div>
+                              {item.document_url && (
+                                <a href={item.document_url} target="_blank" rel="noopener noreferrer">Open brochure</a>
+                              )}
+                            </li>
+                          ))}
+                      </ul>
+                    </section>
+                  )}
+                  {school.admission_resources_detail.some((item) => item.resource_type === "REQUIRED_DOCUMENT") && (
+                    <section>
+                      <h3>Required for admission</h3>
+                      <ul>
+                        {school.admission_resources_detail
+                          .filter((item) => item.resource_type === "REQUIRED_DOCUMENT")
+                          .map((item) => (
+                            <li key={item.resource_id}>
+                              <div>
+                                <strong>{item.title}</strong>
+                                {item.description && <p>{item.description}</p>}
+                              </div>
+                              {item.document_url && (
+                                <a href={item.document_url} target="_blank" rel="noopener noreferrer">Open document</a>
+                              )}
+                            </li>
+                          ))}
+                      </ul>
+                    </section>
+                  )}
+                </div>
+              )}
+            </article>
+
             {school.facilities_detail.length > 0 && (
             <article className="detail-panel" id="facilities">
               <div className="detail-panel__heading">

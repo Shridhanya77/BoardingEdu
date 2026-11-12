@@ -569,6 +569,7 @@ export type SchoolDetail = Omit<
     quantity_or_capacity: number | null;
     description: string | null;
   }[];
+  admission_resources_detail: SchoolAdmissionResourceRecord[];
   photos_detail: {
     photo_id: string;
     photo_url: string;
@@ -1170,6 +1171,26 @@ export type SchoolPhotoRecord = {
   sort_order: number;
 };
 
+export type SchoolAdmissionResourceRecord = {
+  resource_id: string;
+  resource_type: "BROCHURE" | "REQUIRED_DOCUMENT";
+  title: string;
+  description: string;
+  document_url: string;
+  created_at?: string;
+};
+
+export type SchoolReviewRecord = {
+  review_id: string;
+  author_name: string;
+  rating: number;
+  title: string;
+  body: string;
+  status: "PENDING" | "PUBLISHED" | "REJECTED";
+  is_verified: boolean;
+  created_at: string;
+};
+
 export type SchoolFeeRecord = {
   fee_structure_id: string;
   structure_name: string;
@@ -1249,6 +1270,8 @@ export type SchoolDashboardData = {
   facilities: SchoolFacilityRecord[];
   grades: SchoolGradeRecord[];
   photos: SchoolPhotoRecord[];
+  admission_resources: SchoolAdmissionResourceRecord[];
+  reviews: SchoolReviewRecord[];
   fees: SchoolFeeRecord[];
   catalog: {
     facilities: { facility_id: string; facility_name: string; category: string }[];
@@ -1503,6 +1526,26 @@ export const dashboards = {
   },
   removePhoto: (id: string) =>
     authRequest<void>(`/dashboards/school/photos/${id}/`, { method: "DELETE" }),
+  saveAdmissionResource: (payload: {
+    resource_type: "BROCHURE" | "REQUIRED_DOCUMENT";
+    title: string;
+    description?: string;
+    document_url?: string;
+    file?: File | null;
+  }) => {
+    const body = new FormData();
+    body.set("resource_type", payload.resource_type);
+    body.set("title", payload.title);
+    body.set("description", payload.description ?? "");
+    if (payload.document_url) body.set("document_url", payload.document_url);
+    if (payload.file) body.set("file", payload.file);
+    return authRequest<SchoolAdmissionResourceRecord>("/dashboards/school/admission-resources/", {
+      method: "POST",
+      body,
+    });
+  },
+  removeAdmissionResource: (id: string) =>
+    authRequest<void>(`/dashboards/school/admission-resources/${id}/`, { method: "DELETE" }),
   saveFeeItem: (payload: {
     fee_structure?: string;
     item_name: string;

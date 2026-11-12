@@ -481,9 +481,13 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
       categoryLabel: label,
       place: metadataRegion.label,
     });
+    const regionSubject = [
+      boardName,
+      label === "Day School" ? "day schools" : label === "Boarding School" ? "boarding schools" : "schools",
+    ].filter(Boolean).join(" ");
     return pageMetadata({
       title: copy.title,
-      description: copy.description,
+      description: `Browse ${regionSubject} across ${metadataRegion.label}. Compare fees, education boards, facilities, and admission information on BoardingEdu.`,
       path: boards.length
         ? indiaRegionBoardListingPath(metadataRegion.id, boards.map((board) => board.slug), category)
         : indiaRegionListingPath(metadataRegion.id, category),

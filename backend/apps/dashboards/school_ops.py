@@ -9,7 +9,9 @@ import re
 import uuid
 from decimal import Decimal, InvalidOperation
 
-from django.core.exceptions import ObjectDoesNotExist
+from botocore.exceptions import BotoCoreError, ClientError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
+from django.core.validators import URLValidator
 from django.utils import timezone
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -23,6 +25,7 @@ from apps.schools.models import (
     Facility,
     Grade,
     School,
+    SchoolAdmissionResource,
     SchoolFacility,
     SchoolGrade,
     SchoolPhoto,
@@ -33,6 +36,7 @@ from apps.users.models import User
 from config.school_media import _public_media_url, _r2_bucket, _r2_client
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 IMAGE_TYPES = {
     "image/jpeg": "jpg",
     "image/png": "png",
@@ -62,6 +66,7 @@ def load_admin_school(user):
             "school_grades__grade",
             "school_facilities__facility",
             "photos",
+            "admission_resources",
             "fee_structures__academic_year",
             "fee_structures__fee_items__grade",
         )
@@ -100,6 +105,17 @@ def _photo_row(row):
         "alt_text": row.alt_text,
         "category": row.category,
         "sort_order": row.sort_order,
+    }
+
+
+def _admission_resource_row(row):
+    return {
+        "resource_id": str(row.resource_id),
+        "resource_type": row.resource_type,
+        "title": row.title,
+        "description": row.description,
+        "document_url": row.document_url,
+        "created_at": row.created_at.isoformat(),
     }
 
 
@@ -237,6 +253,11 @@ def build_school_admin_payload(user, enquiry_rows):
         "photos": [
             _photo_row(row)
             for row in school.photos.all()
+            if row.status
+        ],
+        "admission_resources": [
+            _admission_resource_row(row)
+            for row in school.admission_resources.all()
             if row.status
         ],
         "fees": [_fee_row(row) for row in school.fee_structures.all()],
@@ -504,6 +525,70 @@ class SchoolPhotoWriteView(SchoolAdminAPIView):
         return Response({"deleted": True})
 
 
+class SchoolAdmissionResourceWriteView(SchoolAdminAPIView):
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def post(self, request):
+        school, error = self.owned_school(request)
+        if error:
+            return error
+
+        resource_type = request.data.get("resource_type")
+        allowed_types = {code for code, _label in SchoolAdmissionResource.RESOURCE_TYPE_CHOICES}
+        if not isinstance(resource_type, str) or resource_type not in allowed_types:
+            return Response({"detail": "Choose a brochure or required admission document."}, status=400)
+
+        title = str(request.data.get("title") or "").strip()
+        if not title or len(title) > 180:
+            return Response({"detail": "Enter a title of 180 characters or fewer."}, status=400)
+
+        description = str(request.data.get("description") or "").strip()
+        if len(description) > 500:
+            return Response({"detail": "Description must be 500 characters or fewer."}, status=400)
+
+        document_url = str(request.data.get("document_url") or "").strip()
+        if len(document_url) > 1000:
+            return Response({"detail": "Document URLs must be 1,000 characters or fewer."}, status=400)
+        upload = request.FILES.get("file")
+        if upload is not None:
+            if document_url:
+                return Response({"detail": "Choose a PDF upload or a document URL, not both."}, status=400)
+            document_url, failure = _store_school_document(upload)
+            if failure:
+                return failure
+        elif document_url:
+            try:
+                URLValidator(schemes=["http", "https"])(document_url)
+            except DjangoValidationError:
+                return Response({"detail": "Enter a valid public HTTP or HTTPS document URL."}, status=400)
+
+        if resource_type == SchoolAdmissionResource.RESOURCE_BROCHURE and not document_url:
+            return Response({"detail": "Add a PDF brochure or its public URL."}, status=400)
+
+        row = SchoolAdmissionResource.objects.create(
+            school=school,
+            resource_type=resource_type,
+            title=title,
+            description=description,
+            document_url=document_url,
+            sort_order=school.admission_resources.filter(resource_type=resource_type).count(),
+            status=True,
+        )
+        return Response(_admission_resource_row(row), status=201)
+
+    def delete(self, request, resource_id):
+        school, error = self.owned_school(request)
+        if error:
+            return error
+        deleted, _ = SchoolAdmissionResource.objects.filter(
+            resource_id=resource_id,
+            school=school,
+        ).delete()
+        if not deleted:
+            return Response({"detail": "Admission resource not found."}, status=404)
+        return Response({"deleted": True})
+
+
 class SchoolFeeItemWriteView(SchoolAdminAPIView):
     def post(self, request):
         school, error = self.owned_school(request)
@@ -667,3 +752,34 @@ def _store_image(upload):
     except Exception:
         return None, Response({"detail": "The image could not be stored. Try again."}, status=502)
     return _public_media_url(filename) or f"/media/schools/{filename}", None
+
+
+def _store_school_document(upload):
+    payload = upload.read(MAX_DOCUMENT_BYTES + 1)
+    if not payload:
+        return None, Response({"detail": "That PDF file is empty."}, status=400)
+    if len(payload) > MAX_DOCUMENT_BYTES:
+        return None, Response({"detail": "PDF files must be 20 MB or smaller."}, status=400)
+    if not payload.startswith(b"%PDF-"):
+        return None, Response({"detail": "Upload a valid PDF document."}, status=400)
+
+    client = _r2_client()
+    if client is None:
+        return None, Response({"detail": "Document storage is not configured. Add a public document URL instead."}, status=400)
+
+    filename = f"{uuid.uuid4().hex}.pdf"
+    public_url = _public_media_url(filename)
+    if not public_url:
+        return None, Response({"detail": "Public document storage is not configured. Add a public document URL instead."}, status=400)
+
+    try:
+        client.put_object(
+            Bucket=_r2_bucket(),
+            Key=f"schools/{filename}",
+            Body=payload,
+            ContentType="application/pdf",
+            CacheControl="public, max-age=31536000, immutable",
+        )
+    except (BotoCoreError, ClientError):
+        return None, Response({"detail": "The PDF could not be stored. Try again."}, status=502)
+    return public_url, None
