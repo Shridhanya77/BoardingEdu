@@ -3,11 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  BedDouble,
   Building2,
-  Bus,
   ClipboardCheck,
-  Dumbbell,
   FileText,
   FlaskConical,
   GraduationCap,
@@ -20,7 +17,6 @@ import {
   ShieldCheck,
   Star,
   UserRound,
-  Utensils,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -64,14 +60,14 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const CAMPUS_GROUPS = [
-  { key: "ACADEMIC", label: "Classrooms & laboratories", hint: "Add each classroom, laboratory, or academic space. Use quantity for capacity.", Icon: FlaskConical },
-  { key: "SPORTS", label: "Sports", hint: "Indoor sports, outdoor sports, grounds, and courts.", Icon: Dumbbell },
-  { key: "ACCOMMODATION", label: "Hostel", hint: "Hostel capacity only. Do not record which student is in which room.", Icon: BedDouble },
-  { key: "DINING", label: "Dining", hint: "Dining halls, seating, and meal arrangements.", Icon: Utensils },
-  { key: "HEALTH", label: "Healthcare", hint: "Medical room and staff availability. Do not enter private medical records.", Icon: ShieldCheck },
-  { key: "SAFETY", label: "Safety", hint: "Facilities parents should know about. Do not publish internal security procedures.", Icon: ShieldCheck },
-  { key: "TRANSPORT", label: "Transport", hint: "Vehicles and routes. Do not enter student assignments or driver personal details.", Icon: Bus },
-  { key: "TECHNOLOGY", label: "Student services", hint: "Library, Wi-Fi, counselling, laundry, and other campus services.", Icon: Building2 },
+  { key: "ACADEMIC", label: "Classrooms & laboratories", hint: "Add each classroom, laboratory, or academic space." },
+  { key: "SPORTS", label: "Sports", hint: "Indoor sports, outdoor sports, grounds, and courts." },
+  { key: "ACCOMMODATION", label: "Hostel", hint: "Hostel capacity only. Do not record which student is in which room." },
+  { key: "DINING", label: "Dining", hint: "Dining halls, seating, and meal arrangements." },
+  { key: "HEALTH", label: "Healthcare", hint: "Medical room and staff availability. Do not enter private medical records." },
+  { key: "SAFETY", label: "Safety", hint: "Facilities parents should know about. Do not publish internal security procedures." },
+  { key: "TRANSPORT", label: "Transport", hint: "Vehicles and routes. Do not enter student assignments or driver personal details." },
+  { key: "TECHNOLOGY", label: "Student services", hint: "Library, Wi-Fi, counselling, laundry, and other campus services." },
 ] as const;
 
 type SectionId =
@@ -112,7 +108,7 @@ const SECTION_COPY: Partial<Record<SectionId, string>> = {
   completion: "Review what is published, awaiting approval, or still missing.",
   profile: "Maintain the core information shown to parents.",
   grades: "Manage the classes your school offers and their available seats.",
-  facilities: "Set availability, capacity, and parent-facing details by campus area.",
+  facilities: "Choose the facilities available at your school. These details help families understand your campus.",
   fees: "Add fee items and decide when they are published to parents.",
   gallery: "Preview and manage the logo, cover image, and school photographs.",
   resources: "Share a school brochure and make admission requirements clear.",
@@ -802,35 +798,9 @@ function FacilitiesEditor({
   const choices = data.catalog.facilities.filter((item) => item.category === group);
   const rows = data.facilities.filter((item) => item.category === group);
   const current = CAMPUS_GROUPS.find((item) => item.key === group) ?? CAMPUS_GROUPS[0];
-  const [drafts, setDrafts] = useState<Record<string, { available: boolean; quantity: string; description: string }>>({});
-  const [rowError, setRowError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDrafts(Object.fromEntries(
-      data.facilities.map((row) => [
-        row.facility,
-        {
-          available: row.available,
-          quantity: row.quantity_or_capacity === null ? "" : String(row.quantity_or_capacity),
-          description: row.description,
-        },
-      ]),
-    ));
-  }, [data.facilities]);
-
-  function draftFor(facilityId: string) {
-    const saved = rows.find((row) => row.facility === facilityId);
-    return drafts[facilityId] ?? {
-      available: saved?.available ?? false,
-      quantity: saved?.quantity_or_capacity === null || saved?.quantity_or_capacity === undefined
-        ? ""
-        : String(saved.quantity_or_capacity),
-      description: saved?.description ?? "",
-    };
-  }
 
   return (
-    <div className="sa-stack">
+    <article className="sa-card sa-facilities">
       <div className="sa-pills" role="tablist" aria-label="Facility category">
         {CAMPUS_GROUPS.map((item) => (
           <button
@@ -845,93 +815,52 @@ function FacilitiesEditor({
           </button>
         ))}
       </div>
-      <article className="sa-card">
-        <header><h2><current.Icon size={20} aria-hidden /> {current.label}</h2></header>
-        <p>{current.hint}</p>
-        {rowError && <p className="sa-banner sa-banner--error" role="alert">{rowError}</p>}
-        {choices.length === 0 ? (
-          <p>No {current.label.toLowerCase()} options are in the master list yet. A platform admin can add them in Django admin.</p>
-        ) : (
-          <div className="sa-facility-list">
-            {choices.map((item) => {
-              const saved = rows.find((row) => row.facility === item.facility_id);
-              const draft = draftFor(item.facility_id);
-              return (
-                <article className="sa-facility-card" key={item.facility_id}>
-                  <header>
-                    <h3>{item.facility_name}</h3>
-                    <label className="sa-checkline">
-                      <input
-                        type="checkbox"
-                        checked={draft.available}
-                        onChange={(event) => setDrafts({
-                          ...drafts,
-                          [item.facility_id]: { ...draft, available: event.target.checked },
-                        })}
-                      />
-                      Available
-                    </label>
-                  </header>
-                  <div className="sa-form-grid">
-                    <label>
-                      Quantity or capacity
-                      <input
-                        inputMode="numeric"
-                        placeholder="Optional"
-                        value={draft.quantity}
-                        onChange={(event) => setDrafts({
-                          ...drafts,
-                          [item.facility_id]: { ...draft, quantity: event.target.value },
-                        })}
-                      />
-                    </label>
-                    <label>
-                      Parent-facing details
-                      <input
-                        maxLength={500}
-                        placeholder="Optional description"
-                        value={draft.description}
-                        onChange={(event) => setDrafts({
-                          ...drafts,
-                          [item.facility_id]: { ...draft, description: event.target.value },
-                        })}
-                      />
-                    </label>
-                  </div>
-                  <div className="sa-facility-card__foot">
-                    <span className="sa-muted">
-                      {saved ? (saved.available ? "Listed on your profile" : "Currently marked unavailable") : "Not added yet"}
-                    </span>
-                    <button
-                      className="sa-primary"
-                      type="button"
-                      disabled={busy || (!saved && !draft.available)}
-                      onClick={() => {
-                        const rawQuantity = draft.quantity.trim();
-                        const quantity = rawQuantity ? Number(rawQuantity) : null;
-                        if (quantity !== null && (!Number.isInteger(quantity) || quantity < 0)) {
-                          setRowError("Quantity or capacity must be a whole number of 0 or more.");
-                          return;
-                        }
-                        setRowError(null);
-                        onSave({
-                          facility: item.facility_id,
-                          quantity_or_capacity: quantity,
-                          description: draft.description,
-                          available: draft.available,
-                        });
-                      }}
-                    >
-                      Save facility
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </article>
-    </div>
+      <p>{current.hint}</p>
+      {choices.length === 0 ? (
+        <p>No {current.label.toLowerCase()} options are in the master list yet. A platform admin can add them in Django admin.</p>
+      ) : (
+        <div className="sa-facility-list">
+          {choices.map((item) => {
+            const saved = rows.find((row) => row.facility === item.facility_id);
+            const updateAvailability = (available: boolean) => {
+              if (busy || saved?.available === available) return;
+              onSave({
+                facility: item.facility_id,
+                quantity_or_capacity: saved?.quantity_or_capacity ?? null,
+                description: saved?.description ?? "",
+                available,
+              });
+            };
+
+            return (
+              <article className="sa-facility-choice" key={item.facility_id}>
+                <span>{item.facility_name}</span>
+                <div className="sa-facility-choice__actions" role="group" aria-label={`${item.facility_name} availability`}>
+                  <button
+                    type="button"
+                    className={saved?.available ? "is-active is-yes" : ""}
+                    aria-pressed={saved?.available === true}
+                    disabled={busy}
+                    onClick={() => updateAvailability(true)}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    className={saved && !saved.available ? "is-active is-no" : ""}
+                    aria-pressed={saved !== undefined && !saved.available}
+                    disabled={busy}
+                    onClick={() => updateAvailability(false)}
+                  >
+                    No
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </article>
   );
 }
 
