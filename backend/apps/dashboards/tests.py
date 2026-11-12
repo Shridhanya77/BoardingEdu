@@ -1,8 +1,11 @@
+from datetime import date
+
 from django.contrib.auth import get_user_model
 from django.http import QueryDict
 from django.test import TestCase
 from rest_framework.test import APIClient
 
+from apps.fees.models import AcademicYear, FeeItem, FeeStructure
 from apps.geography.models import City, Country, State
 from apps.reviews.models import Review
 from apps.schools.admin import ProfileGapFilter, SchoolAdmin
@@ -11,6 +14,7 @@ from apps.schools.models import (
     Facility,
     School,
     SchoolAdmissionResource,
+    SchoolContentChange,
     SchoolFacility,
     SchoolType,
 )
@@ -131,6 +135,22 @@ class SchoolAdminIsolationTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(SchoolFacility.objects.filter(pk=self.other_facility.pk).exists())
 
+    def test_school_admin_cannot_bypass_review_through_generic_facility_api(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        response = client.post(
+            "/api/schools/school-facilities/",
+            {
+                "school": str(self.own.pk),
+                "facility": str(self.facility.pk),
+                "available": True,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(SchoolFacility.objects.filter(school=self.own).exists())
+        self.assertFalse(SchoolContentChange.objects.filter(school=self.own).exists())
+
     def test_facility_write_ignores_a_client_supplied_school_id(self):
         client = APIClient()
         client.force_authenticate(self.admin)
@@ -144,10 +164,178 @@ class SchoolAdminIsolationTests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 201)
-        created = SchoolFacility.objects.get(school=self.own, facility=self.facility)
-        self.assertEqual(created.quantity_or_capacity, 24)
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(response.data["pending_review"])
+        self.assertFalse(
+            SchoolFacility.objects.filter(
+                school=self.own, facility=self.facility
+            ).exists()
+        )
+        pending = SchoolContentChange.objects.get(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_FACILITY,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        self.assertEqual(pending.payload["quantity_or_capacity"], 24)
         self.assertFalse(SchoolFacility.objects.filter(school=self.other, description="Two labs").exists())
+
+    def test_super_admin_approval_publishes_staged_facility(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        response = client.post(
+            "/api/dashboards/school/facilities/",
+            {
+                "facility": str(self.facility.pk),
+                "available": True,
+                "quantity_or_capacity": 24,
+                "description": "Two labs",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 202)
+        pending = SchoolContentChange.objects.get(school=self.own)
+
+        reviewer = User.objects.create_user(
+            username="school-content-reviewer",
+            password="secret",
+            role=User.ROLE_SUPER_ADMIN,
+        )
+        from apps.schools.content_changes import review_school_content_change
+
+        review_school_content_change(
+            pending.change_id,
+            reviewer,
+            approve=True,
+            note="Approved.",
+        )
+
+        approved = SchoolFacility.objects.get(school=self.own, facility=self.facility)
+        self.assertEqual(approved.quantity_or_capacity, 24)
+        self.assertEqual(approved.description, "Two labs")
+
+    def test_pending_and_rejected_facility_edits_keep_approved_values(self):
+        approved = SchoolFacility.objects.create(
+            school=self.own,
+            facility=self.facility,
+            available=True,
+            quantity_or_capacity=10,
+            description="Approved lab",
+        )
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        response = client.patch(
+            f"/api/dashboards/school/facilities/{approved.pk}/",
+            {"quantity_or_capacity": 24, "description": "Proposed lab"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 202)
+        approved.refresh_from_db()
+        self.assertEqual(approved.quantity_or_capacity, 10)
+        self.assertEqual(approved.description, "Approved lab")
+        pending = SchoolContentChange.objects.get(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_FACILITY,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        reviewer = User.objects.create_user(
+            username="school-content-rejector",
+            password="secret",
+            role=User.ROLE_SUPER_ADMIN,
+        )
+        from apps.schools.content_changes import review_school_content_change
+
+        review_school_content_change(
+            pending.change_id,
+            reviewer,
+            approve=False,
+            note="Please correct the details.",
+        )
+        approved.refresh_from_db()
+        self.assertEqual(approved.quantity_or_capacity, 10)
+        self.assertEqual(approved.description, "Approved lab")
+        dashboard = client.get("/api/dashboards/school/")
+        self.assertEqual(
+            dashboard.data["school"]["latest_content_change"]["status"],
+            SchoolContentChange.STATUS_REJECTED,
+        )
+        self.assertEqual(
+            dashboard.data["school"]["latest_content_change"]["review_note"],
+            "Please correct the details.",
+        )
+
+    def test_fee_api_stages_add_update_and_publish_until_approval(self):
+        year = AcademicYear.objects.create(
+            year_code="2026-27-content",
+            year_name="Academic Year 2026-27",
+            start_date=date(2026, 4, 1),
+            end_date=date(2027, 3, 31),
+            is_current=True,
+            status=True,
+        )
+        client = APIClient()
+        client.force_authenticate(self.admin)
+        added = client.post(
+            "/api/dashboards/school/fees/items/",
+            {
+                "item_name": "Tuition",
+                "item_category": "TUITION",
+                "payment_frequency": "ANNUAL",
+                "amount": "15000",
+            },
+            format="json",
+        )
+        self.assertEqual(added.status_code, 202, added.data)
+        structure = FeeStructure.objects.get(school=self.own, academic_year=year)
+        self.assertFalse(FeeItem.objects.filter(fee_structure=structure).exists())
+        pending = SchoolContentChange.objects.get(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_FEE_ITEM,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+
+        from apps.schools.content_changes import review_school_content_change
+
+        reviewer = User.objects.create_user(
+            username="fee-content-reviewer",
+            password="secret",
+            role=User.ROLE_SUPER_ADMIN,
+        )
+        review_school_content_change(pending.pk, reviewer, approve=True)
+        item = FeeItem.objects.get(fee_structure=structure)
+
+        updated = client.patch(
+            f"/api/dashboards/school/fees/items/{item.pk}/",
+            {"amount": "18000"},
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 202, updated.data)
+        item.refresh_from_db()
+        self.assertEqual(item.amount, 15000)
+        pending = SchoolContentChange.objects.get(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_FEE_ITEM,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        review_school_content_change(pending.pk, reviewer, approve=True)
+        item.refresh_from_db()
+        self.assertEqual(item.amount, 18000)
+
+        published = client.post(
+            f"/api/dashboards/school/fees/{structure.pk}/publish/",
+            {"published": True},
+            format="json",
+        )
+        self.assertEqual(published.status_code, 202, published.data)
+        structure.refresh_from_db()
+        self.assertFalse(structure.published)
+        pending = SchoolContentChange.objects.get(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_FEE_STRUCTURE,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        review_school_content_change(pending.pk, reviewer, approve=True)
+        structure.refresh_from_db()
+        self.assertTrue(structure.published)
 
     def test_dashboard_lists_only_the_assigned_school(self):
         client = APIClient()
@@ -195,11 +383,19 @@ class SchoolAdminIsolationTests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(
-            SchoolAdmissionResource.objects.get(pk=response.data["resource_id"]).school,
-            self.own,
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(response.data["pending_review"])
+        self.assertFalse(
+            SchoolAdmissionResource.objects.filter(
+                school=self.own, title="Own school brochure"
+            ).exists()
         )
+        pending = SchoolContentChange.objects.get(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_RESOURCE,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        self.assertEqual(pending.payload["title"], "Own school brochure")
 
         denied = client.delete(
             f"/api/dashboards/school/admission-resources/{resource.resource_id}/"

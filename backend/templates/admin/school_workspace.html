@@ -36,8 +36,20 @@
 
   {% if pending_profile_change %}
   <div class="be-panel be-panel--review" role="status">
-    <strong>{% translate "Profile edits awaiting admin review" %}</strong>
+    <strong>{% translate "Profile edits awaiting Super Admin approval" %}</strong>
     <p>{% translate "Your currently approved profile remains public until the submitted edits are approved." %}</p>
+  </div>
+  {% endif %}
+  {% if pending_content_change_count %}
+  <div class="be-panel be-panel--review" role="status">
+    <strong>{{ pending_content_change_count }} {% translate "school update(s) awaiting Super Admin approval" %}</strong>
+    <p>{% translate "Facilities, grades, fees, photographs, videos, and documents stay as currently approved on the public profile until review is complete." %}</p>
+  </div>
+  {% endif %}
+  {% if latest_content_change.status == "REJECTED" %}
+  <div class="be-panel be-panel--review" role="status">
+    <strong>{% translate "The latest" %} {{ latest_content_change.get_content_type_display|lower }} {% translate "update was not approved" %}</strong>
+    {% if latest_content_change.review_note %}<p>{% translate "Super Admin note:" %} {{ latest_content_change.review_note }}</p>{% endif %}
   </div>
   {% endif %}
 
@@ -188,7 +200,7 @@
   {% if active_section == "fees" %}
   <section class="be-panel" id="fees">
     <h3>{% translate "Fees & admissions" %}</h3>
-    <p>{% translate "Create and maintain a clear fee schedule for each academic year. Changes are saved to this school's schedule only." %}</p>
+    <p>{% translate "Propose a clear fee schedule for each academic year. A Super Admin must approve additions, edits, removals, and publication before they affect the public profile." %}</p>
     {% if fee_years %}
     <form class="be-fee-form" method="post" action="?section=fees#fees">
       {% csrf_token %}

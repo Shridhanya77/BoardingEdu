@@ -109,7 +109,7 @@ const SECTION_COPY: Partial<Record<SectionId, string>> = {
   profile: "Maintain the core information shown to parents.",
   grades: "Manage the classes your school offers and their available seats.",
   facilities: "Choose the facilities available at your school. These details help families understand your campus.",
-  fees: "Add fee items and decide when they are published to parents.",
+  fees: "Propose fee updates. A Super Admin must approve them before they appear publicly.",
   gallery: "Preview and manage the logo, cover image, and school photographs.",
   resources: "Share a school brochure and make admission requirements clear.",
   reviews: "View parent feedback and track its moderation status.",
@@ -278,7 +278,20 @@ export default function SchoolAdminConsole() {
         {formError && <p className="sa-banner sa-banner--error" role="alert">{formError}</p>}
         {data?.school.pending_profile_change && (
           <p className="sa-banner" role="status">
-            Profile changes are awaiting BoardingEdu review. The approved public profile remains live until they are approved.
+            Profile changes are awaiting Super Admin approval. The approved public profile remains live until they are approved.
+          </p>
+        )}
+        {Boolean(data?.school.pending_content_change_count) && (
+          <p className="sa-banner" role="status">
+            {data?.school.pending_content_change_count} school update{data?.school.pending_content_change_count === 1 ? "" : "s"} awaiting Super Admin approval. Approved public information remains visible until then.
+          </p>
+        )}
+        {data?.school.latest_content_change?.status === "REJECTED" && (
+          <p className="sa-banner sa-banner--error" role="status">
+            The latest {data.school.latest_content_change.content_type.toLowerCase()} update was not approved.
+            {data.school.latest_content_change.review_note
+              ? ` Super Admin note: ${data.school.latest_content_change.review_note}`
+              : ""}
           </p>
         )}
         {data && (
@@ -311,17 +324,17 @@ export default function SchoolAdminConsole() {
           />
         )}
         {data && section === "profile" && (
-          <ProfileEditor data={data} busy={busy} onSave={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "School profile changes submitted for admin review.")} />
+          <ProfileEditor data={data} busy={busy} onSave={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "School profile changes sent for Super Admin approval.")} />
         )}
         {data && section === "grades" && (
           <AcademicsEditor
             data={data}
             busy={busy}
-            onAddGrade={(grade, seats) => run(() => dashboards.saveGrade({ grade, seats_available: seats }).then(() => undefined), "Grade added.")}
-            onUpdateGrade={(id, seats) => run(() => dashboards.updateGrade(id, { seats_available: seats }).then(() => undefined), "Seat count updated.")}
+            onAddGrade={(grade, seats) => run(() => dashboards.saveGrade({ grade, seats_available: seats }).then(() => undefined), "Grade sent for Super Admin approval.")}
+            onUpdateGrade={(id, seats) => run(() => dashboards.updateGrade(id, { seats_available: seats }).then(() => undefined), "Seat changes sent for Super Admin approval.")}
             onRemoveGrade={(id) => {
               if (!window.confirm("Remove this grade from the school?")) return;
-              void run(() => dashboards.removeGrade(id).then(() => undefined), "Grade removed.");
+              void run(() => dashboards.removeGrade(id).then(() => undefined), "Grade removal sent for Super Admin approval.");
             }}
           />
         )}
@@ -331,21 +344,21 @@ export default function SchoolAdminConsole() {
             group={campusGroup}
             busy={busy}
             onGroup={setCampusGroup}
-            onSave={(payload) => run(() => dashboards.saveFacility(payload).then(() => undefined), "Facility details saved.")}
+            onSave={(payload) => run(() => dashboards.saveFacility(payload).then(() => undefined), "Facility changes sent for Super Admin approval.")}
           />
         )}
         {data && section === "fees" && (
           <FeesEditor
             data={data}
             busy={busy}
-            onAdd={(payload) => run(() => dashboards.saveFeeItem(payload).then(() => undefined), "Fee saved. It stays unpublished until you publish the structure.")}
-            onAmount={(id, amount) => run(() => dashboards.updateFeeItem(id, { amount }).then(() => undefined), "Fee amount updated.")}
+            onAdd={(payload) => run(() => dashboards.saveFeeItem(payload).then(() => undefined), "Fee changes sent for Super Admin approval.")}
+            onAmount={(id, amount) => run(() => dashboards.updateFeeItem(id, { amount }).then(() => undefined), "Fee amount sent for Super Admin approval.")}
             onPublish={(id, published) => {
               const message = published
-                ? "Publish these fees on the public school profile?"
-                : "Hide these fees from the public school profile?";
+                ? "Send a fee publication request to the Super Admin for approval?"
+                : "Send a fee removal request to the Super Admin for approval?";
               if (!window.confirm(message)) return;
-              void run(() => dashboards.publishFees(id, published).then(() => undefined), published ? "Fees published." : "Fees unpublished.");
+              void run(() => dashboards.publishFees(id, published).then(() => undefined), published ? "Fee publication request sent for Super Admin approval." : "Fee removal request sent for Super Admin approval.");
             }}
           />
         )}
@@ -353,12 +366,12 @@ export default function SchoolAdminConsole() {
           <GalleryEditor
             data={data}
             busy={busy}
-            onSaveProfile={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "Logo and cover changes submitted for admin review.")}
-            onAddUrl={(payload) => run(() => dashboards.savePhoto(payload).then(() => undefined), "Photograph added.")}
-            onUpload={(file, category, caption) => run(() => dashboards.uploadPhoto(file, category, caption).then(() => undefined), "Photograph uploaded.")}
+            onSaveProfile={(payload) => run(() => schools.updateMine(payload).then(() => undefined), "Logo and cover changes sent for Super Admin approval.")}
+            onAddUrl={(payload) => run(() => dashboards.savePhoto(payload).then(() => undefined), "Photograph sent for Super Admin approval.")}
+            onUpload={(file, category, caption) => run(() => dashboards.uploadPhoto(file, category, caption).then(() => undefined), "Photograph sent for Super Admin approval.")}
             onRemove={(id) => {
               if (!window.confirm("Remove this photograph from the school gallery?")) return;
-              void run(() => dashboards.removePhoto(id).then(() => undefined), "Photograph removed.");
+              void run(() => dashboards.removePhoto(id).then(() => undefined), "Photograph removal sent for Super Admin approval.");
             }}
           />
         )}
@@ -366,10 +379,10 @@ export default function SchoolAdminConsole() {
           <AdmissionResourcesEditor
             data={data}
             busy={busy}
-            onAdd={(payload) => run(() => dashboards.saveAdmissionResource(payload).then(() => undefined), "Brochure or admission requirement added.")}
+            onAdd={(payload) => run(() => dashboards.saveAdmissionResource(payload).then(() => undefined), "Document sent for Super Admin approval.")}
             onRemove={(id) => {
               if (!window.confirm("Remove this brochure or admission requirement?")) return;
-              void run(() => dashboards.removeAdmissionResource(id).then(() => undefined), "Admission resource removed.");
+              void run(() => dashboards.removeAdmissionResource(id).then(() => undefined), "Document removal sent for Super Admin approval.");
             }}
           />
         )}

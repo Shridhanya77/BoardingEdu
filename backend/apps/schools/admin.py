@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
@@ -29,6 +30,12 @@ from .models import (
     SchoolFAQ,
     SchoolVerificationEvent,
     SchoolProfileChange,
+    SchoolContentChange,
+)
+from .content_changes import (
+    content_change_rows,
+    review_school_content_change,
+    submit_school_content_change,
 )
 from .profile_changes import (
     PROFILE_CHANGE_FIELDS,
@@ -107,6 +114,16 @@ def is_verification_admin(user):
     return getattr(user, "role", None) in (
         User.ROLE_STAFF_ADMIN,
         User.ROLE_SUPER_ADMIN,
+    )
+
+
+def is_school_change_reviewer(user):
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (
+            getattr(user, "is_superuser", False)
+            or getattr(user, "role", None) == User.ROLE_SUPER_ADMIN
+        )
     )
 
 
@@ -223,14 +240,31 @@ class FacilityAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
 # SCHOOL
 # ============================================================
 
-class SchoolFacilityInline(admin.TabularInline):
+class SchoolContentApprovalInlineMixin:
+    def has_add_permission(self, request, obj=None):
+        return not manages_own_school(request.user) and super().has_add_permission(
+            request, obj
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return not manages_own_school(request.user) and super().has_change_permission(
+            request, obj
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return not manages_own_school(request.user) and super().has_delete_permission(
+            request, obj
+        )
+
+
+class SchoolFacilityInline(SchoolContentApprovalInlineMixin, admin.TabularInline):
     model = SchoolFacility
     extra = 1
     autocomplete_fields = ("facility",)
     verbose_name = "Facility"
     verbose_name_plural = "Facilities"
 
-class SchoolGradeInline(admin.TabularInline):
+class SchoolGradeInline(SchoolContentApprovalInlineMixin, admin.TabularInline):
     model = SchoolGrade
     extra = 5
     autocomplete_fields = ("grade",)
@@ -244,7 +278,7 @@ class SchoolGradeInline(admin.TabularInline):
     verbose_name = "Grade offered"
     verbose_name_plural = "Grades"
 
-class SchoolPhotoInline(admin.TabularInline):
+class SchoolPhotoInline(SchoolContentApprovalInlineMixin, admin.TabularInline):
     model = SchoolPhoto
     extra = 1
     verbose_name = "Photograph"
@@ -367,6 +401,13 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     def fee_structures_panel(self, obj):
         return render_fee_structures_panel(obj)
 
+    @admin.display(description="Fee management")
+    def school_admin_fee_workspace_link(self, _obj):
+        return format_html(
+            '<a class="button" href="{}?section=fees#fees">Manage fees in the school workspace</a>',
+            reverse("admin:school_workspace"),
+        )
+
     @admin.display(description="Logo preview")
     def school_logo_preview(self, obj):
         return media_preview_html(getattr(obj, "school_logo_url", ""))
@@ -457,8 +498,8 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                 ),
                 "description": (
                     "Keep the public profile factual and current. Core school details "
-                    "edited by a school administrator wait for platform review; related "
-                    "facilities, grades, fees, and gallery records keep their own controls."
+                    "and related facilities, grades, fees, documents, and photographs "
+                    "remain unchanged publicly until a Super Admin approves them."
                 ),
             },
         ),
@@ -528,42 +569,74 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         return custom_urls + super().get_urls()
 
     def profile_review_queue_view(self, request):
-        if not is_verification_admin(request.user):
+        if not is_school_change_reviewer(request.user):
             return HttpResponseForbidden(
-                "Profile review access requires Staff Admin or Super Admin."
+                "School content review access requires Super Admin."
             )
 
         if request.method == "POST":
             action = request.POST.get("action")
             change_id = request.POST.get("change_id")
+            content_change_id = request.POST.get("content_change_id")
             note = request.POST.get("review_note", "").strip()
             if action not in {"approve", "reject"}:
                 messages.error(request, "Choose whether to approve or reject this submission.")
             elif action == "reject" and not note:
-                messages.error(request, "Add a reason before rejecting a profile submission.")
+                messages.error(request, "Add a reason before rejecting a submission.")
             else:
                 try:
-                    change_id = forms.UUIDField().clean(change_id)
+                    selected_change_id = forms.UUIDField().clean(
+                        content_change_id or change_id
+                    )
                 except ValidationError:
-                    messages.error(request, "Choose a valid profile submission.")
+                    messages.error(request, "Choose a valid school submission.")
                 else:
-                    try:
-                        change = review_school_profile_change(
-                            change_id=change_id,
-                            reviewer=request.user,
-                            approve=action == "approve",
-                            note=note,
-                        )
-                    except SchoolProfileChange.DoesNotExist:
-                        messages.error(request, "That profile submission no longer exists.")
-                    except ValueError as error:
-                        messages.error(request, str(error))
+                    if content_change_id:
+                        try:
+                            change = review_school_content_change(
+                                change_id=selected_change_id,
+                                reviewer=request.user,
+                                approve=action == "approve",
+                                note=note,
+                            )
+                        except SchoolContentChange.DoesNotExist:
+                            messages.error(request, "That content submission no longer exists.")
+                        except (ValueError, ValidationError) as error:
+                            messages.error(request, str(error))
+                        except ObjectDoesNotExist:
+                            messages.error(
+                                request,
+                                "A referenced record no longer exists. No public changes were applied.",
+                            )
+                        except IntegrityError:
+                            messages.error(
+                                request,
+                                "This submission conflicts with current school data. No public changes were applied.",
+                            )
+                        else:
+                            messages.success(
+                                request,
+                                f"{change.school.school_name} {change.get_content_type_display().lower()} submission {change.get_status_display().lower()}.",
+                            )
+                            return redirect("admin:schools_school_profile_review_queue")
                     else:
-                        messages.success(
-                            request,
-                            f"{change.school.school_name} profile submission {change.get_status_display().lower()}.",
-                        )
-                        return redirect("admin:schools_school_profile_review_queue")
+                        try:
+                            change = review_school_profile_change(
+                                change_id=selected_change_id,
+                                reviewer=request.user,
+                                approve=action == "approve",
+                                note=note,
+                            )
+                        except SchoolProfileChange.DoesNotExist:
+                            messages.error(request, "That profile submission no longer exists.")
+                        except ValueError as error:
+                            messages.error(request, str(error))
+                        else:
+                            messages.success(
+                                request,
+                                f"{change.school.school_name} profile submission {change.get_status_display().lower()}.",
+                            )
+                            return redirect("admin:schools_school_profile_review_queue")
 
         pending_changes = (
             SchoolProfileChange.objects.filter(status=SchoolProfileChange.STATUS_PENDING)
@@ -578,11 +651,29 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             }
             for change in pending_changes
         ]
+        pending_content_changes = (
+            SchoolContentChange.objects.filter(
+                status=SchoolContentChange.STATUS_PENDING
+            )
+            .select_related("school", "submitted_by")
+            .order_by("submitted_at")
+        )
+        content_rows = [
+            {
+                "change": change,
+                "fields": content_change_rows(change),
+                "school_url": reverse(
+                    "admin:schools_school_change", args=[change.school_id]
+                ),
+            }
+            for change in pending_content_changes
+        ]
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
-            "title": "Pending school profile changes",
+            "title": "Pending school changes",
             "pending_changes": rows,
+            "pending_content_changes": content_rows,
         }
         return render(
             request,
@@ -658,6 +749,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                 "verification_status",
                 "published_at",
                 "boarding_required",
+                "school_admin_fee_workspace_link",
             ):
                 if name not in fields:
                     fields.append(name)
@@ -667,6 +759,18 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         if manages_own_school(request.user):
             return {}
         return super().get_prepopulated_fields(request, obj)
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if not manages_own_school(request.user):
+            return fieldsets
+        school_admin_fieldsets = []
+        for title, options in fieldsets:
+            options = dict(options)
+            if title == "Fees":
+                options["fields"] = ("school_admin_fee_workspace_link",)
+            school_admin_fieldsets.append((title, options))
+        return school_admin_fieldsets
 
     @admin.display(description="Profile review")
     def profile_review_status(self, obj):
@@ -715,7 +819,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             if pending:
                 messages.success(
                     request,
-                    "Your profile edits were submitted for admin review. The approved public profile remains live.",
+                    "Your profile edits were submitted for Super Admin approval. The approved public profile remains live.",
                 )
             elif values:
                 messages.info(request, "There are no profile changes awaiting review.")
@@ -725,11 +829,44 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     def save_related(self, request, form, formsets, change):
         if manages_own_school(request.user):
             for formset in formsets:
-                self.save_formset(request, form, formset, change)
+                if formset.model is SchoolVideo:
+                    self.save_formset(request, form, formset, change)
             return
         super().save_related(request, form, formsets, change)
 
     def save_formset(self, request, form, formset, change):
+        if manages_own_school(request.user):
+            if formset.model is not SchoolVideo:
+                return
+            videos = formset.save(commit=False)
+            for video in formset.deleted_objects:
+                submit_school_content_change(
+                    form.instance,
+                    request.user,
+                    SchoolContentChange.TYPE_VIDEO,
+                    f"VIDEO:{video.video_id}",
+                    {},
+                    action=SchoolContentChange.ACTION_DELETE,
+                    target_id=video.video_id,
+                )
+            for video in videos:
+                video.school = form.instance
+                submit_school_content_change(
+                    form.instance,
+                    request.user,
+                    SchoolContentChange.TYPE_VIDEO,
+                    f"VIDEO:{video.video_id}",
+                    {
+                        "video_url": video.video_url,
+                        "thumbnail_url": video.thumbnail_url,
+                        "caption": video.caption,
+                        "category": video.category,
+                        "sort_order": video.sort_order,
+                        "status": video.status,
+                    },
+                    target_id=video.video_id,
+                )
+            return
         super().save_formset(request, form, formset, change)
 
 
@@ -772,6 +909,10 @@ class SchoolVerificationEventAdmin(admin.ModelAdmin):
 
 @admin.register(SchoolFacility)
 class SchoolFacilityAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_admin_can_add = False
+    school_admin_can_change = False
+    school_admin_can_delete = False
+
     list_display = (
         "school",
         "facility",
@@ -798,6 +939,10 @@ class SchoolFacilityAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
 
 @admin.register(SchoolGrade)
 class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_admin_can_add = False
+    school_admin_can_change = False
+    school_admin_can_delete = False
+
     list_display = (
         "school",
         "grade",

@@ -1274,6 +1274,13 @@ export type SchoolDashboardData = {
       submitted_at: string;
       changed_fields: string[];
     } | null;
+    pending_content_change_count: number;
+    latest_content_change: {
+      status: "PENDING" | "APPROVED" | "REJECTED";
+      content_type: string;
+      reviewed_at: string | null;
+      review_note: string;
+    } | null;
     profile_gaps: string[];
   };
   completion: {

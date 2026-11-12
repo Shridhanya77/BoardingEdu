@@ -37,6 +37,17 @@ and timestamp. Generic school edits cannot change the verification status.
 The Django admin has a paginated pending-verification queue linked from the
 school list, and exposes the audit history as read-only.
 
+## School content approval
+
+School-admin edits to the public profile, facilities, grades, fee items and
+publication status, photographs, brochures, and admission documents are stored
+as pending submissions. The current approved version remains public until a
+Super Admin approves a submission in **Review school changes** from the Django
+admin overview. Rejecting a submission leaves the public content unchanged.
+School admins can continue managing leads and account/subscription settings
+without putting those private operational changes through public-content
+review.
+
 ## Transactional email notifications
 
 Set `RESEND_API_KEY`, `DEFAULT_FROM_EMAIL`, and `FRONTEND_URL` in the backend

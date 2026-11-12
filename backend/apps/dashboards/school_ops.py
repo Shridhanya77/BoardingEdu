@@ -12,7 +12,6 @@ from decimal import Decimal, InvalidOperation
 from botocore.exceptions import BotoCoreError, ClientError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
-from django.utils import timezone
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -26,12 +25,14 @@ from apps.schools.models import (
     Grade,
     School,
     SchoolAdmissionResource,
+    SchoolContentChange,
     SchoolFacility,
     SchoolGrade,
     SchoolPhoto,
     SchoolProfileChange,
     SchoolType,
 )
+from apps.schools.content_changes import submit_school_content_change
 from apps.users.models import User
 from config.school_media import _public_media_url, _r2_bucket, _r2_client
 
@@ -186,6 +187,12 @@ def build_school_admin_payload(user, enquiry_rows):
         .order_by("-submitted_at", "-pk")
         .first()
     )
+    pending_content_change_count = school.content_changes.filter(
+        status=SchoolContentChange.STATUS_PENDING
+    ).count()
+    latest_content_change = school.content_changes.order_by(
+        "-submitted_at", "-pk"
+    ).first()
     current_year = AcademicYear.objects.filter(is_current=True, status=True).first()
     completion = build_profile_completion(school)
     return {
@@ -237,6 +244,21 @@ def build_school_admin_payload(user, enquiry_rows):
                     "changed_fields": list(pending_profile_change.changes),
                 }
                 if pending_profile_change
+                else None
+            ),
+            "pending_content_change_count": pending_content_change_count,
+            "latest_content_change": (
+                {
+                    "status": latest_content_change.status,
+                    "content_type": latest_content_change.get_content_type_display(),
+                    "reviewed_at": (
+                        latest_content_change.reviewed_at.isoformat()
+                        if latest_content_change.reviewed_at
+                        else None
+                    ),
+                    "review_note": latest_content_change.review_note,
+                }
+                if latest_content_change
                 else None
             ),
             "profile_gaps": [
@@ -335,22 +357,28 @@ class SchoolFacilityWriteView(SchoolAdminAPIView):
                 return Response({"detail": "Capacity must be a whole number."}, status=400)
             if quantity < 0:
                 return Response({"detail": "Capacity cannot be negative."}, status=400)
-        row, _created = SchoolFacility.objects.get_or_create(
-            school=school,
-            facility=facility,
-            defaults={
-                "available": bool(request.data.get("available", True)),
-                "quantity_or_capacity": quantity,
-                "description": str(request.data.get("description") or "")[:500],
-            },
+        payload = {
+            "facility_id": str(facility.pk),
+            "available": bool(request.data.get("available", True)),
+            "quantity_or_capacity": quantity,
+            "description": str(request.data.get("description") or "")[:500],
+        }
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FACILITY,
+            f"FACILITY:{facility.pk}",
+            payload,
+            target_id=facility.pk,
         )
-        if not _created:
-            row.available = bool(request.data.get("available", True))
-            row.quantity_or_capacity = quantity
-            row.description = str(request.data.get("description") or "")[:500]
-            row.save()
-        row.facility = facility
-        return Response(_facility_row(row), status=201)
+        return Response(
+            {
+                "pending_review": True,
+                "submission_id": str(change.change_id),
+                "detail": "Facility changes were sent to the Super Admin for approval.",
+            },
+            status=202,
+        )
 
     def patch(self, request, school_facility_id):
         school, error = self.owned_school(request)
@@ -363,33 +391,66 @@ class SchoolFacilityWriteView(SchoolAdminAPIView):
         )
         if row is None:
             return Response({"detail": "Facility not found."}, status=404)
+        available = row.available
         if "available" in request.data:
-            row.available = bool(request.data.get("available"))
+            available = bool(request.data.get("available"))
+        quantity = row.quantity_or_capacity
         if "quantity_or_capacity" in request.data:
-            quantity = request.data.get("quantity_or_capacity")
-            if quantity in ("", None):
-                row.quantity_or_capacity = None
+            raw_quantity = request.data.get("quantity_or_capacity")
+            if raw_quantity in ("", None):
+                quantity = None
             else:
                 try:
-                    quantity = int(quantity)
+                    quantity = int(raw_quantity)
                 except (TypeError, ValueError):
                     return Response({"detail": "Capacity must be a whole number."}, status=400)
                 if quantity < 0:
                     return Response({"detail": "Capacity cannot be negative."}, status=400)
-                row.quantity_or_capacity = quantity
+        description = row.description
         if "description" in request.data:
-            row.description = str(request.data.get("description") or "")[:500]
-        row.save()
-        return Response(_facility_row(row))
+            description = str(request.data.get("description") or "")[:500]
+        payload: dict[str, object] = {"facility_id": str(row.facility_id)}
+        if "available" in request.data:
+            payload["available"] = available
+        if "quantity_or_capacity" in request.data:
+            payload["quantity_or_capacity"] = quantity
+        if "description" in request.data:
+            payload["description"] = description
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FACILITY,
+            f"FACILITY:{row.facility_id}",
+            payload,
+            target_id=row.facility_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
     def delete(self, request, school_facility_id):
         school, error = self.owned_school(request)
         if error:
             return error
-        deleted, _ = SchoolFacility.objects.filter(pk=school_facility_id, school=school).delete()
-        if not deleted:
+        row = SchoolFacility.objects.filter(
+            pk=school_facility_id, school=school
+        ).first()
+        if row is None:
             return Response({"detail": "Facility not found."}, status=404)
-        return Response({"deleted": True})
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FACILITY,
+            f"FACILITY:{row.facility_id}",
+            {"facility_id": str(row.facility_id)},
+            action=SchoolContentChange.ACTION_DELETE,
+            target_id=row.facility_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
 
 class SchoolGradeWriteView(SchoolAdminAPIView):
@@ -410,17 +471,26 @@ class SchoolGradeWriteView(SchoolAdminAPIView):
                 return Response({"detail": "Seats must be a whole number."}, status=400)
             if seats < 0:
                 return Response({"detail": "Seats cannot be negative."}, status=400)
-        row, created = SchoolGrade.objects.get_or_create(
-            school=school,
-            grade=grade,
-            defaults={"seats_available": seats, "is_active": True},
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_GRADE,
+            f"GRADE:{grade.pk}",
+            {
+                "grade_id": str(grade.pk),
+                "seats_available": seats,
+                "is_active": True,
+            },
+            target_id=grade.pk,
         )
-        if not created:
-            row.seats_available = seats
-            row.is_active = True
-            row.save()
-        row.grade = grade
-        return Response(_grade_row(row), status=201)
+        return Response(
+            {
+                "pending_review": True,
+                "submission_id": str(change.change_id),
+                "detail": "Grade changes were sent to the Super Admin for approval.",
+            },
+            status=202,
+        )
 
     def patch(self, request, school_grade_id):
         school, error = self.owned_school(request)
@@ -433,31 +503,57 @@ class SchoolGradeWriteView(SchoolAdminAPIView):
         )
         if row is None:
             return Response({"detail": "Grade not found."}, status=404)
+        seats = row.seats_available
         if "seats_available" in request.data:
-            seats = request.data.get("seats_available")
-            if seats in ("", None):
-                row.seats_available = None
+            raw_seats = request.data.get("seats_available")
+            if raw_seats in ("", None):
+                seats = None
             else:
                 try:
-                    seats = int(seats)
+                    seats = int(raw_seats)
                 except (TypeError, ValueError):
                     return Response({"detail": "Seats must be a whole number."}, status=400)
                 if seats < 0:
                     return Response({"detail": "Seats cannot be negative."}, status=400)
-                row.seats_available = seats
+        is_active = bool(request.data.get("is_active", row.is_active))
+        payload: dict[str, object] = {"grade_id": str(row.grade_id)}
+        if "seats_available" in request.data:
+            payload["seats_available"] = seats
         if "is_active" in request.data:
-            row.is_active = bool(request.data.get("is_active"))
-        row.save()
-        return Response(_grade_row(row))
+            payload["is_active"] = is_active
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_GRADE,
+            f"GRADE:{row.grade_id}",
+            payload,
+            target_id=row.grade_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
     def delete(self, request, school_grade_id):
         school, error = self.owned_school(request)
         if error:
             return error
-        deleted, _ = SchoolGrade.objects.filter(pk=school_grade_id, school=school).delete()
-        if not deleted:
+        row = SchoolGrade.objects.filter(pk=school_grade_id, school=school).first()
+        if row is None:
             return Response({"detail": "Grade not found."}, status=404)
-        return Response({"deleted": True})
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_GRADE,
+            f"GRADE:{row.grade_id}",
+            {"grade_id": str(row.grade_id)},
+            action=SchoolContentChange.ACTION_DELETE,
+            target_id=row.grade_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
 
 class SchoolPhotoWriteView(SchoolAdminAPIView):
@@ -480,16 +576,25 @@ class SchoolPhotoWriteView(SchoolAdminAPIView):
         allowed = {code for code, _label in SchoolPhoto.CATEGORY_CHOICES}
         if category not in allowed:
             return Response({"detail": "Choose a photograph category."}, status=400)
-        row = SchoolPhoto.objects.create(
-            school=school,
-            photo_url=photo_url[:500],
-            caption=str(request.data.get("caption") or "")[:200],
-            alt_text=str(request.data.get("alt_text") or "")[:250],
-            category=category,
-            sort_order=int(school.photos.count()),
-            status=True,
+        photo_id = uuid.uuid4()
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_PHOTO,
+            f"PHOTO:{photo_id}",
+            {
+                "photo_url": photo_url[:500],
+                "caption": str(request.data.get("caption") or "")[:200],
+                "alt_text": str(request.data.get("alt_text") or "")[:250],
+                "category": category,
+                "sort_order": school.photos.count(),
+            },
+            target_id=photo_id,
         )
-        return Response(_photo_row(row), status=201)
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
     def patch(self, request, photo_id):
         school, error = self.owned_school(request)
@@ -498,31 +603,63 @@ class SchoolPhotoWriteView(SchoolAdminAPIView):
         row = SchoolPhoto.objects.filter(pk=photo_id, school=school).first()
         if row is None:
             return Response({"detail": "Photograph not found."}, status=404)
+        caption = row.caption
         if "caption" in request.data:
-            row.caption = str(request.data.get("caption") or "")[:200]
+            caption = str(request.data.get("caption") or "")[:200]
+        alt_text = row.alt_text
         if "alt_text" in request.data:
-            row.alt_text = str(request.data.get("alt_text") or "")[:250]
+            alt_text = str(request.data.get("alt_text") or "")[:250]
+        category = row.category
         if "category" in request.data:
             allowed = {code for code, _label in SchoolPhoto.CATEGORY_CHOICES}
             if request.data.get("category") not in allowed:
                 return Response({"detail": "Choose a photograph category."}, status=400)
-            row.category = request.data.get("category")
+            category = request.data.get("category")
+        sort_order = row.sort_order
         if "sort_order" in request.data:
             try:
-                row.sort_order = max(0, int(request.data.get("sort_order")))
+                sort_order = max(0, int(request.data.get("sort_order")))
             except (TypeError, ValueError):
                 return Response({"detail": "Order must be a whole number."}, status=400)
-        row.save()
-        return Response(_photo_row(row))
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_PHOTO,
+            f"PHOTO:{row.photo_id}",
+            {
+                "photo_url": row.photo_url,
+                "caption": caption,
+                "alt_text": alt_text,
+                "category": category,
+                "sort_order": sort_order,
+            },
+            target_id=row.photo_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
     def delete(self, request, photo_id):
         school, error = self.owned_school(request)
         if error:
             return error
-        deleted, _ = SchoolPhoto.objects.filter(pk=photo_id, school=school).delete()
-        if not deleted:
+        row = SchoolPhoto.objects.filter(pk=photo_id, school=school).first()
+        if row is None:
             return Response({"detail": "Photograph not found."}, status=404)
-        return Response({"deleted": True})
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_PHOTO,
+            f"PHOTO:{row.photo_id}",
+            {},
+            action=SchoolContentChange.ACTION_DELETE,
+            target_id=row.photo_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
 
 class SchoolAdmissionResourceWriteView(SchoolAdminAPIView):
@@ -565,28 +702,51 @@ class SchoolAdmissionResourceWriteView(SchoolAdminAPIView):
         if resource_type == SchoolAdmissionResource.RESOURCE_BROCHURE and not document_url:
             return Response({"detail": "Add a PDF brochure or its public URL."}, status=400)
 
-        row = SchoolAdmissionResource.objects.create(
-            school=school,
-            resource_type=resource_type,
-            title=title,
-            description=description,
-            document_url=document_url,
-            sort_order=school.admission_resources.filter(resource_type=resource_type).count(),
-            status=True,
+        resource_id = uuid.uuid4()
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_RESOURCE,
+            f"RESOURCE:{resource_id}",
+            {
+                "resource_type": resource_type,
+                "title": title,
+                "description": description,
+                "document_url": document_url,
+                "sort_order": school.admission_resources.filter(
+                    resource_type=resource_type
+                ).count(),
+            },
+            target_id=resource_id,
         )
-        return Response(_admission_resource_row(row), status=201)
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
     def delete(self, request, resource_id):
         school, error = self.owned_school(request)
         if error:
             return error
-        deleted, _ = SchoolAdmissionResource.objects.filter(
+        row = SchoolAdmissionResource.objects.filter(
             resource_id=resource_id,
             school=school,
-        ).delete()
-        if not deleted:
+        ).first()
+        if row is None:
             return Response({"detail": "Admission resource not found."}, status=404)
-        return Response({"deleted": True})
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_RESOURCE,
+            f"RESOURCE:{row.resource_id}",
+            {},
+            action=SchoolContentChange.ACTION_DELETE,
+            target_id=row.resource_id,
+        )
+        return Response(
+            {"pending_review": True, "submission_id": str(change.change_id)},
+            status=202,
+        )
 
 
 class SchoolFeeItemWriteView(SchoolAdminAPIView):
@@ -603,7 +763,7 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
                     status=400,
                 )
             code = f"{school.school_code}-{year.year_code}"[:40]
-            structure, _created = FeeStructure.objects.get_or_create(
+            structure, _ = FeeStructure.objects.get_or_create(
                 school=school,
                 academic_year=year,
                 defaults={
@@ -632,7 +792,9 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             if grade is None:
                 return Response({"detail": "Choose a valid grade."}, status=400)
         item_code = _unique_item_code(structure, name)
-        item = FeeItem.objects.create(
+        item_id = uuid.uuid4()
+        item = FeeItem(
+            fee_item_id=item_id,
             fee_structure=structure,
             item_code=item_code,
             item_name=name[:200],
@@ -643,7 +805,26 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             is_refundable=bool(request.data.get("is_refundable", False)),
             description=str(request.data.get("description") or "")[:500],
         )
-        return Response({"fee_item_id": str(item.fee_item_id)}, status=201)
+        try:
+            item.full_clean()
+        except DjangoValidationError as error:
+            return Response({"detail": " ".join(error.messages)}, status=400)
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FEE_ITEM,
+            f"FEE_ITEM:{item_id}",
+            _fee_item_payload(item),
+            target_id=item_id,
+        )
+        return Response(
+            {
+                "fee_item_id": str(item_id),
+                "pending_review": True,
+                "submission_id": str(change.change_id),
+            },
+            status=202,
+        )
 
     def patch(self, request, fee_item_id):
         school, error = self.owned_school(request)
@@ -670,8 +851,37 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             item.is_refundable = bool(request.data.get("is_refundable"))
         if "description" in request.data:
             item.description = str(request.data.get("description") or "")[:500]
-        item.save()
-        return Response({"fee_item_id": str(item.fee_item_id), "amount": str(item.amount) if item.amount is not None else None})
+        try:
+            item.full_clean()
+        except DjangoValidationError as error:
+            return Response({"detail": " ".join(error.messages)}, status=400)
+        payload: dict[str, object] = {
+            "fee_structure_id": str(item.fee_structure_id),
+        }
+        if "amount" in request.data:
+            payload["amount"] = str(item.amount) if item.amount is not None else None
+        if "item_name" in request.data:
+            payload["item_name"] = item.item_name
+        if "is_refundable" in request.data:
+            payload["is_refundable"] = item.is_refundable
+        if "description" in request.data:
+            payload["description"] = item.description
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FEE_ITEM,
+            f"FEE_ITEM:{item.fee_item_id}",
+            payload,
+            target_id=item.fee_item_id,
+        )
+        return Response(
+            {
+                "fee_item_id": str(item.fee_item_id),
+                "pending_review": True,
+                "submission_id": str(change.change_id),
+            },
+            status=202,
+        )
 
 
 class SchoolFeePublishView(SchoolAdminAPIView):
@@ -683,17 +893,42 @@ class SchoolFeePublishView(SchoolAdminAPIView):
         if structure is None:
             return Response({"detail": "Fee structure not found."}, status=404)
         publish = bool(request.data.get("published"))
-        if publish and not structure.fee_items.exclude(amount__isnull=True).exists():
+        pending_fee_items = SchoolContentChange.objects.filter(
+            school=school,
+            content_type=SchoolContentChange.TYPE_FEE_ITEM,
+            status=SchoolContentChange.STATUS_PENDING,
+            payload__fee_structure_id=str(structure.pk),
+        ).values_list("payload", flat=True)
+        has_pending_amount = any(
+            item_payload.get("amount") not in (None, "")
+            for item_payload in pending_fee_items
+        )
+        if (
+            publish
+            and not structure.fee_items.exclude(amount__isnull=True).exists()
+            and not has_pending_amount
+        ):
             return Response(
                 {"detail": "Add at least one fee amount before publishing."},
                 status=400,
             )
-        structure.published = publish
-        structure.status = True
-        if publish:
-            structure.published_at = timezone.now()
-        structure.save(update_fields=["published", "status", "published_at", "updated_at"])
-        return Response({"fee_structure_id": str(structure.fee_structure_id), "published": structure.published})
+        change = submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FEE_STRUCTURE,
+            f"FEE_STRUCTURE:{structure.fee_structure_id}",
+            {"published": publish},
+            action=SchoolContentChange.ACTION_PUBLISH,
+            target_id=structure.fee_structure_id,
+        )
+        return Response(
+            {
+                "fee_structure_id": str(structure.fee_structure_id),
+                "pending_review": True,
+                "submission_id": str(change.change_id),
+            },
+            status=202,
+        )
 
 
 def _own_structure(school, structure_id):
@@ -718,10 +953,38 @@ def _unique_item_code(structure, name):
     base = re.sub(r"[^A-Z0-9]+", "-", name.upper()).strip("-")[:24] or "FEE"
     candidate = base
     suffix = 2
-    while structure.fee_items.filter(item_code=candidate, grade__isnull=True, school_type__isnull=True).exists():
+    while (
+        structure.fee_items.filter(
+            item_code=candidate,
+            grade__isnull=True,
+            school_type__isnull=True,
+        ).exists()
+        or SchoolContentChange.objects.filter(
+            school=structure.school,
+            content_type=SchoolContentChange.TYPE_FEE_ITEM,
+            status=SchoolContentChange.STATUS_PENDING,
+            payload__fee_structure_id=str(structure.pk),
+            payload__item_code=candidate,
+        ).exists()
+    ):
         candidate = f"{base[:20]}-{suffix}"
         suffix += 1
     return candidate[:30]
+
+
+def _fee_item_payload(item):
+    return {
+        "fee_structure_id": str(item.fee_structure_id),
+        "item_code": item.item_code,
+        "item_name": item.item_name,
+        "item_category": item.item_category,
+        "payment_frequency": item.payment_frequency,
+        "grade_id": str(item.grade_id) if item.grade_id else None,
+        "amount": str(item.amount) if item.amount is not None else None,
+        "is_refundable": item.is_refundable,
+        "description": item.description,
+        "sort_order": item.sort_order,
+    }
 
 
 def _store_image(upload):

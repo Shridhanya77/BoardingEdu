@@ -49,6 +49,24 @@ class IsStaffAdmin(BasePermission):
             return True
         return _is_authenticated_role(request, User.ROLE_STAFF_ADMIN)
 
+
+class IsPlatformAdmin(BasePermission):
+    """Allows platform administrators and Django superusers to write records."""
+
+    message = "This action requires platform administrator privileges."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and (
+                user.is_superuser
+                or user.role in (User.ROLE_STAFF_ADMIN, User.ROLE_SUPER_ADMIN)
+            )
+        )
+
+
 class IsVerifiedSchoolAdmin(BasePermission):
     """School administrators whose school has been approved by platform staff."""
 

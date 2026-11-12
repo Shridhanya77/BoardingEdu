@@ -7,6 +7,7 @@ from django.forms.models import BaseInlineFormSet
 from apps.users.school_admin_scope import (
     AssignedSchoolAdminMixin,
     CatalogVisibleToSchoolAdminMixin,
+    manages_own_school,
 )
 
 from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
@@ -123,6 +124,21 @@ class FeeItemInline(admin.TabularInline):
         "description",
     )
 
+    def has_add_permission(self, request, obj=None):
+        return not manages_own_school(request.user) and super().has_add_permission(
+            request, obj
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return not manages_own_school(request.user) and super().has_change_permission(
+            request, obj
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        return not manages_own_school(request.user) and super().has_delete_permission(
+            request, obj
+        )
+
 
 @admin.register(AcademicYear)
 class AcademicYearAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
@@ -169,6 +185,10 @@ class FeeTermAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
 
 @admin.register(FeeStructure)
 class FeeStructureAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_admin_can_add = False
+    school_admin_can_change = False
+    school_admin_can_delete = False
+
     form = FeeStructureAdminForm
     list_display = (
         "structure_code",
@@ -218,6 +238,10 @@ class FeeStructureAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
 
 @admin.register(FeeItem)
 class FeeItemAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_admin_can_add = False
+    school_admin_can_change = False
+    school_admin_can_delete = False
+
     school_filter = "fee_structure__school_id"
     list_display = (
         "item_code",

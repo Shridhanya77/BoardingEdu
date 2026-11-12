@@ -5,6 +5,7 @@ from io import BytesIO
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 from django.apps import apps
+from django.contrib import admin
 from django.core.management.base import CommandError
 from django.db import connection
 from django.http import QueryDict
@@ -25,9 +26,12 @@ from config.school_media import cover_image_url_for_school
 from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
 from .models import (
     Board,
+    Facility,
     Grade,
     School,
     SchoolAdmissionResource,
+    SchoolContentChange,
+    SchoolFacility,
     SchoolFAQ,
     SchoolGrade,
     SchoolPhoto,
@@ -36,6 +40,7 @@ from .models import (
     SchoolVideo,
 )
 from .profile_changes import review_school_profile_change
+from .content_changes import review_school_content_change, submit_school_content_change
 from .public_urls import public_school_url
 from .serializers import (
     SchoolDetailSerializer,
@@ -1279,10 +1284,11 @@ class SchoolProfileReviewWorkflowTests(TestCase):
         )
         SchoolAdminProfile.objects.create(user=self.school_admin, school=self.school)
         self.reviewer = User.objects.create_user(
-            username="profile-review-staff",
-            email="profile-review-staff@example.test",
+            username="profile-review-superadmin",
+            email="profile-review-superadmin@example.test",
             password="secret-pass",
-            role=User.ROLE_STAFF_ADMIN,
+            role=User.ROLE_SUPER_ADMIN,
+            is_staff=True,
         )
 
     def test_api_submissions_stay_draft_until_approved_and_merge(self):
@@ -1348,6 +1354,88 @@ class SchoolProfileReviewWorkflowTests(TestCase):
         pending.refresh_from_db()
         self.assertEqual(pending.status, "REJECTED")
         self.assertEqual(pending.review_note, "Please correct the description.")
+
+    def test_only_super_admin_can_approve_school_content_changes(self):
+        facility = Facility.objects.create(
+            facility_code="REVIEW-LAB",
+            category="ACADEMIC",
+            facility_name="Review laboratory",
+            slug="review-laboratory",
+        )
+        pending = submit_school_content_change(
+            self.school,
+            self.school_admin,
+            SchoolContentChange.TYPE_FACILITY,
+            f"FACILITY:{facility.pk}",
+            {
+                "facility_id": str(facility.pk),
+                "available": True,
+                "quantity_or_capacity": 2,
+                "description": "Two laboratories",
+            },
+            target_id=facility.pk,
+        )
+        queue_url = reverse("admin:schools_school_profile_review_queue")
+        staff_reviewer = User.objects.create_user(
+            username="content-review-staff",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+            is_staff=True,
+        )
+        staff_client = APIClient()
+        staff_client.force_login(staff_reviewer)
+        self.assertEqual(staff_client.get(queue_url).status_code, 403)
+
+        reviewer_client = APIClient()
+        reviewer_client.force_login(self.reviewer)
+        self.assertContains(reviewer_client.get(queue_url), "Review laboratory")
+        response = reviewer_client.post(
+            queue_url,
+            {
+                "content_change_id": str(pending.pk),
+                "action": "approve",
+                "review_note": "Approved.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            SchoolFacility.objects.get(school=self.school, facility=facility).description,
+            "Two laboratories",
+        )
+
+    def test_django_video_inline_waits_for_super_admin_approval(self):
+        video = SchoolVideo(
+            school=self.school,
+            video_url="https://youtu.be/school-tour",
+            caption="Campus tour",
+            status=False,
+        )
+        formset = SimpleNamespace(
+            model=SchoolVideo,
+            save=Mock(return_value=[video]),
+            deleted_objects=[],
+        )
+        form = SimpleNamespace(instance=self.school)
+        request = SimpleNamespace(user=self.school_admin)
+
+        SchoolAdmin(School, admin.site).save_related(
+            request, form, [formset], change=True
+        )
+
+        self.assertFalse(SchoolVideo.objects.filter(pk=video.pk).exists())
+        pending = SchoolContentChange.objects.get(
+            school=self.school,
+            content_type=SchoolContentChange.TYPE_VIDEO,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        review_school_content_change(
+            pending.pk,
+            self.reviewer,
+            approve=True,
+            note="Approved.",
+        )
+        self.assertTrue(SchoolVideo.objects.filter(pk=video.pk, status=False).exists())
 
 
 class SchoolFAQApiTests(TestCase):

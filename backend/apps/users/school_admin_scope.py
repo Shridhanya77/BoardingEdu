@@ -73,6 +73,7 @@ class AssignedSchoolAdminMixin:
 
     school_filter = "school_id"
     school_admin_can_add = True
+    school_admin_can_change = True
     school_admin_can_delete = True
 
     def has_module_permission(self, request):
@@ -87,7 +88,9 @@ class AssignedSchoolAdminMixin:
 
     def has_change_permission(self, request, obj=None):
         if manages_own_school(request.user):
-            return obj is None or self._owns(request, obj)
+            return self.school_admin_can_change and (
+                obj is None or self._owns(request, obj)
+            )
         return super().has_change_permission(request, obj)
 
     def has_add_permission(self, request):

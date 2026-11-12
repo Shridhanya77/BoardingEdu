@@ -1,5 +1,7 @@
 from rest_framework import viewsets, filters
+from rest_framework.permissions import AllowAny, SAFE_METHODS
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.users.permissions import IsPlatformAdmin
 from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
 from .serializers import (
     AcademicYearSerializer, AcademicYearListSerializer,
@@ -12,6 +14,11 @@ from .serializers import (
 class ReadWriteModelViewSet(viewsets.ModelViewSet):
     """Base: split serializers for LIST vs detail operations."""
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+
+    def get_permissions(self):
+        if self.request.method in SAFE_METHODS:
+            return [AllowAny()]
+        return [IsPlatformAdmin()]
 
     def get_serializer_class(self):
         if self.action in ('list',) and hasattr(self, 'list_serializer_class'):

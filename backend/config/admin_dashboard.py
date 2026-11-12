@@ -22,6 +22,7 @@ from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
     assigned_school_id,
 )
+from apps.schools.content_changes import submit_school_content_change
 from apps.schools.public_urls import public_school_url
 
 SITE_HEADER = "BoardingEdu Administration"
@@ -107,7 +108,7 @@ def build_stats():
     from apps.admissions.models import AdmissionEnquiry
     from apps.geography.models import City, Country, Location, State
     from apps.reviews.models import Review
-    from apps.schools.models import School, SchoolProfileChange
+    from apps.schools.models import School, SchoolContentChange, SchoolProfileChange
     from apps.users.models import User
 
     now = timezone.now()
@@ -214,9 +215,14 @@ def build_stats():
     ]
 
     pending = schools["pending_verification"]
-    pending_profile_changes = SchoolProfileChange.objects.filter(
-        status=SchoolProfileChange.STATUS_PENDING
-    ).count()
+    pending_school_changes = (
+        SchoolProfileChange.objects.filter(
+            status=SchoolProfileChange.STATUS_PENDING
+        ).count()
+        + SchoolContentChange.objects.filter(
+            status=SchoolContentChange.STATUS_PENDING
+        ).count()
+    )
     quick_links = [
         {
             "label": "Verify schools",
@@ -224,8 +230,8 @@ def build_stats():
             "url": reverse("admin:schools_school_verification_queue"),
         },
         {
-            "label": "Review school profile edits",
-            "hint": f"{pending_profile_changes} waiting" if pending_profile_changes else "Queue is clear",
+            "label": "Review school changes",
+            "hint": f"{pending_school_changes} waiting" if pending_school_changes else "Queue is clear",
             "url": reverse("admin:schools_school_profile_review_queue"),
         },
         {
@@ -344,7 +350,7 @@ def school_admin_menu(request):
 
 def _apply_campus_choice(request, school):
     """Same Yes/No campus control as the school admin frontend."""
-    from apps.schools.models import Facility, SchoolFacility
+    from apps.schools.models import Facility, SchoolContentChange, SchoolFacility
 
     action = request.POST.get("campus_action")
     group = (request.POST.get("campus") or "ACADEMIC").upper()
@@ -356,15 +362,42 @@ def _apply_campus_choice(request, school):
     if facility is None:
         messages.error(request, "That facility is not in this campus group.")
     elif action == "yes":
-        SchoolFacility.objects.update_or_create(
-            school=school,
-            facility=facility,
-            defaults={"available": True},
+        existing = SchoolFacility.objects.filter(
+            school=school, facility=facility
+        ).first()
+        submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FACILITY,
+            f"FACILITY:{facility.pk}",
+            {
+                "facility_id": str(facility.pk),
+                "available": True,
+                "quantity_or_capacity": (
+                    existing.quantity_or_capacity if existing else None
+                ),
+                "description": existing.description if existing else "",
+            },
+            target_id=facility.pk,
         )
-        messages.success(request, f"{facility.facility_name} is marked available.")
+        messages.success(
+            request,
+            f"{facility.facility_name} was sent for Super Admin approval.",
+        )
     else:
-        SchoolFacility.objects.filter(school=school, facility=facility).delete()
-        messages.success(request, f"{facility.facility_name} is marked unavailable.")
+        submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FACILITY,
+            f"FACILITY:{facility.pk}",
+            {"facility_id": str(facility.pk)},
+            action=SchoolContentChange.ACTION_DELETE,
+            target_id=facility.pk,
+        )
+        messages.success(
+            request,
+            f"Removing {facility.facility_name} was sent for Super Admin approval.",
+        )
     return redirect(
         f"{reverse('admin:school_workspace')}?section=facilities&campus={group}#facilities"
     )
@@ -372,7 +405,7 @@ def _apply_campus_choice(request, school):
 
 def _apply_grade_choice(request, school):
     """Add or remove a grade on the school profile, mirroring the frontend grades panel."""
-    from apps.schools.models import Grade, SchoolGrade
+    from apps.schools.models import Grade, SchoolContentChange, SchoolGrade
 
     action = request.POST.get("grade_action")
     if action == "add":
@@ -384,16 +417,31 @@ def _apply_grade_choice(request, school):
             if invalid:
                 messages.error(request, "Seats must be a whole number.")
             else:
-                row, created = SchoolGrade.objects.get_or_create(
-                    school=school,
-                    grade=grade,
-                    defaults={"seats_available": seats, "is_active": True},
+                existing = SchoolGrade.objects.filter(
+                    school=school, grade=grade
+                ).first()
+                submit_school_content_change(
+                    school,
+                    request.user,
+                    SchoolContentChange.TYPE_GRADE,
+                    f"GRADE:{grade.pk}",
+                    {
+                        "grade_id": str(grade.pk),
+                        "seats_available": seats,
+                        "entry_age_min": (
+                            existing.entry_age_min if existing else None
+                        ),
+                        "entry_age_max": (
+                            existing.entry_age_max if existing else None
+                        ),
+                        "is_active": True,
+                    },
+                    target_id=grade.pk,
                 )
-                if not created:
-                    row.seats_available = seats
-                    row.is_active = True
-                    row.save(update_fields=["seats_available", "is_active", "updated_at"])
-                messages.success(request, f"{grade.grade_name} is on the profile.")
+                messages.success(
+                    request,
+                    f"{grade.grade_name} was sent for Super Admin approval.",
+                )
     elif action == "seats":
         row = SchoolGrade.objects.filter(
             pk=request.POST.get("school_grade") or "", school=school
@@ -405,15 +453,39 @@ def _apply_grade_choice(request, school):
             if invalid:
                 messages.error(request, "Seats must be a whole number.")
             else:
-                row.seats_available = seats
-                row.save(update_fields=["seats_available", "updated_at"])
-                messages.success(request, f"Seats updated for {row.grade.grade_name}.")
+                submit_school_content_change(
+                    school,
+                    request.user,
+                    SchoolContentChange.TYPE_GRADE,
+                    f"GRADE:{row.grade_id}",
+                    {
+                        "grade_id": str(row.grade_id),
+                        "seats_available": seats,
+                        "entry_age_min": row.entry_age_min,
+                        "entry_age_max": row.entry_age_max,
+                        "is_active": row.is_active,
+                    },
+                    target_id=row.grade_id,
+                )
+                messages.success(
+                    request,
+                    f"Seat changes for {row.grade.grade_name} were sent for Super Admin approval.",
+                )
     elif action == "remove":
-        removed, _ = SchoolGrade.objects.filter(
+        row = SchoolGrade.objects.filter(
             pk=request.POST.get("school_grade") or "", school=school
-        ).delete()
-        if removed:
-            messages.success(request, "Grade removed from the profile.")
+        ).select_related("grade").first()
+        if row is not None:
+            submit_school_content_change(
+                school,
+                request.user,
+                SchoolContentChange.TYPE_GRADE,
+                f"GRADE:{row.grade_id}",
+                {"grade_id": str(row.grade_id)},
+                action=SchoolContentChange.ACTION_DELETE,
+                target_id=row.grade_id,
+            )
+            messages.success(request, "Grade removal was sent for Super Admin approval.")
         else:
             messages.error(request, "That grade is not on this school.")
     else:
@@ -427,7 +499,7 @@ def _apply_grade_choice(request, school):
 
 
 def _apply_admission_resource(request, school):
-    from apps.schools.models import SchoolAdmissionResource
+    from apps.schools.models import SchoolAdmissionResource, SchoolContentChange
 
     action = request.POST.get("resource_action")
     if action == "remove":
@@ -436,13 +508,22 @@ def _apply_admission_resource(request, school):
         except (ValueError, TypeError):
             messages.error(request, "Choose a valid admission document.")
             return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
-        updated = SchoolAdmissionResource.objects.filter(
+        resource = SchoolAdmissionResource.objects.filter(
             resource_id=resource_id,
             school=school,
             status=True,
-        ).update(status=False)
-        if updated:
-            messages.success(request, "Admission document removed from the profile.")
+        ).first()
+        if resource:
+            submit_school_content_change(
+                school,
+                request.user,
+                SchoolContentChange.TYPE_RESOURCE,
+                f"RESOURCE:{resource.resource_id}",
+                {},
+                action=SchoolContentChange.ACTION_DELETE,
+                target_id=resource.resource_id,
+            )
+            messages.success(request, "Document removal was sent for Super Admin approval.")
         else:
             messages.error(request, "That document is not on this school.")
     elif action == "add":
@@ -477,7 +558,9 @@ def _apply_admission_resource(request, school):
             if not document_url:
                 messages.error(request, "Add a PDF upload or a public document URL.")
             else:
+                resource_id = uuid.uuid4()
                 resource = SchoolAdmissionResource(
+                    resource_id=resource_id,
                     school=school,
                     resource_type=resource_type,
                     title=title,
@@ -492,8 +575,24 @@ def _apply_admission_resource(request, school):
                 except DjangoValidationError as exc:
                     messages.error(request, " ".join(exc.messages))
                 else:
-                    resource.save()
-                    messages.success(request, f"{title} was added to the school profile.")
+                    submit_school_content_change(
+                        school,
+                        request.user,
+                        SchoolContentChange.TYPE_RESOURCE,
+                        f"RESOURCE:{resource_id}",
+                        {
+                            "resource_type": resource_type,
+                            "title": title,
+                            "description": resource.description,
+                            "document_url": document_url,
+                            "sort_order": resource.sort_order,
+                        },
+                        target_id=resource_id,
+                    )
+                    messages.success(
+                        request,
+                        f"{title} was sent for Super Admin approval.",
+                    )
     else:
         messages.error(request, "Choose an action for the admission document.")
     return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
@@ -553,7 +652,7 @@ def _school_fee_structure(school, academic_year):
 
 def _apply_fee_action(request, school):
     from apps.fees.models import AcademicYear, FeeItem, FeeStructure
-    from apps.schools.models import SchoolGrade
+    from apps.schools.models import SchoolContentChange, SchoolGrade
 
     action = request.POST.get("fee_action")
     if action == "add":
@@ -622,7 +721,19 @@ def _apply_fee_action(request, school):
             suffix_text = f"-{suffix}"
             item_code = f"{item_code[:30 - len(suffix_text)].rstrip('-')}{suffix_text}"
             suffix += 1
+        while SchoolContentChange.objects.filter(
+            school=school,
+            content_type=SchoolContentChange.TYPE_FEE_ITEM,
+            status=SchoolContentChange.STATUS_PENDING,
+            payload__fee_structure_id=str(structure.pk),
+            payload__item_code=item_code,
+        ).exists():
+            suffix_text = f"-{suffix}"
+            item_code = f"{item_code[:30 - len(suffix_text)].rstrip('-')}{suffix_text}"
+            suffix += 1
+        fee_item_id = uuid.uuid4()
         item = FeeItem(
+            fee_item_id=fee_item_id,
             fee_structure=structure,
             item_code=item_code,
             item_name=name,
@@ -637,8 +748,29 @@ def _apply_fee_action(request, school):
         except DjangoValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
-            item.save()
-            messages.success(request, f"{name} was added to {academic_year.year_code}.")
+            submit_school_content_change(
+                school,
+                request.user,
+                SchoolContentChange.TYPE_FEE_ITEM,
+                f"FEE_ITEM:{fee_item_id}",
+                {
+                    "fee_structure_id": str(structure.pk),
+                    "item_code": item.item_code,
+                    "item_name": item.item_name,
+                    "item_category": item.item_category,
+                    "payment_frequency": item.payment_frequency,
+                    "grade_id": str(item.grade_id) if item.grade_id else None,
+                    "amount": str(item.amount) if item.amount is not None else None,
+                    "is_refundable": item.is_refundable,
+                    "description": item.description,
+                    "sort_order": item.sort_order,
+                },
+                target_id=fee_item_id,
+            )
+            messages.success(
+                request,
+                f"{name} was sent for Super Admin approval.",
+            )
     elif action in {"update", "delete"}:
         try:
             fee_item_id = uuid.UUID(request.POST.get("fee_item_id") or "")
@@ -653,8 +785,16 @@ def _apply_fee_action(request, school):
             messages.error(request, "That fee item is not on this school.")
             return _fee_workspace_redirect()
         if action == "delete":
-            item.delete()
-            messages.success(request, "Fee item deleted.")
+            submit_school_content_change(
+                school,
+                request.user,
+                SchoolContentChange.TYPE_FEE_ITEM,
+                f"FEE_ITEM:{item.fee_item_id}",
+                {},
+                action=SchoolContentChange.ACTION_DELETE,
+                target_id=item.fee_item_id,
+            )
+            messages.success(request, "Fee item removal was sent for Super Admin approval.")
         else:
             name = (request.POST.get("item_name") or "").strip()
             if not name or len(name) > 200:
@@ -671,8 +811,29 @@ def _apply_fee_action(request, school):
             except DjangoValidationError as exc:
                 messages.error(request, " ".join(exc.messages))
             else:
-                item.save()
-                messages.success(request, f"{name} was updated.")
+                submit_school_content_change(
+                    school,
+                    request.user,
+                    SchoolContentChange.TYPE_FEE_ITEM,
+                    f"FEE_ITEM:{item.fee_item_id}",
+                    {
+                        "fee_structure_id": str(item.fee_structure_id),
+                        "item_code": item.item_code,
+                        "item_name": item.item_name,
+                        "item_category": item.item_category,
+                        "payment_frequency": item.payment_frequency,
+                        "grade_id": str(item.grade_id) if item.grade_id else None,
+                        "amount": str(item.amount) if item.amount is not None else None,
+                        "is_refundable": item.is_refundable,
+                        "description": item.description,
+                        "sort_order": item.sort_order,
+                    },
+                    target_id=item.fee_item_id,
+                )
+                messages.success(
+                    request,
+                    f"Fee changes for {name} were sent for Super Admin approval.",
+                )
     elif action in {"publish", "unpublish"}:
         try:
             structure_id = uuid.UUID(request.POST.get("fee_structure_id") or "")
@@ -687,15 +848,38 @@ def _apply_fee_action(request, school):
             messages.error(request, "That fee structure is not on this school.")
             return _fee_workspace_redirect()
         publish = action == "publish"
-        if publish and not structure.fee_items.exclude(amount__isnull=True).exists():
+        pending_fee_items = SchoolContentChange.objects.filter(
+            school=school,
+            content_type=SchoolContentChange.TYPE_FEE_ITEM,
+            status=SchoolContentChange.STATUS_PENDING,
+            payload__fee_structure_id=str(structure.pk),
+        ).values_list("payload", flat=True)
+        has_pending_amount = any(
+            item_payload.get("amount") not in (None, "")
+            for item_payload in pending_fee_items
+        )
+        if (
+            publish
+            and not structure.fee_items.exclude(amount__isnull=True).exists()
+            and not has_pending_amount
+        ):
             messages.error(request, "Add at least one fee amount before publishing.")
             return _fee_workspace_redirect()
-        structure.published = publish
-        structure.status = True
-        if publish:
-            structure.published_at = timezone.now()
-        structure.save(update_fields=["published", "status", "published_at", "updated_at"])
-        messages.success(request, "Fee structure published." if publish else "Fee structure unpublished.")
+        submit_school_content_change(
+            school,
+            request.user,
+            SchoolContentChange.TYPE_FEE_STRUCTURE,
+            f"FEE_STRUCTURE:{structure.fee_structure_id}",
+            {"published": publish},
+            action=SchoolContentChange.ACTION_PUBLISH,
+            target_id=structure.fee_structure_id,
+        )
+        messages.success(
+            request,
+            "Fee publication request sent for Super Admin approval."
+            if publish
+            else "Fee unpublishing request sent for Super Admin approval.",
+        )
     else:
         messages.error(request, "Choose an action for fees.")
     return _fee_workspace_redirect()
@@ -724,6 +908,7 @@ def school_workspace(request):
         Grade,
         School,
         SchoolAdmissionResource,
+        SchoolContentChange,
         SchoolGrade,
         SchoolProfileChange,
     )
@@ -882,6 +1067,9 @@ def school_workspace(request):
         for section in completion["sections"]
         if section["key"] != "publishing" and section["status"] == "missing"
     ]
+    latest_content_change = school.content_changes.order_by(
+        "-submitted_at", "-pk"
+    ).first()
     context = {
         **admin.site.each_context(request),
         "title": school.school_name,
@@ -895,6 +1083,11 @@ def school_workspace(request):
             school=school,
             status=SchoolProfileChange.STATUS_PENDING,
         ).first(),
+        "pending_content_change_count": SchoolContentChange.objects.filter(
+            school=school,
+            status=SchoolContentChange.STATUS_PENDING,
+        ).count(),
+        "latest_content_change": latest_content_change,
         "completion_score": completion["score"],
         "gaps": gaps,
         "lead_total": counts["total"],
@@ -1019,7 +1212,17 @@ def install_admin_dashboard():
     def index(request, extra_context=None):
         if assigned_school_id(request.user) is not None:
             return redirect("admin:school_workspace")
-        context = {"boardingedu_stats": build_stats()}
+        stats = build_stats()
+        if not (
+            request.user.is_superuser
+            or getattr(request.user, "role", None) == "SUPER_ADMIN"
+        ):
+            stats["quick_links"] = [
+                link
+                for link in stats["quick_links"]
+                if link["label"] != "Review school changes"
+            ]
+        context = {"boardingedu_stats": stats}
         if extra_context:
             context.update(extra_context)
         return original_index(request, extra_context=context)

@@ -3,7 +3,7 @@ import re
 import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -18,7 +18,7 @@ from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
 from apps.reviews.models import Review
 from config.pagination import SchoolDirectoryPagination
-from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
+from apps.users.permissions import IsPlatformAdmin, IsStaffAdmin, IsVerifiedSchoolAdmin
 from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
 from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
@@ -56,6 +56,11 @@ class SchoolFAQViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ReadWriteModelViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+
+    def get_permissions(self):
+        if self.request.method in SAFE_METHODS:
+            return [AllowAny()]
+        return [IsPlatformAdmin()]
 
     def get_serializer_class(self):
         if self.action in ('list',) and hasattr(self, 'list_serializer_class'):

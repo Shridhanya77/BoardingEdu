@@ -303,6 +303,96 @@ class SchoolProfileChange(models.Model):
         return f"{self.school.school_name}: {self.get_status_display()}"
 
 
+class SchoolContentChange(models.Model):
+    TYPE_FACILITY = "FACILITY"
+    TYPE_GRADE = "GRADE"
+    TYPE_PHOTO = "PHOTO"
+    TYPE_RESOURCE = "RESOURCE"
+    TYPE_VIDEO = "VIDEO"
+    TYPE_FEE_ITEM = "FEE_ITEM"
+    TYPE_FEE_STRUCTURE = "FEE_STRUCTURE"
+    CONTENT_TYPE_CHOICES = [
+        (TYPE_FACILITY, "Facility"),
+        (TYPE_GRADE, "Grade"),
+        (TYPE_PHOTO, "Photograph"),
+        (TYPE_RESOURCE, "Admission resource"),
+        (TYPE_VIDEO, "Video"),
+        (TYPE_FEE_ITEM, "Fee item"),
+        (TYPE_FEE_STRUCTURE, "Fee structure"),
+    ]
+
+    ACTION_UPSERT = "UPSERT"
+    ACTION_DELETE = "DELETE"
+    ACTION_PUBLISH = "PUBLISH"
+    ACTION_CHOICES = [
+        (ACTION_UPSERT, "Add or update"),
+        (ACTION_DELETE, "Remove"),
+        (ACTION_PUBLISH, "Publish or unpublish"),
+    ]
+
+    STATUS_PENDING = "PENDING"
+    STATUS_APPROVED = "APPROVED"
+    STATUS_REJECTED = "REJECTED"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending review"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REJECTED, "Rejected"),
+    ]
+
+    change_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="content_changes",
+    )
+    change_key = models.CharField(max_length=180)
+    content_type = models.CharField(max_length=20, choices=CONTENT_TYPE_CHOICES)
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    target_id = models.UUIDField(null=True, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="submitted_school_content_changes",
+    )
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reviewed_school_content_changes",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, max_length=1000)
+
+    class Meta:
+        db_table = "school_content_changes"
+        ordering = ["submitted_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "change_key"],
+                condition=Q(status="PENDING"),
+                name="uq_school_content_pending_change",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["status", "submitted_at"],
+                name="school_cont_status_sub_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.school.school_name}: {self.get_content_type_display()} pending review"
+
+
 class SchoolPhoto(models.Model):
     CATEGORY_CHOICES = [
         ("CAMPUS", "Campus"),

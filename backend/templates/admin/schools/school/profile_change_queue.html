@@ -4,8 +4,9 @@
 {% block content %}
 <div id="content-main">
   <div class="module">
-    <h2>{% translate "Pending school profile changes" %}</h2>
-    <p>{% translate "Approving a submission updates the public profile. Rejecting it keeps the approved information unchanged." %}</p>
+    <h2>{% translate "Pending school changes" %}</h2>
+    <p>{% translate "Only Super Admin approval updates public school information. The approved version stays visible while a submission is pending." %}</p>
+    <h3>{% translate "Profile changes" %}</h3>
     {% for item in pending_changes %}
     <section class="be-panel">
       <h3><a href="{{ item.school_url }}">{{ item.change.school.school_name }}</a></h3>
@@ -35,7 +36,40 @@
       </form>
     </section>
     {% empty %}
-    <p class="be-empty">{% translate "There are no school profile changes awaiting review." %}</p>
+    <p class="be-empty">{% translate "There are no profile changes awaiting review." %}</p>
+    {% endfor %}
+
+    <h3>{% translate "Facilities, grades, fees, and media" %}</h3>
+    {% for item in pending_content_changes %}
+    <section class="be-panel">
+      <h3><a href="{{ item.school_url }}">{{ item.change.school.school_name }}</a> — {{ item.change.get_content_type_display }}</h3>
+      <p>
+        {% translate "Submitted by" %} {{ item.change.submitted_by.get_full_name|default:item.change.submitted_by.username }}
+        · {{ item.change.submitted_at|date:"M j, Y, H:i" }}
+      </p>
+      <div class="be-table-wrap">
+        <table class="be-table">
+          <thead><tr><th>{% translate "Content" %}</th><th>{% translate "Currently public" %}</th><th>{% translate "Proposed" %}</th></tr></thead>
+          <tbody>
+            {% for field in item.fields %}
+            <tr><th>{{ field.label }}</th><td>{{ field.current }}</td><td>{{ field.proposed }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="content_change_id" value="{{ item.change.pk }}">
+        <label for="content-review-note-{{ item.change.pk }}">{% translate "Review note (required when rejecting)" %}</label>
+        <textarea id="content-review-note-{{ item.change.pk }}" name="review_note" rows="2" maxlength="1000"></textarea>
+        <div class="be-review-actions">
+          <button type="submit" name="action" value="approve" class="button default">{% translate "Approve and publish" %}</button>
+          <button type="submit" name="action" value="reject" class="button">{% translate "Reject" %}</button>
+        </div>
+      </form>
+    </section>
+    {% empty %}
+    <p class="be-empty">{% translate "There are no facility, grade, fee, or media changes awaiting review." %}</p>
     {% endfor %}
   </div>
 </div>

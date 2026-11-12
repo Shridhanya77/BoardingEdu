@@ -152,6 +152,12 @@ class SchoolAdminBackendLoginTests(TestCase):
             role=User.ROLE_SCHOOL_ADMIN,
         )
         SchoolAdminProfile.objects.create(user=user, school=own, designation="Principal")
+        reviewer = User.objects.create_user(
+            username="workspace-superadmin",
+            password="secret-pass",
+            role=User.ROLE_SUPER_ADMIN,
+            is_staff=True,
+        )
         parent = User.objects.create_user(
             username="backend-parent",
             email="parent@own-admin.test",
@@ -197,7 +203,20 @@ class SchoolAdminBackendLoginTests(TestCase):
             guest_phone="919000000000",
         )
         from apps.reviews.models import Review
-        from apps.schools.models import SchoolAdmissionResource, SchoolPhoto
+        from apps.schools.models import SchoolAdmissionResource, SchoolContentChange, SchoolPhoto
+        from apps.schools.content_changes import review_school_content_change
+
+        def approve_latest_content_change():
+            pending_change = SchoolContentChange.objects.filter(
+                school=own,
+                status=SchoolContentChange.STATUS_PENDING,
+            ).latest("submitted_at")
+            return review_school_content_change(
+                pending_change.pk,
+                reviewer,
+                approve=True,
+                note="Approved in test.",
+            )
 
         brochure = SchoolAdmissionResource.objects.create(
             school=own,
@@ -274,6 +293,8 @@ class SchoolAdminBackendLoginTests(TestCase):
         )
         self.assertEqual(fee_add.status_code, 302)
         own_structure = FeeStructure.objects.get(school=own, academic_year=year)
+        self.assertFalse(FeeItem.objects.filter(fee_structure=own_structure).exists())
+        approve_latest_content_change()
         own_fee = FeeItem.objects.get(fee_structure=own_structure)
         self.assertEqual(own_fee.amount, 12000)
         self.assertFalse(own_structure.published)
@@ -302,6 +323,10 @@ class SchoolAdminBackendLoginTests(TestCase):
         )
         self.assertEqual(fee_update.status_code, 302)
         own_fee.refresh_from_db()
+        self.assertEqual(own_fee.item_name, "Tuition fee")
+        self.assertEqual(own_fee.amount, 12000)
+        approve_latest_content_change()
+        own_fee.refresh_from_db()
         self.assertEqual(own_fee.item_name, "Annual tuition")
         self.assertEqual(own_fee.amount, 15000)
 
@@ -311,12 +336,18 @@ class SchoolAdminBackendLoginTests(TestCase):
         )
         self.assertEqual(fee_publish.status_code, 302)
         own_structure.refresh_from_db()
+        self.assertFalse(own_structure.published)
+        approve_latest_content_change()
+        own_structure.refresh_from_db()
         self.assertTrue(own_structure.published)
         fee_unpublish = client.post(
             workspace_url + "?section=fees",
             {"fee_action": "unpublish", "fee_structure_id": str(own_structure.pk)},
         )
         self.assertEqual(fee_unpublish.status_code, 302)
+        own_structure.refresh_from_db()
+        self.assertTrue(own_structure.published)
+        approve_latest_content_change()
         own_structure.refresh_from_db()
         self.assertFalse(own_structure.published)
 
@@ -346,6 +377,8 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"fee_action": "delete", "fee_item_id": str(own_fee.pk)},
         )
         self.assertEqual(fee_delete.status_code, 302)
+        self.assertTrue(FeeItem.objects.filter(pk=own_fee.pk).exists())
+        approve_latest_content_change()
         self.assertFalse(FeeItem.objects.filter(pk=own_fee.pk).exists())
 
         photographs_page = client.get(workspace_url, {"section": "photographs"})
@@ -365,6 +398,12 @@ class SchoolAdminBackendLoginTests(TestCase):
             },
         )
         self.assertEqual(added_document.status_code, 302)
+        self.assertFalse(
+            SchoolAdmissionResource.objects.filter(
+                school=own, title="Birth certificate"
+            ).exists()
+        )
+        approve_latest_content_change()
         self.assertTrue(
             SchoolAdmissionResource.objects.filter(
                 school=own,
@@ -392,6 +431,9 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"resource_action": "remove", "resource_id": str(brochure.pk)},
         )
         self.assertEqual(removed_document.status_code, 302)
+        brochure.refresh_from_db()
+        self.assertTrue(brochure.status)
+        approve_latest_content_change()
         brochure.refresh_from_db()
         self.assertFalse(brochure.status)
 
@@ -434,16 +476,27 @@ class SchoolAdminBackendLoginTests(TestCase):
             client.get(reverse("admin:schools_school_profile_review_queue")).status_code,
             403,
         )
-        reviewer = User.objects.create_user(
-            username="profile-reviewer",
-            email="profile-reviewer@example.test",
+        staff_reviewer = User.objects.create_user(
+            username="profile-review-staff",
+            email="profile-review-staff@example.test",
             password="secret-pass",
             role=User.ROLE_STAFF_ADMIN,
             is_staff=True,
         )
+        queue_url = reverse("admin:schools_school_profile_review_queue")
+        staff_client = APIClient()
+        staff_client.force_login(staff_reviewer)
+        self.assertEqual(staff_client.get(queue_url).status_code, 403)
+
+        reviewer = User.objects.create_user(
+            username="profile-review-superadmin",
+            email="profile-review-superadmin@example.test",
+            password="secret-pass",
+            role=User.ROLE_SUPER_ADMIN,
+            is_staff=True,
+        )
         reviewer_client = APIClient()
         reviewer_client.force_login(reviewer)
-        queue_url = reverse("admin:schools_school_profile_review_queue")
         queue = reviewer_client.get(queue_url)
         self.assertEqual(queue.status_code, 200)
         self.assertContains(queue, "Pending from the Django profile editor")
@@ -529,7 +582,11 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "yes"},
         )
         self.assertEqual(turned_on.status_code, 302)
-        self.assertTrue(SchoolFacility.objects.filter(school=own, facility=library, available=True).exists())
+        self.assertFalse(
+            SchoolFacility.objects.filter(
+                school=own, facility=library, available=True
+            ).exists()
+        )
         turned_off = client.post(
             workspace_url + "?section=facilities",
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "no"},
