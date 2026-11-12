@@ -3893,7 +3893,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                       school={school}
                       selectedBoards={board}
                       selectedSchoolTypes={schoolType}
-                      className={schoolView === "grid" && index >= 7 ? "school-card--continued-in-next-row" : ""}
+                      className={schoolView === "grid" && index >= (isHomePage ? 7 : 2) ? "school-card--continued-in-next-row" : ""}
                     />
                   ))}
                   {schoolView === "grid" && (
@@ -3909,9 +3909,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 </div>
               </>
             )}
-            {schoolView === "grid" && displayResults.length > 7 && (
+            {schoolView === "grid" && displayResults.length > (isHomePage ? 7 : 2) && (
               <div className="school-list school-list--grid school-list--listing school-list--continuation">
-                {displayResults.slice(7).map((school) => (
+                {displayResults.slice(isHomePage ? 7 : 2).map((school) => (
                   <SchoolCard
                     key={`continuation-${school.school_id}`}
                     school={school}

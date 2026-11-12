@@ -24219,10 +24219,16 @@ select:focus-visible {
   }
   .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
     grid-column: 3;
+    grid-row: 1;
+    max-height: 440px;
+    overflow: auto;
+    position: static;
   }
   .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
-    grid-column: auto;
+    width: 100%;
+    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
   }
 }
 
