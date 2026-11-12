@@ -24217,10 +24217,10 @@ select:focus-visible {
     grid-column: 2;
   }
   .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 1;
     max-height: 440px;
     overflow: auto;
