@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import LegalPage from "@/components/legal/LegalPage";
 import { pageMetadata } from "@/lib/seo";
+import { SITE_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "Privacy Policy | BoardingEdu",
@@ -28,7 +29,7 @@ export default function PrivacyPage() {
       </p>
       <h2>Contact</h2>
       <p>
-        Questions about this policy can be sent to <a href="mailto:hello@boardingedu.com">hello@boardingedu.com</a>.
+        Questions about this policy can be sent to <a href={`mailto:${SITE_EMAIL}`}>{SITE_EMAIL}</a>.
       </p>
     </LegalPage>
   );

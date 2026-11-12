@@ -10,10 +10,34 @@ import type {
   LocationListItem,
   SchoolTypeListItem,
 } from "@/lib/api";
+import { isSchoolProfileSegmentPath } from "@/lib/school-profile-route";
 import SiteFooterSeo from "./SiteFooterSeo";
 
 export default function PublicSiteFooter() {
   const pathname = usePathname();
+  const schoolSegments = pathname.split("/").filter(Boolean);
+  const schoolPathWithoutEnquiry =
+    schoolSegments.at(-1)?.toLowerCase() === "enquiry"
+      ? schoolSegments.slice(0, -1)
+      : schoolSegments;
+  const lastSchoolSegment = schoolPathWithoutEnquiry.at(-1)?.toLowerCase().replace(/_/g, "-");
+  const isSchoolListingCategory = [
+    "boarding-school",
+    "boarding-schools",
+    "day-school",
+    "day-schools",
+    "day-boarding-school",
+    "day-boarding-schools",
+    "residential-school",
+    "residential-schools",
+  ].includes(lastSchoolSegment ?? "");
+  const isLegacyTypedSchoolProfile =
+    schoolPathWithoutEnquiry.length === 6 &&
+    isSchoolProfileSegmentPath(schoolPathWithoutEnquiry);
+  const isSchoolDetailPage =
+    isSchoolProfileSegmentPath(schoolPathWithoutEnquiry) &&
+    (!isSchoolListingCategory || isLegacyTypedSchoolProfile);
+  const showCallbackDock = !isSchoolDetailPage;
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [boards, setBoards] = useState<BoardListItem[]>([]);
   const [countries, setCountries] = useState<CountryListItem[]>([]);
@@ -102,6 +126,7 @@ export default function PublicSiteFooter() {
       schoolTypes={schoolTypes}
       locations={locations}
       dataError={error}
+      showCallbackDock={showCallbackDock}
     />
   );
 }

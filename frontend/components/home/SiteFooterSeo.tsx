@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Phone, Mail, MapPin } from "lucide-react";
 import CallbackRequestModal from "@/components/contact/CallbackRequestModal";
@@ -17,6 +17,7 @@ import {
   type HomeSchoolCategory,
 } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
+import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 
 type Props = {
   cities?: CityListItem[];
@@ -25,6 +26,7 @@ type Props = {
   locations?: LocationListItem[];
   schoolTypes?: SchoolTypeListItem[];
   dataError?: string | null;
+  showCallbackDock?: boolean;
 };
 
 type Category = {
@@ -94,10 +96,15 @@ export default function SiteFooterSeo({
   countries = [],
   schoolTypes = [],
   dataError,
+  showCallbackDock = true,
 }: Props) {
   const [callbackOpen, setCallbackOpen] = useState(false);
   const [openPanels, setOpenPanels] = useState<Record<string, boolean>>({});
   const [openStates, setOpenStates] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!showCallbackDock) setCallbackOpen(false);
+  }, [showCallbackDock]);
 
   const togglePanel = (key: string) =>
     setOpenPanels((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -298,13 +305,13 @@ export default function SiteFooterSeo({
             </p>
           </div>
           <div className="footer-contact">
-            <a href="tel:+918046110000" className="footer-contact__item">
+            <a href={`tel:${SITE_PHONE}`} className="footer-contact__item">
               <Phone size={16} />
-              <span>+91 80 4611 0000</span>
+              <span>{SITE_PHONE_DISPLAY}</span>
             </a>
-            <a href="mailto:support@boardingedu.com" className="footer-contact__item">
+            <a href={`mailto:${SITE_EMAIL}`} className="footer-contact__item">
               <Mail size={16} />
-              <span>support@boardingedu.com</span>
+              <span>{SITE_EMAIL}</span>
             </a>
             <div className="footer-contact__item">
               <MapPin size={16} />
@@ -353,15 +360,19 @@ export default function SiteFooterSeo({
         </nav>
       </div>
 
-      <div className="callback-dock">
-        <a className="callback-dock__phone" href="tel:+918046110000" aria-label="Call BoardingEdu">
-          <Phone size={18} />
-        </a>
-        <button type="button" className="callback-dock__action" onClick={() => setCallbackOpen(true)}>
-          Request a Callback
-        </button>
-      </div>
-      <CallbackRequestModal isOpen={callbackOpen} onClose={() => setCallbackOpen(false)} />
+      {showCallbackDock && (
+        <>
+          <div className="callback-dock">
+            <a className="callback-dock__phone" href={`tel:${SITE_PHONE}`} aria-label={`Call BoardingEdu at ${SITE_PHONE_DISPLAY}`}>
+              <Phone size={18} />
+            </a>
+            <button type="button" className="callback-dock__action" onClick={() => setCallbackOpen(true)}>
+              Request a Callback
+            </button>
+          </div>
+          <CallbackRequestModal isOpen={callbackOpen} onClose={() => setCallbackOpen(false)} />
+        </>
+      )}
     </footer>
   );
 }

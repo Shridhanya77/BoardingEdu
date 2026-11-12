@@ -145,7 +145,13 @@ export default function CounsellingSection() {
             required
           />
         </label>
-        <CountryPhoneInput id="counselling-phone" label="WhatsApp Number" value={phone} onChange={setPhone} />
+        <CountryPhoneInput
+          id="counselling-phone"
+          label="WhatsApp Number"
+          value={phone}
+          onChange={setPhone}
+          disabled={submitting}
+        />
         <label>
           Class applying for
           <select

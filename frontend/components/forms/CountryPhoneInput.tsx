@@ -79,7 +79,7 @@ export default function CountryPhoneInput({
           placeholder="10-digit phone number"
           pattern="[0-9]{10}"
           minLength={10}
-          maxLength={20}
+          maxLength={10}
           required
           onChange={(event) => {
             const input = event.target.value;

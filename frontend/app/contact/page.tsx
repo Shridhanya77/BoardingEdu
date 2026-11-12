@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Mail, Phone } from "lucide-react";
 import CallbackRequestForm from "@/components/contact/CallbackRequestForm";
 import { pageMetadata } from "@/lib/seo";
+import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "Contact BoardingEdu | School Search Help",
@@ -29,22 +30,22 @@ export default function ContactPage() {
       </section>
 
       <section className="contact-page__options" aria-label="Contact options">
-        <a className="contact-page__option" href="mailto:hello@boardingedu.com">
+        <a className="contact-page__option" href={`mailto:${SITE_EMAIL}`}>
           <span className="contact-page__option-icon" aria-hidden="true">
             <Mail size={21} />
           </span>
           <span className="contact-page__option-label">EMAIL OUR TEAM</span>
-          <strong>hello@boardingedu.com</strong>
+          <strong>{SITE_EMAIL}</strong>
           <span className="contact-page__option-action">
             Send an email <ArrowRight size={15} aria-hidden="true" />
           </span>
         </a>
-        <a className="contact-page__option" href="tel:+918046110000">
+        <a className="contact-page__option" href={`tel:${SITE_PHONE}`}>
           <span className="contact-page__option-icon" aria-hidden="true">
             <Phone size={21} />
           </span>
           <span className="contact-page__option-label">CALL US</span>
-          <strong>+91 80-4611-0000</strong>
+          <strong>{SITE_PHONE_DISPLAY}</strong>
           <span className="contact-page__option-action">
             Call BoardingEdu <ArrowRight size={15} aria-hidden="true" />
           </span>

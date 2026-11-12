@@ -27,10 +27,17 @@ export default function SchoolVideoGallery({
   videos: SchoolVideoListItem[];
   schoolName: string;
 }) {
-  if (!videos.length) return null;
+  if (!videos.length) {
+    return (
+      <section className="school-video-gallery" aria-label={`${schoolName} videos`}>
+        <h3>Videos</h3>
+        <p className="school-video-gallery__empty">School videos have not been published yet.</p>
+      </section>
+    );
+  }
 
   return (
-    <div className="school-video-gallery">
+    <section className="school-video-gallery" aria-label={`${schoolName} videos`}>
       <h3>Videos</h3>
       <div className="school-video-gallery__grid">
         {videos.map((video) => {
@@ -79,6 +86,6 @@ export default function SchoolVideoGallery({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

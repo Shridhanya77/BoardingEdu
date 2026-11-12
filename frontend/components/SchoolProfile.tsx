@@ -517,7 +517,10 @@ export default async function SchoolProfile({
             <section className="detail-panel school-detail__media-panel" id="media">
               <div className="detail-panel__heading">
                 <span className="detail-panel__icon"><BookOpen size={18} /></span>
-                <div><h2>Gallery</h2><p>Campus photographs of {school.school_name}.</p></div>
+                <div>
+                  <h2>Photos &amp; Videos</h2>
+                  <p>Browse campus photos by category or open a video to learn more about {school.school_name}.</p>
+                </div>
               </div>
               {galleryPhotos.length ? (
                 <SchoolPhotoGallery

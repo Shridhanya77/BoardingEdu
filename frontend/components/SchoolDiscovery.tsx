@@ -69,6 +69,7 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
+import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 import {
   homeSchoolCategories,
   homeSchoolCategoryForIds,
@@ -3293,16 +3294,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <p>Questions about your school search? We&apos;re happy to help.</p>
         </div>
         <div className="talk-to-us__options">
-          <a href="mailto:hello@boardingedu.com">
+          <a href={`mailto:${SITE_EMAIL}`}>
             <span><Mail size={20} /></span>
             <strong>Email our team</strong>
-            <small>hello@boardingedu.com</small>
+            <small>{SITE_EMAIL}</small>
             <ArrowRight size={16} />
           </a>
-          <a href="tel:+918046110000">
+          <a href={`tel:${SITE_PHONE}`}>
             <span><Phone size={20} /></span>
             <strong>Call BoardingEdu</strong>
-            <small>+91 80-4611-0000</small>
+            <small>{SITE_PHONE_DISPLAY}</small>
             <ArrowRight size={16} />
           </a>
         </div>
