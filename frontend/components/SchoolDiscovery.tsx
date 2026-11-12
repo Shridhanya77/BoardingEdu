@@ -597,6 +597,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [schoolFaqs, setSchoolFaqs] = useState<SchoolFAQListItem[]>([]);
   const [schoolFaqsError, setSchoolFaqsError] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const schoolResultsRef = useRef<HTMLDivElement>(null);
   const [boardSearch, setBoardSearch] = useState("");
   const [board, setBoard] = useState<string[]>([]);
   const [feeRange, setFeeRange] = useState<[number, number]>([
@@ -1651,6 +1652,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     ) return;
     const sentinel = loadMoreRef.current;
     if (!sentinel) return;
+    const scrollContainer = schoolResultsRef.current;
+    const root = scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight
+      ? scrollContainer
+      : null;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -1658,7 +1663,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           setPage((current) => current + 1);
         }
       },
-      { rootMargin: "320px 0px" },
+      { root, rootMargin: "320px 0px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
@@ -2612,6 +2617,29 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     }
     scrollToSchools();
   }
+
+  const loadMoreContent = !error && (results.length > 0 || displayResults.length > 0) ? (
+    <div
+      className="school-load-more"
+      ref={loadMoreRef}
+      aria-live="polite"
+    >
+      {loadMoreError ? (
+        <>
+          <p role="alert">{loadMoreError}</p>
+          <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
+            Retry loading schools
+          </button>
+        </>
+      ) : loading && page > 1 ? (
+        <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
+      ) : hasMoreResults ? (
+        <p className="school-load-more__hint">Scroll down to load more unique schools</p>
+      ) : (
+        <p>You&apos;ve seen all {totalCount} schools in this search.</p>
+      )}
+    </div>
+  ) : null;
 
   void submitSearch;
   void selectSuggestion;
@@ -3697,7 +3725,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </aside>
           </div>
 
-          <div className="school-results">
+          <div className="school-results" ref={schoolResultsRef}>
             {requiresIndiaRegion && !geoRegion && (
               <div className="listing-region-hint" role="status">
                 <MapPin size={18} aria-hidden />
@@ -3931,30 +3959,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 error={topBoardingSchoolsError}
               />
             )}
+            {!isHomePage && loadMoreContent}
           </div>
         </div>
-        {!error && (results.length > 0 || displayResults.length > 0) && (
-          <div
-            className="school-load-more"
-            ref={loadMoreRef}
-            aria-live="polite"
-          >
-            {loadMoreError ? (
-              <>
-                <p role="alert">{loadMoreError}</p>
-                <button type="button" onClick={() => setRetryCount((count) => count + 1)}>
-                  Retry loading schools
-                </button>
-              </>
-            ) : loading && page > 1 ? (
-              <p role="status"><LoaderCircle className="spin" size={17} /> Loading more schools…</p>
-            ) : hasMoreResults ? (
-              <p className="school-load-more__hint">Scroll down to load more unique schools</p>
-            ) : (
-              <p>You&apos;ve seen all {totalCount} schools in this search.</p>
-            )}
-          </div>
-        )}
+        {isHomePage && loadMoreContent}
 
         {!topBoardingSchoolsLoading && !topBoardingSchoolsError && topPickSchools.length > 0 && (
           <section className="listing-top-picks-cards" aria-labelledby="listing-top-picks-cards-heading">
