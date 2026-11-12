@@ -3909,29 +3909,29 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 </div>
               </>
             )}
+            {schoolView === "grid" && displayResults.length > 7 && (
+              <div className="school-list school-list--grid school-list--listing school-list--continuation">
+                {displayResults.slice(7).map((school) => (
+                  <SchoolCard
+                    key={`continuation-${school.school_id}`}
+                    school={school}
+                    selectedBoards={board}
+                    selectedSchoolTypes={schoolType}
+                  />
+                ))}
+              </div>
+            )}
+            {(schoolView === "list" || error || displayResults.length === 0) && (
+              <TopBoardingSchools
+                category={topSchoolsCategory}
+                boardName={selectedTopBoardName ?? null}
+                boardingSchools={displayTopBoardingSchools}
+                daySchools={displayTopDaySchools}
+                loading={topBoardingSchoolsLoading}
+                error={topBoardingSchoolsError}
+              />
+            )}
           </div>
-          {schoolView === "grid" && displayResults.length > 7 && (
-            <div className="school-list school-list--grid school-list--listing school-list--continuation">
-              {displayResults.slice(7).map((school) => (
-                <SchoolCard
-                  key={`continuation-${school.school_id}`}
-                  school={school}
-                  selectedBoards={board}
-                  selectedSchoolTypes={schoolType}
-                />
-              ))}
-            </div>
-          )}
-          {(schoolView === "list" || error || displayResults.length === 0) && (
-            <TopBoardingSchools
-              category={topSchoolsCategory}
-              boardName={selectedTopBoardName ?? null}
-              boardingSchools={displayTopBoardingSchools}
-              daySchools={displayTopDaySchools}
-              loading={topBoardingSchoolsLoading}
-              error={topBoardingSchoolsError}
-            />
-          )}
         </div>
         {!error && (results.length > 0 || displayResults.length > 0) && (
           <div
