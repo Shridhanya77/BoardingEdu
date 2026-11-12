@@ -28,7 +28,7 @@ class ChildSerializer(serializers.ModelSerializer):
             'current_grade', 'current_grade_id', 'current_grade_name',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['child_id', 'created_at', 'updated_at']
+        read_only_fields = ['child_id', 'parent_profile', 'created_at', 'updated_at']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

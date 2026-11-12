@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
 import { DashboardShell, DashboardState } from "@/components/dashboard/DashboardShell";
-import { applicationStatusClass } from "@/components/parent-dashboard/ParentDashboard";
+import { AdmissionProgress, applicationStatusClass } from "@/components/parent-dashboard/ParentDashboard";
 import { apiErrorMessage, parentApplications, type ParentApplication } from "@/lib/api";
 
 const DOCUMENT_TYPES = [
@@ -35,6 +36,8 @@ export default function ParentApplicationPage() {
     // The enquiry id comes from the route.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.enquiryId]);
+
+  const latestEvent = application?.timeline?.slice(-1)[0];
 
   return (
     <DashboardShell
@@ -68,6 +71,15 @@ export default function ParentApplicationPage() {
             </p>
           </section>
           <section>
+            <h2>Admission progress</h2>
+            <AdmissionProgress status={application.application_status} />
+            {application.application_status === "DOCUMENTS_REQUIRED" && (
+              <p className="pd-document-request">
+                <strong>Action needed:</strong> {latestEvent?.instructions || latestEvent?.remarks || "The school has requested additional documents."}
+              </p>
+            )}
+          </section>
+          <section>
             <h2>Timeline</h2>
             <ol className="pd-timeline">
               {(application.timeline ?? []).map((event) => (
@@ -82,14 +94,22 @@ export default function ParentApplicationPage() {
           </section>
           <section>
             <h2>Documents</h2>
-            <ul className="pd-list">
-              {(application.documents ?? []).map((document) => (
-                <li key={document.document_id}>
-                  <strong>{document.document_type_label}</strong>
-                  <span>{document.original_name} · {document.review_status}</span>
-                </li>
-              ))}
-            </ul>
+            {application.documents?.length ? (
+              <ul className="pd-documents">
+                {application.documents.map((document) => (
+                  <li key={document.document_id}>
+                    <FileText size={18} aria-hidden />
+                    <strong>{document.document_type_label}</strong>
+                    <span>{document.original_name}</span>
+                    <em className={`pd-badge pd-badge--${document.review_status.toLowerCase()}`}>
+                      {document.review_status.replace("_", " ")}
+                    </em>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="dash-empty">No documents uploaded for this application yet.</p>
+            )}
             <form
               className="pd-form"
               onSubmit={(event) => {

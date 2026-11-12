@@ -11,7 +11,7 @@ from apps.notifications.models import ParentNotification
 from apps.schools.models import School
 from apps.users.models import ParentProfile, SchoolAdminProfile, User
 
-from .models import AdmissionEnquiry
+from .models import AdmissionEnquiry, Child
 
 
 class ApplicationTrackingTests(TestCase):
@@ -160,3 +160,41 @@ class ApplicationTrackingTests(TestCase):
         self.assertEqual(guest.get("/api/admissions/applications/").status_code, 401)
         self.assertIn("birth.pdf", upload.data["original_name"])
         self.assertNotIn("http", str(upload.data))
+
+    def test_parent_can_manage_only_their_own_child_profiles(self):
+        created = self.parent_client.post(
+            "/api/admissions/children/",
+            {
+                "name": "Asha",
+                "dob": "2014-06-02",
+                "gender": "FEMALE",
+                "parent_profile": self.other_parent.parent_profile.pk,
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        child = Child.objects.get(child_id=created.data["child_id"])
+        self.assertEqual(child.parent_profile_id, self.parent.parent_profile.pk)
+
+        updated = self.parent_client.patch(
+            f"/api/admissions/children/{child.child_id}/",
+            {
+                "name": "Asha Updated",
+                "parent_profile": self.other_parent.parent_profile.pk,
+            },
+            format="json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.data)
+        child.refresh_from_db()
+        self.assertEqual(child.name, "Asha Updated")
+        self.assertEqual(child.parent_profile_id, self.parent.parent_profile.pk)
+
+        hidden = self.other_client.get("/api/admissions/children/")
+        self.assertEqual(hidden.status_code, 200)
+        self.assertEqual(hidden.data["results"], [])
+        blocked = self.other_client.patch(
+            f"/api/admissions/children/{child.child_id}/",
+            {"name": "Not yours"},
+            format="json",
+        )
+        self.assertEqual(blocked.status_code, 404)

@@ -839,6 +839,33 @@ export const admissions = {
   list: () => authRequest<PaginatedResponse<EnquiryListItem>>("/admissions/enquiries/"),
 };
 
+export type ParentChildRecord = {
+  child_id: string;
+  name: string;
+  dob: string;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  current_grade: string | null;
+  current_grade_id: string | null;
+  current_grade_name: string | null;
+};
+
+export const parentChildren = {
+  list: () =>
+    authRequest<PaginatedResponse<ParentChildRecord> | ParentChildRecord[]>("/admissions/children/"),
+  create: (payload: Pick<ParentChildRecord, "name" | "dob" | "gender">) =>
+    authRequest<ParentChildRecord>("/admissions/children/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: Pick<ParentChildRecord, "name" | "dob" | "gender">) =>
+    authRequest<ParentChildRecord>(`/admissions/children/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    authRequest<void>(`/admissions/children/${id}/`, { method: "DELETE" }),
+};
+
 // ---------- Reviews & Ratings ----------
 export type ReviewStatus = "PENDING" | "PUBLISHED" | "REJECTED";
 

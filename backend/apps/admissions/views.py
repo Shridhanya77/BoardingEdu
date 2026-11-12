@@ -4,6 +4,7 @@ from rest_framework.permissions import (
     AllowAny,
 )
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.throttling import ScopedRateThrottle
 
 from django_filters.rest_framework import DjangoFilterBackend
@@ -121,6 +122,12 @@ class ChildViewSet(viewsets.ModelViewSet):
         # list/retrieve: get_queryset scopes the rows; allow any authenticated viewer
         # (object-level still guards retrieve for extra safety on detail URLs)
         return [IsAuthenticated(), IsOwnChildOrHigher()]
+
+    def perform_create(self, serializer):
+        parent_profile = getattr(self.request.user, "parent_profile", None)
+        if parent_profile is None:
+            raise ValidationError({"detail": "A parent profile is required to add a child."})
+        serializer.save(parent_profile=parent_profile)
 
 
 # ============================================================

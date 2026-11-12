@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Bookmark, FileText, GraduationCap } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Bookmark, Check, FileText, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   DashboardPanel,
   DashboardShell,
@@ -11,11 +11,14 @@ import {
   StatCard,
   useDashboardData,
 } from "@/components/dashboard/DashboardShell";
+import ParentSchoolFinder from "@/components/parent-dashboard/ParentSchoolFinder";
 import {
   apiErrorMessage,
   dashboards,
+  parentChildren,
   parentApplications,
   users,
+  type ParentChildRecord,
   type ParentApplication,
   type ParentProfileData,
 } from "@/lib/api";
@@ -24,7 +27,8 @@ import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 const SECTIONS = [
   ["dashboard", "Dashboard"],
   ["applications", "My Applications"],
-  ["students", "My Students"],
+  ["students", "My Children"],
+  ["finder", "Find Schools"],
   ["shortlist", "Shortlisted Schools"],
   ["documents", "Documents"],
   ["notifications", "Notifications"],
@@ -52,6 +56,44 @@ export function applicationStatusClass(status: string) {
   return STATUS_CLASS[status] ?? "submitted";
 }
 
+const ADMISSION_STAGES = ["Submitted", "Received", "Review", "Documents", "Interaction", "Offer", "Decision"];
+
+function applicationStageIndex(status: string) {
+  switch (status) {
+    case "SUBMITTED": return 0;
+    case "RECEIVED": return 1;
+    case "UNDER_REVIEW": return 2;
+    case "DOCUMENTS_REQUIRED": return 3;
+    case "INTERACTION_SCHEDULED": return 4;
+    case "INTERACTION_COMPLETED": return 4;
+    case "OFFERED": return 5;
+    case "ACCEPTED":
+    case "REJECTED": return 6;
+    default: return -1;
+  }
+}
+
+export function AdmissionProgress({ status }: { status: string }) {
+  const current = applicationStageIndex(status);
+  if (status === "WITHDRAWN") {
+    return <p className="pd-progress__closed">This application was withdrawn.</p>;
+  }
+  return (
+    <ol className="pd-progress" aria-label="Admission progress">
+      {ADMISSION_STAGES.map((stage, index) => (
+        <li
+          key={stage}
+          className={index < current ? "is-complete" : index === current ? "is-current" : ""}
+          aria-current={index === current ? "step" : undefined}
+        >
+          <span>{index < current ? <Check size={13} aria-hidden /> : index + 1}</span>
+          <small>{stage}</small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default function ParentDashboard() {
   const params = useSearchParams();
   const router = useRouter();
@@ -64,11 +106,20 @@ export default function ParentDashboard() {
 
   useEffect(() => {
     if (!data) return;
-    if (section === "applications" || section === "documents" || section === "messages") {
-      parentApplications.list().then(setApplications).catch((reason) => setLocalError(apiErrorMessage(reason)));
+    setLocalError(null);
+    if (section === "dashboard" || section === "applications" || section === "documents" || section === "messages") {
+      let active = true;
+      parentApplications.list()
+        .then((rows) => { if (active) setApplications(rows); })
+        .catch((reason: unknown) => { if (active) setLocalError(apiErrorMessage(reason)); });
+      return () => { active = false; };
     }
     if (section === "profile") {
-      parentApplications.profile().then(setProfile).catch((reason) => setLocalError(apiErrorMessage(reason)));
+      let active = true;
+      parentApplications.profile()
+        .then((value) => { if (active) setProfile(value); })
+        .catch((reason: unknown) => { if (active) setLocalError(apiErrorMessage(reason)); });
+      return () => { active = false; };
     }
   }, [section, data]);
 
@@ -127,30 +178,21 @@ export default function ParentDashboard() {
               </ul>
             )}
           </DashboardPanel>
+          <ApplicationList
+            applications={applications}
+            fallback={data.recent_enquiries.map((row) => row.enquiry_id)}
+            maxRows={4}
+            showFilters={false}
+          />
         </>
       )}
       {data && section === "applications" && (
         <ApplicationList applications={applications} fallback={data.recent_enquiries.map((row) => row.enquiry_id)} />
       )}
       {data && section === "students" && (
-        <DashboardPanel title="My students" subtitle="Children linked to your admission enquiries.">
-          {data.children.length === 0 ? (
-            <p className="dash-empty">Add a child when you submit an enquiry from a school page.</p>
-          ) : (
-            <ul className="dash-cards">
-              {data.children.map((child) => (
-                <li className="dash-card" key={child.child_id}>
-                  <span className="dash-card__icon" aria-hidden><GraduationCap size={18} /></span>
-                  <div>
-                    <strong>{child.name}</strong>
-                    <span>{child.gender}{child.date_of_birth ? ` · ${child.date_of_birth}` : ""}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </DashboardPanel>
+        <StudentManager />
       )}
+      {data && section === "finder" && <ParentSchoolFinder />}
       {data && section === "shortlist" && <Shortlist data={data} onError={setLocalError} />}
       {section === "documents" && <DocumentSummary applications={applications} />}
       {data && section === "notifications" && <NotificationList notes={data.notifications} onChanged={reload} />}
@@ -164,17 +206,60 @@ export default function ParentDashboard() {
 function ApplicationList({
   applications,
   fallback,
+  maxRows,
+  showFilters = true,
 }: {
   applications: ParentApplication[] | null;
   fallback: string[];
+  maxRows?: number;
+  showFilters?: boolean;
 }) {
-  const rows = applications;
+  const [filter, setFilter] = useState("ALL");
+  const allRows = applications ?? [];
+  const matchingRows = allRows.filter((application) => {
+    if (filter === "ACTION_REQUIRED") return application.application_status === "DOCUMENTS_REQUIRED";
+    if (filter === "ACCEPTED") return application.application_status === "ACCEPTED";
+    if (filter === "CLOSED") return ["REJECTED", "WITHDRAWN"].includes(application.application_status);
+    if (filter === "ACTIVE") return !["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(application.application_status);
+    return true;
+  });
+  const rows = maxRows ? matchingRows.slice(0, maxRows) : matchingRows;
   return (
-    <DashboardPanel title="My applications" subtitle="Each admission enquiry is tracked separately.">
-      {!rows && fallback.length === 0 && <p className="dash-empty">You have not applied to a school yet.</p>}
-      {rows && rows.length === 0 && <p className="dash-empty">You have not applied to a school yet.</p>}
+    <DashboardPanel
+      title={maxRows ? "Application progress" : "My applications"}
+      subtitle="Track each school's updates, next steps, and document requests."
+      action={maxRows ? <Link className="dash-link" href="/dashboard/parent/?section=applications">View all</Link> : undefined}
+    >
+      {showFilters && applications && (
+        <div className="pd-app-filters" aria-label="Filter applications">
+          {[
+            ["ALL", "All", allRows.length],
+            ["ACTIVE", "In progress", allRows.filter((item) => !["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(item.application_status)).length],
+            ["ACTION_REQUIRED", "Action needed", allRows.filter((item) => item.application_status === "DOCUMENTS_REQUIRED").length],
+            ["ACCEPTED", "Accepted", allRows.filter((item) => item.application_status === "ACCEPTED").length],
+            ["CLOSED", "Closed", allRows.filter((item) => ["REJECTED", "WITHDRAWN"].includes(item.application_status)).length],
+          ].map(([value, label, count]) => (
+            <button
+              key={value}
+              type="button"
+              className={filter === value ? "is-active" : ""}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(String(value))}
+            >
+              {label} <span>{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {!applications && <p className="dash-empty">Loading your applications…</p>}
+      {applications && rows.length === 0 && allRows.length === 0 && (
+        <p className="dash-empty">You have not applied to a school yet.</p>
+      )}
+      {applications && rows.length === 0 && allRows.length > 0 && (
+        <p className="dash-empty">No applications match this filter.</p>
+      )}
       <ul className="pd-apps">
-        {(rows ?? []).map((application) => (
+        {rows.map((application) => (
           <li key={application.enquiry_id}>
             <div>
               <strong>{application.school.school_name}</strong>
@@ -184,6 +269,10 @@ function ApplicationList({
                 {application.academic_year ? ` · ${application.academic_year}` : ""}
               </span>
               <span>{[application.school.city_name, application.school.state_name].filter(Boolean).join(", ")}</span>
+              <AdmissionProgress status={application.application_status} />
+              {application.application_status === "DOCUMENTS_REQUIRED" && (
+                <DocumentRequestHint application={application} />
+              )}
             </div>
             <em className={`pd-badge pd-badge--${applicationStatusClass(application.application_status)}`}>
               {application.application_status_label}
@@ -192,7 +281,152 @@ function ApplicationList({
           </li>
         ))}
       </ul>
-      {!rows && <p className="dash-empty">Open this section to load your applications.</p>}
+      {!applications && fallback.length > 0 && (
+        <p className="dash-empty">Your application list is being loaded.</p>
+      )}
+    </DashboardPanel>
+  );
+}
+
+function DocumentRequestHint({ application }: { application: ParentApplication }) {
+  const latest = application.timeline?.slice(-1)[0];
+  const request = latest?.instructions || latest?.remarks;
+  return (
+    <p className="pd-document-request">
+      <strong>Action needed:</strong> {request || "The school has requested additional documents."}
+    </p>
+  );
+}
+
+function isChildGender(value: string): value is ParentChildRecord["gender"] {
+  return value === "MALE" || value === "FEMALE" || value === "OTHER";
+}
+
+function StudentManager() {
+  const [children, setChildren] = useState<ParentChildRecord[] | null>(null);
+  const [editing, setEditing] = useState<ParentChildRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    return parentChildren.list()
+      .then((response) => setChildren(Array.isArray(response) ? response : response.results))
+      .catch((reason: unknown) => setError(apiErrorMessage(reason)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function saveChild(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const name = String(values.get("name") || "").trim();
+    const dob = String(values.get("dob") || "");
+    const genderValue = String(values.get("gender") || "");
+    if (!name || !dob || !isChildGender(genderValue)) {
+      setError("Enter the child's name, date of birth, and gender.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    const payload = { name, dob, gender: genderValue };
+    const request = editing
+      ? parentChildren.update(editing.child_id, payload)
+      : parentChildren.create(payload);
+    request
+      .then(() => {
+        form.reset();
+        setEditing(null);
+        setNotice(editing ? "Child details updated." : "Child added to your account.");
+        return load();
+      })
+      .catch((reason: unknown) => setError(apiErrorMessage(reason)))
+      .finally(() => setSaving(false));
+  }
+
+  function removeChild(child: ParentChildRecord) {
+    if (!window.confirm(`Remove ${child.name} from your child profiles?`)) return;
+    setError(null);
+    setNotice(null);
+    parentChildren.remove(child.child_id)
+      .then(() => {
+        setChildren((current) => (current ?? []).filter((item) => item.child_id !== child.child_id));
+        if (editing?.child_id === child.child_id) setEditing(null);
+        setNotice(`${child.name} was removed.`);
+      })
+      .catch((reason: unknown) => setError(apiErrorMessage(reason)));
+  }
+
+  return (
+    <DashboardPanel title="My children" subtitle="Keep each child's details ready for school enquiries and applications.">
+      {error && <p className="dash-state dash-state--error" role="alert">{error}</p>}
+      {notice && <p className="pd-notice" role="status">{notice}</p>}
+      {loading ? (
+        <p className="dash-empty">Loading child profiles…</p>
+      ) : children && children.length > 0 ? (
+        <ul className="pd-children">
+          {children.map((child) => (
+            <li key={child.child_id}>
+              <span className="pd-children__icon" aria-hidden><GraduationCap size={19} /></span>
+              <div>
+                <strong>{child.name}</strong>
+                <span>{child.dob} · {child.gender.toLowerCase()}</span>
+                {child.current_grade_name && <small>Current class: {child.current_grade_name}</small>}
+              </div>
+              <div className="pd-children__actions">
+                <button type="button" onClick={() => setEditing(child)} aria-label={`Edit ${child.name}`}>
+                  <Pencil size={15} aria-hidden /> Edit
+                </button>
+                <button type="button" onClick={() => removeChild(child)} aria-label={`Remove ${child.name}`}>
+                  <Trash2 size={15} aria-hidden /> Remove
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="dash-empty">No child profiles yet. Add a child to keep application details together.</p>
+      )}
+
+      <form className="pd-form pd-child-form" key={editing?.child_id ?? "new-child"} onSubmit={saveChild}>
+        <h3>{editing ? `Update ${editing.name}'s details` : "Add a child"}</h3>
+        <label>
+          Child&apos;s name
+          <input name="name" defaultValue={editing?.name ?? ""} autoComplete="off" required maxLength={100} />
+        </label>
+        <label>
+          Date of birth
+          <input name="dob" type="date" defaultValue={editing?.dob ?? ""} required />
+        </label>
+        <label>
+          Gender
+          <select name="gender" defaultValue={editing?.gender ?? ""} required>
+            <option value="" disabled>Select gender</option>
+            <option value="FEMALE">Female</option>
+            <option value="MALE">Male</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </label>
+        <div className="pd-child-form__actions">
+          <button className="primary-button" type="submit" disabled={saving}>
+            <Plus size={16} aria-hidden /> {saving ? "Saving…" : editing ? "Save changes" : "Add child"}
+          </button>
+          {editing && (
+            <button className="pd-secondary-button" type="button" onClick={() => setEditing(null)}>
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
     </DashboardPanel>
   );
 }
@@ -252,21 +486,50 @@ function DocumentSummary({ applications }: { applications: ParentApplication[] |
   const documents = (applications ?? []).flatMap((application) =>
     (application.documents ?? []).map((document) => ({ ...document, school: application.school.school_name, enquiry_id: application.enquiry_id })),
   );
+  const requests = (applications ?? []).filter((application) => application.application_status === "DOCUMENTS_REQUIRED");
   return (
-    <DashboardPanel title="Documents" subtitle="Files you have uploaded for schools. Pending requests appear on each application.">
-      {documents.length === 0 ? (
-        <p className="dash-empty">No documents uploaded yet. Open an application when a school asks for a file.</p>
+    <DashboardPanel title="Documents" subtitle="Track school requests and review the files you have uploaded.">
+      {!applications ? (
+        <p className="dash-empty">Loading your document status…</p>
       ) : (
-        <ul className="pd-list">
-          {documents.map((document) => (
-            <li key={document.document_id}>
-              <FileText size={16} aria-hidden />
-              <strong>{document.document_type_label}</strong>
-              <span>{document.school} · {document.review_status}</span>
-              <Link href={`/dashboard/parent/applications/${document.enquiry_id}/`}>Open</Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <section className="pd-document-requests">
+            <h3>School requests</h3>
+            {requests.length === 0 ? (
+              <p className="dash-empty">No schools are currently requesting additional documents.</p>
+            ) : (
+              <ul className="pd-list">
+                {requests.map((application) => (
+                  <li key={application.enquiry_id}>
+                    <strong>{application.school.school_name}</strong>
+                    <DocumentRequestHint application={application} />
+                    <Link href={`/dashboard/parent/applications/${application.enquiry_id}/`}>Open application and upload</Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section className="pd-uploaded-documents">
+            <h3>Uploaded documents</h3>
+            {documents.length === 0 ? (
+              <p className="dash-empty">No documents uploaded yet.</p>
+            ) : (
+              <ul className="pd-list">
+                {documents.map((document) => (
+                  <li key={document.document_id}>
+                    <FileText size={16} aria-hidden />
+                    <strong>{document.document_type_label}</strong>
+                    <span>{document.school} · {document.original_name}</span>
+                    <em className={`pd-badge pd-badge--${document.review_status.toLowerCase()}`}>
+                      {document.review_status.replace("_", " ")}
+                    </em>
+                    <Link href={`/dashboard/parent/applications/${document.enquiry_id}/`}>Open</Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
       )}
     </DashboardPanel>
   );
