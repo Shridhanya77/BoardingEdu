@@ -79,7 +79,7 @@ function SchoolBoardSelector({
 
   return (
     <form className="fee-summary__board-selector" action={profilePath} method="get">
-      <label htmlFor="school-board-selection">Education board</label>
+      <label htmlFor="school-board-selection">Board</label>
       <span className="fee-summary__select-wrap">
         <select
           id="school-board-selection"
