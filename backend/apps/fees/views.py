@@ -63,7 +63,7 @@ class PublicFeeEstimateView(APIView):
         school_ids = list(dict.fromkeys(values["school_ids"]))
         schools = list(
             public_school_queryset()
-            .filter(school_id__in=school_ids, school_types=school_type)
+            .filter(school_id__in=school_ids)
             .select_related("city", "state", "country", "location")
             .prefetch_related("school_types")
         )
@@ -105,6 +105,11 @@ class PublicFeeEstimateView(APIView):
         results = []
         for school_id in school_ids:
             school = school_by_id[school_id]
+            if school_type.pk not in {
+                item.pk for item in school.school_types.all()
+            }:
+                results.append(self._unavailable_school(school))
+                continue
             if not SchoolGrade.objects.filter(
                 school=school,
                 grade=grade,

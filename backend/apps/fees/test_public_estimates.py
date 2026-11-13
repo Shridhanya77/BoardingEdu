@@ -159,3 +159,26 @@ class PublicFeeEstimateTests(TestCase):
         self.assertEqual(response.status_code, 200)
         rows = response.data.get("results", response.data) if isinstance(response.data, dict) else response.data
         self.assertEqual(rows, [])
+
+    def test_school_with_different_type_returns_unavailable_result(self):
+        boarding_type = SchoolType.objects.create(
+            type_code="BOARD-ESTIMATE",
+            type_name="Fee Estimate Boarding School",
+            slug="fee-estimate-boarding-school",
+        )
+
+        response = self.client.post(
+            "/api/fees/estimate/",
+            {
+                "school_ids": [str(self.school.pk)],
+                "grade_id": str(self.grade.pk),
+                "school_type_id": str(boarding_type.pk),
+                "academic_year_id": str(self.year.pk),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        estimate = response.data["results"][0]
+        self.assertFalse(estimate["fees_available"])
+        self.assertEqual(estimate["items"], [])

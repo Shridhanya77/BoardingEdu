@@ -86,14 +86,21 @@ export default function FeeCalculator() {
   useEffect(() => {
     let active = true;
     const normalized = query.trim();
-    if (normalized.length < 2) {
+    if (normalized.length < 2 || !gradeId || !schoolTypeId) {
       setMatches([]);
       setSearching(false);
       return;
     }
+    setError(null);
+    setMatches([]);
     setSearching(true);
     const timer = window.setTimeout(() => {
-      schools.list({ search: normalized, page_size: 8 })
+      schools.list({
+        search: normalized,
+        page_size: 8,
+        grade: gradeId,
+        school_type: schoolTypeId,
+      })
         .then((page) => {
           if (active) setMatches(page.results);
         })
@@ -108,7 +115,7 @@ export default function FeeCalculator() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [query]);
+  }, [gradeId, query, schoolTypeId]);
 
   function toggleSchool(school: SchoolListItem) {
     setSelectedSchools((current) =>
@@ -118,6 +125,7 @@ export default function FeeCalculator() {
           ? [...current, school]
           : current,
     );
+    setError(null);
     setResults(null);
   }
 
@@ -182,6 +190,7 @@ export default function FeeCalculator() {
               value={gradeId}
               onChange={(event) => {
                 setGradeId(event.target.value);
+                setError(null);
                 setResults(null);
               }}
               required
@@ -198,6 +207,7 @@ export default function FeeCalculator() {
               value={schoolTypeId}
               onChange={(event) => {
                 setSchoolTypeId(event.target.value);
+                setError(null);
                 setResults(null);
               }}
               required
@@ -217,14 +227,30 @@ export default function FeeCalculator() {
             <input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search schools by name or location"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setError(null);
+              }}
+              placeholder={gradeId && schoolTypeId
+                ? "Search schools by name or location"
+                : "Choose a grade and school type first"}
               aria-label="Search schools to compare"
+              disabled={!gradeId || !schoolTypeId}
             />
           </span>
         </label>
+        {(!gradeId || !schoolTypeId) && (
+          <p className="fee-calculator__message" role="status">
+            Choose a grade and school type before searching for schools.
+          </p>
+        )}
         {catalogError && <p className="fee-calculator__message" role="alert">{catalogError}</p>}
         {searching && <p className="fee-calculator__message" role="status">Searching schools…</p>}
+        {!searching && !error && gradeId && schoolTypeId && query.trim().length >= 2 && matches.length === 0 && (
+          <p className="fee-calculator__message" role="status">
+            No schools match that name, grade, and school type.
+          </p>
+        )}
         {matches.length > 0 && (
           <div className="fee-calculator__matches" aria-label="School search results">
             {matches.map((school) => {
@@ -323,7 +349,7 @@ export default function FeeCalculator() {
                   </>
                 ) : (
                   <p className="fee-estimate-card__note">
-                    This school has no current published fee schedule for the selected options.
+                    This school does not offer the selected grade or school type, or has no current published fee schedule.
                   </p>
                 )}
               </article>
