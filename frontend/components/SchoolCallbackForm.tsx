@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CalendarDays, LoaderCircle } from "lucide-react";
 import { admissions, ApiError, type SchoolDetail } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import { gradeSelectOptions } from "@/lib/grade-labels";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 
 function callbackErrorMessage(reason: unknown) {
@@ -109,7 +110,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
             Grade
             <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required>
               <option value="">Choose a grade</option>
-              {grades.map((grade) => (
+              {gradeSelectOptions(grades).map((grade) => (
                 <option value={grade.grade_id} key={grade.grade_id}>{grade.grade_name}</option>
               ))}
             </select>

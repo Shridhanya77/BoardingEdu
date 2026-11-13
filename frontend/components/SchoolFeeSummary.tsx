@@ -5,7 +5,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, LoaderCircle } from "lucide-rea
 import { fees, fetchAllPages } from "@/lib/api";
 import type { FeeItemListItem, FeeStructureListItem } from "@/lib/api";
 import { academicYearSortKey, formatAcademicYearLabel } from "@/lib/academic-year";
-import { formatGradeLabel } from "@/lib/grade-labels";
+import { formatGradeLabel, gradeSelectOptions } from "@/lib/grade-labels";
 
 type FeeDetails = {
   structure: FeeStructureListItem;
@@ -247,9 +247,9 @@ export default function SchoolFeeSummary({
             <span className="fee-summary__select-wrap">
               <select value={selectedGradeId} onChange={(event) => setSelectedGradeId(event.target.value)}>
                 {!grades.length && <option value="">All grades</option>}
-                {grades.map((grade) => (
+                {gradeSelectOptions(grades).map((grade) => (
                   <option key={grade.grade_id} value={grade.grade_id}>
-                    {formatGradeLabel(grade.grade_name)}
+                    {grade.grade_name}
                   </option>
                 ))}
               </select>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
+import GuideBrowser from "@/components/guides/GuideBrowser";
 import { guideList, guidesIndexDescription } from "@/lib/guides";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
@@ -40,25 +40,7 @@ export default function GuidesIndexPage() {
         </p>
       </header>
 
-      <section className="guides-grid" aria-label="Guides">
-        {guides.map((guide) => (
-          <article key={guide.slug} className={`guides-card guides-card--${guide.category.toLowerCase().replace(/[^a-z]+/g, "-")}`}>
-            <div className="guides-card__media" style={{ backgroundImage: "url(/school-cover-fallback.svg)" }} role="img" aria-label="" />
-            <span className="guides-chip">{guide.category}</span>
-            <h2 className="guides-card__title">
-              <Link href={`/guides/${guide.slug}`}>{guide.title}</Link>
-            </h2>
-            <p className="guides-card__summary">{guide.summary}</p>
-            <div className="guides-card__foot">
-              <span className="guides-card__time">{guide.readingMinutes} min read</span>
-              <Link className="guides-card__link" href={`/guides/${guide.slug}`}>
-                Read guide
-                <span aria-hidden="true"> →</span>
-              </Link>
-            </div>
-          </article>
-        ))}
-      </section>
+      <GuideBrowser guides={guides} />
     </main>
   );
 }

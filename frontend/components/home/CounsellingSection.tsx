@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
+import { gradeSelectOptions } from "@/lib/grade-labels";
 
 export default function CounsellingSection() {
   const [name, setName] = useState("");
@@ -161,7 +162,7 @@ export default function CounsellingSection() {
             onChange={(event) => setGradeId(event.target.value)}
           >
             <option value="">{grades.length ? "Choose a class" : "Loading classes…"}</option>
-            {grades.map((grade) => (
+            {gradeSelectOptions(grades).map((grade) => (
               <option key={grade.grade_id} value={grade.grade_id}>{grade.grade_name}</option>
             ))}
           </select>

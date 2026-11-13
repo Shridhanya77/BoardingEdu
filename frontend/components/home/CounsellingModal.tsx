@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
+import { gradeSelectOptions } from "@/lib/grade-labels";
 import { homeSchoolTypeIds, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 export default function CounsellingModal({
@@ -285,7 +286,7 @@ export default function CounsellingModal({
               Preferred class <span aria-hidden="true">*</span>
               <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required disabled={submitting}>
                 <option value="">Choose a class</option>
-                {grades.map((grade) => (
+                {gradeSelectOptions(grades).map((grade) => (
                   <option value={grade.grade_id} key={grade.grade_id}>{grade.grade_name}</option>
                 ))}
               </select>

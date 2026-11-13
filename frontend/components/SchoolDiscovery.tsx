@@ -53,6 +53,8 @@ import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
 import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
+import FeaturedSchoolCarousel from "@/components/home/FeaturedSchoolCarousel";
+import GuideBrowser from "@/components/guides/GuideBrowser";
 import HomeBotOnboarding from "@/components/home/HomeBotOnboarding";
 import IndiaRegionPickerModal from "@/components/home/IndiaRegionPickerModal";
 import SchoolTypePickerModal, { type SchoolTypePickerRequest } from "@/components/home/SchoolTypePickerModal";
@@ -70,6 +72,7 @@ import {
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
 import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
+import { guideList } from "@/lib/guides";
 import {
   homeSchoolCategories,
   homeSchoolCategoryForIds,
@@ -123,6 +126,7 @@ type IndiaRegionBrowseItem = {
 const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
 
 const PAGE_SIZE = 12;
+const schoolGuides = guideList();
 
 function uniqueSchoolsById(schoolsToFilter: SchoolListItem[]) {
   const seen = new Set<string>();
@@ -531,20 +535,33 @@ function HomeSectionTypeSelector({
   onChange: (value: HomeSchoolCategory | null) => void;
 }) {
   return (
-    <label className="home-section__type-selector">
-      <span className="sr-only">Filter by school type</span>
-      <select
-        value={value ?? ""}
-        onChange={(event) =>
-          onChange(homeSchoolCategoryFromValue(event.target.value))
-        }
-      >
-        <option value="">Choose school type</option>
-        <option value="day-school">Day school</option>
-        <option value="residential-school">Boarding school</option>
-      </select>
-      <ChevronDown size={14} aria-hidden="true" />
-    </label>
+    <div className="home-section__type-filter">
+      <label className="home-section__type-selector">
+        <span>Show boards for</span>
+        <span className="home-section__type-select">
+          <span className="sr-only">Filter boards by school type</span>
+          <select
+            value={value ?? ""}
+            aria-label="Filter boards by school type"
+            onChange={(event) =>
+              onChange(homeSchoolCategoryFromValue(event.target.value))
+            }
+          >
+            <option value="">All school types</option>
+            <option value="day-school">Day schools</option>
+            <option value="residential-school">Boarding schools</option>
+          </select>
+          <ChevronDown size={14} aria-hidden="true" />
+        </span>
+      </label>
+      <span className="home-section__type-hint" aria-live="polite">
+        {value === "day-school"
+          ? "Showing boards for day schools"
+          : value === "residential-school"
+            ? "Showing boards for boarding schools"
+            : "Browse boards for every school type"}
+      </span>
+    </div>
   );
 }
 
@@ -1241,7 +1258,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     const grouped = new Map<string, StateBrowseItem & { featured: number }>();
     for (const city of cities) {
       const count = city.schools_count ?? 0;
-      if (count <= 0) continue;
       const current = grouped.get(city.state_id) ?? {
         state_id: city.state_id,
         state_name: city.state_name,
@@ -1257,18 +1273,27 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return [...grouped.values()]
       .sort((left, right) => right.featured - left.featured || right.count - left.count || left.state_name.localeCompare(right.state_name));
   }, [cities]);
-  const stateCards = useMemo(() => rankedStates.slice(0, 8), [rankedStates]);
+  const stateCards = useMemo(
+    () => rankedStates.filter((state) => state.count > 0).slice(0, 8),
+    [rankedStates],
+  );
   const visibleStates = useMemo(() => {
     const query = allStateQuery.trim().toLocaleLowerCase();
     return rankedStates.filter((state) => state.state_name.toLocaleLowerCase().includes(query));
   }, [allStateQuery, rankedStates]);
   const visibleCities = useMemo(() => {
     const query = allCityQuery.trim().toLocaleLowerCase();
-    return rankedCities.filter((city) =>
-      (!allCityStateId || city.state_id === allCityStateId) &&
-      `${city.city_name} ${city.state_name}`.toLocaleLowerCase().includes(query),
-    );
-  }, [allCityQuery, allCityStateId, rankedCities]);
+    return cities
+      .filter((city) =>
+        (!allCityStateId || city.state_id === allCityStateId) &&
+        `${city.city_name} ${city.state_name}`.toLocaleLowerCase().includes(query),
+      )
+      .sort(
+        (left, right) =>
+          (right.schools_count ?? 0) - (left.schools_count ?? 0) ||
+          left.city_name.localeCompare(right.city_name),
+      );
+  }, [allCityQuery, allCityStateId, cities]);
   const stateModalCities = useMemo(() => {
     if (!selectedState) return [];
     const query = stateCitySearch.trim().toLocaleLowerCase();
@@ -3160,7 +3185,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </p>
           )}
         </div>
-        {rankedCities.length > 0 && (
+        {cities.length > 0 && (
           <div className="home-section__more">
             <button type="button" className="secondary-button" onClick={() => setAllCitiesOpen(true)}>
               Explore All Cities
@@ -3545,7 +3570,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                       No featured schools are listed in this area yet. Here are other published schools nearby.
                     </p>
                   )}
-                  <FeaturedSchoolCards schools={featuredSchools} />
+                  <FeaturedSchoolCarousel
+                    schools={featuredSchools}
+                    label={`Featured schools in ${listingPlaceLabel}`}
+                  />
                 </>
               ) : (
                 <p className="section-empty">No schools are listed for this area yet.</p>
@@ -3554,6 +3582,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </section>
         )}
 
+        {!activeCountryId && !activeStateId && !activeCityId &&
+          !featuredLoading && !featuredError && featuredSchools.length > 0 && (
+            <section className="listing-directory-carousel" aria-labelledby="listing-directory-carousel-heading">
+              <div className="listing-directory-carousel__heading">
+                <div>
+                  <span className="section-eyebrow">SCHOOLS TO EXPLORE</span>
+                  <h2 id="listing-directory-carousel-heading">Featured schools</h2>
+                  <p>Scroll through featured listings to compare schools before you refine your search.</p>
+                </div>
+              </div>
+              <FeaturedSchoolCarousel schools={featuredSchools} />
+            </section>
+          )}
+
         <div className="section-heading">
           <div>
             <div className="section-eyebrow">SCHOOL DIRECTORY</div>
@@ -3561,6 +3603,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <p>
               Compare fees, boards, facilities, and admission details, then contact schools directly.
             </p>
+            <details className="listing-seo-copy">
+              <summary>Read more about {listingSubject.toLowerCase()} in {listingPlaceLabel}</summary>
+              <p>
+                {listingDescription} Use the directory filters to narrow schools by location, board,
+                school type, fee range, and gender. Review each school profile for its published
+                facilities, grade information, and contact options, and confirm current admissions
+                details directly with the school.
+              </p>
+            </details>
           </div>
         </div>
 
@@ -3976,6 +4027,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </section>
         )}
 
+        <GuideBrowser guides={schoolGuides} compact />
+
         <ReviewsCollection
           mode="section"
           heading={
@@ -4056,7 +4109,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <div>
                 <span className="section-eyebrow">STATES AND UNION TERRITORIES</span>
                 <h2 id="all-states-title">Explore all states</h2>
-                <p>Locations with published schools, ranked by featured schools and then by published schools.</p>
+                <p>Active states and union territories are shown with their current school-listing counts.</p>
               </div>
               <button className="state-explorer__close" type="button" aria-label="Close" onClick={() => setAllStatesOpen(false)}><X size={19} /></button>
             </div>
@@ -4065,6 +4118,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <span className="sr-only">Search states</span>
               <input type="search" value={allStateQuery} onChange={(event) => setAllStateQuery(event.target.value)} placeholder="Search states" />
             </label>
+            <p className="state-explorer__result-count" role="status" aria-live="polite">
+              Showing {visibleStates.length} {visibleStates.length === 1 ? "state" : "states"} with school listings
+            </p>
             <div className="state-explorer__cities">
               {visibleStates.map((state) => (
                 <Link
@@ -4090,7 +4146,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     <span className="state-city-card__icon"><MapPin size={17} aria-hidden /></span>
                     <span>
                       <strong>{state.state_name}</strong>
-                      <small>{state.count} published schools</small>
+                      <small>{state.count.toLocaleString()} school listings</small>
                     </span>
                   </div>
                 </Link>
@@ -4115,10 +4171,19 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <label className="state-explorer__search">
               <Search size={17} aria-hidden />
               <span className="sr-only">Filter by state</span>
-              <select value={allCityStateId} onChange={(event) => setAllCityStateId(event.target.value)} aria-label="Filter cities by state">
+              <select
+                value={allCityStateId}
+                onChange={(event) => {
+                  setAllCityStateId(event.target.value);
+                  setAllCityQuery("");
+                }}
+                aria-label="Filter cities by state"
+              >
                 <option value="">All states</option>
                 {rankedStates.map((state) => (
-                  <option key={state.state_id} value={state.state_id}>{state.state_name}</option>
+                  <option key={state.state_id} value={state.state_id}>
+                    {state.state_name} ({state.count.toLocaleString()} listings)
+                  </option>
                 ))}
               </select>
             </label>
@@ -4127,6 +4192,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <span className="sr-only">Search cities</span>
               <input type="search" value={allCityQuery} onChange={(event) => setAllCityQuery(event.target.value)} placeholder="Search cities" />
             </label>
+            <p className="state-explorer__result-count" role="status" aria-live="polite">
+              {visibleCities.length} {visibleCities.length === 1 ? "city" : "cities"} with school listings
+              {allCityStateId
+                ? ` in ${rankedStates.find((state) => state.state_id === allCityStateId)?.state_name ?? "the selected state"}`
+                : ""}
+            </p>
             <div className="state-explorer__cities">
               {visibleCities.map((city) => (
                 <Link
