@@ -36,6 +36,8 @@ Each status change is recorded with its actor, previous and new status, note,
 and timestamp. Generic school edits cannot change the verification status.
 The Django admin has a paginated pending-verification queue linked from the
 school list, and exposes the audit history as read-only.
+Public school listings and profiles include every active school; verification
+status remains available for administrative review and audit.
 
 ## School content approval
 

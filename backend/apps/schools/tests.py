@@ -279,6 +279,29 @@ class SchoolClassificationTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_active_unverified_schools_are_available_in_public_directory(self):
+        school = self.create_school('UNVERIFIED-PUBLIC')
+        inactive = self.create_school('INACTIVE-PUBLIC')
+        inactive.status = False
+        inactive.save(update_fields=['status'])
+
+        list_response = self.client.get('/api/schools/schools/')
+        detail_response = self.client.get(
+            f'/api/schools/schools/{school.pk}/'
+        )
+        inactive_response = self.client.get(
+            f'/api/schools/schools/by-slug/{inactive.slug}/'
+        )
+
+        self.assertEqual(list_response.status_code, 200)
+        school_codes = {
+            item['school_code'] for item in list_response.data['results']
+        }
+        self.assertIn(school.school_code, school_codes)
+        self.assertNotIn(inactive.school_code, school_codes)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(inactive_response.status_code, 404)
+
     def test_canonical_school_types_include_day_boarding_as_its_own_type(self):
         self.assertEqual(self.day.type_name, 'Day School')
         self.assertEqual(self.day_boarding.type_name, 'Day Boarding School')
