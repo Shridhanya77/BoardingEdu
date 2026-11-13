@@ -6926,11 +6926,23 @@ select:focus-visible {
 
 .fee-summary__selectors {
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 420px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
 }
 
 .fee-summary__selectors label {
+  display: grid;
+  gap: 6px;
+  color: #314b67;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.fee-summary__board-selector {
+  width: 190px;
+  max-width: 100%;
   display: grid;
   gap: 6px;
   color: #314b67;
@@ -6953,6 +6965,10 @@ select:focus-visible {
   border-radius: 12px;
   font: inherit;
   font-size: 15px;
+}
+
+.fee-summary__board-selector select {
+  width: 100%;
 }
 
 .fee-summary__select-wrap svg {
@@ -21800,69 +21816,6 @@ select:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.school-board-picker {
-  margin-bottom: 18px;
-  padding: 14px 16px;
-  color: #263a51;
-  background: #f5f8fc;
-  border: 1px solid #dbe5ef;
-  border-radius: 14px;
-}
-
-.school-board-picker label {
-  display: block;
-  color: #203b59;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.5;
-}
-
-.school-board-picker__controls {
-  margin-top: 9px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.school-board-picker select,
-.school-board-picker button {
-  min-height: 42px;
-  padding: 8px 11px;
-  border: 1px solid #cbd8e6;
-  border-radius: 10px;
-  font: inherit;
-}
-
-.school-board-picker select {
-  flex: 1 1 220px;
-  min-width: 0;
-  color: #172a41;
-  background: #fff;
-}
-
-.school-board-picker button {
-  color: #fff;
-  background: #173b61;
-  border-color: #173b61;
-  font-size: 13px;
-  font-weight: 750;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.school-board-picker button:hover,
-.school-board-picker button:focus-visible {
-  background: #0f2e4d;
-  border-color: #0f2e4d;
-}
-
-.school-board-picker p {
-  margin: 8px 0 0;
-  color: #667b94;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .school-detail__hero .school-chip {

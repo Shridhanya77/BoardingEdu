@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronDown, LoaderCircle } from "lucide-react";
 import { fees, fetchAllPages } from "@/lib/api";
-import type { FeeItemListItem, FeeStructureListItem } from "@/lib/api";
+import type { BoardListItem, FeeItemListItem, FeeStructureListItem } from "@/lib/api";
 import { academicYearSortKey, formatAcademicYearLabel } from "@/lib/academic-year";
 import { formatGradeLabel, gradeSelectOptions } from "@/lib/grade-labels";
 
@@ -66,16 +66,55 @@ function yearCodesMatch(candidates: string[], code: string): boolean {
 const PRIMARY_FEE_YEARS = ["2026-2027", "2026-27"];
 const FALLBACK_FEE_YEARS = ["2027-2028", "2027-28", "2024-2025", "2024-25"];
 
+function SchoolBoardSelector({
+  boards,
+  selectedBoardId,
+  profilePath,
+}: {
+  boards: BoardListItem[];
+  selectedBoardId?: string;
+  profilePath: string;
+}) {
+  if (boards.length < 2) return null;
+
+  return (
+    <form className="fee-summary__board-selector" action={profilePath} method="get">
+      <label htmlFor="school-board-selection">Education board</label>
+      <span className="fee-summary__select-wrap">
+        <select
+          id="school-board-selection"
+          name="board"
+          defaultValue={selectedBoardId ?? ""}
+          onChange={(event) => event.currentTarget.form?.requestSubmit()}
+          required
+        >
+          <option value="" disabled>Select a board</option>
+          {boards.map((board) => (
+            <option key={board.board_id} value={board.board_id}>{board.board_name}</option>
+          ))}
+        </select>
+        <ChevronDown size={16} aria-hidden />
+      </span>
+    </form>
+  );
+}
+
 export default function SchoolFeeSummary({
   schoolId,
   grades,
   selectedGradeId: controlledGradeId,
   onGradeChange,
+  boards,
+  selectedBoardId,
+  profilePath,
 }: {
   schoolId: string;
   grades: GradeOption[];
   selectedGradeId?: string;
   onGradeChange?: (gradeId: string) => void;
+  boards: BoardListItem[];
+  selectedBoardId?: string;
+  profilePath: string;
 }) {
   const [details, setDetails] = useState<FeeDetails[]>([]);
   const [selectedYearId, setSelectedYearId] = useState("");
@@ -85,6 +124,13 @@ export default function SchoolFeeSummary({
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const boardSelector = (
+    <SchoolBoardSelector
+      boards={boards}
+      selectedBoardId={selectedBoardId}
+      profilePath={profilePath}
+    />
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -207,13 +253,28 @@ export default function SchoolFeeSummary({
   }, [details, selectedGradeId, selectedYearCode, selectedYearId]);
 
   if (loading) {
-    return <p className="empty-state" role="status"><LoaderCircle className="spin" size={16} /> Loading published fees…</p>;
+    return (
+      <div className="fee-summary">
+        {boardSelector && <div className="fee-summary__selectors">{boardSelector}</div>}
+        <p className="empty-state" role="status"><LoaderCircle className="spin" size={16} /> Loading published fees…</p>
+      </div>
+    );
   }
   if (error) {
-    return <p className="empty-state" role="alert"><AlertCircle size={16} />{error}</p>;
+    return (
+      <div className="fee-summary">
+        {boardSelector && <div className="fee-summary__selectors">{boardSelector}</div>}
+        <p className="empty-state" role="alert"><AlertCircle size={16} />{error}</p>
+      </div>
+    );
   }
   if (!details.length) {
-    return <p className="empty-state"><CheckCircle2 size={16} />No published fee schedule is available yet. Fee details appear here after the school activates and publishes its schedule.</p>;
+    return (
+      <div className="fee-summary">
+        {boardSelector && <div className="fee-summary__selectors">{boardSelector}</div>}
+        <p className="empty-state"><CheckCircle2 size={16} />No published fee schedule is available yet. Fee details appear here after the school activates and publishes its schedule.</p>
+      </div>
+    );
   }
 
   const selectedGradeName = formatGradeLabel(
@@ -231,6 +292,7 @@ export default function SchoolFeeSummary({
           <p>Class-wise fees for the selected academic year, shown the way schools publish them for admissions.</p>
         </div>
         <div className="fee-summary__selectors">
+          {boardSelector}
           <label>
             Academic year
             <span className="fee-summary__select-wrap">
