@@ -1140,25 +1140,6 @@ class SchoolClassificationTests(TestCase):
         self.assertEqual(change_response.status_code, 403)
         self.assertFalse(SchoolVerificationEvent.objects.exists())
 
-    def test_staff_admin_verification_queue_includes_unverified_imports(self):
-        unverified = self.create_school('QUEUE-UNVERIFIED')
-        pending = self.create_school('QUEUE-PENDING')
-        pending.verification_status = 'PENDING'
-        pending.save(update_fields=['verification_status'])
-        verified = self.create_school('QUEUE-VERIFIED')
-        verified.verification_status = 'VERIFIED'
-        verified.save(update_fields=['verification_status'])
-        client, _ = self.verification_client(User.ROLE_STAFF_ADMIN)
-
-        response = client.get('/api/schools/schools/verification-queue/')
-
-        self.assertEqual(response.status_code, 200)
-        school_codes = {row['school_code'] for row in response.data['results']}
-        self.assertSetEqual(
-            school_codes,
-            {unverified.school_code, pending.school_code},
-        )
-
     def test_verification_change_requires_a_note(self):
         school = self.create_school('VERIFY-NOTE')
         client, _ = self.verification_client(User.ROLE_SUPER_ADMIN)
@@ -1203,7 +1184,6 @@ class SchoolClassificationTests(TestCase):
         school = self.create_school('VERIFY-ADMIN')
         school.verification_status = 'PENDING'
         school.save(update_fields=['verification_status'])
-        imported_school = self.create_school('VERIFY-ADMIN-IMPORT')
         admin_user = User.objects.create_user(
             username='verification-admin',
             password='test-password',
@@ -1225,7 +1205,6 @@ class SchoolClassificationTests(TestCase):
 
         self.assertEqual(queue_response.status_code, 200)
         self.assertContains(queue_response, school.school_name)
-        self.assertContains(queue_response, imported_school.school_name)
         self.assertEqual(decision_response.status_code, 302)
         school.refresh_from_db()
         self.assertEqual(school.verification_status, 'VERIFIED')

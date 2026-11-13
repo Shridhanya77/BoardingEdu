@@ -1,8 +1,3 @@
-[CmdletBinding()]
-param(
-    [string]$DatabaseUrl = ""
-)
-
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
@@ -15,18 +10,13 @@ if (-not (Test-Path $python)) {
     $python = $pythonCommand.Source
 }
 
-if ([string]::IsNullOrWhiteSpace($DatabaseUrl)) {
-    $databasePath = Join-Path $PSScriptRoot "db.sqlite3"
-    $databaseUrlPath = $databasePath.Replace([char]92, [char]47)
-    $env:DATABASE_URL = "sqlite:///$databaseUrlPath"
-    Write-Host "Using local SQLite database: $databasePath"
-} else {
-    $env:DATABASE_URL = $DatabaseUrl
-    Write-Host "Using provided database URL."
-}
-
+$databasePath = Join-Path $PSScriptRoot "db.sqlite3"
+$databaseUrlPath = $databasePath.Replace([char]92, [char]47)
+$env:DATABASE_URL = "sqlite:///$databaseUrlPath"
 $env:DEBUG = "True"
 $env:ALLOWED_HOSTS = "localhost,127.0.0.1"
+
+Write-Host "Using local SQLite database: $databasePath"
 & $python manage.py check
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE

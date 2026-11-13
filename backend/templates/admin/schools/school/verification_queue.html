@@ -5,15 +5,15 @@
   <div class="breadcrumbs">
     <a href="{% url 'admin:index' %}">{% translate "Home" %}</a>
     &rsaquo; <a href="{% url 'admin:schools_school_changelist' %}">Schools</a>
-    &rsaquo; Verification queue
+    &rsaquo; Pending verification
   </div>
 {% endblock %}
 
 {% block content %}
   <section class="be-verify-intro">
     <span class="be-verify-kicker">SCHOOL DIRECTORY</span>
-    <h1>Schools awaiting verification</h1>
-    <p>Review each school, confirm its details, and record the reason for your decision.</p>
+    <h1>Pending school verification</h1>
+    <p>Review each registration, confirm its details, and record the reason for your decision.</p>
   </section>
 
   {% if error_form %}
@@ -43,7 +43,7 @@
               <br><small>{{ school.school_code }}</small>
             </td>
             <td>{{ school.city.city_name }}, {{ school.state.state_name }}</td>
-            <td><span class="be-verify-status">{{ school.get_verification_status_display }}</span></td>
+            <td><span class="be-verify-status">Pending review</span></td>
             <td>
               <form method="post" class="be-verify-form">
                 {% csrf_token %}

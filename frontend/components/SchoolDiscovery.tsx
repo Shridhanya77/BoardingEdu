@@ -800,6 +800,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const topPickSchools = topSchoolsCategory === "residential-school"
     ? displayTopBoardingSchools
     : displayTopDaySchools;
+  const excludedSchoolIds = useMemo(
+    () => new Set([
+      ...featuredSchoolIds,
+      ...topPickSchools.map((school) => school.school_id),
+    ]),
+    [featuredSchoolIds, topPickSchools],
+  );
   const comparisonSchools = useMemo(() => {
     const seen = new Set<string>();
     const schools: SchoolListItem[] = [];
@@ -1273,8 +1280,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const hasMoreResults = page * PAGE_SIZE < totalCount;
   const displayResults = useMemo(() => {
     if (directoryRecommendationsLoading) return [];
-    return uniqueSchoolsById(results);
-  }, [directoryRecommendationsLoading, results]);
+    return uniqueSchoolsById(results).filter(
+      (school) => !excludedSchoolIds.has(school.school_id),
+    );
+  }, [directoryRecommendationsLoading, excludedSchoolIds, results]);
   const lastResultIndex = displayResults.length;
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
