@@ -29,7 +29,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { CSSProperties, FormEvent } from "react";
-import { fetchAllPages, geography, reviews, schools, apiErrorMessage } from "@/lib/api";
+import {
+  apiErrorMessage,
+  dashboards,
+  fetchAllPages,
+  geography,
+  guideContent,
+  reviews,
+  schools,
+} from "@/lib/api";
 import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
 import { boardsAffiliatedLabel } from "@/lib/board-labels";
 import type {
@@ -42,6 +50,7 @@ import type {
   SchoolFilters,
   SchoolListItem,
   SchoolTypeListItem,
+  GuideSummary as ApiGuideSummary,
 } from "@/lib/api";
 import FeeRangeFilter from "@/components/search/FeeRangeFilter";
 import SearchCommandPalette from "@/components/search/SearchCommandPalette";
@@ -54,7 +63,10 @@ import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import FeaturedSchoolCarousel from "@/components/home/FeaturedSchoolCarousel";
+import RecentlyViewedSchools from "@/components/home/RecentlyViewedSchools";
+import AnimatedCount from "@/components/home/AnimatedCount";
 import GuideBrowser from "@/components/guides/GuideBrowser";
+import FeaturedGuide from "@/components/guides/FeaturedGuide";
 import HomeBotOnboarding from "@/components/home/HomeBotOnboarding";
 import IndiaRegionPickerModal from "@/components/home/IndiaRegionPickerModal";
 import SchoolTypePickerModal, { type SchoolTypePickerRequest } from "@/components/home/SchoolTypePickerModal";
@@ -68,6 +80,7 @@ import { INDIA_REGIONS, indiaRegionById, indiaRegionBySlug, indiaRegionForState 
 import {
   exploreItems,
   faqItems,
+  howItWorksSteps,
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 import { trackSearchEvent } from "@/lib/search-analytics";
@@ -127,6 +140,50 @@ const DEFAULT_ORDERING: NonNullable<SchoolFilters["ordering"]> = "-is_featured";
 
 const PAGE_SIZE = 12;
 const schoolGuides = guideList();
+const staticHomeFaqs: SchoolFAQListItem[] = [
+  {
+    faq_id: "saved-home-faq-general",
+    question: "How do I get started with BoardingEdu?",
+    answer: "Browse schools by location, school type, grade, and board, then open a school's profile to review the information it has published.",
+    category: "GENERAL",
+  },
+  ...faqItems.map((item, index): SchoolFAQListItem => ({
+    faq_id: `saved-home-faq-${index}`,
+    question: item.question,
+    answer: item.answer,
+    category: index === 0 || index === 1 || index === 2 || index === 5 ? "FINDING" : "ADMISSIONS",
+  })),
+  {
+    faq_id: "saved-home-faq-fees",
+    question: "Are fee estimates the final amount a school will charge?",
+    answer: "No. Estimates use the school's published fee schedule and may exclude variable or optional charges. Confirm the current total and payment dates directly with the school.",
+    category: "FEES",
+  },
+  {
+    faq_id: "saved-home-faq-boarding",
+    question: "How can I check what boarding facilities a school provides?",
+    answer: "Review the facilities published on the school's profile and ask the school about supervision, accommodation arrangements, meals, and student wellbeing during your visit.",
+    category: "BOARDING",
+  },
+  {
+    faq_id: "saved-home-faq-parent-account",
+    question: "What can I do from a parent account?",
+    answer: "A parent account can help you manage your profile, shortlist schools, track admission enquiries, and review updates linked to your account.",
+    category: "PARENT_ACCOUNTS",
+  },
+  {
+    faq_id: "saved-home-faq-school-profile",
+    question: "How can a school administrator update a school profile?",
+    answer: "A school administrator can use the school dashboard to submit profile, grade, facility, photograph, and fee updates. Some updates require review before they are published.",
+    category: "SCHOOL_PROFILES",
+  },
+  {
+    faq_id: "saved-home-faq-privacy",
+    question: "Who can see my admission enquiries and documents?",
+    answer: "Admission information is provided to the relevant school and authorized platform staff to support the enquiry. Do not send sensitive documents unless the school requests them through an appropriate channel.",
+    category: "PRIVACY",
+  },
+];
 
 function uniqueSchoolsById(schoolsToFilter: SchoolListItem[]) {
   const seen = new Set<string>();
@@ -578,6 +635,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [homeReviewSummaryError, setHomeReviewSummaryError] = useState<string | null>(null);
   const [homeReviewsLoading, setHomeReviewsLoading] = useState(true);
   const [typePicker, setTypePicker] = useState<SchoolTypePickerRequest | null>(null);
+  const [homeSummary, setHomeSummary] = useState<{
+    schools_listed: number;
+    cities_covered: number;
+    published_reviews: number;
+    last_updated: string | null;
+  } | null>(null);
+  const [homeSummaryError, setHomeSummaryError] = useState<string | null>(null);
+  const [publishedGuides, setPublishedGuides] = useState<ApiGuideSummary[]>(schoolGuides);
+  const [guidesError, setGuidesError] = useState<string | null>(null);
+  const [homeFaqs, setHomeFaqs] = useState<SchoolFAQListItem[]>(staticHomeFaqs);
+  const [homeFaqsError, setHomeFaqsError] = useState<string | null>(null);
+  const [activeFaqCategory, setActiveFaqCategory] =
+    useState<SchoolFAQListItem["category"]>("ADMISSIONS");
+  const [trustDetailsOpen, setTrustDetailsOpen] = useState(false);
+  const [faqSearch, setFaqSearch] = useState("");
   useEffect(() => {
     const destinationPath = window.sessionStorage.getItem(finderScrollStorageKey);
     if (!destinationPath) return;
@@ -593,6 +665,61 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     if (window.sessionStorage.getItem(onboardingSeenKey)) return;
     window.sessionStorage.setItem(onboardingSeenKey, "true");
     setBotOnboardingOpen(true);
+  }, [isHomePage]);
+  useEffect(() => {
+    if (!isHomePage) return;
+    let active = true;
+    dashboards.publicSummary()
+      .then((summary) => {
+        if (active) {
+          setHomeSummary(summary);
+          setHomeSummaryError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) setHomeSummaryError(apiErrorMessage(reason));
+      });
+    return () => {
+      active = false;
+    };
+  }, [isHomePage]);
+  useEffect(() => {
+    if (!isHomePage) return;
+    let active = true;
+    guideContent.list()
+      .then((page) => fetchAllPages(page))
+      .then((rows) => {
+        if (active) {
+          setPublishedGuides(rows);
+          setGuidesError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) setGuidesError(apiErrorMessage(reason));
+      });
+    return () => {
+      active = false;
+    };
+  }, [isHomePage]);
+  useEffect(() => {
+    if (!isHomePage) return;
+    let active = true;
+    schools.faqs()
+      .then((rows) => {
+        if (active) {
+          setHomeFaqs(rows);
+          setHomeFaqsError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setHomeFaqs(staticHomeFaqs);
+          setHomeFaqsError(apiErrorMessage(reason));
+        }
+      });
+    return () => {
+      active = false;
+    };
   }, [isHomePage]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -1554,6 +1681,33 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return true;
     });
   }, [schoolFaqs]);
+  const homeFaqCategories = useMemo(() => {
+    const order: SchoolFAQListItem["category"][] = [
+      "GENERAL",
+      "FINDING",
+      "ADMISSIONS",
+      "FEES",
+      "BOARDING",
+      "PARENT_ACCOUNTS",
+      "SCHOOL_PROFILES",
+      "PRIVACY",
+    ];
+    const existing = new Set(homeFaqs.map((item) => item.category));
+    return order.filter((category) => existing.has(category));
+  }, [homeFaqs]);
+  const visibleHomeFaqs = useMemo(() => {
+    const query = faqSearch.trim().toLowerCase();
+    return homeFaqs.filter((item) =>
+      item.category === activeFaqCategory &&
+      (!query || `${item.question} ${item.answer}`.toLowerCase().includes(query)),
+    );
+  }, [activeFaqCategory, faqSearch, homeFaqs]);
+
+  useEffect(() => {
+    if (homeFaqCategories.length && !homeFaqCategories.includes(activeFaqCategory)) {
+      setActiveFaqCategory(homeFaqCategories[0]);
+    }
+  }, [activeFaqCategory, homeFaqCategories]);
 
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
@@ -2739,6 +2893,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <Link href={schoolDirectoryPath("day-school")}>Day schools</Link>
               <Link href={schoolDirectoryPath("residential-school")}>Boarding schools</Link>
               <Link href="/compare/">Compare schools</Link>
+              <Link href="/fee-calculator/">Estimate fees</Link>
               {boards[0] && <Link href={boardListingPath(boards[0].slug)}>{boards[0].board_name} schools</Link>}
               <button type="button" onClick={() => setBotOnboardingOpen(true)}>
                 <Bot size={14} aria-hidden /> School discovery assistant
@@ -2821,6 +2976,80 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
       {isHomePage && (
         <>
+      <section className="trust-strip" aria-label="Verified BoardingEdu directory facts">
+        <div className="trust-strip__stats">
+          <div className="trust-stat">
+            <strong><AnimatedCount value={homeSummary?.schools_listed ?? null} /></strong>
+            <span>Verified schools listed</span>
+          </div>
+          <div className="trust-stat">
+            <strong><AnimatedCount value={homeSummary?.cities_covered ?? null} /></strong>
+            <span>Cities with listings</span>
+          </div>
+          <div className="trust-stat">
+            <strong><AnimatedCount value={homeSummary?.published_reviews ?? null} /></strong>
+            <span>Published parent reviews</span>
+          </div>
+        </div>
+        <div className="trust-strip__trust">
+          <strong>Information you can explore with confidence</strong>
+          <p>Making school discovery clearer for parents. Explore school information and compare available details before making a decision.</p>
+          <button
+            type="button"
+            className="trust-strip__disclosure"
+            aria-expanded={trustDetailsOpen}
+            aria-controls="trust-details"
+            onClick={() => setTrustDetailsOpen((open) => !open)}
+          >
+            <CheckCircle2 size={16} aria-hidden />
+            How school information is reviewed
+          </button>
+          {trustDetailsOpen && (
+            <div className="trust-strip__details" id="trust-details">
+              <p>School details may be submitted by school administrators or updated by BoardingEdu staff. The verified label is shown only for profiles that have completed the platform&apos;s verification workflow.</p>
+              <p>Published information can change. Please confirm current admissions, fees, and facilities directly with the school.</p>
+              {homeSummary?.last_updated && (
+                <p>Latest update to a listed school profile or published review:{" "}
+                  <time dateTime={homeSummary.last_updated}>
+                    {new Date(homeSummary.last_updated).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </time>.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        {homeSummaryError && (
+          <p className="trust-strip__error" role="status">
+            Live directory totals are temporarily unavailable.
+            <span className="sr-only"> {homeSummaryError}</span>
+          </p>
+        )}
+      </section>
+
+      <RecentlyViewedSchools />
+
+      <section className="home-section home-how-it-works" aria-labelledby="home-how-it-works-title">
+        <div className="home-section__heading home-section__heading--centered">
+          <div>
+            <span className="section-eyebrow">A CLEARER SCHOOL SEARCH</span>
+            <h2 id="home-how-it-works-title">How BoardingEdu works</h2>
+          </div>
+        </div>
+        <ol className="home-how-it-works__steps">
+          {howItWorksSteps.map((step, index) => (
+            <li key={step.title}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {!isHomePage && showTypeChooser && (
         <section className="home-section home-section--types" id="school-types">
           <div className="home-section__heading home-section__heading--centered">
@@ -3366,31 +3595,93 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <div>
             <div className="section-eyebrow">FAQ</div>
             <h2>Common questions</h2>
+            <p>Browse answers by topic or search for a question.</p>
           </div>
         </div>
 
-        <div className="faq-list">
-          {faqItems.map((item, index) => {
-            const open = activeFaq === index;
-
-            return (
-              <div
-                className={`faq-item ${open ? "faq-item--open" : ""}`}
-                key={item.question}
+        <div className="home-faq-layout">
+          <nav className="home-faq-categories" aria-label="FAQ categories">
+            {homeFaqCategories.map((category) => (
+              <button
+                type="button"
+                key={category}
+                className={activeFaqCategory === category ? "is-active" : ""}
+                aria-pressed={activeFaqCategory === category}
+                aria-current={activeFaqCategory === category ? "page" : undefined}
+                onClick={() => {
+                  setActiveFaqCategory(category);
+                  setActiveFaq(null);
+                }}
               >
-                <button
-                  type="button"
-                  className="faq-question"
-                  onClick={() => setActiveFaq(open ? null : index)}
-                >
-                  <span>{item.question}</span>
-                  <span className="faq-toggle">{open ? "−" : "+"}</span>
-                </button>
+                {({
+                  GENERAL: "General Information",
+                  FINDING: "Finding and Comparing Schools",
+                  ADMISSIONS: "School Admissions",
+                  FEES: "Fees and Payments",
+                  BOARDING: "Boarding and Hostel Facilities",
+                  PARENT_ACCOUNTS: "Parent Dashboard and Accounts",
+                  SCHOOL_PROFILES: "School Admin and School Profiles",
+                  PRIVACY: "Privacy, Security and Documents",
+                } satisfies Record<SchoolFAQListItem["category"], string>)[category]}
+              </button>
+            ))}
+          </nav>
+          <div className="home-faq-content">
+            <label className="home-faq-search">
+              <Search size={16} aria-hidden />
+              <span className="sr-only">Search frequently asked questions</span>
+              <input
+                type="search"
+                value={faqSearch}
+                onChange={(event) => {
+                  setFaqSearch(event.target.value);
+                  setActiveFaq(null);
+                }}
+                placeholder="Search questions"
+              />
+            </label>
+            {homeFaqsError && (
+              <p className="home-faq-error" role="status">
+                Saved FAQ content is shown because the latest answers could not be loaded.
+                <span className="sr-only"> {homeFaqsError}</span>
+              </p>
+            )}
+            <div className="faq-list">
+              {visibleHomeFaqs.map((item, index) => {
+                const open = activeFaq === index;
+                const answerId = `home-faq-answer-${item.faq_id}`;
 
-                {open && <p className="faq-answer">{item.answer}</p>}
-              </div>
-            );
-          })}
+                return (
+                  <div
+                    className={`faq-item ${open ? "faq-item--open" : ""}`}
+                    key={item.faq_id}
+                  >
+                    <button
+                      type="button"
+                      className="faq-question"
+                      aria-expanded={open}
+                      aria-controls={answerId}
+                      onClick={() => setActiveFaq(open ? null : index)}
+                    >
+                      <span>{item.question}</span>
+                      <span className="faq-toggle" aria-hidden>{open ? "−" : "+"}</span>
+                    </button>
+                    <div className={`faq-answer-wrap${open ? " is-open" : ""}`} id={answerId} aria-hidden={!open}>
+                      <p className="faq-answer">{item.answer}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              {!visibleHomeFaqs.length && (
+                <p className="home-faq-empty" role="status">
+                  No published questions match this topic and search.
+                </p>
+              )}
+            </div>
+            <p className="home-faq-contact">
+              Still have a question? <Link href="/contact/">Contact BoardingEdu</Link>
+            </p>
+          </div>
         </div>
       </section>
 
@@ -4027,7 +4318,20 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </section>
         )}
 
-        <GuideBrowser guides={schoolGuides} compact />
+        {guidesError && isHomePage && (
+          <p className="home-guides-error" role="status">
+            The latest guide articles could not be loaded; saved guide content is shown.
+            <span className="sr-only"> {guidesError}</span>
+          </p>
+        )}
+        {isHomePage && publishedGuides[0] && (
+          <FeaturedGuide guide={publishedGuides[0]} />
+        )}
+        <GuideBrowser
+          guides={publishedGuides}
+          compact={isHomePage}
+          featuredSlug={isHomePage ? publishedGuides[0]?.slug : undefined}
+        />
 
         <ReviewsCollection
           mode="section"

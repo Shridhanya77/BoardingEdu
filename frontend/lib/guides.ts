@@ -1,8 +1,4 @@
-export type GuideCategory =
-  | "Admissions"
-  | "Boarding Life"
-  | "Boards & Curriculum"
-  | "Fees & Planning";
+export type GuideCategory = string;
 
 export type GuideSection = {
   heading: string;

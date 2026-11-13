@@ -40,6 +40,7 @@ import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
 import { boardLabel, boardsAffiliatedLabel } from "@/lib/board-labels";
 import { formatGradesRange } from "@/lib/grade-labels";
 import SchoolProfileNavigation from "./SchoolProfileNavigation";
+import RecentSchoolTracker from "./RecentSchoolTracker";
 import SchoolFeesAndGrades from "./SchoolFeesAndGrades";
 import SchoolFacilitiesInteractive from "./SchoolFacilitiesInteractive";
 import SchoolEnquiryProvider from "./SchoolEnquiryDialog";
@@ -293,6 +294,7 @@ export default async function SchoolProfile({
 
   return (
     <main className="school-detail-page school-detail-page--polished">
+      <RecentSchoolTracker schoolId={school.school_id} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: faqStructuredData }} />
       <SchoolEnquiryProvider school={school} initialOpen={initialEnquiryOpen}>
@@ -427,6 +429,12 @@ export default async function SchoolProfile({
                 sort_order: g.sort_order,
               }))}
             />
+            <Link
+              className="school-fee-calculator-link"
+              href={`/fee-calculator/?school=${encodeURIComponent(school.slug)}`}
+            >
+              Compare published fees for this school <ArrowRight size={15} aria-hidden />
+            </Link>
 
             <article className="detail-panel" id="admissions">
               <div className="detail-panel__heading">

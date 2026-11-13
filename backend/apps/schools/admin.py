@@ -201,6 +201,7 @@ class GradeAdmin(CatalogVisibleToSchoolAdminMixin, admin.ModelAdmin):
 class SchoolFAQAdmin(admin.ModelAdmin):
     list_display = (
         "question",
+        "category",
         "country",
         "state",
         "city",
@@ -210,7 +211,7 @@ class SchoolFAQAdmin(admin.ModelAdmin):
         "sort_order",
         "status",
     )
-    list_filter = ("status", "country", "state", "city", "location", "board", "school_type")
+    list_filter = ("category", "status", "country", "state", "city", "location", "board", "school_type")
     search_fields = ("question", "answer")
     ordering = ("sort_order", "question")
 

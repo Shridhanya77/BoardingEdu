@@ -23,6 +23,7 @@ from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, Sch
 from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
 from .profile_changes import submit_school_profile_changes
+from .querysets import public_school_queryset
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -45,6 +46,9 @@ class SchoolFAQViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = SchoolFAQ.objects.filter(status=True)
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category.upper())
         for field in ("country", "state", "city", "location", "board", "school_type"):
             value = self.request.query_params.get(field)
             if value:
@@ -478,6 +482,16 @@ class SchoolViewSet(ReadWriteModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        user = self.request.user
+        is_platform_admin = bool(
+            user.is_authenticated
+            and (
+                user.is_superuser
+                or getattr(user, "role", None) in {"STAFF_ADMIN", "SUPER_ADMIN"}
+            )
+        )
+        if self.action in {"list", "retrieve", "by_slug"} and not is_platform_admin:
+            queryset = public_school_queryset(queryset)
         if getattr(self, 'action', None) != 'list':
             return queryset
 

@@ -362,6 +362,20 @@ class SchoolAdminIsolationTests(TestCase):
             [row["review_id"] for row in response.data["reviews"]],
             [str(own_review.review_id)],
         )
+        self.assertEqual(len(response.data["monthly_activity"]), 6)
+        self.assertEqual(response.data["monthly_activity"][-1]["reviews"], 1)
+
+    def test_school_activity_range_is_validated_and_returns_requested_months(self):
+        client = APIClient()
+        client.force_authenticate(self.admin)
+
+        for months in (3, 6, 12):
+            response = client.get(f"/api/dashboards/school/?months={months}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.data["monthly_activity"]), months)
+
+        invalid = client.get("/api/dashboards/school/?months=5")
+        self.assertEqual(invalid.status_code, 400)
 
     def test_school_admin_can_add_brochure_link_but_cannot_manage_other_school_resources(self):
         resource = SchoolAdmissionResource.objects.create(

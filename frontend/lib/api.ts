@@ -484,6 +484,15 @@ export type SchoolFAQListItem = {
   faq_id: string;
   question: string;
   answer: string;
+  category:
+    | "GENERAL"
+    | "FINDING"
+    | "ADMISSIONS"
+    | "FEES"
+    | "BOARDING"
+    | "PARENT_ACCOUNTS"
+    | "SCHOOL_PROFILES"
+    | "PRIVACY";
 };
 
 export type SchoolPhotoListItem = {
@@ -804,7 +813,59 @@ export type FeeItemListItem = {
   sort_order: number;
 };
 
+export type AcademicYearListItem = {
+  id: string;
+  code: string;
+  name: string;
+  is_current: boolean;
+  status: boolean;
+  start: string;
+  end: string;
+};
+
+export type FeeEstimateInput = {
+  school_ids: string[];
+  grade_id: string;
+  school_type_id: string;
+  academic_year_id: string;
+};
+
+export type FeeEstimateItem = {
+  item_name: string;
+  category: string;
+  frequency: FeeItemListItem["payment_frequency"];
+  amount_per_payment: string | null;
+  annualized_amount: string | null;
+  one_time_amount: string | null;
+  refundable: boolean;
+  variable: boolean;
+};
+
+export type FeeEstimateResult = {
+  school_id: string;
+  school_name: string;
+  slug: string;
+  city_name: string;
+  state_name: string;
+  country_slug: string;
+  state_slug: string;
+  city_slug: string;
+  location_slug: string | null;
+  academic_year: string | null;
+  fees_available: boolean;
+  complete: boolean;
+  annual_total: string | null;
+  first_year_total: string | null;
+  monthly_recurring_total: string | null;
+  known_annual_subtotal: string;
+  known_one_time_subtotal: string;
+  last_updated: string | null;
+  items: FeeEstimateItem[];
+};
+
 export const fees = {
+  academicYears: () =>
+    request<PaginatedResponse<AcademicYearListItem>>("/fees/academic-years/?status=true"),
   structuresForSchool: (schoolId: string) =>
     request<PaginatedResponse<FeeStructureListItem>>(
       `/fees/fee-structures/?school=${encodeURIComponent(schoolId)}&status=true&published=true`,
@@ -813,6 +874,45 @@ export const fees = {
     request<PaginatedResponse<FeeItemListItem>>(
       `/fees/fee-items/?fee_structure=${encodeURIComponent(structureId)}${gradeId ? `&grade=${encodeURIComponent(gradeId)}` : ""}`,
     ),
+  estimate: (input: FeeEstimateInput) =>
+    request<{ results: FeeEstimateResult[] }>("/fees/estimate/", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+};
+
+export type GuideSection = { heading: string; body: string[] };
+export type GuideArticle = {
+  slug: string;
+  title: string;
+  summary: string;
+  coverImageUrl?: string;
+  updated: string;
+  readingMinutes: number;
+  category: string;
+  sections: GuideSection[];
+};
+export type GuideSummary = Omit<GuideArticle, "sections">;
+export type ParentRecentSchool = {
+  recent_view_id: string;
+  school_id: string;
+  school_name: string;
+  slug: string;
+  viewed_at: string;
+  city_name: string;
+  state_name: string;
+  country_slug: string;
+  state_slug: string;
+  city_slug: string;
+  location_slug: string | null;
+  school_types_detail: SchoolTypeListItem[];
+};
+
+export const guideContent = {
+  list: () => request<PaginatedResponse<GuideSummary>>("/guides/articles/"),
+  bySlug: (slug: string) =>
+    request<GuideArticle>(`/guides/articles/${encodeURIComponent(slug)}/`),
+  categories: () => request<PaginatedResponse<{ slug: string; name: string }>>("/guides/categories/"),
 };
 
 export const admissions = {
@@ -1325,6 +1425,7 @@ export type SchoolDashboardData = {
     reviews_pending: number;
     average_rating: number | null;
   };
+  monthly_activity: { month: string; enquiries: number; reviews: number }[];
   enquiry_status: Record<string, number>;
   recent_enquiries: DashboardEnquiry[];
   subscription: SubscriptionSummary;
@@ -1417,6 +1518,7 @@ export type ParentDashboardData = {
     location_slug: string | null;
     school_types_detail: SchoolTypeListItem[];
   }[];
+  recently_viewed_schools: ParentRecentSchool[];
   children: {
     child_id: string;
     name: string;
@@ -1500,7 +1602,19 @@ export type StaffAdminDashboardData = {
 };
 
 export const dashboards = {
-  school: () => authRequest<SchoolDashboardData>("/dashboards/school/"),
+  school: (months?: 3 | 6 | 12) =>
+    authRequest<SchoolDashboardData>(
+      `/dashboards/school/${months ? `?months=${months}` : ""}`,
+    ),
+  publicSummary: () =>
+    request<{
+      schools_listed: number;
+      cities_covered: number;
+      published_reviews: number;
+      last_updated: string | null;
+    }>(
+      "/public/statistics/",
+    ),
   updateEnquiryStatus: (enquiryId: string, status: EnquiryStatus) =>
     authRequest<DashboardEnquiry>(`/dashboards/school/enquiries/${enquiryId}/status/`, {
       method: "POST",
@@ -1605,6 +1719,22 @@ export const dashboards = {
       { method: "POST", body: JSON.stringify({ published }) },
     ),
   parent: () => authRequest<ParentDashboardData>("/dashboards/parent/"),
+  trackRecentlyViewedSchool: (schoolId: string) =>
+    authRequest<{ recorded: boolean }>("/dashboards/parent/recently-viewed/", {
+      method: "POST",
+      body: JSON.stringify({ school_id: schoolId }),
+    }),
+  recentlyViewedSchools: () =>
+    authRequest<ParentRecentSchool[]>("/dashboards/parent/recently-viewed/"),
+  removeRecentlyViewedSchool: (recentViewId: string) =>
+    authRequest<{ removed: boolean }>(
+      `/dashboards/parent/recently-viewed/${encodeURIComponent(recentViewId)}/`,
+      { method: "DELETE" },
+    ),
+  clearRecentlyViewedSchools: () =>
+    authRequest<{ cleared: boolean }>("/dashboards/parent/recently-viewed/clear/", {
+      method: "DELETE",
+    }),
   shortlistStatus: (schoolId: string) =>
     authRequest<{ saved: boolean }>(`/dashboards/parent/shortlist/?school_id=${encodeURIComponent(schoolId)}`),
   saveShortlist: (schoolId: string) =>

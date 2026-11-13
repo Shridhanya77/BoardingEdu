@@ -3,6 +3,7 @@ from datetime import date
 from django.contrib.admin.sites import AdminSite
 from django.forms import inlineformset_factory
 from django.test import TestCase
+from django.utils import timezone
 
 from apps.fees.admin import FeeItemInlineFormSet, FeeStructureAdminForm
 from apps.geography.models import City, Country, State
@@ -189,6 +190,9 @@ class FeeItemPaymentFrequencyTests(TestCase):
             state=state,
             city=city,
             address='Bengaluru',
+            status=True,
+            verification_status='VERIFIED',
+            published_at=timezone.now(),
         )
         academic_year = AcademicYear.objects.create(
             year_code='2026-27',

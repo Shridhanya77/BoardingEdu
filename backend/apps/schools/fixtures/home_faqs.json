@@ -1,0 +1,74 @@
+[
+  {
+    "question": "Which are the best boarding schools in India?",
+    "answer": "The right school depends on your child's needs and your family's priorities. Browse boarding school profiles and compare the available location, board, fee, and facility details.",
+    "category": "ADMISSIONS",
+    "sort_order": 0
+  },
+  {
+    "question": "How do I find CBSE, ICSE, IB or IGCSE boarding schools?",
+    "answer": "Browse by education board or use the school directory filters to narrow results by board, location, and school type.",
+    "category": "FINDING",
+    "sort_order": 1
+  },
+  {
+    "question": "Can I compare boarding schools and day schools on BoardingEdu?",
+    "answer": "Yes. Use the comparison feature to review selected schools side-by-side, and filter the directory by Day School, Day Boarding School, or Boarding School.",
+    "category": "FINDING",
+    "sort_order": 2
+  },
+  {
+    "question": "Is BoardingEdu counselling free for parents?",
+    "answer": "Parents can submit the counselling form on this page to request guidance with their school search.",
+    "category": "ADMISSIONS",
+    "sort_order": 3
+  },
+  {
+    "question": "Can I apply to multiple schools and for more than one child?",
+    "answer": "You can send enquiries to schools from their profiles. For help with options for more than one child, include that information in your counselling request.",
+    "category": "ADMISSIONS",
+    "sort_order": 4
+  },
+  {
+    "question": "Where can I find boarding schools in Dehradun, Bangalore or Uttarakhand?",
+    "answer": "Use the city and state links on this page, or choose a location in the school finder to see available listings for that area.",
+    "category": "FINDING",
+    "sort_order": 5
+  },
+  {
+    "question": "Are fee estimates the final amount a school will charge?",
+    "answer": "No. Estimates use the school's published fee schedule and may exclude variable or optional charges. Confirm the current total and payment dates directly with the school.",
+    "category": "FEES",
+    "sort_order": 6
+  },
+  {
+    "question": "How can I check what boarding facilities a school provides?",
+    "answer": "Review the facilities published on the school's profile and ask the school about supervision, accommodation arrangements, meals, and student wellbeing during your visit.",
+    "category": "BOARDING",
+    "sort_order": 7
+  },
+  {
+    "question": "What can I do from a parent account?",
+    "answer": "A parent account can help you manage your profile, shortlist schools, track admission enquiries, and review updates linked to your account.",
+    "category": "PARENT_ACCOUNTS",
+    "sort_order": 8
+  },
+  {
+    "question": "How can a school administrator update a school profile?",
+    "answer": "A school administrator can use the school dashboard to submit profile, grade, facility, photograph, and fee updates. Some updates require review before they are published.",
+    "category": "SCHOOL_PROFILES",
+    "sort_order": 9
+  },
+  {
+    "question": "Who can see my admission enquiries and documents?",
+    "answer": "Admission information is provided to the relevant school and authorized platform staff to support the enquiry. Do not send sensitive documents unless the school requests them through an appropriate channel.",
+    "category": "PRIVACY",
+    "sort_order": 10
+  },
+  {
+    "question": "How does BoardingEdu verify a school profile?",
+    "answer": "A profile is marked verified only after the school completes the platform's verification workflow. The label does not guarantee every detail, so confirm important information with the school.",
+    "category": "GENERAL",
+    "sort_order": 11
+  }
+]

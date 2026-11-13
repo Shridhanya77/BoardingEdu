@@ -415,7 +415,43 @@ function Overview({
   data: SchoolDashboardData;
   onOpen: (section: SectionId, group?: string) => void;
 }) {
+  const [activityMonths, setActivityMonths] = useState<3 | 6 | 12>(6);
+  const [monthlyActivity, setMonthlyActivity] = useState(data.monthly_activity);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  useEffect(() => {
+    if (activityMonths === 6) {
+      setMonthlyActivity(data.monthly_activity);
+      setActivityError(null);
+      return;
+    }
+    let active = true;
+    setActivityLoading(true);
+    setMonthlyActivity([]);
+    dashboards.school(activityMonths)
+      .then((response) => {
+        if (active) {
+          setMonthlyActivity(response.monthly_activity);
+          setActivityError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) setActivityError(apiErrorMessage(reason));
+      })
+      .finally(() => {
+        if (active) setActivityLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activityMonths, data.monthly_activity]);
+
   const maxEnquiry = Math.max(1, ...Object.values(data.enquiry_status));
+  const maxMonthlyActivity = Math.max(
+    1,
+    ...monthlyActivity.flatMap((month) => [month.enquiries, month.reviews]),
+  );
   const tasks = data.completion.sections
     .flatMap((section) => section.items.filter((item) => item.status === "missing").map((item) => ({ ...item, section: section.key })))
     .slice(0, 6);
@@ -466,6 +502,58 @@ function Overview({
           </ul>
         </article>
       </div>
+
+      <article className="sa-card sa-analytics">
+        <header>
+          <div>
+            <h2>School activity</h2>
+            <p>Enquiries and reviews recorded in the last {activityMonths} calendar months.</p>
+          </div>
+          <label className="sa-analytics__range">
+            <span className="sr-only">Activity date range</span>
+            <select
+              value={activityMonths}
+              onChange={(event) => {
+                const months = Number(event.target.value);
+                if (months === 3 || months === 6 || months === 12) setActivityMonths(months);
+              }}
+              aria-label="Activity date range"
+            >
+              <option value={3}>Last 3 months</option>
+              <option value={6}>Last 6 months</option>
+              <option value={12}>Last 12 months</option>
+            </select>
+          </label>
+        </header>
+        {activityLoading && <p role="status">Loading activity…</p>}
+        {activityError && <p className="sa-state sa-state--error" role="alert">{activityError}</p>}
+        <div className="sa-monthly-chart" role="group" aria-label="Monthly school enquiries and reviews">
+          {monthlyActivity.map((month) => (
+            <div className="sa-monthly-chart__month" key={month.month}>
+              <div className="sa-monthly-chart__bars">
+                <span
+                  className="sa-monthly-chart__bar sa-monthly-chart__bar--enquiries"
+                  style={{ height: `${(month.enquiries / maxMonthlyActivity) * 100}%` }}
+                  title={`${month.enquiries} enquiries`}
+                />
+                <span
+                  className="sa-monthly-chart__bar sa-monthly-chart__bar--reviews"
+                  style={{ height: `${(month.reviews / maxMonthlyActivity) * 100}%` }}
+                  title={`${month.reviews} reviews`}
+                />
+              </div>
+              <small>{new Date(`${month.month}T00:00:00`).toLocaleDateString("en-IN", { month: "short" })}</small>
+              <span className="sa-monthly-chart__values">
+                <span>{month.enquiries} enquiries</span>
+                <span>{month.reviews} reviews</span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="sa-analytics__note">
+          This view uses recorded enquiry and review data. School-profile visits are not tracked.
+        </p>
+      </article>
 
       <div className="sa-split">
         <article className="sa-card">

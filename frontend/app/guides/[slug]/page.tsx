@@ -4,6 +4,12 @@ import { notFound } from "next/navigation";
 import JsonLd from "@/components/JsonLd";
 import CounsellingLink from "@/components/home/CounsellingLink";
 import { getGuide, guides, guidesIndexDescription, relatedGuides } from "@/lib/guides";
+import {
+  fetchAllPages,
+  guideContent,
+  type GuideArticle,
+  type GuideSummary as ApiGuideSummary,
+} from "@/lib/api";
 import { absoluteUrl, pageMetadata } from "@/lib/seo";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
@@ -15,8 +21,22 @@ export function generateStaticParams() {
   return guides.map((guide) => ({ slug: guide.slug }));
 }
 
-export function generateMetadata({ params }: GuidePageProps): Metadata {
-  const guide = getGuide(params.slug);
+async function loadGuide(slug: string): Promise<GuideArticle | null> {
+  try {
+    return await guideContent.bySlug(slug);
+  } catch (reason) {
+    const savedGuide = getGuide(slug);
+    if (!savedGuide) {
+      console.error(`Could not load guide "${slug}" from the content API.`, reason);
+      return null;
+    }
+    console.error(`Using saved content for guide "${slug}" after an API error.`, reason);
+    return savedGuide;
+  }
+}
+
+export async function generateMetadata({ params }: GuidePageProps): Promise<Metadata> {
+  const guide = await loadGuide(params.slug);
   if (!guide) {
     return pageMetadata({
       title: "Guide not found | BoardingEdu",
@@ -44,11 +64,19 @@ function formatUpdated(value: string): string {
   });
 }
 
-export default function GuidePage({ params }: GuidePageProps) {
-  const guide = getGuide(params.slug);
+export default async function GuidePage({ params }: GuidePageProps) {
+  const guide = await loadGuide(params.slug);
   if (!guide) notFound();
 
-  const related = relatedGuides(guide.slug);
+  let related: ApiGuideSummary[] = relatedGuides(guide.slug);
+  try {
+    const publishedGuides = await fetchAllPages(await guideContent.list());
+    related = publishedGuides
+      .filter((item) => item.slug !== guide.slug && item.category === guide.category)
+      .slice(0, 3);
+  } catch (reason) {
+    console.error(`Could not load related guides for "${guide.slug}".`, reason);
+  }
   const path = `/guides/${guide.slug}`;
   const breadcrumbs = [
     { name: "Home", url: "/" },

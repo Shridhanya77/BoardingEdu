@@ -11,7 +11,10 @@ from .school_ops import (
 from .views import (
     AdminDashboardView,
     ParentDashboardView,
+    ParentRecentSchoolView,
+    ParentRecentSchoolItemView,
     ParentShortlistView,
+    PublicPlatformSummaryView,
     SchoolDashboardView,
     SchoolEnquiryStatusView,
     StaffAdminDashboardView,
@@ -20,6 +23,7 @@ from .views import (
 app_name = "dashboards"
 
 urlpatterns = [
+    path("public/summary/", PublicPlatformSummaryView.as_view(), name="public-summary"),
     path("school/", SchoolDashboardView.as_view(), name="school"),
     path(
         "school/enquiries/<uuid:enquiry_id>/status/",
@@ -63,6 +67,17 @@ urlpatterns = [
     ),
     path("parent/", ParentDashboardView.as_view(), name="parent"),
     path("parent/shortlist/", ParentShortlistView.as_view(), name="parent-shortlist"),
+    path("parent/recently-viewed/", ParentRecentSchoolView.as_view(), name="parent-recently-viewed"),
+    path(
+        "parent/recently-viewed/clear/",
+        ParentRecentSchoolView.as_view(),
+        name="parent-recently-viewed-clear",
+    ),
+    path(
+        "parent/recently-viewed/<uuid:recent_view_id>/",
+        ParentRecentSchoolItemView.as_view(),
+        name="parent-recently-viewed-item",
+    ),
     path("admin/", AdminDashboardView.as_view(), name="admin"),
     path("staff-admin/", StaffAdminDashboardView.as_view(), name="staff-admin"),
 ]

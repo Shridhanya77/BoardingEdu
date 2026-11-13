@@ -100,6 +100,7 @@ INSTALLED_APPS = [
     'apps.search.apps.SearchConfig',
     'apps.reviews.apps.ReviewsConfig',
     'apps.dashboards.apps.DashboardsConfig',
+    'apps.guides.apps.GuidesConfig',
 ]
 
 JAZZMIN_SETTINGS = {
@@ -121,7 +122,7 @@ JAZZMIN_SETTINGS = {
     "navigation_expanded": True,
     "order_with_respect_to": [
         "schools", "admissions", "reviews", "users",
-        "geography", "fees", "search", "dashboards",
+        "geography", "fees", "search", "dashboards", "guides",
     ],
     "icons": {
         "schools": "fas fa-school",
@@ -136,6 +137,7 @@ JAZZMIN_SETTINGS = {
         "fees": "fas fa-money-bill-wave",
         "search": "fas fa-search",
         "dashboards": "fas fa-chart-pie",
+        "guides": "fas fa-book-open",
     },
     "related_modal_active": True,
     "show_ui_builder": False,

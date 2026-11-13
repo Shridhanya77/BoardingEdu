@@ -1,33 +1,35 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import type { GuideCategory, GuideSummary } from "@/lib/guides";
-
-const categories: GuideCategory[] = [
-  "Admissions",
-  "Boarding Life",
-  "Boards & Curriculum",
-  "Fees & Planning",
-];
+import { BookOpen, Search } from "lucide-react";
+import type { GuideSummary } from "@/lib/api";
 
 export default function GuideBrowser({
   guides,
   compact = false,
+  featuredSlug,
 }: {
   guides: GuideSummary[];
   compact?: boolean;
+  featuredSlug?: string;
 }) {
-  const [category, setCategory] = useState<GuideCategory | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const categories = useMemo(
+    () => [...new Set(guides.map((guide) => guide.category))].sort(),
+    [guides],
+  );
   const visibleGuides = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return guides.filter((guide) =>
+      guide.slug !== featuredSlug &&
       (!category || guide.category === category) &&
       (!needle || `${guide.title} ${guide.summary} ${guide.category}`.toLowerCase().includes(needle)),
     );
-  }, [category, guides, query]);
+  }, [category, featuredSlug, guides, query]);
+  const [visibleCount, setVisibleCount] = useState(compact ? 3 : 6);
 
   return (
     <section className={`guide-browser${compact ? " guide-browser--compact" : ""}`} aria-labelledby="guide-browser-title">
@@ -68,8 +70,27 @@ export default function GuideBrowser({
 
       {visibleGuides.length ? (
         <div className="guide-browser__grid" aria-live="polite">
-          {visibleGuides.map((guide) => (
+          {visibleGuides.slice(0, visibleCount).map((guide) => (
             <article key={guide.slug} className="guide-browser__card">
+              <span
+                className={`guide-browser__art guide-browser__art--${guide.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                aria-hidden="true"
+              >
+                {guide.coverImageUrl ? (
+                  <Image
+                    src={guide.coverImageUrl}
+                    alt={`Illustration for ${guide.title}`}
+                    fill
+                    sizes="(max-width: 700px) 90vw, 360px"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="guide-browser__art-placeholder">
+                    <BookOpen size={24} aria-hidden />
+                    School search guide
+                  </span>
+                )}
+              </span>
               <span className="guide-browser__tag">{guide.category}</span>
               <h3><Link href={`/guides/${guide.slug}`}>{guide.title}</Link></h3>
               <p>{guide.summary}</p>
@@ -82,6 +103,15 @@ export default function GuideBrowser({
         </div>
       ) : (
         <p className="guide-browser__empty" role="status">No guides match your search. Try another topic or keyword.</p>
+      )}
+      {visibleGuides.length > visibleCount && (
+        <button
+          className="guide-browser__load-more"
+          type="button"
+          onClick={() => setVisibleCount((count) => count + (compact ? 3 : 6))}
+        >
+          Load more guides
+        </button>
       )}
     </section>
   );

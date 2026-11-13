@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
 import GuideBrowser from "@/components/guides/GuideBrowser";
 import { guideList, guidesIndexDescription } from "@/lib/guides";
+import { apiErrorMessage, fetchAllPages, guideContent } from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import "./guides.css";
@@ -18,8 +19,15 @@ export const metadata: Metadata = pageMetadata({
   ],
 });
 
-export default function GuidesIndexPage() {
-  const guides = guideList();
+export default async function GuidesIndexPage() {
+  let guides = guideList();
+  let guideLoadError: string | null = null;
+  try {
+    guides = await fetchAllPages(await guideContent.list());
+  } catch (reason) {
+    console.error("Could not load guides from the content API.", reason);
+    guideLoadError = apiErrorMessage(reason);
+  }
 
   return (
     <main className="guides-page">
@@ -40,6 +48,12 @@ export default function GuidesIndexPage() {
         </p>
       </header>
 
+      {guideLoadError && (
+        <p className="guides-load-error" role="status">
+          The latest published guides could not be loaded. Showing the saved guide content instead.
+          <span className="sr-only"> {guideLoadError}</span>
+        </p>
+      )}
       <GuideBrowser guides={guides} />
     </main>
   );

@@ -5,6 +5,7 @@ from .views import (
     FeeTermViewSet,
     FeeStructureViewSet,
     FeeItemViewSet,
+    PublicFeeEstimateView,
 )
 
 app_name = 'fees'
@@ -16,5 +17,6 @@ router.register(r'fee-structures', FeeStructureViewSet, basename='feestructure')
 router.register(r'fee-items',       FeeItemViewSet,       basename='feeitem')
 
 urlpatterns = [
+    path("estimate/", PublicFeeEstimateView.as_view(), name="public-fee-estimate"),
     path('', include(router.urls)),
 ]

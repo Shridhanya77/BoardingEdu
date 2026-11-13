@@ -82,9 +82,26 @@ class Facility(models.Model):
 class SchoolFAQ(models.Model):
     """Staff-managed answers used across directory and location listings."""
 
+    CATEGORY_CHOICES = [
+        ("GENERAL", "General Information"),
+        ("FINDING", "Finding and Comparing Schools"),
+        ("ADMISSIONS", "School Admissions"),
+        ("FEES", "Fees and Payments"),
+        ("BOARDING", "Boarding and Hostel Facilities"),
+        ("PARENT_ACCOUNTS", "Parent Dashboard and Accounts"),
+        ("SCHOOL_PROFILES", "School Admin and School Profiles"),
+        ("PRIVACY", "Privacy, Security and Documents"),
+    ]
+
     faq_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     question = models.CharField(max_length=300)
     answer = models.TextField()
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default="GENERAL",
+        db_index=True,
+    )
     country = models.ForeignKey(
         Country, on_delete=models.SET_NULL, null=True, blank=True, related_name="school_faqs"
     )

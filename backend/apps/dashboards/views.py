@@ -8,6 +8,7 @@ Read-only JSON summaries powering the four front-end dashboards:
 """
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Avg, Count, Q
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,14 +17,62 @@ from rest_framework.views import APIView
 from apps.admissions.models import AdmissionEnquiry, Child, CounsellingRequest
 from apps.reviews.models import Review
 from apps.schools.models import School
+from apps.schools.querysets import public_school_queryset
 from apps.users.models import ParentShortlist, User
 from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
+from .models import RecentSchoolView
 from .school_ops import build_school_admin_payload
 
 
 def _month_start():
     now = timezone.now()
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def _month_starts(count=6):
+    current = timezone.localdate().replace(day=1)
+    starts = []
+    for offset in range(count - 1, -1, -1):
+        month_index = current.year * 12 + current.month - 1 - offset
+        year, month = divmod(month_index, 12)
+        starts.append(current.replace(year=year, month=month + 1))
+    return starts
+
+
+def _monthly_activity(enquiries, reviews, months=6):
+    starts = _month_starts(months)
+    start_date = starts[0]
+    next_month_index = starts[-1].year * 12 + starts[-1].month
+    next_month_year, next_month = divmod(next_month_index, 12)
+    end_date = starts[-1].replace(year=next_month_year, month=next_month + 1)
+    enquiry_counts = {
+        row["month"].date().replace(day=1): row["total"]
+        for row in enquiries.filter(
+            created_at__date__gte=start_date,
+            created_at__date__lt=end_date,
+        )
+        .annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(total=Count("pk"))
+    }
+    review_counts = {
+        row["month"].date().replace(day=1): row["total"]
+        for row in reviews.filter(
+            created_at__date__gte=start_date,
+            created_at__date__lt=end_date,
+        )
+        .annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(total=Count("pk"))
+    }
+    return [
+        {
+            "month": month.isoformat(),
+            "enquiries": enquiry_counts.get(month, 0),
+            "reviews": review_counts.get(month, 0),
+        }
+        for month in starts
+    ]
 
 
 def _status_counts(queryset, field, choices):
@@ -87,12 +136,8 @@ def _school_admin_school(user):
         return None
 
 
-def _shortlist_row(item):
-    school = item.school
+def _school_summary_row(school):
     return {
-        "shortlist_id": str(item.shortlist_id),
-        "note": item.note,
-        "created_at": item.created_at,
         "school_id": str(school.school_id),
         "school_name": school.school_name,
         "slug": school.slug,
@@ -116,6 +161,15 @@ def _shortlist_row(item):
     }
 
 
+def _shortlist_row(item):
+    return {
+        "shortlist_id": str(item.shortlist_id),
+        "note": item.note,
+        "created_at": item.created_at,
+        **_school_summary_row(item.school),
+    }
+
+
 class SchoolDashboardView(APIView):
     """School administrators see a waiting screen until staff verify the school."""
 
@@ -128,6 +182,13 @@ class SchoolDashboardView(APIView):
                 {"detail": "This dashboard is for school administrator accounts."},
                 status=403,
             )
+
+        try:
+            activity_months = int(request.query_params.get("months", 6))
+        except (TypeError, ValueError):
+            return Response({"detail": "months must be 3, 6, or 12."}, status=400)
+        if activity_months not in {3, 6, 12}:
+            return Response({"detail": "months must be 3, 6, or 12."}, status=400)
 
         enquiries = AdmissionEnquiry.objects.filter(school=school)
         reviews = Review.objects.filter(school=school)
@@ -179,6 +240,11 @@ class SchoolDashboardView(APIView):
         ]
         payload["enquiry_status"] = _status_counts(
             enquiries, "status", AdmissionEnquiry.STATUS_CHOICES
+        )
+        payload["monthly_activity"] = _monthly_activity(
+            enquiries,
+            reviews,
+            months=activity_months,
         )
         payload["subscription"] = subscription_summary(school)
         return Response(payload)
@@ -274,6 +340,125 @@ class ParentShortlistView(APIView):
         return Response({"saved": False})
 
 
+class PublicPlatformSummaryView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        schools = public_school_queryset()
+        return Response(
+            {
+                "schools_listed": schools.count(),
+                "cities_covered": schools.values("city_id").distinct().count(),
+                "published_reviews": Review.objects.filter(
+                    school__in=schools,
+                    status=Review.STATUS_PUBLISHED,
+                    is_verified=True,
+                    user__role=User.ROLE_PARENT,
+                ).count(),
+                "last_updated": max(
+                    filter(
+                        None,
+                        [
+                            schools.order_by("-updated_at").values_list("updated_at", flat=True).first(),
+                            Review.objects.filter(
+                                school__in=schools,
+                                status=Review.STATUS_PUBLISHED,
+                                is_verified=True,
+                                user__role=User.ROLE_PARENT,
+                            ).order_by("-updated_at").values_list("updated_at", flat=True).first(),
+                        ],
+                    ),
+                    default=None,
+                ),
+            }
+        )
+
+
+class ParentRecentSchoolView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        profile = getattr(request.user, "parent_profile", None)
+        if getattr(request.user, "role", None) != User.ROLE_PARENT or profile is None:
+            return Response(
+                {"detail": "Recently viewed schools are available to parent accounts."},
+                status=403,
+            )
+
+        school = public_school_queryset().filter(
+            school_id=request.data.get("school_id")
+        ).first()
+        if school is None:
+            return Response({"detail": "School not found."}, status=404)
+
+        RecentSchoolView.objects.update_or_create(
+            parent_profile=profile,
+            school=school,
+            defaults={"last_viewed_at": timezone.now()},
+        )
+        older_views = RecentSchoolView.objects.filter(
+            parent_profile=profile,
+        ).order_by("-last_viewed_at").values_list("pk", flat=True)[20:]
+        if older_views:
+            RecentSchoolView.objects.filter(pk__in=older_views).delete()
+        return Response({"recorded": True}, status=200)
+
+    def get(self, request):
+        profile = getattr(request.user, "parent_profile", None)
+        if getattr(request.user, "role", None) != User.ROLE_PARENT or profile is None:
+            return Response(
+                {"detail": "Recently viewed schools are available to parent accounts."},
+                status=403,
+            )
+        views = RecentSchoolView.objects.filter(
+            parent_profile=profile,
+            school__in=public_school_queryset(),
+        ).select_related(
+            "school",
+            "school__city",
+            "school__state",
+            "school__country",
+            "school__location",
+        ).prefetch_related("school__school_types")[:20]
+        return Response([
+            {
+                "recent_view_id": str(item.recent_view_id),
+                **_school_summary_row(item.school),
+                "viewed_at": item.last_viewed_at,
+            }
+            for item in views
+        ])
+
+    def delete(self, request):
+        profile = getattr(request.user, "parent_profile", None)
+        if getattr(request.user, "role", None) != User.ROLE_PARENT or profile is None:
+            return Response(
+                {"detail": "Recently viewed schools are available to parent accounts."},
+                status=403,
+            )
+        RecentSchoolView.objects.filter(parent_profile=profile).delete()
+        return Response({"cleared": True})
+
+
+class ParentRecentSchoolItemView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, recent_view_id):
+        profile = getattr(request.user, "parent_profile", None)
+        if getattr(request.user, "role", None) != User.ROLE_PARENT or profile is None:
+            return Response(
+                {"detail": "Recently viewed schools are available to parent accounts."},
+                status=403,
+            )
+        deleted, _details = RecentSchoolView.objects.filter(
+            recent_view_id=recent_view_id,
+            parent_profile=profile,
+        ).delete()
+        if not deleted:
+            return Response({"detail": "Recently viewed school not found."}, status=404)
+        return Response({"removed": True})
+
+
 class ParentDashboardView(APIView):
     """A parent's own enquiries, children, reviews and counselling requests."""
 
@@ -299,6 +484,16 @@ class ParentDashboardView(APIView):
             "school__country",
             "school__location",
         ).prefetch_related("school__school_types")
+        recent_views = RecentSchoolView.objects.filter(
+            parent_profile=profile,
+            school__in=public_school_queryset(),
+        ).select_related(
+            "school",
+            "school__city",
+            "school__state",
+            "school__country",
+            "school__location",
+        ).prefetch_related("school__school_types")[:20]
 
         return Response(
             {
@@ -342,6 +537,14 @@ class ParentDashboardView(APIView):
                     for note in notifications[:8]
                 ],
                 "shortlist": [_shortlist_row(item) for item in shortlist[:12]],
+                "recently_viewed_schools": [
+                    {
+                        "recent_view_id": str(item.recent_view_id),
+                        **_school_summary_row(item.school),
+                        "viewed_at": item.last_viewed_at,
+                    }
+                    for item in recent_views
+                ],
                 "children": [
                     {
                         "child_id": str(child.child_id),
@@ -390,16 +593,17 @@ class AdminDashboardView(APIView):
 
     def get(self, request):
         schools = School.objects.all()
+        public_schools = public_school_queryset()
         enquiries = AdmissionEnquiry.objects.all()
         reviews = Review.objects.all()
 
-        cities = set(schools.values_list("city__city_name", flat=True).distinct())
+        cities = set(public_schools.values_list("city_id", flat=True).distinct())
 
         return Response(
             {
                 "schools": {
                     "total": schools.count(),
-                    "listed": schools.filter(status=True).count(),
+                    "listed": public_schools.count(),
                     "pending_verification": schools.filter(
                         verification_status="PENDING"
                     ).count(),

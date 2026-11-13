@@ -19,6 +19,7 @@ import {
   parentApplications,
   users,
   type ParentChildRecord,
+  type ParentDashboardData,
   type ParentApplication,
   type ParentProfileData,
 } from "@/lib/api";
@@ -30,6 +31,7 @@ const SECTIONS = [
   ["students", "My Children"],
   ["finder", "Find Schools"],
   ["shortlist", "Shortlisted Schools"],
+  ["recent", "Recently Viewed"],
   ["documents", "Documents"],
   ["notifications", "Notifications"],
   ["messages", "Messages"],
@@ -161,6 +163,17 @@ export default function ParentDashboard() {
             <StatCard label="Rejected" value={data.stats.applications_rejected} />
             <StatCard label="Action required" value={data.stats.applications_action_required} accent="orange" />
           </div>
+          <DashboardPanel
+            title="Recently viewed schools"
+            subtitle="Pick up where you left off in your school search."
+            action={<Link className="dash-link" href="/dashboard/parent/?section=recent">View all</Link>}
+          >
+            <RecentSchoolsPanel
+              schools={data.recently_viewed_schools.slice(0, 4)}
+              onError={setLocalError}
+              onChanged={reload}
+            />
+          </DashboardPanel>
           <DashboardPanel title="Latest updates" subtitle="Status changes from schools appear here.">
             {data.notifications.length === 0 ? (
               <p className="dash-empty">No updates yet. New school responses will show up here.</p>
@@ -194,12 +207,92 @@ export default function ParentDashboard() {
       )}
       {data && section === "finder" && <ParentSchoolFinder />}
       {data && section === "shortlist" && <Shortlist data={data} onError={setLocalError} />}
+      {data && section === "recent" && (
+        <DashboardPanel
+          title="Recently viewed schools"
+          subtitle="The latest schools you visited from this parent account."
+          action={
+            <button
+              type="button"
+              className="dash-link"
+              onClick={() => {
+                dashboards.clearRecentlyViewedSchools()
+                  .then(() => reload())
+                  .catch((reason: unknown) => setLocalError(apiErrorMessage(reason)));
+              }}
+            >
+              Clear history
+            </button>
+          }
+        >
+          <RecentSchoolsPanel
+            schools={data.recently_viewed_schools}
+            onError={setLocalError}
+            onChanged={reload}
+          />
+        </DashboardPanel>
+      )}
       {section === "documents" && <DocumentSummary applications={applications} />}
       {data && section === "notifications" && <NotificationList notes={data.notifications} onChanged={reload} />}
       {section === "messages" && <MessageSummary applications={applications} />}
       {section === "profile" && <ProfileForm profile={profile} onSaved={setProfile} />}
       {section === "settings" && <PasswordSettings />}
     </DashboardShell>
+  );
+}
+
+function RecentSchoolsPanel({
+  schools,
+  onError,
+  onChanged,
+}: {
+  schools: ParentDashboardData["recently_viewed_schools"];
+  onError: (message: string | null) => void;
+  onChanged: () => void;
+}) {
+  if (!schools.length) {
+    return (
+      <div className="pd-recent-empty">
+        <p>Schools you view will appear here.</p>
+        <Link href="/schools">Explore schools</Link>
+      </div>
+    );
+  }
+  return (
+    <ul className="pd-recent-schools">
+      {schools.map((school) => (
+        <li key={school.recent_view_id}>
+          <div>
+            <strong>{school.school_name}</strong>
+            <span>{[school.city_name, school.state_name].filter(Boolean).join(", ")}</span>
+          </div>
+          <Link
+            href={schoolProfilePathFromSlugs({
+              countrySlug: school.country_slug,
+              stateSlug: school.state_slug,
+              citySlug: school.city_slug,
+              localitySlug: school.location_slug,
+              schoolSlug: school.slug,
+              schoolName: school.school_name,
+              schoolTypes: school.school_types_detail,
+            })}
+          >
+            View profile
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              dashboards.removeRecentlyViewedSchool(school.recent_view_id)
+                .then(() => onChanged())
+                .catch((reason: unknown) => onError(apiErrorMessage(reason)));
+            }}
+            aria-label={`Remove ${school.school_name} from recently viewed schools`}
+          >
+            Remove
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

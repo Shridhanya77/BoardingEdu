@@ -42,6 +42,7 @@ from apps.notifications.otp_views import (
     OtpVerifyView,
 )
 from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
+from apps.dashboards.views import PublicPlatformSummaryView
 from .health import healthz, outbound_ip, readyz
 from .admin_dashboard import install_admin_dashboard
 from .school_media import serve_day_school_media, serve_school_media
@@ -93,6 +94,7 @@ class BoardingEduApiRoot(APIView):
                     "admissions": drf_reverse("admissions:child-list", request=request, format=format).rsplit("/children/", 1)[0] + "/",
                     "reviews":   "/api/reviews/",
                     "search":    "/api/search/",
+                    "guides":    "/api/guides/articles/",
                 },
                 "docs": {
                     "schema": drf_reverse("schema", request=request, format=format),
@@ -113,6 +115,7 @@ urlpatterns = [
     path("", root_redirect_view, name="root-redirect"),
     # Aggregated API root
     path("api/", BoardingEduApiRoot.as_view(), name="api-root"),
+    path("api/public/statistics/", PublicPlatformSummaryView.as_view(), name="public-statistics"),
     # Django Admin
     path("admin/", admin.site.urls),
     # DRF Browsable API auth (login/logout buttons in web UI)
@@ -158,6 +161,7 @@ urlpatterns = [
     path("api/reviews/", include("apps.reviews.urls", namespace="reviews")),
     # ===== Search App (public autocomplete) =====
     path("api/search/", include("apps.search.urls", namespace="search")),
+    path("api/guides/", include("apps.guides.urls", namespace="guides")),
     # ===== Role dashboards (school / parent / admin / staff-admin) =====
     path("api/dashboards/", include("apps.dashboards.urls", namespace="dashboards")),
     # ===== Health probes (liveness / readiness) =====

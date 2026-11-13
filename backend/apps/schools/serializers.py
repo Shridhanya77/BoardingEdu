@@ -93,7 +93,7 @@ class SchoolTypeListSerializer(serializers.ModelSerializer):
 class SchoolFAQSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolFAQ
-        fields = ["faq_id", "question", "answer"]
+        fields = ["faq_id", "question", "answer", "category"]
         read_only_fields = fields
 
 
