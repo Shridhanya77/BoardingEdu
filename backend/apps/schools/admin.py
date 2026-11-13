@@ -17,6 +17,7 @@ from apps.users.school_admin_scope import (
 )
 from config.school_media import rewrite_school_media_url
 from .services import SchoolVerificationError, set_school_verification_status
+from .querysets import verification_queue_queryset
 from .models import (
     Board,
     SchoolType,
@@ -711,15 +712,15 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                     return redirect("admin:schools_school_verification_queue")
             error_form = form
 
-        pending_schools = School.objects.filter(
-            verification_status="PENDING",
-        ).select_related("city", "state").order_by("school_name")
-        paginator = Paginator(pending_schools, 50)
+        awaiting_schools = verification_queue_queryset().select_related(
+            "city", "state"
+        ).order_by("school_name")
+        paginator = Paginator(awaiting_schools, 50)
         page_obj = paginator.get_page(request.GET.get("p"))
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
-            "title": "Pending school verification",
+            "title": "Schools awaiting verification",
             "schools": page_obj.object_list,
             "page_obj": page_obj,
             "verification_statuses": School.VERIFICATION_CHOICES,

@@ -23,7 +23,7 @@ from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, Sch
 from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
 from .profile_changes import submit_school_profile_changes
-from .querysets import public_school_queryset
+from .querysets import public_school_queryset, verification_queue_queryset
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -616,9 +616,9 @@ class SchoolViewSet(ReadWriteModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='verification-queue')
     def verification_queue(self, request):
-        schools = School.objects.filter(
-            verification_status=School.VERIFICATION_CHOICES[1][0],
-        ).select_related('city', 'state').order_by('updated_at', 'school_name')
+        schools = verification_queue_queryset().select_related(
+            'city', 'state'
+        ).order_by('updated_at', 'school_name')
         page = self.paginate_queryset(schools)
         if page is not None:
             return self.get_paginated_response(

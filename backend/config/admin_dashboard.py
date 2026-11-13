@@ -166,7 +166,7 @@ def build_stats():
         _card("Day boarding", day_boarding.get("DAY-BOARDING", 0), "schools_school_changelist", "brand"),
         _card("Verified schools", schools["verified"], "schools_school_changelist", "info", "Approved for public search"),
         _card("Pending Verification", schools["pending_verification"], "schools_school_changelist", "warn", "Needs review"),
-        _card("Unverified schools", schools["unverified"], "schools_school_changelist", "warn", "Not yet submitted or rejected"),
+        _card("Unverified schools", schools["unverified"], "schools_school_changelist", "warn", "Imported or not yet reviewed"),
         _card("Missing logos", gaps["missing_logo"], "schools_school_changelist", "warn", "Open the missing-logo filter", "profile_gap=logo"),
         _card("Missing cover photos", gaps["missing_cover"], "schools_school_changelist", "warn", "Open the missing-cover filter", "profile_gap=cover"),
         _card("Missing descriptions", gaps["missing_about"], "schools_school_changelist", "warn", "Open the missing-description filter", "profile_gap=about"),
@@ -214,7 +214,9 @@ def build_stats():
         .values("review_id", "school__school_name", "rating", "author_name", "created_at")[:6]
     ]
 
-    pending = schools["pending_verification"]
+    awaiting_verification = (
+        schools["pending_verification"] + schools["unverified"]
+    )
     pending_school_changes = (
         SchoolProfileChange.objects.filter(
             status=SchoolProfileChange.STATUS_PENDING
@@ -226,7 +228,7 @@ def build_stats():
     quick_links = [
         {
             "label": "Verify schools",
-            "hint": f"{pending} waiting" if pending else "Queue is clear",
+            "hint": f"{awaiting_verification} waiting" if awaiting_verification else "Queue is clear",
             "url": reverse("admin:schools_school_verification_queue"),
         },
         {

@@ -16,6 +16,16 @@ while using the frontend; its local API base should be
 `http://127.0.0.1:8000/api`. The local database starts empty, so schools and
 other records must be seeded or restored locally when needed.
 
+To use an existing local PostgreSQL database instead, pass its connection URL:
+
+```powershell
+.\start-local.ps1 -DatabaseUrl $env:LOCAL_DATABASE_URL
+```
+
+Set `LOCAL_DATABASE_URL` to the local database URL before running the script.
+The script applies migrations to the selected database and leaves `.env`
+unchanged.
+
 ## School verification
 
 Apply the school verification audit migration before using the verification
