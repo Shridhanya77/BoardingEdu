@@ -17157,6 +17157,209 @@ select:focus-visible {
   padding: 16px;
 }
 
+.account-card--password-reset {
+  width: min(880px, 100%);
+}
+
+.password-reset__intro {
+  align-items: flex-start;
+}
+
+.password-reset__mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  color: #d7f0e5;
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 16px;
+}
+
+.password-reset__security-note {
+  margin-top: 12px;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: rgb(240 250 247 / 86%);
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.password-reset__security-note svg {
+  flex: 0 0 auto;
+  color: #b6ded0;
+}
+
+.password-reset__content {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.password-reset__stepper {
+  display: grid;
+  grid-template-columns: 1fr 34px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.password-reset__step {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #8995a2;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.password-reset__step-number {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  color: #788696;
+  background: #f1f4f6;
+  border: 1px solid #e3e8ec;
+  border-radius: 50%;
+}
+
+.password-reset__step.is-current {
+  color: #145b4c;
+}
+
+.password-reset__step.is-current .password-reset__step-number,
+.password-reset__step.is-complete .password-reset__step-number {
+  color: #fff;
+  background: #1c715c;
+  border-color: #1c715c;
+}
+
+.password-reset__step-line {
+  height: 1px;
+  background: #dfe6e9;
+}
+
+.password-reset__heading > span {
+  color: #b65716;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.password-reset__heading .account-card__section-title {
+  margin: 7px 0 8px;
+  font-size: 25px;
+}
+
+.password-reset__heading > p {
+  margin: 0;
+  color: #6b7888;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.password-reset__form {
+  margin-top: -6px;
+}
+
+.password-reset__field-note {
+  color: #748295;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.password-reset__notice {
+  margin: -6px 0 0;
+  padding: 12px 14px;
+  color: #245943;
+  background: #eff8f2;
+  border: 1px solid #d6ebdc;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.password-reset__email-summary {
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #536274;
+  background: #f6f8f9;
+  border: 1px solid #e6eaed;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.password-reset__email-summary strong {
+  color: #263a4d;
+}
+
+.password-reset__email-icon {
+  flex: 0 0 auto;
+  color: #1c715c;
+}
+
+.password-reset__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.password-reset__actions button {
+  padding: 2px 0;
+  color: #1c715c;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.password-reset__actions button:hover:not(:disabled) {
+  color: #155b49;
+  text-decoration: underline;
+}
+
+.password-reset__actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.password-reset__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.password-reset__success-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  color: #176d59;
+  background: #e9f6ef;
+  border-radius: 50%;
+}
+
+.password-reset__success > p {
+  margin: 0;
+  color: #536274;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .school-detail-page .school-detail__main > .detail-panel {
   padding: clamp(18px, 2vw, 26px);
   background: #fff;
@@ -17920,6 +18123,18 @@ select:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .account-card--password-reset:has(.account-card__intro) {
+    grid-template-columns: 1fr;
+  }
+
+  .account-card--password-reset .account-card__intro {
+    padding: 26px 24px;
+  }
+
+  .account-card--password-reset .account-card__content {
+    padding: 24px;
+  }
+
   .hero-spots {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;

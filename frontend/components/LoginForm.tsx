@@ -71,6 +71,9 @@ export default function LoginForm() {
 
   const busy = submitting || status === "loading";
   const finalError = formError ?? error ?? null;
+  const resetPasswordHref = username.trim().includes("@")
+    ? `/reset-password/?email=${encodeURIComponent(username.trim())}`
+    : "/reset-password";
 
   return (
     <main className="account-page">
@@ -162,7 +165,7 @@ export default function LoginForm() {
 
             {accountType === "parent" && (
               <p className="account-card__hint">
-                <Link href="/reset-password">Forgot your password?</Link>
+                <Link href={resetPasswordHref}>Forgot your password?</Link>
               </p>
             )}
             <p className="account-card__hint">
