@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import type {
+  BoardListItem,
   SchoolDetail,
   SchoolFilters,
   SchoolListItem,
@@ -104,32 +105,48 @@ function formatFee(value: string | null) {
 }
 
 /**
- * Other schools to compare with this one. We widen the search step by step —
- * city, then state, then board — so a visitor always sees a useful next step
- * instead of an empty block.
+ * Other schools to compare with this one. A selected board is prioritized for
+ * multi-board schools, then the search widens to location-only results.
  */
 async function loadNearbySchools(
   school: SchoolDetail,
+  selectedBoard?: BoardListItem | null,
 ): Promise<{ label: string; items: SchoolListItem[] } | null> {
-  const board = school.boards_detail[0];
-  const tiers: { label: string; filters: SchoolFilters }[] = [
-    {
-      label: `Other schools in ${school.city_detail.city_name}`,
-      filters: { city: school.city_detail.city_id },
-    },
-    {
-      label: `Other schools in ${school.state_detail.state_name}`,
-      filters: { state: school.state_detail.state_id },
-    },
-    ...(board
+  const board = selectedBoard ?? (
+    school.boards_detail.length === 1 ? school.boards_detail[0] : null
+  );
+  const cityTier = {
+    label: `Other schools in ${school.city_detail.city_name}`,
+    filters: { city: school.city_detail.city_id },
+  };
+  const stateTier = {
+    label: `Other schools in ${school.state_detail.state_name}`,
+    filters: { state: school.state_detail.state_id },
+  };
+  const boardTiers: { label: string; filters: SchoolFilters }[] = board
+    ? school.boards_detail.length > 1
       ? [
+          {
+            label: `Other ${board.board_name} schools in ${school.city_detail.city_name}`,
+            filters: { city: school.city_detail.city_id, board: board.board_id },
+          },
+          {
+            label: `Other ${board.board_name} schools in ${school.state_detail.state_name}`,
+            filters: { state: school.state_detail.state_id, board: board.board_id },
+          },
           {
             label: `Other ${board.board_name} schools`,
             filters: { board: board.board_id },
           },
         ]
-      : []),
-  ];
+      : [{
+          label: `Other ${board.board_name} schools`,
+          filters: { board: board.board_id },
+        }]
+    : [];
+  const tiers = school.boards_detail.length > 1 && board
+    ? [...boardTiers, cityTier, stateTier]
+    : [cityTier, stateTier, ...boardTiers];
 
   for (const tier of tiers) {
     try {
@@ -154,16 +171,21 @@ export default async function SchoolProfile({
   school,
   initialSection = "overview",
   initialEnquiryOpen = false,
+  selectedBoardId,
 }: {
   school: SchoolDetail;
   initialSection?: SchoolSectionId;
   initialEnquiryOpen?: boolean;
+  selectedBoardId?: string;
 }) {
   const schoolImage = publicSchoolImageUrl(school.school_logo_url);
   const heroBackground = schoolCoverImageUrl(school);
+  const selectedBoard = school.boards_detail.length === 1
+    ? school.boards_detail[0]
+    : school.boards_detail.find((board) => board.board_id === selectedBoardId) ?? null;
   const [reviewData, nearbySchools] = await Promise.all([
     loadReviewData(school.school_id),
-    loadNearbySchools(school),
+    loadNearbySchools(school, selectedBoard),
   ]);
   const nearbyFeaturedSchools = nearbySchools?.items
     .filter((item) => item.is_featured)
@@ -186,7 +208,6 @@ export default async function SchoolProfile({
     : null;
   const cityName = school.city_detail.city_name;
   const stateName = school.state_detail.state_name;
-  const primaryBoard = school.boards_detail[0];
   const primaryType = school.school_types_detail[0];
   const homeCategory = primaryType
     ? homeSchoolCategory(primaryType.type_code, primaryType.slug, primaryType.type_name)
@@ -198,10 +219,10 @@ export default async function SchoolProfile({
     citySlug: school.city_detail.slug,
   };
   const relatedSearchLinks: { label: string; href: string }[] = [
-    ...(primaryBoard
+    ...(selectedBoard
       ? [{
-          label: `${primaryBoard.board_name} ${categoryLabel}`,
-          href: boardListingPath(primaryBoard.slug, homeCategory),
+          label: `${selectedBoard.board_name} ${categoryLabel}`,
+          href: boardListingPath(selectedBoard.slug, homeCategory),
         }]
       : []),
     ...(homeCategory
@@ -228,8 +249,7 @@ export default async function SchoolProfile({
         }]
       : []),
   ];
-  const profileFaqs = schoolProfileFaqs(school);
-
+  const profileFaqs = schoolProfileFaqs(school, selectedBoard);
   // Group facilities by category for cleaner grid display
   const facilitiesByCategory = new Map<string, SchoolDetail["facilities_detail"][number][]>();
   for (const facility of school.facilities_detail ?? []) {
@@ -250,7 +270,8 @@ export default async function SchoolProfile({
     { label: "Classes offered", value: classesRange, icon: GraduationCap },
     {
       label: "Education board",
-      value: boardsAffiliatedLabel(school.boards_detail) || null,
+      value: selectedBoard?.board_name
+        ?? (school.boards_detail.length > 1 ? boardsAffiliatedLabel(school.boards_detail) : null),
       icon: Landmark,
     },
     { label: "Student community", value: genderLabel(school.gender), icon: Users },
@@ -343,9 +364,12 @@ export default async function SchoolProfile({
               <h1>{school.school_name}</h1>
               <p className="school-detail__location"><MapPin size={16} />{location}</p>
               <div className="school-detail__hero-facts" aria-label="School highlights">
-                {school.boards_detail.slice(0, 2).map((board) => (
-                  <span className="school-chip" key={board.board_id}>{board.board_name}</span>
-                ))}
+                {selectedBoard && (
+                  <span className="school-chip" key={selectedBoard.board_id}>{selectedBoard.board_name}</span>
+                )}
+                {school.boards_detail.length > 1 && !selectedBoard && (
+                  <span className="school-chip">Multiple boards</span>
+                )}
                 {school.school_types_detail.slice(0, 2).map((type) => (
                   <span className="school-chip" key={type.school_type_id}>
                     {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
@@ -356,6 +380,30 @@ export default async function SchoolProfile({
                   <span className="school-chip">Est. {school.established_year}</span>
                 )}
               </div>
+              {school.boards_detail.length > 1 && (
+                <form className="school-board-picker" action={schoolProfilePath(school)} method="get">
+                  <label htmlFor="school-board-selection">
+                    This school offers multiple boards. Choose one to view board-specific context.
+                  </label>
+                  <div className="school-board-picker__controls">
+                    <select
+                      id="school-board-selection"
+                      name="board"
+                      defaultValue={selectedBoard?.board_id ?? ""}
+                      required
+                    >
+                      <option value="" disabled>Select a board</option>
+                      {school.boards_detail.map((board) => (
+                        <option key={board.board_id} value={board.board_id}>{board.board_name}</option>
+                      ))}
+                    </select>
+                    <button type="submit">{selectedBoard ? "Update board" : "Show information"}</button>
+                  </div>
+                  <p>
+                    Selection updates board-related FAQs and school suggestions. Fees, grades, and facilities are shared school information.
+                  </p>
+                </form>
+              )}
             </div>
             <div className="school-detail__actions">
               {school.phone && (

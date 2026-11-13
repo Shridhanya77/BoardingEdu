@@ -263,20 +263,21 @@ async function loadSchoolProfileForRequest(
   schoolSegments: string[],
   schoolSection: SchoolSectionId | undefined,
   enquiryRoute: boolean,
+  selectedBoardId?: string,
 ): Promise<SchoolDetail | null> {
   const slug = schoolSlugFromProfileSegments(schoolSegments);
   if (!slug) return null;
   try {
     const school = await schools.bySlug(slug);
     if (!schoolSlugMatchesProfilePath(school, schoolSegments)) {
-      redirect(schoolProfilePath(school));
+      redirect(withBoardSelection(schoolProfilePath(school), selectedBoardId));
     }
     if (!schoolGeographyMatchesProfilePath(school, schoolSegments)) {
-      redirect(schoolProfilePath(school));
+      redirect(withBoardSelection(schoolProfilePath(school), selectedBoardId));
     }
     const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
     if (requestedSchoolPath(rawSegments) !== expectedPath) {
-      redirect(expectedPath);
+      redirect(withBoardSelection(expectedPath, selectedBoardId));
     }
     return school;
   } catch (error) {
@@ -292,6 +293,10 @@ async function loadSchoolProfileForRequest(
  */
 function requestedSchoolPath(segments: string[]): string {
   return withTrailingSlash(`/${segments.join("/")}`);
+}
+
+function withBoardSelection(path: string, boardId?: string): string {
+  return boardId ? `${path}?board=${encodeURIComponent(boardId)}` : path;
 }
 
 function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Metadata {
@@ -656,6 +661,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       profileSegments,
       schoolSection,
       enquiryRoute,
+      singleSearchParam(searchParams?.board),
     );
     if (school) {
       return (
@@ -664,6 +670,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
           school={school}
           initialSection={schoolSection ?? "overview"}
           initialEnquiryOpen={enquiryRoute}
+          selectedBoardId={singleSearchParam(searchParams?.board)}
         />
       );
     }
@@ -897,13 +904,16 @@ export default async function LocationRoute({ params, searchParams }: Props) {
     try {
       const school = await schools.bySlug(schoolSegments[3]!);
       const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
-      if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+      if (requestedSchoolPath(segments) !== expectedPath) {
+        redirect(withBoardSelection(expectedPath, singleSearchParam(searchParams?.board)));
+      }
       return (
         <SchoolProfile
           key={school.school_id}
           school={school}
           initialSection={schoolSection ?? "overview"}
           initialEnquiryOpen={enquiryRoute}
+          selectedBoardId={singleSearchParam(searchParams?.board)}
         />
       );
     } catch (error) {
@@ -919,13 +929,16 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       try {
         const school: SchoolDetail = await schools.bySlug(schoolSegments[4]!);
         const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
-        if (requestedSchoolPath(segments) !== expectedPath) redirect(expectedPath);
+        if (requestedSchoolPath(segments) !== expectedPath) {
+          redirect(withBoardSelection(expectedPath, singleSearchParam(searchParams?.board)));
+        }
         return (
           <SchoolProfile
             key={school.school_id}
             school={school}
             initialSection={schoolSection ?? "overview"}
             initialEnquiryOpen={enquiryRoute}
+            selectedBoardId={singleSearchParam(searchParams?.board)}
           />
         );
       } catch (error) {

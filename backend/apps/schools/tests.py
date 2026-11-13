@@ -24,6 +24,7 @@ from .management.commands.manage_school_photos import Command as ManageSchoolPho
 from config.admin_dashboard import _grade_group
 from config.school_media import cover_image_url_for_school
 from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
+from .management.commands.import_scraped_schools import Command as ImportScrapedSchoolsCommand
 from .models import (
     Board,
     Facility,
@@ -70,6 +71,16 @@ class PublicSchoolUrlTests(SimpleTestCase):
             public_school_url(school),
             "https://www.boardingedu.com/india/karnataka/bengaluru/sample-public-school/",
         )
+
+
+class ImportedSchoolSlugTests(SimpleTestCase):
+    def test_duplicate_school_name_uses_numeric_slug_suffix_not_school_code(self):
+        taken = {"green-valley-school"}
+
+        slug = ImportScrapedSchoolsCommand._unique_slug("green-valley-school", taken)
+
+        self.assertEqual(slug, "green-valley-school-2")
+        self.assertNotIn("sch001", slug)
 
 
 class SchoolRegistrationContactValidationTests(SimpleTestCase):
@@ -692,6 +703,7 @@ class SchoolClassificationTests(TestCase):
             set(result.qs.values_list('school_code', flat=True)),
             {'BOTH', 'CBDAY', 'IBBOARD'},
         )
+        self.assertEqual(result.qs.count(), 3)
 
         params.setlist('school_type', [str(self.boarding.pk)])
         boarding_result = SchoolFilter(params, queryset=School.objects.all())

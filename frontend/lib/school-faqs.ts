@@ -12,7 +12,10 @@ function genderLabel(value: string) {
 }
 
 /** Keyword-rich questions built only from published school facts. */
-export function schoolProfileFaqs(school: SchoolDetail): SchoolFaq[] {
+export function schoolProfileFaqs(
+  school: SchoolDetail,
+  selectedBoard?: SchoolDetail["boards_detail"][number] | null,
+): SchoolFaq[] {
   const name = school.school_name;
   const city = school.city_detail.city_name;
   const state = school.state_detail.state_name;
@@ -42,7 +45,9 @@ export function schoolProfileFaqs(school: SchoolDetail): SchoolFaq[] {
   if (boards.length) {
     items.push({
       question: `Which education board does ${name} follow?`,
-      answer: `${name} in ${city}, ${state} follows ${boards.join(" and ")}. Use this page to compare ${boards.join(" and ")} ${typeText} options in ${city} alongside fees, grades and facilities.`,
+      answer: selectedBoard && boards.length > 1
+        ? `${name} in ${city}, ${state} is affiliated with ${boards.join(" and ")}. This profile is showing board-related information for ${selectedBoard.board_name}; fees, grades and facilities are shared school information.`
+        : `${name} in ${city}, ${state} follows ${boards.join(" and ")}. Use this page to compare ${boards.join(" and ")} ${typeText} options in ${city} alongside fees, grades and facilities.`,
     });
   }
 

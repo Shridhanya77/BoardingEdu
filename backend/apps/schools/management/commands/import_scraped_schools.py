@@ -612,28 +612,23 @@ class Command(BaseCommand):
             preferred.save(update_fields=["is_current"])
 
     @staticmethod
-    def _unique_slug(base_slug: str, school_code: str, taken: set[str]) -> str:
-        base = (base_slug or school_code.lower())[:280]
+    def _unique_slug(base_slug: str, taken: set[str]) -> str:
+        base = (base_slug or "").strip("-")[:280]
+        if not base:
+            raise CommandError("A school name is required to generate a public URL.")
         slug = base
-        if slug not in taken:
-            taken.add(slug)
-            return slug
-        suffix = f"-{school_code.lower()}"
-        slug = f"{base[: max(1, 280 - len(suffix))]}{suffix}"[:300]
         counter = 2
         while slug in taken:
-            extra = f"-{counter}"
-            slug = f"{base[: max(1, 280 - len(suffix) - len(extra))]}{suffix}{extra}"[:300]
+            suffix = f"-{counter}"
+            slug = f"{base[: 300 - len(suffix)]}{suffix}"
             counter += 1
         taken.add(slug)
         return slug
 
     def _resolve_slug(self, row, taken: set[str], school=None, import_codes: set[str] | None = None) -> str:
-        desired = (
-            seo_slug(row.get("school_name") or "")
-            or seo_slug(row.get("slug") or "")
-            or row["school_code"].lower()
-        )
+        desired = seo_slug(row.get("school_name") or "")
+        if not desired:
+            raise CommandError("Every imported school needs a name to generate its public URL.")
         import_codes = import_codes or set()
         if school and school.slug == desired:
             taken.add(desired)
@@ -645,8 +640,7 @@ class Command(BaseCommand):
         for other in conflicts:
             if other.school_code not in import_codes:
                 legacy = self._unique_slug(
-                    seo_slug(other.school_name) or other.slug or other.school_code.lower(),
-                    other.school_code,
+                    seo_slug(other.school_name),
                     taken,
                 )
                 other.slug = legacy
@@ -659,7 +653,7 @@ class Command(BaseCommand):
         if not conflicts.exists() and desired not in taken:
             taken.add(desired)
             return desired
-        return self._unique_slug(desired, row["school_code"], taken)
+        return self._unique_slug(desired, taken)
 
     def _schools(self, rows, countries, states, cities, locations):
         codes = [row["school_code"] for row in rows]

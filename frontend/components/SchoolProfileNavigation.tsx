@@ -83,8 +83,8 @@ export default function SchoolProfileNavigation({
     }, 900);
     setActiveSection(id);
     applySectionHead(id);
-    const nextPath = schoolSectionPath(schoolPath, id);
-    if (window.location.pathname !== nextPath) {
+    const nextPath = `${schoolSectionPath(schoolPath, id)}${window.location.search}`;
+    if (`${window.location.pathname}${window.location.search}` !== nextPath) {
       window.history.replaceState(null, "", nextPath);
     }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });

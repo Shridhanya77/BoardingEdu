@@ -21802,6 +21802,66 @@ select:focus-visible {
   gap: 8px;
 }
 
+.school-board-picker {
+  max-width: 520px;
+  margin-top: 14px;
+  padding: 14px;
+  color: #f2f7fb;
+  background: rgb(6 20 35 / 62%);
+  border: 1px solid rgb(255 255 255 / 28%);
+  border-radius: 14px;
+}
+
+.school-board-picker label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.school-board-picker__controls {
+  margin-top: 9px;
+  display: flex;
+  gap: 8px;
+}
+
+.school-board-picker select,
+.school-board-picker button {
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid rgb(255 255 255 / 42%);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.school-board-picker select {
+  flex: 1;
+  min-width: 0;
+  color: #172a41;
+  background: #fff;
+}
+
+.school-board-picker button {
+  color: #173253;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.school-board-picker button:hover,
+.school-board-picker button:focus-visible {
+  color: #102e52;
+  background: #e8f1fb;
+}
+
+.school-board-picker p {
+  margin: 8px 0 0;
+  color: #d7e3ef;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .school-detail__hero .school-chip {
   min-height: 36px;
   padding: 7px 12px;
