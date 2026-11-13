@@ -44,6 +44,17 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
             verification_status="VERIFIED",
             published_at=timezone.now(),
         )
+        cls.legacy_visible = School.objects.create(
+            school_code="LEGACY-SUMMARY",
+            school_name="Legacy Verified School",
+            slug="legacy-verified-school-summary",
+            country=country,
+            state=state,
+            city=cls.city,
+            address="New Delhi",
+            status=True,
+            verification_status="VERIFIED",
+        )
         cls.hidden = School.objects.create(
             school_code="HIDDEN-SUMMARY",
             school_name="Pending School",
@@ -54,6 +65,18 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
             address="New Delhi",
             status=True,
             verification_status="PENDING",
+        )
+        cls.inactive = School.objects.create(
+            school_code="INACTIVE-SUMMARY",
+            school_name="Inactive Verified School",
+            slug="inactive-verified-school-summary",
+            country=country,
+            state=state,
+            city=cls.city,
+            address="New Delhi",
+            status=False,
+            verification_status="VERIFIED",
+            published_at=timezone.now(),
         )
         cls.parent_user = User.objects.create_user(
             username="recent-parent",
@@ -71,7 +94,7 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def test_public_summary_counts_only_published_schools_and_reviews(self):
+    def test_public_summary_counts_active_verified_schools_and_verified_parent_reviews(self):
         verified_parent = User.objects.create_user(
             username="verified-review-parent",
             password="secret",
@@ -107,18 +130,18 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
         response = self.client.get("/api/dashboards/public/summary/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["schools_listed"], 1)
+        self.assertEqual(response.data["schools_listed"], 2)
         self.assertEqual(response.data["cities_covered"], 1)
         self.assertEqual(response.data["published_reviews"], 1)
         self.assertIsNotNone(response.data["last_updated"])
 
-    def test_public_school_directory_does_not_expose_unpublished_schools(self):
+    def test_public_school_directory_includes_legacy_verified_schools_only(self):
         response = self.client.get("/api/schools/schools/")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            [school["school_id"] for school in response.data["results"]],
-            [str(self.visible.pk)],
+            {school["school_id"] for school in response.data["results"]},
+            {str(self.visible.pk), str(self.legacy_visible.pk)},
         )
 
     def test_parent_recent_view_is_deduplicated_and_rejects_hidden_schools(self):

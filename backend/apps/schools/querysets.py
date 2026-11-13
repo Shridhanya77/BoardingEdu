@@ -6,5 +6,4 @@ def public_school_queryset(queryset=None):
     return base_queryset.filter(
         status=True,
         verification_status=School.VERIFICATION_CHOICES[2][0],
-        published_at__isnull=False,
     )
