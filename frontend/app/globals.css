@@ -10461,6 +10461,7 @@ select:focus-visible {
 
 .recent-school-card__copy {
   min-width: 0;
+  padding-right: 24px;
   display: flex;
   flex-direction: column;
   gap: 5px;
