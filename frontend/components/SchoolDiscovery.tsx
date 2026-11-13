@@ -1737,10 +1737,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       };
     }
     const placeScoped = Boolean(initialCity || initialLocation);
-    const locationScoped = !isHomePage && Boolean(
-      geoCountry || geoState || geoCity || geoLocation ||
-      initialCountry || initialState || initialCity || initialLocation || geoRegion,
-    );
     const effectiveLocationGroups = geoRegion
       ? [`${regionCountryId}|${selectedIndiaRegionStateIds.join(",")}`]
       : locationGroups;
@@ -1766,7 +1762,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       max_fee: feeMax,
       gender,
       ordering,
-      is_featured: locationScoped ? false : undefined,
       page: page > 1 ? page : undefined,
       page_size: PAGE_SIZE,
     };
