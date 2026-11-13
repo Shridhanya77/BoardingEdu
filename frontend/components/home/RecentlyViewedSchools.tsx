@@ -166,7 +166,9 @@ export default function RecentlyViewedSchools() {
         </div>
         <div className="recent-schools__actions">
           {isParent && (
-            <Link href="/dashboard/parent/">View all in dashboard</Link>
+            <Link href="/dashboard/parent/">
+              View all in dashboard <ArrowRight size={15} aria-hidden />
+            </Link>
           )}
           {items.length > 0 && (
             <button type="button" className="recent-schools__clear" disabled={busy} onClick={() => void clearHistory()}>
@@ -219,9 +221,16 @@ export default function RecentlyViewedSchools() {
         </div>
       ) : (
         <div className="recent-schools__empty">
-          <GraduationCap size={22} aria-hidden />
-          <p>Schools you explore will appear here so you can easily come back to them.</p>
-          <Link href="/schools">Explore schools <ArrowRight size={14} aria-hidden /></Link>
+          <span className="recent-schools__empty-icon" aria-hidden>
+            <GraduationCap size={25} />
+          </span>
+          <div className="recent-schools__empty-copy">
+            <strong>Your next school shortlist starts here</strong>
+            <p>Explore a school profile and it will be saved here for an easy return.</p>
+          </div>
+          <Link className="recent-schools__empty-cta" href="/schools">
+            Explore schools <ArrowRight size={16} aria-hidden />
+          </Link>
         </div>
       )}
     </section>

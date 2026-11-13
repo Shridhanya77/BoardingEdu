@@ -3016,8 +3016,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         )}
       </section>
 
-      <RecentlyViewedSchools />
-
       <section className="home-section home-how-it-works" aria-labelledby="home-how-it-works-title">
         <div className="home-section__heading home-section__heading--centered">
           <div>
@@ -3035,6 +3033,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           ))}
         </ol>
       </section>
+
+      <RecentlyViewedSchools />
 
       {!isHomePage && showTypeChooser && (
         <section className="home-section home-section--types" id="school-types">
