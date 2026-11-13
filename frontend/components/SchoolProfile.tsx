@@ -380,30 +380,6 @@ export default async function SchoolProfile({
                   <span className="school-chip">Est. {school.established_year}</span>
                 )}
               </div>
-              {school.boards_detail.length > 1 && (
-                <form className="school-board-picker" action={schoolProfilePath(school)} method="get">
-                  <label htmlFor="school-board-selection">
-                    This school offers multiple boards. Choose one to view board-specific context.
-                  </label>
-                  <div className="school-board-picker__controls">
-                    <select
-                      id="school-board-selection"
-                      name="board"
-                      defaultValue={selectedBoard?.board_id ?? ""}
-                      required
-                    >
-                      <option value="" disabled>Select a board</option>
-                      {school.boards_detail.map((board) => (
-                        <option key={board.board_id} value={board.board_id}>{board.board_name}</option>
-                      ))}
-                    </select>
-                    <button type="submit">{selectedBoard ? "Update board" : "Show information"}</button>
-                  </div>
-                  <p>
-                    Selection updates board-related FAQs and school suggestions. Fees, grades, and facilities are shared school information.
-                  </p>
-                </form>
-              )}
             </div>
             <div className="school-detail__actions">
               {school.phone && (
@@ -476,6 +452,9 @@ export default async function SchoolProfile({
                 grade_name: g.grade_name,
                 sort_order: g.sort_order,
               }))}
+              boards={school.boards_detail}
+              selectedBoardId={selectedBoard?.board_id}
+              profilePath={schoolProfilePath(school)}
             />
             <Link
               className="school-fee-calculator-link"

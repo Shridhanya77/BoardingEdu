@@ -21803,17 +21803,17 @@ select:focus-visible {
 }
 
 .school-board-picker {
-  max-width: 520px;
-  margin-top: 14px;
-  padding: 14px;
-  color: #f2f7fb;
-  background: rgb(6 20 35 / 62%);
-  border: 1px solid rgb(255 255 255 / 28%);
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  color: #263a51;
+  background: #f5f8fc;
+  border: 1px solid #dbe5ef;
   border-radius: 14px;
 }
 
 .school-board-picker label {
   display: block;
+  color: #203b59;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.5;
@@ -21822,6 +21822,7 @@ select:focus-visible {
 .school-board-picker__controls {
   margin-top: 9px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -21829,35 +21830,37 @@ select:focus-visible {
 .school-board-picker button {
   min-height: 42px;
   padding: 8px 11px;
-  border: 1px solid rgb(255 255 255 / 42%);
+  border: 1px solid #cbd8e6;
   border-radius: 10px;
   font: inherit;
 }
 
 .school-board-picker select {
-  flex: 1;
+  flex: 1 1 220px;
   min-width: 0;
   color: #172a41;
   background: #fff;
 }
 
 .school-board-picker button {
-  color: #173253;
-  background: #fff;
+  color: #fff;
+  background: #173b61;
+  border-color: #173b61;
   font-size: 13px;
   font-weight: 750;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .school-board-picker button:hover,
 .school-board-picker button:focus-visible {
-  color: #102e52;
-  background: #e8f1fb;
+  background: #0f2e4d;
+  border-color: #0f2e4d;
 }
 
 .school-board-picker p {
   margin: 8px 0 0;
-  color: #d7e3ef;
+  color: #667b94;
   font-size: 12px;
   line-height: 1.5;
 }
