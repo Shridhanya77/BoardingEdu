@@ -10,9 +10,7 @@ import {
   CheckCircle2,
   ChevronDown,
   GraduationCap,
-  Globe,
   LayoutGrid,
-  Landmark,
   LoaderCircle,
   List as ListView,
   MapPin,
@@ -87,15 +85,31 @@ import {
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
 
-function boardSymbol(boardCode: string, boardName: string) {
-  const identifier = `${boardCode} ${boardName}`.toUpperCase();
-  if (identifier.includes("CBSE")) return <GraduationCap size={34} strokeWidth={1.8} />;
-  if (identifier.includes("CISCE") || identifier.includes("ICSE")) return <BookOpen size={34} strokeWidth={1.8} />;
-  if (identifier.includes("CAMBRIDGE") || identifier.includes("IGCSE") || identifier.includes("IB")) return <Globe size={34} strokeWidth={1.8} />;
-  if (identifier.includes("STATE")) return <Landmark size={34} strokeWidth={1.8} />;
-  if (identifier.includes("NIOS")) return <Building2 size={34} strokeWidth={1.8} />;
-  if (identifier.includes("FINLAND")) return <Star size={34} strokeWidth={1.8} />;
-  return <BookOpen size={34} strokeWidth={1.8} />;
+function boardLogoVariant(
+  board: BoardListItem,
+): "cbse" | "cisce" | "icse" | "cambridge" | "ib" | "igcse" | "state" | "nios" | "finland" | "generic" {
+  const identifier = `${board.board_code} ${board.board_name} ${board.slug}`.toUpperCase();
+  if (identifier.includes("CBSE")) return "cbse";
+  if (identifier.includes("CISCE")) return "cisce";
+  if (identifier.includes("ICSE")) return "icse";
+  if (identifier.includes("CAMBRIDGE")) return "cambridge";
+  if (/\bIB\b/.test(identifier)) return "ib";
+  if (identifier.includes("IGCSE")) return "igcse";
+  if (identifier.includes("STATE")) return "state";
+  if (identifier.includes("NIOS")) return "nios";
+  if (identifier.includes("FINLAND")) return "finland";
+  return "generic";
+}
+
+function boardLogoLabel(board: BoardListItem) {
+  const variant = boardLogoVariant(board);
+  if (variant === "cbse") return "CBSE";
+  if (variant === "cisce") return "CISCE";
+  if (variant === "icse") return "ICSE";
+  if (variant === "cambridge") return "CAMBRIDGE";
+  if (variant === "ib") return "IB";
+  if (variant === "igcse") return "IGCSE";
+  return boardBadgeCode(board.board_code, board.board_name);
 }
 
 function boardBadgeCode(boardCode: string, boardName: string) {
@@ -3563,11 +3577,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   >
                     <span className="board-card__mark" aria-hidden="true">
                       <span className={`board-card__seal board-card__seal--${boardGroup(boardItem)}`}>
-                        <span className="board-card__seal-icon">
-                          {boardSymbol(boardItem.board_code, boardItem.board_name)}
-                        </span>
-                        <span className="board-card__seal-code">
-                          {boardBadgeCode(boardItem.board_code, boardItem.board_name)}
+                        <span className={`board-card__logo board-card__logo--${boardLogoVariant(boardItem)}`}>
+                          <span className="board-card__logo-wordmark">
+                            {boardLogoLabel(boardItem)}
+                          </span>
                         </span>
                       </span>
                     </span>

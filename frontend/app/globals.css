@@ -6722,31 +6722,6 @@ select:focus-visible {
   --seal-accent: #b95730;
 }
 
-.board-card__seal-icon {
-  display: grid;
-  place-items: center;
-  color: var(--seal-ink, #17456b);
-  transform: translateY(-5px);
-}
-
-.board-card__seal-icon svg {
-  width: 27px;
-  height: 27px;
-}
-
-.board-card__seal-code {
-  position: absolute;
-  bottom: 11px;
-  max-width: 60px;
-  overflow: hidden;
-  color: var(--seal-accent, #e8650f);
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: .07em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .board-card__name {
   width: 100%;
   min-height: 34px;
@@ -26705,10 +26680,104 @@ select:focus-visible {
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
 }
 
-.discovery-page--home .home-section--boards .board-card__mark svg {
-  width: 34px;
-  height: 34px;
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 24%));
+.board-card__logo {
+  width: 58px;
+  min-height: 40px;
+  padding: 4px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--board-logo-ink, #17456b);
+  background: #fff;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgb(12 31 48 / 12%);
+}
+
+.board-card__logo::after {
+  width: 18px;
+  height: 2px;
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 9px);
+  background: var(--board-logo-accent, #e8650f);
+  content: "";
+}
+
+.board-card__logo-wordmark {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .035em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-card__logo--cbse {
+  --board-logo-ink: #17456b;
+  --board-logo-accent: #e8650f;
+  border-radius: 50%;
+}
+
+.board-card__logo--cisce {
+  --board-logo-ink: #244a67;
+  --board-logo-accent: #c1493e;
+  border-radius: 10px 10px 18px 18px;
+}
+
+.board-card__logo--icse {
+  --board-logo-ink: #244a67;
+  --board-logo-accent: #df6a27;
+  border-width: 3px;
+  border-radius: 6px;
+}
+
+.board-card__logo--cambridge {
+  --board-logo-ink: #1d4265;
+  --board-logo-accent: #b51e2b;
+  width: 68px;
+  border-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: Georgia, serif;
+}
+
+.board-card__logo--cambridge .board-card__logo-wordmark {
+  font-size: 8px;
+  letter-spacing: 0;
+}
+
+.board-card__logo--ib {
+  --board-logo-ink: #17456b;
+  --board-logo-accent: #e8650f;
+  border-radius: 50%;
+}
+
+.board-card__logo--ib .board-card__logo-wordmark {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  letter-spacing: -.04em;
+}
+
+.board-card__logo--igcse {
+  --board-logo-ink: #28645c;
+  --board-logo-accent: #3b7d75;
+  border-radius: 4px;
+}
+
+.board-card__logo--state {
+  --board-logo-ink: #4a5870;
+  --board-logo-accent: #b95730;
+  border-style: dashed;
+}
+
+.board-card__logo--nios,
+.board-card__logo--finland,
+.board-card__logo--generic {
+  --board-logo-ink: #4a5870;
+  --board-logo-accent: #b95730;
 }
 
 @media (prefers-reduced-motion: reduce) {
