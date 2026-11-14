@@ -825,7 +825,7 @@ export type AcademicYearListItem = {
 
 export type FeeEstimateInput = {
   school_ids: string[];
-  grade_id: string;
+  grade_ids: string[];
   school_type_id: string;
   academic_year_id: string;
 };
@@ -844,6 +844,8 @@ export type FeeEstimateItem = {
 export type FeeEstimateResult = {
   school_id: string;
   school_name: string;
+  grade_id: string;
+  grade_name: string;
   slug: string;
   city_name: string;
   state_name: string;

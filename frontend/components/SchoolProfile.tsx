@@ -199,6 +199,8 @@ export default async function SchoolProfile({
   const latitude = Number(school.lat);
   const longitude = Number(school.lng);
   const hasCoordinates =
+    school.lat != null &&
+    school.lng != null &&
     Number.isFinite(latitude) &&
     Number.isFinite(longitude) &&
     Math.abs(latitude) <= 90 &&
@@ -270,18 +272,12 @@ export default async function SchoolProfile({
     { label: "Classes offered", value: classesRange, icon: GraduationCap },
     {
       label: "Education board",
-      value: selectedBoard?.board_name
-        ?? (school.boards_detail.length > 1 ? boardsAffiliatedLabel(school.boards_detail) : null),
+      value: school.boards_detail.length
+        ? boardsAffiliatedLabel(school.boards_detail)
+        : null,
       icon: Landmark,
     },
     { label: "Student community", value: genderLabel(school.gender), icon: Users },
-    {
-      label: "Facilities listed",
-      value: school.facilities_detail.length
-        ? String(school.facilities_detail.length)
-        : null,
-      icon: Star,
-    },
   ].filter((stat): stat is { label: string; value: string; icon: typeof Star } =>
     Boolean(stat.value),
   );
@@ -364,12 +360,9 @@ export default async function SchoolProfile({
               <h1>{school.school_name}</h1>
               <p className="school-detail__location"><MapPin size={16} />{location}</p>
               <div className="school-detail__hero-facts" aria-label="School highlights">
-                {selectedBoard && (
-                  <span className="school-chip" key={selectedBoard.board_id}>{selectedBoard.board_name}</span>
-                )}
-                {school.boards_detail.length > 1 && !selectedBoard && (
-                  <span className="school-chip">Multiple boards</span>
-                )}
+                {school.boards_detail.map((board) => (
+                  <span className="school-chip" key={board.board_id}>{boardLabel(board)}</span>
+                ))}
                 {school.school_types_detail.slice(0, 2).map((type) => (
                   <span className="school-chip" key={type.school_type_id}>
                     {schoolTypeLabel(type.type_code, type.slug, type.type_name)}
@@ -458,7 +451,7 @@ export default async function SchoolProfile({
             />
             <Link
               className="school-fee-calculator-link"
-              href={`/fee-calculator/?school=${encodeURIComponent(school.slug)}`}
+              href={`/fee-calculator/${encodeURIComponent(school.slug)}/`}
             >
               Compare published fees for this school <ArrowRight size={15} aria-hidden />
             </Link>
@@ -529,18 +522,14 @@ export default async function SchoolProfile({
                 </div>
               </div>
               <span id="infrastructure" className="school-detail__section-anchor" />
-              {school.facilities_detail.some((facility) => facility.quantity_or_capacity != null || facility.description) && (
+              {school.facilities_detail.some((facility) => facility.description) && (
                 <dl className="infrastructure-facts">
                   {school.facilities_detail
-                    .filter((facility) => facility.quantity_or_capacity != null || facility.description)
+                    .filter((facility) => facility.description)
                     .map((facility) => (
                       <div key={facility.school_facility_id}>
                         <dt>{facility.facility_name}</dt>
-                        <dd>
-                          {facility.quantity_or_capacity != null ? `Capacity ${facility.quantity_or_capacity}` : ""}
-                          {facility.quantity_or_capacity != null && facility.description ? " · " : ""}
-                          {facility.description || ""}
-                        </dd>
+                        <dd>{facility.description}</dd>
                       </div>
                     ))}
                 </dl>
@@ -599,7 +588,7 @@ export default async function SchoolProfile({
                 <SchoolTravelPanel
                   latitude={hasCoordinates ? latitude : null}
                   longitude={hasCoordinates ? longitude : null}
-                  locationLabel={location}
+                  locationLabel={[school.address, school.pincode, location].filter(Boolean).join(", ")}
                 />
               </section>
               <div className="school-location-card">

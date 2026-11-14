@@ -15,6 +15,7 @@ import {
   type SchoolTypeListItem,
 } from "@/lib/api";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
 
 function formatCurrency(value: string | null) {
   if (value === null) return "Unavailable";
@@ -23,7 +24,7 @@ function formatCurrency(value: string | null) {
   }).format(Number(value))}`;
 }
 
-export default function FeeCalculator() {
+export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoolSlug?: string } = {}) {
   const [grades, setGrades] = useState<GradeListItem[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYearListItem[]>([]);
@@ -66,7 +67,8 @@ export default function FeeCalculator() {
   }, []);
 
   useEffect(() => {
-    const schoolSlug = new URLSearchParams(window.location.search).get("school");
+    const schoolSlug = initialSchoolSlug
+      ?? new URLSearchParams(window.location.search).get("school");
     if (!schoolSlug) return;
     let active = true;
     schools.list({ search: schoolSlug, page_size: 12 })
@@ -81,12 +83,13 @@ export default function FeeCalculator() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [initialSchoolSlug]);
 
   useEffect(() => {
     let active = true;
     const normalized = query.trim();
-    if (normalized.length < 2 || !gradeId || !schoolTypeId) {
+    const gradeIds = gradeSelectionIds(grades, gradeId);
+    if (normalized.length < 2 || gradeIds.length === 0 || !schoolTypeId) {
       setMatches([]);
       setSearching(false);
       return;
@@ -95,14 +98,20 @@ export default function FeeCalculator() {
     setMatches([]);
     setSearching(true);
     const timer = window.setTimeout(() => {
-      schools.list({
+      Promise.all(gradeIds.map((id) => schools.list({
         search: normalized,
         page_size: 8,
-        grade: gradeId,
+        grade: id,
         school_type: schoolTypeId,
-      })
-        .then((page) => {
-          if (active) setMatches(page.results);
+      })))
+        .then((pages) => {
+          if (active) {
+            const uniqueSchools = new Map<string, SchoolListItem>();
+            for (const school of pages.flatMap((page) => page.results)) {
+              uniqueSchools.set(school.school_id, school);
+            }
+            setMatches(Array.from(uniqueSchools.values()).slice(0, 8));
+          }
         })
         .catch((reason: unknown) => {
           if (active) setError(apiErrorMessage(reason));
@@ -115,7 +124,7 @@ export default function FeeCalculator() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [gradeId, query, schoolTypeId]);
+  }, [gradeId, grades, query, schoolTypeId]);
 
   function toggleSchool(school: SchoolListItem) {
     setSelectedSchools((current) =>
@@ -141,7 +150,7 @@ export default function FeeCalculator() {
     try {
       const response = await fees.estimate({
         school_ids: selectedSchools.map((school) => school.school_id),
-        grade_id: gradeId,
+        grade_ids: gradeSelectionIds(grades, gradeId),
         school_type_id: schoolTypeId,
         academic_year_id: academicYearId,
       });
@@ -196,7 +205,7 @@ export default function FeeCalculator() {
               required
             >
               <option value="">Select a grade</option>
-              {grades.map((grade) => (
+              {gradeSelectOptions(grades).map((grade) => (
                 <option key={grade.grade_id} value={grade.grade_id}>{grade.grade_name}</option>
               ))}
             </select>
@@ -294,10 +303,10 @@ export default function FeeCalculator() {
       {results && (
         <section className="fee-calculator__results" aria-labelledby="fee-results-title">
           <h2 id="fee-results-title">Estimate comparison</h2>
-          <p>These are estimates from published fee items for the selected grade and school type.</p>
+          <p>These are estimates from published fee items for each selected grade and school type.</p>
           <div className="fee-calculator__result-grid">
             {results.map((result) => (
-              <article className="fee-estimate-card" key={result.school_id}>
+              <article className="fee-estimate-card" key={`${result.school_id}-${result.grade_id}`}>
                 <h3>
                   <Link href={schoolProfilePathFromSlugs({
                     countrySlug: result.country_slug,
@@ -310,6 +319,7 @@ export default function FeeCalculator() {
                     {result.school_name}
                   </Link>
                 </h3>
+                <p className="fee-estimate-card__year">{result.grade_name}</p>
                 <p className="fee-estimate-card__year">
                   {result.academic_year ? `Academic year ${result.academic_year}` : "No active published fee schedule"}
                 </p>
@@ -349,7 +359,7 @@ export default function FeeCalculator() {
                   </>
                 ) : (
                   <p className="fee-estimate-card__note">
-                    This school does not offer the selected grade or school type, or has no current published fee schedule.
+                    This school does not offer {result.grade_name} or the selected school type, or has no current published fee schedule.
                   </p>
                 )}
               </article>

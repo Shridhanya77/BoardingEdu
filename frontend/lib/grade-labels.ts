@@ -60,6 +60,24 @@ export function gradeSelectOptions<T extends GradeOption>(grades: T[]): T[] {
   ];
 }
 
+export function gradeSelectionIds<T extends GradeOption>(
+  grades: T[],
+  selectedGradeId: string,
+): string[] {
+  const selected = grades.find((grade) => grade.grade_id === selectedGradeId);
+  if (!selected) return [];
+  if (!isPreNursery(selected) && !isNursery(selected)) return [selected.grade_id];
+
+  return grades
+    .filter((grade) => isPreNursery(grade) || isNursery(grade))
+    .sort(
+      (left, right) =>
+        gradeSortKey(left.grade_name, left.sort_order, left.grade_code) -
+        gradeSortKey(right.grade_name, right.sort_order, right.grade_code),
+    )
+    .map((grade) => grade.grade_id);
+}
+
 export function gradeSelectLabel(name: string): string {
   const raw = name.trim();
   if (/^(class|grade)\s+\d+$/i.test(raw)) {

@@ -117,6 +117,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   const residential = homeSearch
     ? activeCategory === "residential-school"
     : activeCategory === "day-boarding-school" || activeCategory === "boarding-school";
+  const regionalSelection = residential || (homeSearch && activeCategory === "day-school");
   const country = countries.find((item) => item.country_id === value.country);
   const state = states.find((item) => item.state_id === value.state);
   const city = cities.find((item) => item.city_id === value.city);
@@ -167,11 +168,11 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     return placeListingPath({
       countrySlug: country.slug,
       stateSlug: state?.slug,
-      citySlug: residential ? undefined : city?.slug,
-      locationSlug: residential ? undefined : locality?.slug,
+      citySlug: regionalSelection ? undefined : city?.slug,
+      locationSlug: regionalSelection ? undefined : locality?.slug,
       category: listingCategory,
     });
-  }, [country, state, city, locality, residential, listingCategory, value.region, isIndia]);
+  }, [country, state, city, locality, regionalSelection, listingCategory, value.region, isIndia]);
 
   useEffect(() => {
     let active = true;
@@ -192,27 +193,27 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   useEffect(() => {
     let active = true;
     setCityError(null);
-    if (!value.state) { setCities([]); setLoadingCities(false); return; }
+    if (!value.state || regionalSelection) { setCities([]); setLoadingCities(false); return; }
     setCities([]);
     setLoadingCities(true);
     geography.citiesOf(value.state).then(fetchAllPages).then((rows) => { if (active) setCities(rows.filter((row) => row.status && row.state_id === value.state)); }).catch((reason: unknown) => { if (active) { setCities([]); setCityError(reason instanceof Error ? reason.message : "Cities could not be loaded."); } }).finally(() => { if (active) setLoadingCities(false); });
     return () => { active = false; };
-  }, [value.state, retryCount]);
+  }, [value.state, regionalSelection, retryCount]);
   useEffect(() => {
     let active = true;
     setLocalityError(null);
-    if (!value.city || residential) { setLocations([]); setLoadingLocations(false); return; }
+    if (!value.city || regionalSelection) { setLocations([]); setLoadingLocations(false); return; }
     setLocations([]);
     setLoadingLocations(true);
     geography.locationsOf(value.city).then(fetchAllPages).then((rows) => { if (active) setLocations(rows.filter((row) => row.status && row.city_id === value.city)); }).catch((reason: unknown) => { if (active) { setLocations([]); setLocalityError(reason instanceof Error ? reason.message : "Localities could not be loaded."); } }).finally(() => { if (active) setLoadingLocations(false); });
     return () => { active = false; };
-  }, [value.city, residential, retryCount]);
+  }, [value.city, regionalSelection, retryCount]);
 
   function patch(partial: Partial<HeroFinderValue>) {
     const next = { ...value, ...partial };
     const selectedCategory = categoryForIds(partial.schoolType ?? next.schoolType);
     if (partial.schoolType && (homeSearch
-      ? selectedCategory === "residential-school"
+      ? selectedCategory === "residential-school" || selectedCategory === "day-school"
       : selectedCategory === "day-boarding-school" || selectedCategory === "boarding-school")) {
       next.city = "";
       next.location = "";
@@ -227,7 +228,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
   function submit(event: FormEvent) {
     event.preventDefault();
     if (isIndia && !value.state && !value.region) return;
-    if (!activeCategory || !country || (value.state && !state) || (value.city && !city) || (!residential && value.location && !locality)) return;
+    if (!activeCategory || !country || (value.state && !state) || (!regionalSelection && value.city && !city) || (!regionalSelection && value.location && !locality)) return;
     onSubmit(path);
   }
   function clearSelections() {
@@ -283,7 +284,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
           Showing {mobileCategory === "day-school" ? "Day Schools" : "Boarding Schools"}
         </p>
       )}
-      <div className={`finder-group__fields${residential ? " finder-group__fields--regional" : ""}`}>
+      <div className={`finder-group__fields${regionalSelection ? " finder-group__fields--regional" : ""}`}>
         <LocationCombobox
           id="hero-country"
           label="Country"
@@ -323,7 +324,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
           onSelect={(stateId) => patch({ state: stateId, city: "", location: "" })}
         />
         )}
-        {residential ? null : <>
+        {regionalSelection ? null : <>
           <LocationCombobox
             id="hero-city"
             label="City"
@@ -362,21 +363,21 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
       {value.state && !loadingStates && !states.length && !stateError && (
         <p className="finder-message" role="status">No active states are available for this country.</p>
       )}
-      {value.city && !loadingLocations && !locations.length && !localityError && !residential && (
+      {value.city && !loadingLocations && !locations.length && !localityError && !regionalSelection && (
         <p className="finder-message" role="status">No localities are listed for this city. You can still search the whole city.</p>
       )}
       {(loadingCountries || loadingStates || loadingCities || loadingLocations) && (
         <p className="finder-message" role="status">Loading location options…</p>
       )}
       <p className="finder-location-summary" aria-live="polite">
-        {[country?.country_name, indiaRegionById(value.region)?.label, state?.state_name, city?.city_name, !residential && locality?.location_name].filter(Boolean).join(" · ") || "No location selected"}
+        {[country?.country_name, indiaRegionById(value.region)?.label, state?.state_name, !regionalSelection && city?.city_name, !regionalSelection && locality?.location_name].filter(Boolean).join(" · ") || "No location selected"}
       </p>
     </fieldset>}
     <div className="finder-actions">
       <button className="finder-clear" type="button" onClick={clearSelections}>
         Clear selections
       </button>
-      <button className="hero-finder__submit" type="submit" disabled={!activeCategory || !country || Boolean(value.state && !state) || Boolean(!residential && value.city && !city) || Boolean(!residential && value.location && !locality)}>
+      <button className="hero-finder__submit" type="submit" disabled={!activeCategory || !country || Boolean(value.state && !state) || Boolean(!regionalSelection && value.city && !city) || Boolean(!regionalSelection && value.location && !locality)}>
         <Search size={16} /> Find Schools
       </button>
     </div>
@@ -387,7 +388,6 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
         setRegionPickerOpen(false);
         setDismissedRegionPickerFor(value.country);
         patch({ region, state: "", city: "", location: "" });
-        onSubmit(indiaRegionListingPath(region, listingCategory));
       }}
       onClose={() => {
         setRegionPickerOpen(false);

@@ -82,8 +82,8 @@ export default function SchoolProfileActions({ school }: { school: SchoolDetail 
   }
 
   function toggleCompare() {
-    if (!compared && comparedSchools.length >= 4) {
-      setMessage("You can compare up to four schools. Remove one from your comparison first.");
+    if (!compared && comparedSchools.length >= 3) {
+      setMessage("You can compare up to three schools. Remove one from your comparison first.");
       return;
     }
     toggleSchool(schoolDetailToListItem(school));

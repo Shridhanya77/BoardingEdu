@@ -149,6 +149,7 @@ export default function SchoolPhotoGallery({
               width={1400}
               height={900}
               unoptimized
+              priority
             />
             <figcaption>
               <span>{activePhoto.caption || activePhoto.alt_text || schoolName}</span>

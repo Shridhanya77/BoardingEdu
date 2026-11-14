@@ -1,8 +1,25 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-$python = Join-Path $PSScriptRoot "venv\Scripts\python.exe"
-if (-not (Test-Path $python)) {
+$python = $null
+if ($env:VIRTUAL_ENV) {
+    $activePython = Join-Path $env:VIRTUAL_ENV "Scripts\python.exe"
+    if (Test-Path $activePython) {
+        $python = $activePython
+    }
+}
+
+if (-not $python) {
+    foreach ($environment in @(".venv", "venv")) {
+        $environmentPython = Join-Path $PSScriptRoot "$environment\Scripts\python.exe"
+        if (Test-Path $environmentPython) {
+            $python = $environmentPython
+            break
+        }
+    }
+}
+
+if (-not $python) {
     $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
     if (-not $pythonCommand) {
         throw "Python was not found. Create the backend virtual environment or install Python."

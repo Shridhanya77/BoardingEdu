@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   ChevronDown,
   GraduationCap,
+  Globe,
   LayoutGrid,
+  Landmark,
   LoaderCircle,
   List as ListView,
   MapPin,
@@ -83,6 +85,23 @@ import {
   howItWorksSteps,
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
+
+function boardSymbol(boardCode: string, boardName: string) {
+  const identifier = `${boardCode} ${boardName}`.toUpperCase();
+  if (identifier.includes("CBSE")) return <GraduationCap size={34} strokeWidth={1.8} />;
+  if (identifier.includes("CISCE") || identifier.includes("ICSE")) return <BookOpen size={34} strokeWidth={1.8} />;
+  if (identifier.includes("CAMBRIDGE") || identifier.includes("IGCSE") || identifier.includes("IB")) return <Globe size={34} strokeWidth={1.8} />;
+  if (identifier.includes("STATE")) return <Landmark size={34} strokeWidth={1.8} />;
+  if (identifier.includes("NIOS")) return <Building2 size={34} strokeWidth={1.8} />;
+  if (identifier.includes("FINLAND")) return <Star size={34} strokeWidth={1.8} />;
+  return <BookOpen size={34} strokeWidth={1.8} />;
+}
+
+function listingGradeRangeLabel(gradesRange: string): string {
+  const numericRange = gradesRange.match(/(?:class|grade)\s*(\d+)\s*[-–]\s*(?:class|grade)\s*(\d+)/i);
+  if (numericRange) return `Grade ${numericRange[1]}-${numericRange[2]}`;
+  return gradesRange.replace(/\bClass\s+(\d+)\b/gi, "Grade $1");
+}
 import { trackSearchEvent } from "@/lib/search-analytics";
 import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 import { guideList } from "@/lib/guides";
@@ -440,7 +459,7 @@ function SchoolCard({
             </span>
           )}
           {school.grades_range && (
-            <span className="school-tag school-tag--blue">Classes {school.grades_range}</span>
+            <span className="school-tag school-tag--blue">{listingGradeRangeLabel(school.grades_range)}</span>
           )}
           {school.school_types_detail
             .filter((type) => !selectedSchoolTypes.length || selectedSchoolTypes.includes(type.school_type_id))
@@ -3074,12 +3093,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <div className="compare-promo__intro">
           <span className="compare-promo__eyebrow"><BarChart3 size={15} /> YOUR SHORTLIST, SIDE BY SIDE</span>
           <h2>Compare schools</h2>
-          <p>Add a school, then open the comparison.</p>
+          <p>Shortlist up to three schools, then compare what matters to your family.</p>
           <Link href="/compare/" className="compare-promo__action">
             Open school comparison <ArrowRight size={16} />
           </Link>
           <span className="compare-promo__status" role="status" aria-live="polite">
-            {comparePromoMessage || `${comparedSchools.length} of 4 schools in your comparison`}
+            {comparePromoMessage || `${comparedSchools.length} of 3 schools in your comparison`}
           </span>
         </div>
         <div className="compare-promo__marquee">
@@ -3130,7 +3149,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   type="button"
                   className={isCompared ? "is-added" : undefined}
                   onClick={() => {
-                    if (!isCompared && comparedSchools.length >= 4) {
+                    if (!isCompared && comparedSchools.length >= 3) {
                       setComparePromoMessage("Remove a school from your comparison before adding another.");
                       return;
                     }
@@ -3472,7 +3491,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                       });
                     }}
                   >
-                    <span className="board-card__mark">{boardItem.board_code}</span>
+                    <span className="board-card__mark" aria-hidden="true">
+                      {boardSymbol(boardItem.board_code, boardItem.board_name)}
+                    </span>
                     <span className="board-card__name">{boardItem.board_name}</span>
 
                     <span className="board-card__action">
@@ -4310,14 +4331,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <span className="sr-only"> {guidesError}</span>
           </p>
         )}
-        {isHomePage && publishedGuides[0] && (
-          <FeaturedGuide guide={publishedGuides[0]} />
+        {isHomePage && (
+          <>
+            {publishedGuides[0] && <FeaturedGuide guide={publishedGuides[0]} />}
+            <GuideBrowser
+              guides={publishedGuides}
+              compact
+              featuredSlug={publishedGuides[0]?.slug}
+            />
+          </>
         )}
-        <GuideBrowser
-          guides={publishedGuides}
-          compact={isHomePage}
-          featuredSlug={isHomePage ? publishedGuides[0]?.slug : undefined}
-        />
 
         <ReviewsCollection
           mode="section"

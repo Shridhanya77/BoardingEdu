@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { BookOpen, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import type { GuideSummary } from "@/lib/api";
 
 export default function GuideBrowser({
@@ -76,20 +76,13 @@ export default function GuideBrowser({
                 className={`guide-browser__art guide-browser__art--${guide.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 aria-hidden="true"
               >
-                {guide.coverImageUrl ? (
-                  <Image
-                    src={guide.coverImageUrl}
-                    alt={`Illustration for ${guide.title}`}
-                    fill
-                    sizes="(max-width: 700px) 90vw, 360px"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="guide-browser__art-placeholder">
-                    <BookOpen size={24} aria-hidden />
-                    School search guide
-                  </span>
-                )}
+                <Image
+                  src={guide.coverImageUrl || "/guide-family.svg"}
+                  alt=""
+                  fill
+                  sizes="(max-width: 700px) 90vw, 360px"
+                  unoptimized
+                />
               </span>
               <span className="guide-browser__tag">{guide.category}</span>
               <h3><Link href={`/guides/${guide.slug}`}>{guide.title}</Link></h3>

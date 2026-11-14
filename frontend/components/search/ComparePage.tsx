@@ -494,7 +494,7 @@ export default function ComparePage({
               : "Build a shortlist and explore the details that matter most to your family."}
           </p>
           <div className="compare-page__trust">
-            <span><Building2 size={17} aria-hidden /> Compare up to four schools</span>
+            <span><Building2 size={17} aria-hidden /> Compare up to three schools</span>
             <span><ShieldCheck size={17} aria-hidden /> Based on published details</span>
           </div>
         </div>
@@ -513,11 +513,11 @@ export default function ComparePage({
         <h2 id="compare-builder-heading">Choose schools to compare</h2>
         <p>
           {shortlistOnly
-            ? "Choose a slot, then select a school saved in your parent dashboard. Compare up to four."
-            : "Tap a slot below to search and add a school. Compare up to four at a time."}
+            ? "Choose a slot, then select a school saved in your parent dashboard. Compare up to three."
+            : "Choose up to three schools and explore the details that matter most to your family."}
         </p>
         <div className="compare-slots">
-          {Array.from({ length: 4 }, (_, index) => {
+          {Array.from({ length: 3 }, (_, index) => {
             const school = comparisonSchools[index];
             const image = school
               ? publicSchoolImageUrl(school.school_image_url || school.school_logo_url)

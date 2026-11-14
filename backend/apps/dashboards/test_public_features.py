@@ -63,7 +63,7 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
             state=state,
             city=cls.city,
             address="New Delhi",
-            status=True,
+            status=False,
             verification_status="PENDING",
         )
         cls.inactive = School.objects.create(
@@ -94,7 +94,7 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def test_public_summary_counts_active_verified_schools_and_verified_parent_reviews(self):
+    def test_public_summary_counts_published_parent_reviews_for_public_schools(self):
         verified_parent = User.objects.create_user(
             username="verified-review-parent",
             password="secret",
@@ -132,10 +132,10 @@ class PublicSummaryAndRecentSchoolTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["schools_listed"], 2)
         self.assertEqual(response.data["cities_covered"], 1)
-        self.assertEqual(response.data["published_reviews"], 1)
+        self.assertEqual(response.data["published_reviews"], 2)
         self.assertIsNotNone(response.data["last_updated"])
 
-    def test_public_school_directory_includes_legacy_verified_schools_only(self):
+    def test_public_school_directory_includes_active_schools_regardless_of_verification(self):
         response = self.client.get("/api/schools/schools/")
 
         self.assertEqual(response.status_code, 200)

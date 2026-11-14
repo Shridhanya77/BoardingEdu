@@ -182,3 +182,53 @@ class PublicFeeEstimateTests(TestCase):
         estimate = response.data["results"][0]
         self.assertFalse(estimate["fees_available"])
         self.assertEqual(estimate["items"], [])
+
+    def test_combined_grade_estimate_returns_separate_results_for_each_grade(self):
+        pre_nursery = Grade.objects.create(
+            grade_code="PN-EST",
+            grade_name="Pre-Nursery",
+            sort_order=self.grade.sort_order + 1,
+        )
+        nursery = Grade.objects.create(
+            grade_code="NUR-EST",
+            grade_name="Nursery",
+            sort_order=self.grade.sort_order + 2,
+        )
+        SchoolGrade.objects.create(school=self.school, grade=pre_nursery)
+        SchoolGrade.objects.create(school=self.school, grade=nursery)
+        for grade, item_code in (
+            (pre_nursery, "PRE-NURSERY-TUITION"),
+            (nursery, "NURSERY-TUITION"),
+        ):
+            FeeItem.objects.create(
+                fee_structure=self.structure,
+                grade=grade,
+                item_code=item_code,
+                item_name=f"{grade.grade_name} tuition",
+                item_category="TUITION",
+                amount=Decimal("1000.00"),
+                payment_frequency="ANNUAL",
+            )
+
+        response = self.client.post(
+            "/api/fees/estimate/",
+            {
+                "school_ids": [str(self.school.pk)],
+                "grade_ids": [str(pre_nursery.pk), str(nursery.pk)],
+                "school_type_id": str(self.school_type.pk),
+                "academic_year_id": str(self.year.pk),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        estimates = response.data["results"]
+        self.assertEqual([item["grade_name"] for item in estimates], ["Pre-Nursery", "Nursery"])
+        self.assertEqual(len(estimates), 2)
+        self.assertTrue(all(item["fees_available"] for item in estimates))
+        pre_nursery_items = {item["item_name"] for item in estimates[0]["items"]}
+        nursery_items = {item["item_name"] for item in estimates[1]["items"]}
+        self.assertIn("Pre-Nursery tuition", pre_nursery_items)
+        self.assertNotIn("Nursery tuition", pre_nursery_items)
+        self.assertIn("Nursery tuition", nursery_items)
+        self.assertNotIn("Pre-Nursery tuition", nursery_items)

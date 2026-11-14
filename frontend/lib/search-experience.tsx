@@ -12,7 +12,7 @@ import type { ReactNode } from "react";
 import type { SchoolListItem } from "@/lib/api";
 
 const STORAGE_KEY = "boardingeu:school-comparison:v1";
-const MAX_COMPARED_SCHOOLS = 4;
+const MAX_COMPARED_SCHOOLS = 3;
 
 type SearchExperienceValue = {
   comparedSchools: SchoolListItem[];
@@ -31,7 +31,6 @@ const SearchExperienceContext =
 function isSchoolList(value: unknown): value is SchoolListItem[] {
   return (
     Array.isArray(value) &&
-    value.length <= MAX_COMPARED_SCHOOLS &&
     value.every(
       (school): school is SchoolListItem =>
         typeof school === "object" &&
@@ -59,7 +58,10 @@ export function SearchExperienceProvider({
       const storedValue = window.localStorage.getItem(STORAGE_KEY);
       if (storedValue) {
         const parsed: unknown = JSON.parse(storedValue);
-        if (isSchoolList(parsed)) setComparedSchools(parsed);
+        if (isSchoolList(parsed)) {
+          setComparedSchools(parsed.slice(0, MAX_COMPARED_SCHOOLS));
+          setLimitReached(parsed.length > MAX_COMPARED_SCHOOLS);
+        }
       }
     } catch {
       setStorageError("School comparison could not be restored on this device.");

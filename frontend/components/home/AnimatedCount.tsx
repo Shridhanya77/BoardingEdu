@@ -6,6 +6,10 @@ export default function AnimatedCount({ value }: { value: number | null }) {
   const elementRef = useRef<HTMLSpanElement>(null);
   const [visibleValue, setVisibleValue] = useState(0);
   const [started, setStarted] = useState(false);
+  const formattedValue = (count: number) =>
+    count >= 1000
+      ? `${(count / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })}K`
+      : count.toLocaleString("en-IN");
 
   useEffect(() => {
     if (value === null || started || !elementRef.current) return;
@@ -43,7 +47,7 @@ export default function AnimatedCount({ value }: { value: number | null }) {
 
   return (
     <span ref={elementRef} aria-label={value === null ? "Unavailable" : value.toLocaleString("en-IN")}>
-      {value === null ? "—" : visibleValue.toLocaleString("en-IN")}
+      {value === null ? "—" : formattedValue(visibleValue)}
     </span>
   );
 }

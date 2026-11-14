@@ -345,27 +345,24 @@ class PublicPlatformSummaryView(APIView):
 
     def get(self, request):
         schools = public_school_queryset()
+        published_parent_reviews = Review.objects.filter(
+            school__in=schools,
+            status=Review.STATUS_PUBLISHED,
+            user__role=User.ROLE_PARENT,
+        )
         return Response(
             {
                 "schools_listed": schools.count(),
                 "cities_covered": schools.values("city_id").distinct().count(),
-                "published_reviews": Review.objects.filter(
-                    school__in=schools,
-                    status=Review.STATUS_PUBLISHED,
-                    is_verified=True,
-                    user__role=User.ROLE_PARENT,
-                ).count(),
+                "published_reviews": published_parent_reviews.count(),
                 "last_updated": max(
                     filter(
                         None,
                         [
                             schools.order_by("-updated_at").values_list("updated_at", flat=True).first(),
-                            Review.objects.filter(
-                                school__in=schools,
-                                status=Review.STATUS_PUBLISHED,
-                                is_verified=True,
-                                user__role=User.ROLE_PARENT,
-                            ).order_by("-updated_at").values_list("updated_at", flat=True).first(),
+                            published_parent_reviews.order_by("-updated_at").values_list(
+                                "updated_at", flat=True
+                            ).first(),
                         ],
                     ),
                     default=None,

@@ -25,9 +25,29 @@ class FeeEstimateInputSerializer(serializers.Serializer):
         min_length=1,
         max_length=4,
     )
-    grade_id = serializers.UUIDField()
+    grade_id = serializers.UUIDField(required=False)
+    grade_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=2,
+        required=False,
+    )
     school_type_id = serializers.UUIDField()
     academic_year_id = serializers.UUIDField()
+
+    def validate(self, attrs):
+        grade_id = attrs.get("grade_id")
+        grade_ids = attrs.get("grade_ids")
+        if grade_id and grade_ids:
+            raise serializers.ValidationError("Provide either grade_id or grade_ids, not both.")
+        if grade_ids:
+            attrs["grade_ids"] = list(dict.fromkeys(grade_ids))
+        elif grade_id:
+            attrs["grade_ids"] = [grade_id]
+        else:
+            raise serializers.ValidationError({"grade_ids": "Choose at least one grade."})
+        attrs.pop("grade_id", None)
+        return attrs
 
 
 class PublicFeeEstimateView(APIView):
@@ -52,13 +72,17 @@ class PublicFeeEstimateView(APIView):
         serializer.is_valid(raise_exception=True)
         values = serializer.validated_data
 
-        grade = Grade.objects.filter(pk=values["grade_id"], status=True).first()
+        grade_ids = values["grade_ids"]
+        grades = {
+            grade.pk: grade
+            for grade in Grade.objects.filter(pk__in=grade_ids, status=True)
+        }
         school_type = SchoolType.objects.filter(
             pk=values["school_type_id"],
             status=True,
         ).first()
-        if grade is None or school_type is None:
-            return Response({"detail": "Choose an active grade and school type."}, status=400)
+        if len(grades) != len(grade_ids) or school_type is None:
+            return Response({"detail": "Choose active grades and a school type."}, status=400)
 
         school_ids = list(dict.fromkeys(values["school_ids"]))
         schools = list(
@@ -105,115 +129,119 @@ class PublicFeeEstimateView(APIView):
         results = []
         for school_id in school_ids:
             school = school_by_id[school_id]
-            if school_type.pk not in {
-                item.pk for item in school.school_types.all()
-            }:
-                results.append(self._unavailable_school(school))
-                continue
-            if not SchoolGrade.objects.filter(
-                school=school,
-                grade=grade,
-                is_active=True,
-            ).exists():
-                results.append(self._unavailable_school(school))
-                continue
-            structure = structures.get(school_id)
-            if structure is None:
-                results.append(self._unavailable_school(school))
-                continue
+            for grade_id in grade_ids:
+                grade = grades[grade_id]
+                if school_type.pk not in {
+                    item.pk for item in school.school_types.all()
+                }:
+                    results.append(self._unavailable_school(school, grade))
+                    continue
+                if not SchoolGrade.objects.filter(
+                    school=school,
+                    grade=grade,
+                    is_active=True,
+                ).exists():
+                    results.append(self._unavailable_school(school, grade))
+                    continue
+                structure = structures.get(school_id)
+                if structure is None:
+                    results.append(self._unavailable_school(school, grade))
+                    continue
 
-            items = FeeItem.objects.filter(
-                fee_structure=structure,
-            ).filter(
-                Q(grade__isnull=True) | Q(grade=grade)
-            ).filter(
-                Q(school_type__isnull=True) | Q(school_type=school_type)
-            ).order_by("sort_order", "item_name")
-            breakdown = []
-            annual_total = Decimal("0.00")
-            one_time_total = Decimal("0.00")
-            has_unknown_annual = False
-            has_unknown_one_time = False
+                items = FeeItem.objects.filter(
+                    fee_structure=structure,
+                ).filter(
+                    Q(grade__isnull=True) | Q(grade=grade)
+                ).filter(
+                    Q(school_type__isnull=True) | Q(school_type=school_type)
+                ).order_by("sort_order", "item_name")
+                breakdown = []
+                annual_total = Decimal("0.00")
+                one_time_total = Decimal("0.00")
+                has_unknown_annual = False
+                has_unknown_one_time = False
 
-            for item in items:
-                amount = item.amount
-                frequency = item.payment_frequency
-                multiplier = self.FREQUENCY_MULTIPLIERS.get(frequency)
-                annualized = None
-                one_time = None
-                if amount is None:
-                    if frequency == "ONE_TIME":
-                        has_unknown_one_time = True
+                for item in items:
+                    amount = item.amount
+                    frequency = item.payment_frequency
+                    multiplier = self.FREQUENCY_MULTIPLIERS.get(frequency)
+                    annualized = None
+                    one_time = None
+                    if amount is None:
+                        if frequency == "ONE_TIME":
+                            has_unknown_one_time = True
+                        else:
+                            has_unknown_annual = True
+                    elif frequency == "ONE_TIME":
+                        one_time = self._after_tax(amount, item.tax_rate_pct)
+                        one_time_total += one_time
+                    elif frequency == "TERM" and terms_count:
+                        annualized = self._after_tax(amount * terms_count, item.tax_rate_pct)
+                        annual_total += annualized
+                    elif multiplier is not None:
+                        annualized = self._after_tax(amount * multiplier, item.tax_rate_pct)
+                        annual_total += annualized
                     else:
-                        has_unknown_annual = True
-                elif frequency == "ONE_TIME":
-                    one_time = self._after_tax(amount, item.tax_rate_pct)
-                    one_time_total += one_time
-                elif frequency == "TERM" and terms_count:
-                    annualized = self._after_tax(amount * terms_count, item.tax_rate_pct)
-                    annual_total += annualized
-                elif multiplier is not None:
-                    annualized = self._after_tax(amount * multiplier, item.tax_rate_pct)
-                    annual_total += annualized
-                else:
-                    if frequency == "ONE_TIME":
-                        has_unknown_one_time = True
-                    else:
-                        has_unknown_annual = True
+                        if frequency == "ONE_TIME":
+                            has_unknown_one_time = True
+                        else:
+                            has_unknown_annual = True
 
-                if frequency == "TERM" and not terms_count:
-                    has_unknown_annual = True
-                breakdown.append(
+                    if frequency == "TERM" and not terms_count:
+                        has_unknown_annual = True
+                    breakdown.append(
+                        {
+                            "item_name": item.item_name,
+                            "category": item.item_category,
+                            "frequency": frequency,
+                            "amount_per_payment": str(amount) if amount is not None else None,
+                            "annualized_amount": str(annualized) if annualized is not None else None,
+                            "one_time_amount": str(one_time) if one_time is not None else None,
+                            "refundable": item.is_refundable,
+                            "variable": annualized is None and one_time is None,
+                        }
+                    )
+
+                if not breakdown:
+                    results.append(self._unavailable_school(school, grade))
+                    continue
+
+                annual_value = None if has_unknown_annual else annual_total
+                first_year_value = (
+                    None
+                    if has_unknown_annual or has_unknown_one_time
+                    else annual_total + one_time_total
+                )
+                results.append(
                     {
-                        "item_name": item.item_name,
-                        "category": item.item_category,
-                        "frequency": frequency,
-                        "amount_per_payment": str(amount) if amount is not None else None,
-                        "annualized_amount": str(annualized) if annualized is not None else None,
-                        "one_time_amount": str(one_time) if one_time is not None else None,
-                        "refundable": item.is_refundable,
-                        "variable": annualized is None and one_time is None,
+                        **self._school_summary(school),
+                        "grade_id": str(grade.pk),
+                        "grade_name": grade.grade_name,
+                        "academic_year": academic_year.year_code,
+                        "fees_available": True,
+                        "complete": not has_unknown_annual and not has_unknown_one_time,
+                        "annual_total": str(annual_value) if annual_value is not None else None,
+                        "first_year_total": str(first_year_value) if first_year_value is not None else None,
+                        "monthly_recurring_total": (
+                            str((annual_value / Decimal("12")).quantize(Decimal("0.01")))
+                            if annual_value is not None
+                            else None
+                        ),
+                        "known_annual_subtotal": str(annual_total),
+                        "known_one_time_subtotal": str(one_time_total),
+                        "last_updated": max(
+                            filter(
+                                None,
+                                [
+                                    structure.updated_at,
+                                    items.aggregate(latest=Max("updated_at"))["latest"],
+                                ],
+                            ),
+                            default=None,
+                        ),
+                        "items": breakdown,
                     }
                 )
-
-            if not breakdown:
-                results.append(self._unavailable_school(school))
-                continue
-
-            annual_value = None if has_unknown_annual else annual_total
-            first_year_value = (
-                None
-                if has_unknown_annual or has_unknown_one_time
-                else annual_total + one_time_total
-            )
-            results.append(
-                {
-                    **self._school_summary(school),
-                    "academic_year": academic_year.year_code,
-                    "fees_available": True,
-                    "complete": not has_unknown_annual and not has_unknown_one_time,
-                    "annual_total": str(annual_value) if annual_value is not None else None,
-                    "first_year_total": str(first_year_value) if first_year_value is not None else None,
-                    "monthly_recurring_total": (
-                        str((annual_value / Decimal("12")).quantize(Decimal("0.01")))
-                        if annual_value is not None
-                        else None
-                    ),
-                    "known_annual_subtotal": str(annual_total),
-                    "known_one_time_subtotal": str(one_time_total),
-                    "last_updated": max(
-                        filter(
-                            None,
-                            [
-                                structure.updated_at,
-                                items.aggregate(latest=Max("updated_at"))["latest"],
-                            ],
-                        ),
-                        default=None,
-                    ),
-                    "items": breakdown,
-                }
-            )
         return Response({"results": results})
 
     @staticmethod
@@ -230,9 +258,11 @@ class PublicFeeEstimateView(APIView):
             "location_slug": school.location.slug if school.location_id else None,
         }
 
-    def _unavailable_school(self, school):
+    def _unavailable_school(self, school, grade):
         return {
             **self._school_summary(school),
+            "grade_id": str(grade.pk),
+            "grade_name": grade.grade_name,
             "academic_year": None,
             "fees_available": False,
             "complete": False,

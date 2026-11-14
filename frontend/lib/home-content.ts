@@ -32,7 +32,7 @@ export const howItWorksSteps = [
 export const whyUsCards = [
   { title: "Verified profiles", text: "Check what the school has published, then confirm with them." },
   { title: "Published fees", text: "Compare the fees that schools have listed." },
-  { title: "Side-by-side compare", text: "Review up to four schools in one view." },
+  { title: "Side-by-side compare", text: "Review up to three schools in one view." },
   { title: "Free counselling", text: "Request help choosing a board or city." },
   { title: "Direct enquiries", text: "Contact more than one school from its profile." },
   { title: "Places that have schools", text: "City and state links only open listings that exist." },

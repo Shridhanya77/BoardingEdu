@@ -84,9 +84,6 @@ export default function SchoolFacilitiesInteractive({
                     {expanded && facility.description && (
                       <p className="facility-tile__detail">{facility.description}</p>
                     )}
-                    {expanded && facility.quantity_or_capacity != null && (
-                      <p className="facility-tile__meta">Capacity: {facility.quantity_or_capacity}</p>
-                    )}
                   </button>
                 </li>
               );

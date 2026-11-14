@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { GuideSummary } from "@/lib/api";
 
 export default function FeaturedGuide({ guide }: { guide: GuideSummary }) {
@@ -31,20 +31,13 @@ export default function FeaturedGuide({ guide }: { guide: GuideSummary }) {
         href={`/guides/${guide.slug}`}
         aria-label={`Read ${guide.title}`}
       >
-        {guide.coverImageUrl ? (
-          <Image
-            src={guide.coverImageUrl}
-            alt={`Illustration for ${guide.title}`}
-            fill
-            sizes="(max-width: 760px) 100vw, 55vw"
-            unoptimized
-          />
-        ) : (
-          <span className="featured-guide__placeholder" aria-hidden="true">
-            <BookOpen size={42} />
-            <span>School search guide</span>
-          </span>
-        )}
+        <Image
+          src={guide.coverImageUrl || "/guide-family.svg"}
+          alt={`Parent and child exploring a school campus, for ${guide.title}`}
+          fill
+          sizes="(max-width: 760px) 100vw, 55vw"
+          unoptimized
+        />
       </Link>
     </article>
   );
