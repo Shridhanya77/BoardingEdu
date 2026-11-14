@@ -273,6 +273,18 @@ class PublicFeeEstimateTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(missing_stream_response.status_code, 400)
+        grade_twelve = Grade.objects.create(
+            grade_code="G12-EST",
+            grade_name="Grade 12",
+            sort_order=self.grade.sort_order + 2,
+        )
+        SchoolGrade.objects.create(school=self.school, grade=grade_twelve)
+        grade_twelve_response = self.client.post(
+            "/api/fees/estimate/",
+            {**base_payload, "grade_id": str(grade_twelve.pk)},
+            content_type="application/json",
+        )
+        self.assertEqual(grade_twelve_response.status_code, 400)
 
         response = self.client.post(
             "/api/fees/estimate/",
@@ -282,6 +294,7 @@ class PublicFeeEstimateTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.data)
         estimate = response.data["results"][0]
+        self.assertEqual(estimate["stream"], "SCIENCE")
         stream_fees = {
             item["item_name"]: item
             for item in estimate["items"]

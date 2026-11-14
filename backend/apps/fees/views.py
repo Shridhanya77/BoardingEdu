@@ -223,7 +223,7 @@ class PublicFeeEstimateView(APIView):
                     )
 
                 if not breakdown:
-                    results.append(self._unavailable_school(school, grade))
+                    results.append(self._unavailable_school(school, grade, stream))
                     continue
 
                 annual_value = None if has_unknown_annual else annual_total

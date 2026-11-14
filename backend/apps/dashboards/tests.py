@@ -301,6 +301,11 @@ class SchoolAdminIsolationTests(TestCase):
         )
 
     def test_fee_api_stages_add_update_and_publish_until_approval(self):
+        grade_eleven = Grade.objects.create(
+            grade_code="G11-FEE",
+            grade_name="Grade 11",
+            sort_order=110,
+        )
         year = AcademicYear.objects.create(
             year_code="2026-27-content",
             year_name="Academic Year 2026-27",
@@ -318,6 +323,8 @@ class SchoolAdminIsolationTests(TestCase):
                 "item_category": "TUITION",
                 "payment_frequency": "ANNUAL",
                 "amount": "15000",
+                "grade": str(grade_eleven.pk),
+                "stream": "SCIENCE",
             },
             format="json",
         )
@@ -339,10 +346,11 @@ class SchoolAdminIsolationTests(TestCase):
         )
         review_school_content_change(pending.pk, reviewer, approve=True)
         item = FeeItem.objects.get(fee_structure=structure)
+        self.assertEqual(item.stream, "SCIENCE")
 
         updated = client.patch(
             f"/api/dashboards/school/fees/items/{item.pk}/",
-            {"amount": "18000"},
+            {"amount": "18000", "stream": "COMMERCE"},
             format="json",
         )
         self.assertEqual(updated.status_code, 202, updated.data)
@@ -356,6 +364,7 @@ class SchoolAdminIsolationTests(TestCase):
         review_school_content_change(pending.pk, reviewer, approve=True)
         item.refresh_from_db()
         self.assertEqual(item.amount, 18000)
+        self.assertEqual(item.stream, "COMMERCE")
 
         published = client.post(
             f"/api/dashboards/school/fees/{structure.pk}/publish/",
