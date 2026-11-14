@@ -24139,6 +24139,20 @@ select:focus-visible {
   line-height: 1.5;
 }
 
+.compare-matrix__facility-list {
+  width: 100%;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.compare-matrix__facility-list li + li {
+  margin-top: 4px;
+}
+
+.compare-matrix__facility-list li::marker {
+  color: #27806b;
+}
+
 .compare-matrix__value.is-best {
   color: #176148;
   background: #eff8f3;

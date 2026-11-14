@@ -29,6 +29,39 @@ import { schoolTypeLabel } from "@/lib/seo-slugs";
 import { publicSchoolImageUrl } from "@/lib/school-media";
 import { boardsAffiliatedLabel } from "@/lib/board-labels";
 
+const FACILITY_CATEGORY_ORDER = [
+  "ACADEMIC",
+  "SPORTS",
+  "ACCOMMODATION",
+  "DINING",
+  "HEALTH",
+  "SAFETY",
+  "TRANSPORT",
+  "TECHNOLOGY",
+  "ARTS",
+  "STUDENT_SUPPORT",
+];
+
+const FACILITY_CATEGORY_LABELS: Record<string, string> = {
+  ACADEMIC: "Academics",
+  SPORTS: "Sports & Activities",
+  ACCOMMODATION: "Boarding & Accommodation",
+  DINING: "Dining",
+  HEALTH: "Health & Wellness",
+  SAFETY: "Safety & Security",
+  TRANSPORT: "Transport",
+  TECHNOLOGY: "Technology",
+  ARTS: "Arts & Culture",
+  STUDENT_SUPPORT: "Student Support",
+};
+
+function facilityCategoryLabel(category: string) {
+  return FACILITY_CATEGORY_LABELS[category] ?? category
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default function ComparePage({
   shortlistOnly = false,
 }: {
@@ -61,6 +94,22 @@ export default function ComparePage({
     facilities?: SchoolDetail["facilities_detail"];
     error?: string;
   }>>({});
+  const listedFacilityCategories = Array.from(new Set(
+    comparisonSchools.flatMap((school) =>
+      (schoolDetails[school.school_id]?.facilities ?? [])
+        .map((facility) => facility.category.trim().toUpperCase() || "OTHER"),
+    ),
+  )).sort((a, b) => {
+    const aOrder = FACILITY_CATEGORY_ORDER.indexOf(a);
+    const bOrder = FACILITY_CATEGORY_ORDER.indexOf(b);
+    if (aOrder === -1 && bOrder === -1) return facilityCategoryLabel(a).localeCompare(facilityCategoryLabel(b));
+    if (aOrder === -1) return 1;
+    if (bOrder === -1) return -1;
+    return aOrder - bOrder;
+  });
+  const facilityCategories = listedFacilityCategories.length
+    ? listedFacilityCategories
+    : ["FACILITIES"];
 
   useEffect(() => {
     if (!shortlistOnly) return;
@@ -206,6 +255,7 @@ export default function ComparePage({
     rows: {
       label: string;
       value: (school: (typeof comparedSchools)[number]) => string;
+      listValue?: (school: (typeof comparedSchools)[number]) => string[];
       score?: (school: (typeof comparedSchools)[number]) => number | null;
       prefer?: "low" | "high";
     }[];
@@ -296,7 +346,7 @@ export default function ComparePage({
     {
       id: "facilities",
       label: "Facilities",
-      description: "Facilities rating and amenities listed by each school",
+      description: "Facilities rating and amenities grouped by category",
       icon: Building2,
       rows: [
         {
@@ -305,20 +355,24 @@ export default function ComparePage({
           score: (school) => school.facilities_rating ?? null,
           prefer: "high",
         },
-        {
-          label: "Facilities listed",
-          value: (school) => {
+        ...facilityCategories.map((category) => {
+          const itemsForSchool = (school: (typeof comparedSchools)[number]) => {
             const details = schoolDetails[school.school_id];
-            if (!details) return "Loading school details…";
-            if (details.loading) return "Loading school details…";
-            if (details.error) return "Facilities could not be loaded";
-            const facilities = details.facilities ?? [];
-            return facilities
-              .filter((facility) => !/sport|transport|bus|vehicle/i.test(facility.facility_name))
+            if (!details || details.loading) return ["Loading school details…"];
+            if (details.error) return ["Facilities could not be loaded"];
+            if (category === "FACILITIES") return ["Not listed"];
+            const facilities = (details.facilities ?? [])
+              .filter((facility) => (facility.category.trim().toUpperCase() || "OTHER") === category)
               .map((facility) => facility.facility_name)
-              .join(", ") || "Not listed";
-          },
-        },
+              .sort((a, b) => a.localeCompare(b));
+            return facilities.length ? facilities : ["Not listed"];
+          };
+          return {
+            label: category === "FACILITIES" ? "Facilities listed" : facilityCategoryLabel(category),
+            value: (school: (typeof comparedSchools)[number]) => itemsForSchool(school).join(", "),
+            listValue: itemsForSchool,
+          };
+        }),
       ],
     },
     {
@@ -413,7 +467,9 @@ export default function ComparePage({
   const activeComparisonGroup = groups.find((group) => group.id === activeGroup) ?? groups[0]!;
   const activeRows = activeComparisonGroup.rows.filter((row) => {
     if (!differencesOnly || comparisonSchools.length < 2) return true;
-    const values = comparisonSchools.map((school) => row.value(school));
+    const values = comparisonSchools.map((school) =>
+      row.listValue ? row.listValue(school).join("\n") : row.value(school),
+    );
     return new Set(values).size > 1;
   });
   const ActiveGroupIcon = activeComparisonGroup.icon;
@@ -866,7 +922,13 @@ export default function ComparePage({
                         className={index === winner ? "compare-matrix__value is-best" : "compare-matrix__value"}
                         key={school.school_id}
                       >
-                        <span>{row.value(school)}</span>
+                        {row.listValue ? (
+                          <ul className="compare-matrix__facility-list">
+                            {row.listValue(school).map((item) => <li key={item}>{item}</li>)}
+                          </ul>
+                        ) : (
+                          <span>{row.value(school)}</span>
+                        )}
                         {index === winner && <em>{row.prefer === "low" ? "Lower fee" : "Higher rating"}</em>}
                       </div>
                     ))}
