@@ -207,9 +207,18 @@ export function DashboardShell({
             </Link>
             {NAV_ITEMS.filter((item) => item.roles.includes(user.role)).map(({ href, label, Icon }) => (
               <Link
-                className={`dash-sidebar__link${pathname === href ? " is-active" : ""}`}
+                className={`dash-sidebar__link${
+                  pathname === href || (href !== "/dashboard/" && pathname.startsWith(href))
+                    ? " is-active"
+                    : ""
+                }`}
                 href={href}
                 key={href}
+                aria-current={
+                  pathname === href || (href !== "/dashboard/" && pathname.startsWith(href))
+                    ? "page"
+                    : undefined
+                }
               >
                 <Icon size={16} aria-hidden /> {label}
               </Link>

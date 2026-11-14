@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bookmark, Check, FileText, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, Bookmark, Check, FileText, GraduationCap, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import {
   DashboardPanel,
   DashboardShell,
@@ -40,6 +40,53 @@ const SECTIONS = [
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number][0];
+
+const SECTION_COPY: Record<SectionId, { title: string; subtitle: string }> = {
+  dashboard: {
+    title: "Your child’s school journey, in one place",
+    subtitle: "Track applications, school updates, and the next steps for your family.",
+  },
+  applications: {
+    title: "My applications",
+    subtitle: "Follow each school’s progress and see what needs your attention.",
+  },
+  students: {
+    title: "My children",
+    subtitle: "Keep child details ready for school enquiries and applications.",
+  },
+  finder: {
+    title: "Find the right schools",
+    subtitle: "Explore schools that match your family’s preferences.",
+  },
+  shortlist: {
+    title: "Your shortlisted schools",
+    subtitle: "Keep your leading options together and compare them side by side.",
+  },
+  recent: {
+    title: "Recently viewed",
+    subtitle: "Return to school profiles you have explored.",
+  },
+  documents: {
+    title: "Documents",
+    subtitle: "Review school requests and documents linked to your applications.",
+  },
+  notifications: {
+    title: "Notifications",
+    subtitle: "Stay up to date with responses and changes from schools.",
+  },
+  messages: {
+    title: "Messages",
+    subtitle: "Continue conversations connected to your applications.",
+  },
+  profile: {
+    title: "My profile",
+    subtitle: "Keep your contact details up to date.",
+  },
+  settings: {
+    title: "Account settings",
+    subtitle: "Manage the security settings for your parent account.",
+  },
+};
 
 const STATUS_CLASS: Record<string, string> = {
   SUBMITTED: "submitted",
@@ -133,8 +180,8 @@ export default function ParentDashboard() {
     <DashboardShell
       roles={["PARENT"]}
       eyebrow="PARENT DASHBOARD"
-      title="Track your admission applications"
-      subtitle="See every school you have applied to, school updates, and documents still needed."
+      title={SECTION_COPY[section].title}
+      subtitle={SECTION_COPY[section].subtitle}
       breadcrumbs={[
         { label: "Home", href: "/" },
         { label: "Parent dashboard", href: "/dashboard/parent/" },
@@ -149,6 +196,7 @@ export default function ParentDashboard() {
             key={id}
             type="button"
             className={section === id ? "is-active" : ""}
+            aria-current={section === id ? "page" : undefined}
             onClick={() => openSection(id)}
           >
             {label}
@@ -240,7 +288,9 @@ export default function ParentDashboard() {
         </DashboardPanel>
       )}
       {section === "documents" && <DocumentSummary applications={applications} />}
-      {data && section === "notifications" && <NotificationList notes={data.notifications} onChanged={reload} />}
+      {data && section === "notifications" && (
+        <NotificationList notes={data.notifications} onChanged={reload} onError={setLocalError} />
+      )}
       {section === "messages" && <MessageSummary applications={applications} />}
       {section === "profile" && <ProfileForm profile={profile} onSaved={setProfile} />}
       {section === "settings" && <PasswordSettings />}
@@ -539,13 +589,34 @@ function Shortlist({
   onError: (message: string) => void;
 }) {
   const [removed, setRemoved] = useState<Record<string, boolean>>({});
+  const [removing, setRemoving] = useState<string | null>(null);
+  const visibleShortlist = data.shortlist.filter((item) => !removed[item.school_id]);
   return (
     <DashboardPanel
       title="Shortlisted schools"
-      action={<Link className="dash-link" href="/dashboard/parent/compare/">Compare schools</Link>}
+      subtitle={`${visibleShortlist.length} ${visibleShortlist.length === 1 ? "school" : "schools"} saved for your search.`}
+      action={visibleShortlist.length ? (
+        <Link className="pd-primary-link" href="/dashboard/parent/compare/">
+          Compare schools <ArrowRight size={16} aria-hidden />
+        </Link>
+      ) : (
+        <Link className="pd-primary-link" href="/dashboard/parent/finder/">
+          Find schools <Search size={16} aria-hidden />
+        </Link>
+      )}
     >
-      <ul className="dash-cards">
-        {data.shortlist.filter((item) => !removed[item.school_id]).map((item) => (
+      {visibleShortlist.length === 0 ? (
+        <div className="pd-shortlist-empty">
+          <span aria-hidden><Bookmark size={20} /></span>
+          <div>
+            <strong>Your shortlist is ready to grow</strong>
+            <p>Save schools you like, then compare your favourites here.</p>
+          </div>
+          <Link href="/dashboard/parent/finder/">Explore schools <ArrowRight size={15} aria-hidden /></Link>
+        </div>
+      ) : (
+      <ul className="dash-cards pd-shortlist">
+        {visibleShortlist.map((item) => (
           <li className="dash-card" key={item.shortlist_id}>
             <span className="dash-card__icon" aria-hidden><Bookmark size={18} /></span>
             <div>
@@ -567,17 +638,25 @@ function Shortlist({
             <button
               className="dash-link dash-link--button"
               type="button"
-              onClick={() => {
-                dashboards.removeShortlist(item.school_id)
-                  .then(() => setRemoved((current) => ({ ...current, [item.school_id]: true })))
-                  .catch((reason) => onError(apiErrorMessage(reason)));
+              disabled={removing === item.school_id}
+              onClick={async () => {
+                setRemoving(item.school_id);
+                try {
+                  await dashboards.removeShortlist(item.school_id);
+                  setRemoved((current) => ({ ...current, [item.school_id]: true }));
+                } catch (reason) {
+                  onError(apiErrorMessage(reason));
+                } finally {
+                  setRemoving(null);
+                }
               }}
             >
-              Remove
+              <Trash2 size={14} aria-hidden /> {removing === item.school_id ? "Removing…" : "Remove"}
             </button>
           </li>
         ))}
       </ul>
+      )}
     </DashboardPanel>
   );
 }
@@ -661,32 +740,60 @@ function MessageSummary({ applications }: { applications: ParentApplication[] | 
 function NotificationList({
   notes,
   onChanged,
+  onError,
 }: {
   notes: { notification_id: string; title: string; body: string; enquiry_id: string | null; read: boolean }[];
   onChanged: () => void;
+  onError: (message: string | null) => void;
 }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const unreadCount = notes.filter((note) => !note.read).length;
+
+  async function markAsRead(notificationId?: string) {
+    const actionId = notificationId ?? "all";
+    setBusy(actionId);
+    onError(null);
+    try {
+      await parentApplications.markRead(notificationId);
+      onChanged();
+    } catch (reason) {
+      onError(apiErrorMessage(reason));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <DashboardPanel title="Notifications">
       <button
-        className="dash-link dash-link--button"
+        className="pd-primary-link"
         type="button"
-        onClick={() => { parentApplications.markRead().then(onChanged).catch(() => undefined); }}
+        disabled={unreadCount === 0 || busy !== null}
+        onClick={() => void markAsRead()}
       >
-        Mark all as read
+        {busy === "all" ? "Marking as read…" : unreadCount ? `Mark all as read (${unreadCount})` : "All caught up"}
       </button>
-      <ul className="pd-list">
-        {notes.map((note) => (
-          <li key={note.notification_id}>
-            <strong>{note.title}</strong>
-            <span>{note.body}</span>
-            {!note.read && (
-              <button type="button" onClick={() => { parentApplications.markRead(note.notification_id).then(onChanged).catch(() => undefined); }}>
-                Mark read
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+      {notes.length === 0 ? (
+        <p className="dash-empty">You’re all caught up. New school updates will appear here.</p>
+      ) : (
+        <ul className="pd-list">
+          {notes.map((note) => (
+            <li key={note.notification_id}>
+              <strong>{note.title}</strong>
+              <span>{note.body}</span>
+              {!note.read && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void markAsRead(note.notification_id)}
+                >
+                  {busy === note.notification_id ? "Marking…" : "Mark as read"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </DashboardPanel>
   );
 }
