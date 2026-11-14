@@ -36,6 +36,12 @@ import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validat
 import { useDashboardData } from "@/components/dashboard/DashboardShell";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
+import {
+  FEE_STREAMS,
+  feeStreamLabel,
+  isSeniorSecondaryGrade,
+  type FeeStreamCode,
+} from "@/lib/fee-streams";
 import { SITE_URL } from "@/lib/site";
 
 const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
@@ -354,7 +360,7 @@ export default function SchoolAdminConsole() {
             data={data}
             busy={busy}
             onAdd={(payload) => run(() => dashboards.saveFeeItem(payload).then(() => undefined), "Fee changes sent for Super Admin approval.")}
-            onAmount={(id, amount) => run(() => dashboards.updateFeeItem(id, { amount }).then(() => undefined), "Fee amount sent for Super Admin approval.")}
+            onAmount={(id, amount, stream) => run(() => dashboards.updateFeeItem(id, { amount, stream }).then(() => undefined), "Fee changes sent for Super Admin approval.")}
             onPublish={(id, published) => {
               const message = published
                 ? "Send a fee publication request to the Super Admin for approval?"
@@ -980,8 +986,8 @@ function FeesEditor({
 }: {
   data: SchoolDashboardData;
   busy: boolean;
-  onAdd: (payload: { fee_structure?: string; item_name: string; item_category: string; payment_frequency: string; amount: string; grade?: string }) => void;
-  onAmount: (id: string, amount: string) => void;
+  onAdd: (payload: { fee_structure?: string; item_name: string; item_category: string; payment_frequency: string; amount: string; grade?: string; stream?: string }) => void;
+  onAmount: (id: string, amount: string, stream: string) => void;
   onPublish: (id: string, published: boolean) => void;
 }) {
   const [name, setName] = useState("");
@@ -989,7 +995,10 @@ function FeesEditor({
   const [frequency, setFrequency] = useState("ANNUAL");
   const [amount, setAmount] = useState("");
   const [grade, setGrade] = useState("");
+  const [stream, setStream] = useState<FeeStreamCode | "COMMON">("COMMON");
   const structureId = data.fees[0]?.fee_structure_id;
+  const selectedGrade = data.catalog.grades.find((item) => item.grade_id === grade);
+  const gradeHasStreams = isSeniorSecondaryGrade(selectedGrade);
 
   return (
     <div className="sa-stack">
@@ -1007,6 +1016,7 @@ function FeesEditor({
               payment_frequency: frequency,
               amount,
               grade: grade || undefined,
+              stream: gradeHasStreams && stream !== "COMMON" ? stream : "",
             });
             setName("");
             setAmount("");
@@ -1019,10 +1029,28 @@ function FeesEditor({
           <select value={frequency} onChange={(event) => setFrequency(event.target.value)}>
             {data.catalog.fee_frequencies.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <select value={grade} onChange={(event) => setGrade(event.target.value)}>
+          <select
+            value={grade}
+            onChange={(event) => {
+              setGrade(event.target.value);
+              setStream("COMMON");
+            }}
+          >
             <option value="">All grades</option>
             {data.catalog.grades.map((item) => <option key={item.grade_id} value={item.grade_id}>{item.grade_name}</option>)}
           </select>
+          {gradeHasStreams && (
+            <select
+              aria-label="Fee stream"
+              value={stream}
+              onChange={(event) => setStream(event.target.value as FeeStreamCode | "COMMON")}
+            >
+              <option value="COMMON">Common to all streams</option>
+              {FEE_STREAMS.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+          )}
           <input inputMode="decimal" placeholder="Amount" value={amount} onChange={(event) => setAmount(event.target.value)} required />
           <button className="sa-primary" type="submit" disabled={busy}>Add fee</button>
         </form>
@@ -1037,7 +1065,7 @@ function FeesEditor({
             </button>
           </header>
           <table className="sa-table">
-            <thead><tr><th>Fee</th><th>Grade</th><th>Amount</th><th /></tr></thead>
+            <thead><tr><th>Fee</th><th>Grade</th><th>Stream</th><th>Amount</th><th /></tr></thead>
             <tbody>
               {structure.items.map((item) => (
                 <FeeRow key={item.fee_item_id} item={item} busy={busy} onAmount={onAmount} />
@@ -1057,15 +1085,36 @@ function FeeRow({
 }: {
   item: SchoolDashboardData["fees"][number]["items"][number];
   busy: boolean;
-  onAmount: (id: string, amount: string) => void;
+  onAmount: (id: string, amount: string, stream: string) => void;
 }) {
   const [amount, setAmount] = useState(item.amount ?? "");
+  const [stream, setStream] = useState<FeeStreamCode | "">(item.stream);
+  const gradeHasStreams = isSeniorSecondaryGrade({
+    grade_name: item.grade_name,
+    grade_code: item.grade_code,
+  });
   return (
     <tr>
       <td>{item.item_name}<span className="sa-muted">{item.item_category}</span></td>
       <td>{item.grade_name}</td>
+      <td>
+        {gradeHasStreams ? (
+          <select
+            aria-label={`Stream for ${item.item_name}`}
+            value={stream}
+            onChange={(event) => setStream(event.target.value as FeeStreamCode | "")}
+          >
+            <option value="">Common to all streams</option>
+            {FEE_STREAMS.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </select>
+        ) : (
+          feeStreamLabel(item.stream) || "—"
+        )}
+      </td>
       <td><input value={amount} onChange={(event) => setAmount(event.target.value)} /></td>
-      <td><button type="button" disabled={busy} onClick={() => onAmount(item.fee_item_id, amount)}>Save</button></td>
+      <td><button type="button" disabled={busy} onClick={() => onAmount(item.fee_item_id, amount, stream)}>Save</button></td>
     </tr>
   );
 }

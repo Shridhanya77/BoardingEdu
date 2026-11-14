@@ -232,3 +232,64 @@ class PublicFeeEstimateTests(TestCase):
         self.assertNotIn("Nursery tuition", pre_nursery_items)
         self.assertIn("Nursery tuition", nursery_items)
         self.assertNotIn("Pre-Nursery tuition", nursery_items)
+
+    def test_grade_eleven_estimate_requires_stream_and_filters_stream_fees(self):
+        grade = Grade.objects.create(
+            grade_code="G11-EST",
+            grade_name="Grade 11",
+            sort_order=self.grade.sort_order + 1,
+        )
+        SchoolGrade.objects.create(school=self.school, grade=grade)
+        science_fee = FeeItem.objects.create(
+            fee_structure=self.structure,
+            grade=grade,
+            item_code="SENIOR-TUITION",
+            item_name="Science tuition",
+            item_category="TUITION",
+            amount=Decimal("1000.00"),
+            payment_frequency="ANNUAL",
+            stream="SCIENCE",
+        )
+        FeeItem.objects.create(
+            fee_structure=self.structure,
+            grade=grade,
+            item_code="SENIOR-TUITION",
+            item_name="Commerce tuition",
+            item_category="TUITION",
+            amount=Decimal("1200.00"),
+            payment_frequency="ANNUAL",
+            stream="COMMERCE",
+        )
+
+        base_payload = {
+            "school_ids": [str(self.school.pk)],
+            "grade_id": str(grade.pk),
+            "school_type_id": str(self.school_type.pk),
+            "academic_year_id": str(self.year.pk),
+        }
+        missing_stream_response = self.client.post(
+            "/api/fees/estimate/",
+            base_payload,
+            content_type="application/json",
+        )
+        self.assertEqual(missing_stream_response.status_code, 400)
+
+        response = self.client.post(
+            "/api/fees/estimate/",
+            {**base_payload, "stream": "SCIENCE"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.data)
+        estimate = response.data["results"][0]
+        stream_fees = {
+            item["item_name"]: item
+            for item in estimate["items"]
+            if item.get("stream")
+        }
+        self.assertEqual(set(stream_fees), {"Science tuition"})
+        self.assertEqual(stream_fees["Science tuition"]["stream"], "SCIENCE")
+        self.assertEqual(
+            stream_fees["Science tuition"]["annualized_amount"],
+            "1000.00",
+        )

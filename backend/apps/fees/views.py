@@ -10,7 +10,13 @@ from rest_framework.views import APIView
 from apps.users.permissions import IsPlatformAdmin
 from apps.schools.models import Grade, SchoolGrade, SchoolType
 from apps.schools.querysets import public_school_queryset
-from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
+from .models import (
+    AcademicYear,
+    FeeItem,
+    FeeStructure,
+    FeeTerm,
+    grade_supports_streams,
+)
 from .serializers import (
     AcademicYearSerializer, AcademicYearListSerializer,
     FeeTermSerializer, FeeTermListSerializer,
@@ -34,6 +40,11 @@ class FeeEstimateInputSerializer(serializers.Serializer):
     )
     school_type_id = serializers.UUIDField()
     academic_year_id = serializers.UUIDField()
+    stream = serializers.ChoiceField(
+        choices=FeeItem.STREAM_CHOICES,
+        required=False,
+        allow_blank=True,
+    )
 
     def validate(self, attrs):
         grade_id = attrs.get("grade_id")
@@ -83,6 +94,12 @@ class PublicFeeEstimateView(APIView):
         ).first()
         if len(grades) != len(grade_ids) or school_type is None:
             return Response({"detail": "Choose active grades and a school type."}, status=400)
+        stream = values.get("stream", "")
+        if any(grade_supports_streams(grade) for grade in grades.values()) and not stream:
+            return Response(
+                {"detail": "Choose a stream for Grade 11 or Grade 12."},
+                status=400,
+            )
 
         school_ids = list(dict.fromkeys(values["school_ids"]))
         schools = list(
@@ -134,18 +151,18 @@ class PublicFeeEstimateView(APIView):
                 if school_type.pk not in {
                     item.pk for item in school.school_types.all()
                 }:
-                    results.append(self._unavailable_school(school, grade))
+                    results.append(self._unavailable_school(school, grade, stream))
                     continue
                 if not SchoolGrade.objects.filter(
                     school=school,
                     grade=grade,
                     is_active=True,
                 ).exists():
-                    results.append(self._unavailable_school(school, grade))
+                    results.append(self._unavailable_school(school, grade, stream))
                     continue
                 structure = structures.get(school_id)
                 if structure is None:
-                    results.append(self._unavailable_school(school, grade))
+                    results.append(self._unavailable_school(school, grade, stream))
                     continue
 
                 items = FeeItem.objects.filter(
@@ -154,6 +171,8 @@ class PublicFeeEstimateView(APIView):
                     Q(grade__isnull=True) | Q(grade=grade)
                 ).filter(
                     Q(school_type__isnull=True) | Q(school_type=school_type)
+                ).filter(
+                    Q(stream="") | Q(stream=stream)
                 ).order_by("sort_order", "item_name")
                 breakdown = []
                 annual_total = Decimal("0.00")
@@ -194,6 +213,7 @@ class PublicFeeEstimateView(APIView):
                             "item_name": item.item_name,
                             "category": item.item_category,
                             "frequency": frequency,
+                            "stream": item.stream or None,
                             "amount_per_payment": str(amount) if amount is not None else None,
                             "annualized_amount": str(annualized) if annualized is not None else None,
                             "one_time_amount": str(one_time) if one_time is not None else None,
@@ -217,6 +237,7 @@ class PublicFeeEstimateView(APIView):
                         **self._school_summary(school),
                         "grade_id": str(grade.pk),
                         "grade_name": grade.grade_name,
+                        "stream": stream or None,
                         "academic_year": academic_year.year_code,
                         "fees_available": True,
                         "complete": not has_unknown_annual and not has_unknown_one_time,
@@ -258,11 +279,12 @@ class PublicFeeEstimateView(APIView):
             "location_slug": school.location.slug if school.location_id else None,
         }
 
-    def _unavailable_school(self, school, grade):
+    def _unavailable_school(self, school, grade, stream=""):
         return {
             **self._school_summary(school),
             "grade_id": str(grade.pk),
             "grade_name": grade.grade_name,
+            "stream": stream or None,
             "academic_year": None,
             "fees_available": False,
             "complete": False,
@@ -369,7 +391,7 @@ class FeeItemViewSet(ReadWriteModelViewSet):
     serializer_class = FeeItemSerializer
     list_serializer_class = FeeItemListSerializer
     filterset_fields = [
-        'item_category', 'grade', 'school_type',
+        'item_category', 'grade', 'school_type', 'stream',
         'is_refundable', 'fee_structure',
     ]
     search_fields = [

@@ -8,6 +8,7 @@ import SchoolFeeSummary from "./SchoolFeeSummary";
 type GradeRow = {
   grade_id: string;
   grade_name: string;
+  grade_code?: string;
   sort_order?: number;
 };
 
@@ -44,7 +45,11 @@ export default function SchoolFeesAndGrades({
         </div>
         <SchoolFeeSummary
           schoolId={schoolId}
-          grades={sortedGrades.map(({ grade_id, grade_name }) => ({ grade_id, grade_name }))}
+          grades={sortedGrades.map(({ grade_id, grade_name, grade_code }) => ({
+            grade_id,
+            grade_name,
+            grade_code,
+          }))}
           selectedGradeId={selectedGradeId}
           onGradeChange={setSelectedGradeId}
           boards={boards}

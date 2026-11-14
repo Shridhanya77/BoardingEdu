@@ -308,6 +308,7 @@ def _apply_school_content_change(change):
             "payment_frequency",
             existing.payment_frequency if existing else "ANNUAL",
         )
+        item.stream = payload.get("stream", existing.stream if existing else "")
         item.grade_id = grade_id
         item.amount = amount
         item.is_refundable = bool(
@@ -399,6 +400,7 @@ def _current_content(change):
             "amount": str(row.amount) if row.amount is not None else None,
             "item_category": row.item_category,
             "payment_frequency": row.payment_frequency,
+            "stream": row.stream,
             "description": row.description,
         }
     if change.content_type == SchoolContentChange.TYPE_FEE_STRUCTURE:

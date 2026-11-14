@@ -16,6 +16,12 @@ import {
 } from "@/lib/api";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
+import {
+  FEE_STREAMS,
+  feeStreamLabel,
+  isSeniorSecondaryGrade,
+  type FeeStreamCode,
+} from "@/lib/fee-streams";
 
 function formatCurrency(value: string | null) {
   if (value === null) return "Unavailable";
@@ -33,12 +39,15 @@ export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoo
   const [matches, setMatches] = useState<SchoolListItem[]>([]);
   const [selectedSchools, setSelectedSchools] = useState<SchoolListItem[]>([]);
   const [gradeId, setGradeId] = useState("");
+  const [stream, setStream] = useState<FeeStreamCode | "">("");
   const [schoolTypeId, setSchoolTypeId] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
   const [results, setResults] = useState<FeeEstimateResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [estimating, setEstimating] = useState(false);
+  const selectedGrade = grades.find((grade) => grade.grade_id === gradeId);
+  const needsStream = isSeniorSecondaryGrade(selectedGrade);
 
   useEffect(() => {
     let active = true;
@@ -142,8 +151,8 @@ export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoo
     event.preventDefault();
     setError(null);
     setResults(null);
-    if (!gradeId || !schoolTypeId || !academicYearId || selectedSchools.length === 0) {
-      setError("Choose an academic session, grade, school type, and at least one school.");
+    if (!gradeId || !schoolTypeId || !academicYearId || selectedSchools.length === 0 || (needsStream && !stream)) {
+      setError("Choose an academic session, grade, school type, and at least one school. Select a stream for Grade 11 or Grade 12.");
       return;
     }
     setEstimating(true);
@@ -153,6 +162,7 @@ export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoo
         grade_ids: gradeSelectionIds(grades, gradeId),
         school_type_id: schoolTypeId,
         academic_year_id: academicYearId,
+        ...(needsStream ? { stream } : {}),
       });
       setResults(response.results);
     } catch (reason) {
@@ -199,6 +209,7 @@ export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoo
               value={gradeId}
               onChange={(event) => {
                 setGradeId(event.target.value);
+                setStream("");
                 setError(null);
                 setResults(null);
               }}
@@ -210,6 +221,25 @@ export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoo
               ))}
             </select>
           </label>
+          {needsStream && (
+            <label>
+              Stream
+              <select
+                value={stream}
+                onChange={(event) => {
+                  setStream(event.target.value as FeeStreamCode | "");
+                  setError(null);
+                  setResults(null);
+                }}
+                required
+              >
+                <option value="">Select a stream</option>
+                {FEE_STREAMS.map((item) => (
+                  <option key={item.value} value={item.value}>{item.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             School type
             <select
@@ -320,6 +350,9 @@ export default function FeeCalculator({ schoolSlug: initialSchoolSlug }: { schoo
                   </Link>
                 </h3>
                 <p className="fee-estimate-card__year">{result.grade_name}</p>
+                {result.stream && (
+                  <p className="fee-estimate-card__year">{feeStreamLabel(result.stream)} stream</p>
+                )}
                 <p className="fee-estimate-card__year">
                   {result.academic_year ? `Academic year ${result.academic_year}` : "No active published fee schedule"}
                 </p>

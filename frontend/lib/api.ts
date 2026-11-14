@@ -805,6 +805,8 @@ export type FeeItemListItem = {
   grade_name: string | null;
   school_type_id: string | null;
   school_type_name: string | null;
+  stream: "" | "SCIENCE" | "COMMERCE" | "ARTS";
+  stream_display: string;
   amount: string | null;
   payment_frequency: "ONE_TIME" | "ANNUAL" | "QUARTERLY" | "HALF_YEARLY" | "TERM" | "MONTHLY" | "BY_DISTANCE" | "DYNAMIC";
   payment_frequency_display: string;
@@ -829,12 +831,14 @@ export type FeeEstimateInput = {
   grade_ids: string[];
   school_type_id: string;
   academic_year_id: string;
+  stream?: "" | "SCIENCE" | "COMMERCE" | "ARTS";
 };
 
 export type FeeEstimateItem = {
   item_name: string;
   category: string;
   frequency: FeeItemListItem["payment_frequency"];
+  stream: FeeItemListItem["stream"] | null;
   amount_per_payment: string | null;
   annualized_amount: string | null;
   one_time_amount: string | null;
@@ -847,6 +851,7 @@ export type FeeEstimateResult = {
   school_name: string;
   grade_id: string;
   grade_name: string;
+  stream: FeeItemListItem["stream"] | null;
   slug: string;
   city_name: string;
   state_name: string;
@@ -1332,9 +1337,11 @@ export type SchoolFeeRecord = {
     item_name: string;
     item_category: string;
     payment_frequency: string;
+    stream: "" | "SCIENCE" | "COMMERCE" | "ARTS";
     amount: string | null;
     is_refundable: boolean;
     grade_name: string;
+    grade_code: string;
     description: string;
   }[];
 };
@@ -1709,6 +1716,7 @@ export const dashboards = {
     payment_frequency: string;
     amount: string;
     grade?: string;
+    stream?: string;
     is_refundable?: boolean;
     description?: string;
   }) =>
@@ -1716,7 +1724,7 @@ export const dashboards = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateFeeItem: (id: string, payload: { amount?: string; item_name?: string; is_refundable?: boolean }) =>
+  updateFeeItem: (id: string, payload: { amount?: string; item_name?: string; is_refundable?: boolean; stream?: string }) =>
     authRequest<{ fee_item_id: string; amount: string | null }>(`/dashboards/school/fees/items/${id}/`, {
       method: "PATCH",
       body: JSON.stringify(payload),

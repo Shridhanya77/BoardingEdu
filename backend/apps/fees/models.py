@@ -1,8 +1,21 @@
 import uuid
+import re
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
+
+
+def grade_supports_streams(grade):
+    if grade is None:
+        return False
+    code = getattr(grade, "grade_code", "") or ""
+    name = getattr(grade, "grade_name", "") or ""
+    normalized = f"{code} {name}".upper()
+    return bool(
+        re.search(r"(?<!\d)(11|12)(?!\d)", normalized)
+        or re.search(r"\b(XI|XII)\b", normalized)
+    )
 
 
 class AcademicYear(models.Model):
@@ -306,6 +319,12 @@ class FeeItem(models.Model):
         ("DYNAMIC", "Dynamic"),
     ]
 
+    STREAM_CHOICES = [
+        ("SCIENCE", "Science"),
+        ("COMMERCE", "Commerce"),
+        ("ARTS", "Arts"),
+    ]
+
     fee_item_id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -364,6 +383,14 @@ class FeeItem(models.Model):
         help_text="If null, applies to all school-types (Day / Boarding)",
     )
 
+    stream = models.CharField(
+        max_length=20,
+        choices=STREAM_CHOICES,
+        blank=True,
+        default="",
+        help_text="Optional stream for Grade 11 or Grade 12 fees.",
+    )
+
     # Amounts
     amount = models.DecimalField(
         max_digits=12,
@@ -416,12 +443,14 @@ class FeeItem(models.Model):
         verbose_name_plural = "Fee Items"
         constraints = [
             models.UniqueConstraint(
-                fields=["fee_structure", "item_code", "grade", "school_type"],
-                name="uq_fee_item_structure_code_grade_type",
+                fields=["fee_structure", "item_code", "grade", "school_type", "stream"],
+                name="uq_fee_item_structure_code_grade_type_stream",
             ),
         ]
         indexes = [
-            models.Index(fields=["fee_structure", "item_category", "grade", "school_type"]),
+            models.Index(
+                fields=["fee_structure", "item_category", "grade", "school_type", "stream"]
+            ),
         ]
 
     def __str__(self):
@@ -435,6 +464,12 @@ class FeeItem(models.Model):
 
     def clean(self):
         super().clean()
+        if self.stream and (
+            self.grade_id is None or not grade_supports_streams(self.grade)
+        ):
+            raise ValidationError({
+                "stream": "Choose a stream only for Grade 11 or Grade 12 fees.",
+            })
         if self.amount is None and self.payment_frequency not in {"DYNAMIC", "BY_DISTANCE"}:
             raise ValidationError({
                 "amount": "Enter an amount unless the payment frequency is Dynamic or By distance.",

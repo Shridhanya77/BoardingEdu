@@ -29,15 +29,17 @@ class FeeItemInlineFormSet(BaseInlineFormSet):
 
             grade = data.get("grade")
             school_type = data.get("school_type")
+            stream = data.get("stream") or ""
             scope = (
                 item_code,
                 grade.pk if grade else None,
                 school_type.pk if school_type else None,
+                stream,
             )
             if scope in seen:
                 form.add_error(
                     "item_code",
-                    "This fee code is already used for the same grade and school type in this fee structure.",
+                    "This fee code is already used for the same grade, school type, and stream in this fee structure.",
                 )
                 continue
             seen.add(scope)
@@ -47,13 +49,14 @@ class FeeItemInlineFormSet(BaseInlineFormSet):
                 item_code=item_code,
                 grade=grade,
                 school_type=school_type,
+                stream=stream,
             )
             if form.instance.pk:
                 existing_items = existing_items.exclude(pk=form.instance.pk)
             if existing_items.exists():
                 form.add_error(
                     "item_code",
-                    "This fee code is already used for the same grade and school type in this fee structure.",
+                    "This fee code is already used for the same grade, school type, and stream in this fee structure.",
                 )
 
 
@@ -116,6 +119,7 @@ class FeeItemInline(admin.TabularInline):
         "item_category",
         "grade",
         "school_type",
+        "stream",
         "amount",
         "payment_frequency",
         "tax_rate_pct",
@@ -250,13 +254,14 @@ class FeeItemAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         "fee_structure",
         "grade",
         "school_type",
+        "stream",
         "amount",
         "payment_frequency",
         "tax_rate_pct",
         "is_refundable",
         "sort_order",
     )
-    list_filter = ("item_category", "is_refundable", "grade", "school_type")
+    list_filter = ("item_category", "is_refundable", "grade", "school_type", "stream")
     search_fields = (
         "item_code",
         "item_name",

@@ -690,6 +690,7 @@ def _apply_fee_action(request, school):
         name = (request.POST.get("item_name") or "").strip()
         category = request.POST.get("item_category") or ""
         frequency = request.POST.get("payment_frequency") or ""
+        stream = request.POST.get("stream") or ""
         if not name or len(name) > 200:
             messages.error(request, "Enter a fee name of 200 characters or fewer.")
             return _fee_workspace_redirect(request)
@@ -698,6 +699,9 @@ def _apply_fee_action(request, school):
             return _fee_workspace_redirect(request)
         if frequency not in dict(FeeItem.PAYMENT_FREQUENCY_CHOICES):
             messages.error(request, "Choose how often this fee is charged.")
+            return _fee_workspace_redirect(request)
+        if stream not in dict(FeeItem.STREAM_CHOICES) and stream:
+            messages.error(request, "Choose a valid fee stream.")
             return _fee_workspace_redirect(request)
         try:
             amount = _fee_amount(request.POST.get("amount"), frequency)
@@ -748,19 +752,40 @@ def _apply_fee_action(request, school):
             item_code=item_code,
             grade=grade,
             school_type__isnull=True,
+            stream=stream,
         ).exists():
             suffix_text = f"-{suffix}"
             item_code = f"{item_code[:30 - len(suffix_text)].rstrip('-')}{suffix_text}"
             suffix += 1
-        while SchoolContentChange.objects.filter(
+        pending_items = SchoolContentChange.objects.filter(
             school=school,
             content_type=SchoolContentChange.TYPE_FEE_ITEM,
             status=SchoolContentChange.STATUS_PENDING,
             payload__fee_structure_id=str(structure.pk),
             payload__item_code=item_code,
-        ).exists():
+        )
+        if stream:
+            pending_items = pending_items.filter(payload__stream=stream)
+        else:
+            pending_items = pending_items.filter(
+                Q(payload__stream="") | Q(payload__stream__isnull=True)
+            )
+        while pending_items.exists():
             suffix_text = f"-{suffix}"
             item_code = f"{item_code[:30 - len(suffix_text)].rstrip('-')}{suffix_text}"
+            pending_items = SchoolContentChange.objects.filter(
+                school=school,
+                content_type=SchoolContentChange.TYPE_FEE_ITEM,
+                status=SchoolContentChange.STATUS_PENDING,
+                payload__fee_structure_id=str(structure.pk),
+                payload__item_code=item_code,
+            )
+            if stream:
+                pending_items = pending_items.filter(payload__stream=stream)
+            else:
+                pending_items = pending_items.filter(
+                    Q(payload__stream="") | Q(payload__stream__isnull=True)
+                )
             suffix += 1
         fee_item_id = uuid.uuid4()
         item = FeeItem(
@@ -771,6 +796,7 @@ def _apply_fee_action(request, school):
             item_category=category,
             payment_frequency=frequency,
             grade=grade,
+            stream=stream,
             amount=amount,
             sort_order=structure.fee_items.count(),
         )
@@ -790,6 +816,7 @@ def _apply_fee_action(request, school):
                     "item_name": item.item_name,
                     "item_category": item.item_category,
                     "payment_frequency": item.payment_frequency,
+                    "stream": item.stream,
                     "grade_id": str(item.grade_id) if item.grade_id else None,
                     "amount": str(item.amount) if item.amount is not None else None,
                     "is_refundable": item.is_refundable,
@@ -828,6 +855,8 @@ def _apply_fee_action(request, school):
             messages.success(request, "Fee item removal was sent for Super Admin approval.")
         else:
             name = (request.POST.get("item_name") or "").strip()
+            if "stream" in request.POST:
+                item.stream = request.POST.get("stream") or ""
             if not name or len(name) > 200:
                 messages.error(request, "Enter a fee name of 200 characters or fewer.")
                 return _fee_workspace_redirect(request)
@@ -853,6 +882,7 @@ def _apply_fee_action(request, school):
                         "item_name": item.item_name,
                         "item_category": item.item_category,
                         "payment_frequency": item.payment_frequency,
+                        "stream": item.stream,
                         "grade_id": str(item.grade_id) if item.grade_id else None,
                         "amount": str(item.amount) if item.amount is not None else None,
                         "is_refundable": item.is_refundable,
@@ -1225,6 +1255,7 @@ def school_workspace(request):
         "fee_structures": fee_structures,
         "fee_category_choices": FeeItem.CATEGORY_CHOICES,
         "fee_frequency_choices": FeeItem.PAYMENT_FREQUENCY_CHOICES,
+        "fee_stream_choices": FeeItem.STREAM_CHOICES,
         "fee_grades": [
             row for row in offered_grades
             if row.is_active and row.grade.status

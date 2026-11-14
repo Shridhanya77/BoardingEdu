@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import AcademicYear, FeeTerm, FeeStructure, FeeItem
+from .models import (
+    AcademicYear,
+    FeeItem,
+    FeeStructure,
+    FeeTerm,
+    grade_supports_streams,
+)
 
 
 class AcademicYearListSerializer(serializers.ModelSerializer):
@@ -204,6 +210,10 @@ class FeeItemListSerializer(serializers.ModelSerializer):
         source='get_payment_frequency_display',
         read_only=True,
     )
+    stream_display = serializers.CharField(
+        source='get_stream_display',
+        read_only=True,
+    )
 
     class Meta:
         model = FeeItem
@@ -213,6 +223,7 @@ class FeeItemListSerializer(serializers.ModelSerializer):
             'item_code', 'item_name', 'category',
             'grade_id', 'grade_name',
             'school_type_id', 'school_type_name',
+            'stream', 'stream_display',
             'amount', 'payment_frequency', 'payment_frequency_display', 'tax',
             'description',
             'is_refundable',
@@ -231,6 +242,10 @@ class FeeItemSerializer(serializers.ModelSerializer):
         source='get_payment_frequency_display',
         read_only=True,
     )
+    stream_display = serializers.CharField(
+        source='get_stream_display',
+        read_only=True,
+    )
 
     class Meta:
         model = FeeItem
@@ -240,6 +255,7 @@ class FeeItemSerializer(serializers.ModelSerializer):
             'item_code', 'item_name', 'category',
             'grade', 'grade_detail',
             'school_type', 'school_type_detail',
+            'stream', 'stream_display',
             'amount', 'payment_frequency', 'payment_frequency_display',
             'tax', 'tax_rate_pct',
             'is_refundable',
@@ -259,6 +275,12 @@ class FeeItemSerializer(serializers.ModelSerializer):
         if amount is None and payment_frequency not in {'DYNAMIC', 'BY_DISTANCE'}:
             raise serializers.ValidationError({
                 'amount': 'Enter an amount unless the payment frequency is Dynamic or By distance.',
+            })
+        stream = attrs.get("stream", getattr(self.instance, "stream", ""))
+        grade = attrs.get("grade", getattr(self.instance, "grade", None))
+        if stream and (grade is None or not grade_supports_streams(grade)):
+            raise serializers.ValidationError({
+                "stream": "Choose a stream only for Grade 11 or Grade 12 fees.",
             })
         return attrs
 

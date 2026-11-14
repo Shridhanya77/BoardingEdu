@@ -134,9 +134,11 @@ def _fee_row(structure):
                 "item_name": item.item_name,
                 "item_category": item.item_category,
                 "payment_frequency": item.payment_frequency,
+                "stream": item.stream,
                 "amount": str(item.amount) if item.amount is not None else None,
                 "is_refundable": item.is_refundable,
                 "grade_name": item.grade.grade_name if item.grade_id else "All grades",
+                "grade_code": item.grade.grade_code if item.grade_id else "",
                 "description": item.description,
             }
             for item in structure.fee_items.all()
@@ -795,10 +797,13 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             )
         category = request.data.get("item_category") or "TUITION"
         frequency = request.data.get("payment_frequency") or "ANNUAL"
+        stream = str(request.data.get("stream") or "")
         if category not in {code for code, _label in FeeItem.CATEGORY_CHOICES}:
             return Response({"detail": "Choose a fee category."}, status=400)
         if frequency not in {code for code, _label in FeeItem.PAYMENT_FREQUENCY_CHOICES}:
             return Response({"detail": "Choose how often this fee is charged."}, status=400)
+        if stream not in {code for code, _label in FeeItem.STREAM_CHOICES} | {""}:
+            return Response({"detail": "Choose a valid fee stream."}, status=400)
         name = str(request.data.get("item_name") or "").strip()
         if not name:
             return Response({"detail": "Name this fee."}, status=400)
@@ -820,6 +825,7 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             item_category=category,
             payment_frequency=frequency,
             grade=grade,
+            stream=stream,
             amount=amount,
             is_refundable=bool(request.data.get("is_refundable", False)),
             description=str(request.data.get("description") or "")[:500],
@@ -870,6 +876,11 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             item.is_refundable = bool(request.data.get("is_refundable"))
         if "description" in request.data:
             item.description = str(request.data.get("description") or "")[:500]
+        if "stream" in request.data:
+            stream = str(request.data.get("stream") or "")
+            if stream not in {code for code, _label in FeeItem.STREAM_CHOICES} | {""}:
+                return Response({"detail": "Choose a valid fee stream."}, status=400)
+            item.stream = stream
         try:
             item.full_clean()
         except DjangoValidationError as error:
@@ -885,6 +896,8 @@ class SchoolFeeItemWriteView(SchoolAdminAPIView):
             payload["is_refundable"] = item.is_refundable
         if "description" in request.data:
             payload["description"] = item.description
+        if "stream" in request.data:
+            payload["stream"] = item.stream
         change = submit_school_content_change(
             school,
             request.user,
@@ -998,6 +1011,7 @@ def _fee_item_payload(item):
         "item_name": item.item_name,
         "item_category": item.item_category,
         "payment_frequency": item.payment_frequency,
+        "stream": item.stream,
         "grade_id": str(item.grade_id) if item.grade_id else None,
         "amount": str(item.amount) if item.amount is not None else None,
         "is_refundable": item.is_refundable,

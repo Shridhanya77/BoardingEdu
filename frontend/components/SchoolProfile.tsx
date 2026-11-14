@@ -443,6 +443,7 @@ export default async function SchoolProfile({
               grades={school.grades_offered_detail.map((g) => ({
                 grade_id: g.grade_id,
                 grade_name: g.grade_name,
+                grade_code: g.grade_code,
                 sort_order: g.sort_order,
               }))}
               boards={school.boards_detail}

@@ -6,13 +6,14 @@ import { fees, fetchAllPages } from "@/lib/api";
 import type { BoardListItem, FeeItemListItem, FeeStructureListItem } from "@/lib/api";
 import { academicYearSortKey, formatAcademicYearLabel } from "@/lib/academic-year";
 import { formatGradeLabel, gradeSelectOptions } from "@/lib/grade-labels";
+import { FEE_STREAMS, feeStreamLabel, isSeniorSecondaryGrade, type FeeStreamCode } from "@/lib/fee-streams";
 
 type FeeDetails = {
   structure: FeeStructureListItem;
   items: FeeItemListItem[];
 };
 
-type GradeOption = { grade_id: string; grade_name: string };
+type GradeOption = { grade_id: string; grade_name: string; grade_code?: string };
 
 const frequencyLabels: Record<FeeItemListItem["payment_frequency"], string> = {
   ONE_TIME: "One-time",
@@ -119,8 +120,11 @@ export default function SchoolFeeSummary({
   const [details, setDetails] = useState<FeeDetails[]>([]);
   const [selectedYearId, setSelectedYearId] = useState("");
   const [internalGradeId, setInternalGradeId] = useState("");
+  const [selectedStream, setSelectedStream] = useState<FeeStreamCode | "">("");
   const selectedGradeId = controlledGradeId ?? internalGradeId;
   const setSelectedGradeId = onGradeChange ?? setInternalGradeId;
+  const selectedGrade = grades.find((grade) => grade.grade_id === selectedGradeId);
+  const streamGrade = isSeniorSecondaryGrade(selectedGrade);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,6 +188,10 @@ export default function SchoolFeeSummary({
   }, [controlledGradeId, grades, onGradeChange]);
 
   useEffect(() => {
+    setSelectedStream("");
+  }, [selectedGradeId]);
+
+  useEffect(() => {
     if (!details.length || !grades.length) return;
     const gradeHasFees = (gradeId: string) =>
       details.some(({ items }) =>
@@ -210,7 +218,10 @@ export default function SchoolFeeSummary({
     const filterItems = (rows: FeeDetails[]) => {
       const mapped = rows.flatMap(({ structure, items }) =>
         items
-          .filter((item) => !selectedGradeId || !item.grade_id || item.grade_id === selectedGradeId)
+          .filter((item) =>
+            (!selectedGradeId || !item.grade_id || item.grade_id === selectedGradeId) &&
+            (!item.stream || (streamGrade && item.stream === selectedStream)),
+          )
           .map((item) => ({ structure, item })),
       );
       const unique = new Map<string, (typeof mapped)[number]>();
@@ -250,7 +261,7 @@ export default function SchoolFeeSummary({
     }
 
     return { visibleItems: items, feeFallbackNote: null };
-  }, [details, selectedGradeId, selectedYearCode, selectedYearId]);
+  }, [details, selectedGradeId, selectedStream, selectedYearCode, selectedYearId, streamGrade]);
 
   if (loading) {
     return (
@@ -277,9 +288,7 @@ export default function SchoolFeeSummary({
     );
   }
 
-  const selectedGradeName = formatGradeLabel(
-    grades.find((grade) => grade.grade_id === selectedGradeId)?.grade_name ?? "",
-  );
+  const selectedGradeName = formatGradeLabel(selectedGrade?.grade_name ?? "");
   const selectedYearLabel = formatAcademicYearLabel(
     availableYears.find(([id]) => id === selectedYearId)?.[1],
   );
@@ -318,13 +327,35 @@ export default function SchoolFeeSummary({
               <ChevronDown size={16} aria-hidden />
             </span>
           </label>
+          {streamGrade && (
+            <label>
+              Stream
+              <span className="fee-summary__select-wrap">
+                <select
+                  value={selectedStream}
+                  onChange={(event) => setSelectedStream(event.target.value as FeeStreamCode | "")}
+                >
+                  <option value="">Choose a stream</option>
+                  {FEE_STREAMS.map((stream) => (
+                    <option key={stream.value} value={stream.value}>{stream.label}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} aria-hidden />
+              </span>
+            </label>
+          )}
         </div>
       </div>
 
       <h4 className="fee-summary__subheading">
-        {selectedGradeName || "All grades"} — Academic Year {selectedYearLabel || "2026-27"}
+        {selectedGradeName || "All grades"}
+        {selectedStream ? ` · ${feeStreamLabel(selectedStream)}` : ""}
+        {" — Academic Year "}{selectedYearLabel || "2026-27"}
       </h4>
       {feeFallbackNote && <p className="fee-summary__note">{feeFallbackNote}</p>}
+      {streamGrade && !selectedStream && (
+        <p className="fee-summary__note">Choose Science, Commerce, or Arts to view stream-specific fees.</p>
+      )}
 
       {visibleItems.length ? (
         <div className="fee-summary__table-wrap">

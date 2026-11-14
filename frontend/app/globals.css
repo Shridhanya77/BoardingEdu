@@ -6990,7 +6990,7 @@ select:focus-visible {
 
 .fee-summary__selectors {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
   gap: 10px;
 }
 
@@ -7329,7 +7329,7 @@ select:focus-visible {
   }
 
   .fee-summary__selectors {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .fee-summary__select-wrap select {
@@ -24450,7 +24450,7 @@ select:focus-visible {
   background: #fff;
 }
 .sa-checkline { display: flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
-.sa-inline { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 12px; align-items: end; }
+.sa-inline { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 12px; align-items: end; }
 .sa-table { width: 100%; border-collapse: collapse; }
 .sa-table th, .sa-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e8eef5; vertical-align: top; }
 .sa-pills { display: flex; flex-wrap: wrap; gap: 8px; }
