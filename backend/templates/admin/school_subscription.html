@@ -6,6 +6,12 @@
 
 {% block content %}
 <div id="content-main">
+  <nav class="be-breadcrumbs" aria-label="{% translate 'Breadcrumb' %}">
+    {% for breadcrumb in breadcrumbs %}
+      {% if not forloop.first %}<span aria-hidden="true">/</span>{% endif %}
+      {% if breadcrumb.url %}<a href="{{ breadcrumb.url }}">{{ breadcrumb.label }}</a>{% else %}<span aria-current="page">{{ breadcrumb.label }}</span>{% endif %}
+    {% endfor %}
+  </nav>
   <section class="be-welcome">
     <div>
       <p class="be-welcome__kicker">{% translate "Subscription" %}</p>

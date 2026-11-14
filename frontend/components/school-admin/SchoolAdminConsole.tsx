@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   Building2,
@@ -34,7 +35,7 @@ import {
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { useDashboardData } from "@/components/dashboard/DashboardShell";
-import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { schoolProfilePathFromSlugs, toSeoSlug } from "@/lib/seo-slugs";
 import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
 import {
   FEE_STREAMS,
@@ -139,11 +140,26 @@ function statusLabel(status: string) {
 export default function SchoolAdminConsole() {
   const { status, user, logout } = useAuth();
   const { data, loading, error, reload } = useDashboardData(dashboards.school);
-  const [section, setSection] = useState<SectionId>("overview");
-  const [campusGroup, setCampusGroup] = useState<string>("ACADEMIC");
+  const pathname = usePathname();
+  const router = useRouter();
+  const pathParts = pathname.split("/").filter(Boolean);
+  const routeSection = pathParts[2];
+  const routeSubsection = pathParts[3]?.replace(/-/g, "_").toUpperCase();
+  const [section, setSection] = useState<SectionId>(
+    NAV.some((item) => item.id === routeSection) ? routeSection as SectionId : "overview",
+  );
+  const [campusGroup, setCampusGroup] = useState<string>(routeSubsection || "ACADEMIC");
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const nextSection = NAV.find((item) => item.id === routeSection)?.id ?? "overview";
+    setSection(nextSection);
+    if (nextSection === "facilities") {
+      setCampusGroup(CAMPUS_GROUPS.find((item) => item.key === routeSubsection)?.key ?? "ACADEMIC");
+    }
+  }, [routeSection, routeSubsection]);
 
   useEffect(() => {
     if (status === "guest") {
@@ -182,6 +198,15 @@ export default function SchoolAdminConsole() {
     }
   }
 
+  function navigateSection(next: SectionId, group?: string) {
+    setSection(next);
+    if (group && next === "facilities") setCampusGroup(group);
+    const path = next === "overview"
+      ? "/dashboard/school/"
+      : `/dashboard/school/${toSeoSlug(next)}/${group ? `${toSeoSlug(group)}/` : ""}`;
+    router.push(path);
+  }
+
   const school = data?.school;
   const publicHref = school
     ? new URL(schoolProfilePathFromSlugs({
@@ -209,7 +234,7 @@ export default function SchoolAdminConsole() {
               className={section === item.id ? "is-active" : ""}
               aria-current={section === item.id ? "page" : undefined}
               onClick={() => {
-                setSection(item.id);
+                navigateSection(item.id);
                 setNotice(null);
                 setFormError(null);
               }}
@@ -276,6 +301,20 @@ export default function SchoolAdminConsole() {
           )}
         </header>
 
+        <nav className="sa-breadcrumbs" aria-label="Breadcrumb">
+          <Link href="/">Home</Link>
+          <span aria-hidden>/</span>
+          <Link href="/dashboard/school/">School admin</Link>
+          {school && (
+            <>
+              <span aria-hidden>/</span>
+              <span>{school.school_name}</span>
+            </>
+          )}
+          <span aria-hidden>/</span>
+          <span aria-current="page">{NAV.find((item) => item.id === section)?.label ?? "Dashboard"}</span>
+        </nav>
+
         {loading && <p className="sa-state"><Loader2 className="spin" size={18} /> Loading your school…</p>}
         {error && (
           <p className="sa-state sa-state--error" role="alert">
@@ -316,19 +355,13 @@ export default function SchoolAdminConsole() {
         {data && section === "overview" && (
           <Overview
             data={data}
-            onOpen={(next, group) => {
-              setSection(next);
-              if (group) setCampusGroup(group);
-            }}
+            onOpen={navigateSection}
           />
         )}
         {data && section === "completion" && (
           <CompletionCentre
             data={data}
-            onOpen={(next, group) => {
-              setSection(next);
-              if (group) setCampusGroup(group);
-            }}
+            onOpen={navigateSection}
           />
         )}
         {data && section === "profile" && (
@@ -351,7 +384,7 @@ export default function SchoolAdminConsole() {
             data={data}
             group={campusGroup}
             busy={busy}
-            onGroup={setCampusGroup}
+            onGroup={(group) => navigateSection("facilities", group)}
             onSave={(payload) => run(() => dashboards.saveFacility(payload).then(() => undefined), "Facility changes sent for Super Admin approval.")}
           />
         )}
@@ -399,16 +432,16 @@ export default function SchoolAdminConsole() {
           <EnquiryBoard
             data={data}
             busy={busy}
-            onUpgrade={() => setSection("plans")}
+            onUpgrade={() => navigateSection("plans")}
             onStatus={(id, next) => run(() => dashboards.updateEnquiryStatus(id, next).then(() => undefined), "Enquiry status updated.")}
             onApplication={(id, payload) => run(() => dashboards.updateApplicationStatus(id, payload).then(() => undefined), "Parent application status updated.")}
           />
         )}
         {data && section === "plans" && (
-          <PlanList onPurchased={() => { setSection("subscription"); reload(); }} />
+          <PlanList onPurchased={() => { navigateSection("subscription"); reload(); }} />
         )}
         {data && (section === "subscription" || section === "payments") && (
-          <SubscriptionAccount mode={section} onUpgrade={() => setSection("plans")} />
+          <SubscriptionAccount mode={section} onUpgrade={() => navigateSection("plans")} />
         )}
         {section === "account" && <AccountSettings />}
       </section>

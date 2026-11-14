@@ -16,6 +16,11 @@ import {
 import { apiErrorMessage, type UserRole } from "@/lib/api";
 import { dashboardPathForRole, useAuth } from "@/lib/auth";
 
+export type DashboardBreadcrumb = {
+  label: string;
+  href?: string;
+};
+
 const ROLE_LABELS: Record<UserRole, string> = {
   PARENT: "Parent",
   SCHOOL_ADMIN: "School admin",
@@ -146,12 +151,14 @@ export function DashboardShell({
   eyebrow,
   title,
   subtitle,
+  breadcrumbs,
   children,
 }: {
   roles?: UserRole[];
   eyebrow: string;
   title: string;
   subtitle?: string;
+  breadcrumbs?: DashboardBreadcrumb[];
   children: ReactNode;
 }) {
   const { status, user, logout } = useAuth();
@@ -233,6 +240,18 @@ export function DashboardShell({
               {subtitle && <p>{subtitle}</p>}
             </div>
           </header>
+          {breadcrumbs && breadcrumbs.length > 0 && (
+            <nav className="dash-breadcrumbs" aria-label="Breadcrumb">
+              {breadcrumbs.map((item, index) => (
+                <span key={`${item.label}-${index}`}>
+                  {index > 0 && <span className="dash-breadcrumbs__separator" aria-hidden>/</span>}
+                  {item.href && index < breadcrumbs.length - 1
+                    ? <Link href={item.href}>{item.label}</Link>
+                    : <span aria-current={index === breadcrumbs.length - 1 ? "page" : undefined}>{item.label}</span>}
+                </span>
+              ))}
+            </nav>
+          )}
 
           {allowed ? (
             children

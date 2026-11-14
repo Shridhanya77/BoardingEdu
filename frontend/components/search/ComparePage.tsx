@@ -148,9 +148,11 @@ export default function ComparePage({
         );
         if (cancelled) return;
 
-        setShortlistSchools(
-          outcomes.flatMap((outcome) => outcome.school ? [outcome.school] : []),
+        const availableSchools = outcomes.flatMap((outcome) =>
+          outcome.school ? [outcome.school] : [],
         );
+        setShortlistSchools(availableSchools);
+        setShortlistComparedSchools(availableSchools.slice(0, 3));
         const failures = outcomes.filter((outcome) => outcome.error);
         if (failures.length) {
           setShortlistError(
@@ -569,7 +571,7 @@ export default function ComparePage({
         <h2 id="compare-builder-heading">Choose schools to compare</h2>
         <p>
           {shortlistOnly
-            ? "Choose a slot, then select a school saved in your parent dashboard. Compare up to three."
+            ? "Your shortlisted schools are selected below. Compare up to three, or change a slot using only schools saved in your parent dashboard."
             : "Choose up to three schools and explore the details that matter most to your family."}
         </p>
         <div className="compare-slots">

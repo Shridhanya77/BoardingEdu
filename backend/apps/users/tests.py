@@ -241,7 +241,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         home = client.get("/admin/")
         self.assertEqual(home.status_code, 302)
         self.assertEqual(home.url, reverse("admin:school_workspace"))
-        workspace = client.get(home.url)
+        workspace = client.get(home.url, follow=True)
         self.assertEqual(workspace.status_code, 200)
         self.assertContains(workspace, 'id="jazzy-sidebar"')
         self.assertContains(workspace, 'id="jazzy-navigation"')
@@ -258,30 +258,57 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertContains(workspace, "Facilities")
         self.assertContains(workspace, "Subscription plans")
         self.assertNotContains(workspace, "Countries")
-        self.assertContains(workspace, "section=facilities")
-        self.assertContains(workspace, "section=grades")
-        self.assertContains(workspace, "section=documents")
-        self.assertContains(workspace, "section=reviews")
+        self.assertContains(workspace, f"/school-workspace/{own.slug}/facilities/academic/")
+        self.assertContains(workspace, f"/school-workspace/{own.slug}/grades/early/")
+        self.assertContains(workspace, f"/school-workspace/{own.slug}/documents/")
+        self.assertContains(workspace, f"/school-workspace/{own.slug}/reviews/")
 
-        workspace_url = reverse("admin:school_workspace")
-        facilities_page = client.get(workspace_url, {"section": "facilities"})
+        workspace_url = reverse(
+            "admin:school_workspace_section",
+            kwargs={"school_slug": own.slug, "section_slug": "overview"},
+        )
+        facilities_url = reverse(
+            "admin:school_workspace_subsection",
+            kwargs={
+                "school_slug": own.slug,
+                "section_slug": "facilities",
+                "subsection_slug": "academic",
+            },
+        )
+        grades_url = reverse(
+            "admin:school_workspace_subsection",
+            kwargs={
+                "school_slug": own.slug,
+                "section_slug": "grades",
+                "subsection_slug": "early",
+            },
+        )
+        fees_url = reverse(
+            "admin:school_workspace_section",
+            kwargs={"school_slug": own.slug, "section_slug": "fees"},
+        )
+        documents_url = reverse(
+            "admin:school_workspace_section",
+            kwargs={"school_slug": own.slug, "section_slug": "documents"},
+        )
+        facilities_page = client.get(facilities_url)
         self.assertEqual(facilities_page.status_code, 200)
         self.assertContains(facilities_page, 'id="facilities"')
         self.assertContains(facilities_page, "Classrooms")
         self.assertNotContains(facilities_page, 'id="grades"')
-        grades_page = client.get(workspace_url, {"section": "grades"})
+        grades_page = client.get(grades_url)
         self.assertEqual(grades_page.status_code, 200)
         self.assertContains(grades_page, 'id="grades"')
         self.assertContains(grades_page, "Grade levels")
         self.assertNotContains(grades_page, 'id="facilities"')
 
-        fees_page = client.get(workspace_url, {"section": "fees"})
+        fees_page = client.get(fees_url)
         self.assertEqual(fees_page.status_code, 200)
         self.assertContains(fees_page, 'id="fees"')
         self.assertContains(fees_page, "Add fee")
         self.assertContains(fees_page, "Academic year")
         fee_add = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {
                 "fee_action": "add",
                 "academic_year": str(year.pk),
@@ -299,7 +326,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertEqual(own_fee.amount, 12000)
         self.assertFalse(own_structure.published)
         rejected_fee = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {
                 "fee_action": "add",
                 "academic_year": str(year.pk),
@@ -313,7 +340,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertFalse(FeeItem.objects.filter(item_name="Negative fee").exists())
 
         fee_update = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {
                 "fee_action": "update",
                 "fee_item_id": str(own_fee.pk),
@@ -331,7 +358,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertEqual(own_fee.amount, 15000)
 
         fee_publish = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {"fee_action": "publish", "fee_structure_id": str(own_structure.pk)},
         )
         self.assertEqual(fee_publish.status_code, 302)
@@ -341,7 +368,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         own_structure.refresh_from_db()
         self.assertTrue(own_structure.published)
         fee_unpublish = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {"fee_action": "unpublish", "fee_structure_id": str(own_structure.pk)},
         )
         self.assertEqual(fee_unpublish.status_code, 302)
@@ -366,14 +393,14 @@ class SchoolAdminBackendLoginTests(TestCase):
             amount="20000.00",
         )
         foreign_fee_delete = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {"fee_action": "delete", "fee_item_id": str(foreign_fee.pk)},
         )
         self.assertEqual(foreign_fee_delete.status_code, 302)
         self.assertTrue(FeeItem.objects.filter(pk=foreign_fee.pk).exists())
 
         fee_delete = client.post(
-            workspace_url + "?section=fees",
+            fees_url,
             {"fee_action": "delete", "fee_item_id": str(own_fee.pk)},
         )
         self.assertEqual(fee_delete.status_code, 302)
@@ -381,14 +408,19 @@ class SchoolAdminBackendLoginTests(TestCase):
         approve_latest_content_change()
         self.assertFalse(FeeItem.objects.filter(pk=own_fee.pk).exists())
 
-        photographs_page = client.get(workspace_url, {"section": "photographs"})
+        photographs_page = client.get(
+            reverse(
+                "admin:school_workspace_section",
+                kwargs={"school_slug": own.slug, "section_slug": "photographs"},
+            )
+        )
         self.assertContains(photographs_page, photo.photo_url)
         self.assertContains(photographs_page, "Own campus")
 
-        documents_page = client.get(workspace_url, {"section": "documents"})
+        documents_page = client.get(documents_url)
         self.assertContains(documents_page, brochure.title)
         added_document = client.post(
-            workspace_url + "?section=documents",
+            documents_url,
             {
                 "resource_action": "add",
                 "resource_type": SchoolAdmissionResource.RESOURCE_REQUIRED_DOCUMENT,
@@ -414,7 +446,7 @@ class SchoolAdminBackendLoginTests(TestCase):
         from django.core.files.uploadedfile import SimpleUploadedFile
 
         rejected_upload = client.post(
-            workspace_url + "?section=documents",
+            documents_url,
             {
                 "resource_action": "add",
                 "resource_type": SchoolAdmissionResource.RESOURCE_BROCHURE,
@@ -427,7 +459,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             SchoolAdmissionResource.objects.filter(school=own, title="Invalid brochure").exists()
         )
         removed_document = client.post(
-            workspace_url + "?section=documents",
+            documents_url,
             {"resource_action": "remove", "resource_id": str(brochure.pk)},
         )
         self.assertEqual(removed_document.status_code, 302)
@@ -437,7 +469,12 @@ class SchoolAdminBackendLoginTests(TestCase):
         brochure.refresh_from_db()
         self.assertFalse(brochure.status)
 
-        reviews_page = client.get(workspace_url, {"section": "reviews"})
+        reviews_page = client.get(
+            reverse(
+                "admin:school_workspace_section",
+                kwargs={"school_slug": own.slug, "section_slug": "reviews"},
+            )
+        )
         self.assertContains(reviews_page, review.title)
         self.assertContains(reviews_page, review.body)
         self.assertContains(reviews_page, "view-only")
@@ -565,7 +602,12 @@ class SchoolAdminBackendLoginTests(TestCase):
             amount="100.00",
             provider_order_id="other-admin-payment",
         )
-        subscription_page = client.get(reverse("admin:school_subscriptions"))
+        subscription_page = client.get(
+            reverse(
+                "admin:school_subscription_section",
+                kwargs={"school_slug": own.slug, "section_slug": "plans"},
+            )
+        )
         self.assertEqual(subscription_page.status_code, 200)
         self.assertContains(subscription_page, "Admin Contact Plan")
         self.assertContains(subscription_page, own_payment.provider_order_id)
@@ -578,7 +620,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             slug="own-admin-library",
         )
         turned_on = client.post(
-            workspace_url + "?section=facilities",
+            facilities_url,
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "yes"},
         )
         self.assertEqual(turned_on.status_code, 302)
@@ -588,7 +630,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             ).exists()
         )
         turned_off = client.post(
-            workspace_url + "?section=facilities",
+            facilities_url,
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "no"},
         )
         self.assertEqual(turned_off.status_code, 302)

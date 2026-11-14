@@ -214,17 +214,36 @@ class SchoolContentAdminNavigationTests(SimpleTestCase):
             role=User.ROLE_SCHOOL_ADMIN,
             school_admin_profile=SimpleNamespace(school_id="school-id"),
         )
+        school = SimpleNamespace(slug="school-id", school_name="School")
 
-        facility_response = SchoolFacilityAdmin(
-            SchoolFacility, admin.site
-        ).changelist_view(request)
-        grade_response = SchoolGradeAdmin(
-            SchoolGrade, admin.site
-        ).changelist_view(request)
+        with patch.object(
+            School.objects,
+            "filter",
+            return_value=Mock(first=Mock(return_value=school)),
+        ):
+            facility_response = SchoolFacilityAdmin(
+                SchoolFacility, admin.site
+            ).changelist_view(request)
+            grade_response = SchoolGradeAdmin(
+                SchoolGrade, admin.site
+            ).changelist_view(request)
 
-        self.assertIn("section=facilities", facility_response.url)
-        self.assertIn("section=grades", grade_response.url)
-        self.assertIn("grade_group=EARLY", grade_response.url)
+        self.assertEqual(
+            facility_response.url,
+            reverse("admin:school_workspace_subsection", kwargs={
+                "school_slug": "school-id",
+                "section_slug": "facilities",
+                "subsection_slug": "academic",
+            }),
+        )
+        self.assertEqual(
+            grade_response.url,
+            reverse("admin:school_workspace_subsection", kwargs={
+                "school_slug": "school-id",
+                "section_slug": "grades",
+                "subsection_slug": "early",
+            }),
+        )
 
     def test_platform_facility_and_grade_links_open_the_school_selector(self):
         request = RequestFactory().get("/admin/schools/schoolgrade/")
@@ -239,11 +258,17 @@ class SchoolContentAdminNavigationTests(SimpleTestCase):
 
         self.assertEqual(
             facility_response.url,
-            f"{reverse('admin:school_workspace')}?section=facilities",
+            reverse(
+                "admin:school_workspace_select",
+                kwargs={"section_slug": "facilities"},
+            ),
         )
         self.assertEqual(
             grade_response.url,
-            f"{reverse('admin:school_workspace')}?section=grades",
+            reverse(
+                "admin:school_workspace_select",
+                kwargs={"section_slug": "grades"},
+            ),
         )
 
 
@@ -308,17 +333,24 @@ class SchoolWorkspaceSelectionTests(TestCase):
 
     def test_platform_admin_can_select_school_and_view_facilities(self):
         selector = self.client.get(
-            reverse("admin:school_workspace"),
-            {"section": "facilities"},
+            reverse(
+                "admin:school_workspace_select",
+                kwargs={"section_slug": "facilities"},
+            ),
         )
         self.assertEqual(selector.status_code, 200)
         self.assertContains(selector, self.school.school_name)
         self.assertContains(selector, "Open facilities")
 
-        workspace = self.client.get(
-            reverse("admin:school_workspace"),
-            {"section": "facilities", "school_id": self.school.pk},
+        response = self.client.post(
+            reverse(
+                "admin:school_workspace_select",
+                kwargs={"section_slug": "facilities"},
+            ),
+            {"school_id": self.school.pk},
         )
+        self.assertEqual(response.status_code, 302)
+        workspace = self.client.get(response.url)
         self.assertEqual(workspace.status_code, 200)
         self.assertContains(workspace, "Library")
         self.assertContains(workspace, "Classrooms &amp; laboratories")
@@ -330,7 +362,14 @@ class SchoolWorkspaceSelectionTests(TestCase):
 
     def test_facility_action_keeps_the_selected_school(self):
         response = self.client.post(
-            reverse("admin:school_workspace") + "?section=facilities&campus=ACADEMIC",
+            reverse(
+                "admin:school_workspace_subsection",
+                kwargs={
+                    "school_slug": self.school.slug,
+                    "section_slug": "facilities",
+                    "subsection_slug": "academic",
+                },
+            ),
             {
                 "school_id": self.school.pk,
                 "facility": self.facility.pk,
@@ -340,18 +379,52 @@ class SchoolWorkspaceSelectionTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn(f"school_id={self.school.pk}", response.url)
+        self.assertEqual(
+            response.url,
+            reverse(
+                "admin:school_workspace_subsection",
+                kwargs={
+                    "school_slug": self.school.slug,
+                    "section_slug": "facilities",
+                    "subsection_slug": "academic",
+                },
+            ),
+        )
         workspace = self.client.get(response.url)
         self.assertContains(workspace, self.school.school_name)
 
-    def test_platform_admin_can_select_school_and_view_grades(self):
-        workspace = self.client.get(
+    def test_legacy_query_navigation_redirects_to_clean_school_slug_path(self):
+        response = self.client.get(
             reverse("admin:school_workspace"),
             {
-                "section": "grades",
-                "grade_group": "PRIMARY",
+                "section": "facilities",
+                "campus": "ACADEMIC",
                 "school_id": self.school.pk,
             },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "admin:school_workspace_subsection",
+                kwargs={
+                    "school_slug": self.school.slug,
+                    "section_slug": "facilities",
+                    "subsection_slug": "academic",
+                },
+            ),
+        )
+
+    def test_platform_admin_can_select_school_and_view_grades(self):
+        workspace = self.client.get(
+            reverse(
+                "admin:school_workspace_subsection",
+                kwargs={
+                    "school_slug": self.school.slug,
+                    "section_slug": "grades",
+                    "subsection_slug": "primary",
+                },
+            ),
         )
 
         self.assertEqual(workspace.status_code, 200)

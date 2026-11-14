@@ -7,6 +7,12 @@
 
 {% block content %}
 <div id="content-main">
+  <nav class="be-breadcrumbs" aria-label="{% translate 'Breadcrumb' %}">
+    {% for breadcrumb in breadcrumbs %}
+      {% if not forloop.first %}<span aria-hidden="true">/</span>{% endif %}
+      {% if breadcrumb.url %}<a href="{{ breadcrumb.url }}">{{ breadcrumb.label }}</a>{% else %}<span aria-current="page">{{ breadcrumb.label }}</span>{% endif %}
+    {% endfor %}
+  </nav>
   <section class="be-welcome">
     <div>
       <p class="be-welcome__kicker">{% translate "School admin" %}</p>
@@ -19,7 +25,7 @@
     </div>
     <div class="be-welcome__actions">
       {% if can_select_school %}
-      <a href="{% url 'admin:school_workspace' %}?section=facilities"><strong>{% translate "Choose another school" %}</strong><span>{% translate "Switch school workspace" %}</span></a>
+      <a href="{% url 'admin:school_workspace_select' section_slug='facilities' %}"><strong>{% translate "Choose another school" %}</strong><span>{% translate "Switch school workspace" %}</span></a>
       {% endif %}
       <a href="{{ school_url }}"><strong>{% translate "Edit school profile" %}</strong><span>{% translate "Contact, photos, about" %}</span></a>
       {% if view_public_url %}
@@ -114,7 +120,7 @@
     <p>{% translate "Choose the facilities available at your school. These details help families understand your campus." %}</p>
     <div class="be-campus-tabs">
       {% for group in campus_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?section=facilities&amp;campus={{ group.key }}&amp;school_id={{ school.pk }}#facilities">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="{{ group.url }}">{{ group.label }}</a>
       {% endfor %}
     </div>
     <p>{{ campus_hint }}</p>
@@ -123,7 +129,7 @@
       {% for item in campus_facilities %}
       <li>
         <span>{{ item.name }}</span>
-        <form method="post" action="?section=facilities&amp;campus={{ campus_group }}#facilities">
+        <form method="post" action="{{ workspace_section_url }}">
           {% csrf_token %}
           <input type="hidden" name="school_id" value="{{ school.pk }}">
           <input type="hidden" name="facility" value="{{ item.id }}">
@@ -146,10 +152,10 @@
     <p>{% translate "Grades are the classes this school admits. Seats are optional; leave the field blank if they are not decided yet." %}</p>
     <div class="be-campus-tabs" aria-label="{% translate 'Grade levels' %}">
       {% for group in grade_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?section=grades&amp;grade_group={{ group.key }}&amp;school_id={{ school.pk }}#grades">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="{{ group.url }}">{{ group.label }}</a>
       {% endfor %}
     </div>
-    <form class="be-grade-form" method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
+    <form class="be-grade-form" method="post" action="{{ workspace_section_url }}">
       {% csrf_token %}
       <input type="hidden" name="school_id" value="{{ school.pk }}">
       <input type="hidden" name="grade_group" value="{{ grade_group }}">
@@ -176,7 +182,7 @@
         <tr>
           <td>{{ row.name }}</td>
           <td>
-            <form class="be-grade-seats" method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
+            <form class="be-grade-seats" method="post" action="{{ workspace_section_url }}">
               {% csrf_token %}
               <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="school_grade" value="{{ row.id }}">
@@ -186,7 +192,7 @@
             </form>
           </td>
           <td class="be-table__action">
-            <form method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
+            <form method="post" action="{{ workspace_section_url }}">
               {% csrf_token %}
               <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="school_grade" value="{{ row.id }}">
@@ -209,7 +215,7 @@
     <h3>{% translate "Fees & admissions" %}</h3>
     <p>{% translate "Propose a clear fee schedule for each academic year. A Super Admin must approve additions, edits, removals, and publication before they affect the public profile." %}</p>
     {% if fee_years %}
-    <form class="be-fee-form" method="post" action="?section=fees#fees">
+    <form class="be-fee-form" method="post" action="{{ workspace_section_url }}">
       {% csrf_token %}
       <input type="hidden" name="school_id" value="{{ school.pk }}">
       <label>
@@ -282,7 +288,7 @@
             <span class="be-tag">{% translate "Draft" %}</span>
             {% endif %}
           </div>
-          <form method="post" action="?section=fees#fees">
+          <form method="post" action="{{ workspace_section_url }}">
             {% csrf_token %}
             <input type="hidden" name="school_id" value="{{ school.pk }}">
             <input type="hidden" name="fee_structure_id" value="{{ structure.fee_structure_id }}">
@@ -301,7 +307,7 @@
               <strong>{{ item.item_name }}</strong>
               <span>{{ item.get_item_category_display }} · {{ item.get_payment_frequency_display }}{% if item.grade %} · {{ item.grade.grade_name }}{% endif %} · {% if item.stream %}{{ item.get_stream_display }}{% else %}{% translate "Common / all streams" %}{% endif %}</span>
             </div>
-            <form method="post" action="?section=fees#fees" class="be-fee-item__edit">
+            <form method="post" action="{{ workspace_section_url }}" class="be-fee-item__edit">
               {% csrf_token %}
               <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="fee_item_id" value="{{ item.fee_item_id }}">
@@ -324,7 +330,7 @@
               </label>
               <button type="submit" name="fee_action" value="update" class="be-btn be-btn--ghost">{% translate "Save" %}</button>
             </form>
-            <form method="post" action="?section=fees#fees" class="be-fee-item__delete">
+            <form method="post" action="{{ workspace_section_url }}" class="be-fee-item__delete">
               {% csrf_token %}
               <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="fee_item_id" value="{{ item.fee_item_id }}">
@@ -384,7 +390,7 @@
   <section class="be-panel" id="documents">
     <h3>{% translate "Brochure & admission documents" %}</h3>
     <p>{% translate "Add public links to your school brochure and documents families need for admission." %}</p>
-    <form class="be-resource-form" method="post" action="?section=documents#documents" enctype="multipart/form-data">
+    <form class="be-resource-form" method="post" action="{{ workspace_section_url }}" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="school_id" value="{{ school.pk }}">
       <select name="resource_type" required aria-label="{% translate 'Document type' %}">
@@ -427,7 +433,7 @@
           <td><a href="{{ resource.document_url }}" target="_blank" rel="noopener">{{ resource.title }}</a></td>
           <td>{{ resource.description|default:"—" }}</td>
           <td class="be-table__action">
-            <form method="post" action="?section=documents#documents">
+            <form method="post" action="{{ workspace_section_url }}">
               {% csrf_token %}
               <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="resource_id" value="{{ resource.resource_id }}">

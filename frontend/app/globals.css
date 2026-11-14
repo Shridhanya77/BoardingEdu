@@ -13856,6 +13856,28 @@ select:focus-visible {
   font-size: var(--text-sm);
 }
 
+.dash-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.dash-breadcrumbs a {
+  color: #155e9a;
+  text-decoration: none;
+}
+
+.dash-breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.dash-breadcrumbs__separator {
+  margin-right: 8px;
+  color: #94a3b8;
+}
+
 .dash-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -24383,6 +24405,16 @@ select:focus-visible {
 .sa-top { display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; margin-bottom: 18px; }
 .sa-top h1 { margin: 4px 0; font-size: 1.8rem; }
 .sa-top p, .sa-kicker { margin: 0; color: #52657a; }
+.sa-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+.sa-breadcrumbs a { color: #155e9a; text-decoration: none; }
+.sa-breadcrumbs a:hover { text-decoration: underline; }
 .sa-kicker { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; }
 .sa-top__meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .sa-badge { border-radius: 999px; padding: 6px 10px; font-size: 0.78rem; font-weight: 700; background: #fff4d6; color: #8a5a00; }

@@ -45,8 +45,14 @@ export default function ParentApplicationPage() {
       eyebrow="APPLICATION"
       title={application?.school.school_name || "Application details"}
       subtitle={application ? `${application.enquiry_code} · ${application.application_status_label}` : "Loading this application."}
+      breadcrumbs={[
+        { label: "Home", href: "/" },
+        { label: "Parent dashboard", href: "/dashboard/parent/" },
+        { label: "My applications", href: "/dashboard/parent/applications/" },
+        { label: application?.enquiry_code || "Application details" },
+      ]}
     >
-      <p><Link className="dash-link" href="/dashboard/parent/?section=applications">Back to my applications</Link></p>
+      <p><Link className="dash-link" href="/dashboard/parent/applications/">Back to my applications</Link></p>
       <DashboardState loading={loading} error={error} onRetry={load} />
       {application && (
         <div className="pd-detail">

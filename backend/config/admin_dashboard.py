@@ -19,6 +19,7 @@ from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.http import urlencode
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
@@ -305,7 +306,6 @@ def school_admin_menu(request):
     """Sidebar for a school administrator: their school and the records they can change."""
     school_id = assigned_school_id(request.user)
     school_url = reverse("admin:schools_school_change", args=[school_id])
-    workspace_url = reverse("admin:school_workspace")
     from apps.schools.models import School
 
     school = (
@@ -313,19 +313,18 @@ def school_admin_menu(request):
         .filter(pk=school_id)
         .first()
     )
-    subscription_url = reverse("admin:school_subscriptions")
     entries = [
         ("School profile", school_url, None),
         ("Leads", reverse("admin:admissions_admissionenquiry_changelist"), None),
-        ("Facilities", f"{workspace_url}?section=facilities&campus=ACADEMIC#facilities", None),
-        ("Grades", f"{workspace_url}?section=grades&grade_group=EARLY#grades", None),
-        ("Fees & admissions", f"{workspace_url}?section=fees#fees", None),
-        ("Photographs", f"{workspace_url}?section=photographs#photographs", None),
-        ("Brochure & documents", f"{workspace_url}?section=documents#documents", None),
-        ("Reviews", f"{workspace_url}?section=reviews#reviews", None),
-        ("Subscription plans", f"{subscription_url}?section=plans#plans", None),
-        ("My plan", f"{subscription_url}?section=plan#plan", None),
-        ("Payment history", f"{subscription_url}?section=payments#payments", None),
+        ("Facilities", _school_workspace_section_url("facilities", school, campus="ACADEMIC"), None),
+        ("Grades", _school_workspace_section_url("grades", school, grade_group="EARLY"), None),
+        ("Fees & admissions", _school_workspace_section_url("fees", school), None),
+        ("Photographs", _school_workspace_section_url("photographs", school), None),
+        ("Brochure & documents", _school_workspace_section_url("documents", school), None),
+        ("Reviews", _school_workspace_section_url("reviews", school), None),
+        ("Subscription plans", _school_subscription_section_url(school, "plans"), None),
+        ("My plan", _school_subscription_section_url(school, "plan"), None),
+        ("Payment history", _school_subscription_section_url(school, "payments"), None),
     ]
     if school and school.status and school.verification_status == "VERIFIED":
         entries.insert(1, ("View in public site", public_school_url(school), None))
@@ -334,7 +333,7 @@ def school_admin_menu(request):
     return [{
         "name": "Your school",
         "app_label": "school_admin",
-        "app_url": reverse("admin:school_workspace"),
+        "app_url": _school_workspace_section_url("overview", school),
         "has_module_perms": True,
         "models": [
             {
@@ -350,20 +349,59 @@ def school_admin_menu(request):
     }]
 
 
-def _school_workspace_section_url(section, school_id=None, **params):
-    query = {"section": section, **params}
-    if school_id is not None:
-        query["school_id"] = school_id
-    return f"{reverse('admin:school_workspace')}?{urlencode(query)}#{section}"
+def _school_workspace_section_url(section, school=None, **params):
+    section_slug = slugify(section) or "overview"
+    if school is None:
+        return reverse(
+            "admin:school_workspace_select",
+            kwargs={"section_slug": section_slug},
+        )
+    school_slug = slugify(school.slug or school.school_name)
+    subsection = params.get("campus") or params.get("grade_group")
+    if subsection:
+        return reverse(
+            "admin:school_workspace_subsection",
+            kwargs={
+                "school_slug": school_slug,
+                "section_slug": section_slug,
+                "subsection_slug": slugify(str(subsection)),
+            },
+        )
+    return reverse(
+        "admin:school_workspace_section",
+        kwargs={"school_slug": school_slug, "section_slug": section_slug},
+    )
+
+
+def _school_subscription_section_url(school, section):
+    if school is None:
+        return reverse("admin:school_subscriptions")
+    return reverse(
+        "admin:school_subscription_section",
+        kwargs={
+            "school_slug": slugify(school.slug or school.school_name),
+            "section_slug": slugify(section),
+        },
+    )
 
 
 def _school_workspace_redirect(request, section, **params):
-    school_id = (
-        assigned_school_id(request.user)
-        or request.POST.get("school_id")
-        or request.GET.get("school_id")
+    from apps.schools.models import School
+
+    assigned_id = assigned_school_id(request.user)
+    school_slug = getattr(request.resolver_match, "kwargs", {}).get("school_slug")
+    school = (
+        School.objects.filter(slug=school_slug).first()
+        if school_slug
+        else School.objects.filter(
+            pk=assigned_id
+            or request.POST.get("school_id")
+            or request.GET.get("school_id")
+        ).first()
     )
-    return redirect(_school_workspace_section_url(section, school_id, **params))
+    if assigned_id is not None:
+        school = School.objects.filter(pk=assigned_id).first()
+    return redirect(_school_workspace_section_url(section, school, **params))
 
 
 def _apply_campus_choice(request, school):
@@ -959,7 +997,7 @@ def _clean_seats(raw):
     return value, False
 
 
-def school_workspace(request):
+def school_workspace(request, school_slug=None, section_slug=None, subsection_slug=None):
     """Workspace for school administrators and platform staff managing a school."""
     from apps.admissions.models import AdmissionEnquiry
     from apps.reviews.models import Review
@@ -978,22 +1016,47 @@ def school_workspace(request):
     if assigned_id is not None:
         school_id = assigned_id
     elif request.user.is_staff or request.user.is_superuser:
-        school_id = (
-            request.POST.get("school_id")
-            if request.method == "POST"
-            else request.GET.get("school_id")
-        )
+        if school_slug:
+            school_id = School.objects.filter(slug=school_slug).values_list("pk", flat=True).first()
+        else:
+            school_id = request.POST.get("school_id") if request.method == "POST" else request.GET.get("school_id")
     else:
         return redirect("admin:index")
 
-    active_section = request.GET.get("section") or "overview"
+    active_section = slugify(section_slug or request.GET.get("section") or "overview")
     selection_section = (
         active_section if active_section in {"facilities", "grades"} else "facilities"
     )
+    if request.method == "POST" and not school_slug and school_id:
+        try:
+            selected_school = School.objects.filter(
+                pk=uuid.UUID(str(school_id))
+            ).first()
+        except (TypeError, ValueError, AttributeError):
+            selected_school = None
+        if selected_school is None:
+            messages.error(request, "Select a valid school to manage.")
+        else:
+            return redirect(
+                _school_workspace_section_url(selection_section, selected_school)
+            )
     if not school_id:
+        if not section_slug and request.GET.get("section") in {"facilities", "grades"}:
+            return redirect(
+                "admin:school_workspace_select",
+                section_slug=selection_section,
+            )
         if active_section not in {"facilities", "grades"}:
             return redirect("admin:index")
         schools = School.objects.select_related("city", "state").order_by("school_name")
+        school_choices = [
+            {
+                "school": row,
+                "facilities_url": _school_workspace_section_url("facilities", row),
+                "grades_url": _school_workspace_section_url("grades", row),
+            }
+            for row in schools
+        ]
         return render(
             request,
             "admin/school_workspace_select.html",
@@ -1001,7 +1064,7 @@ def school_workspace(request):
                 **admin.site.each_context(request),
                 "title": "Choose a school",
                 "section": selection_section,
-                "schools": schools,
+                "school_choices": school_choices,
             },
         )
 
@@ -1016,7 +1079,14 @@ def school_workspace(request):
                 **admin.site.each_context(request),
                 "title": "Choose a school",
                 "section": selection_section,
-                "schools": School.objects.select_related("city", "state").order_by("school_name"),
+                "school_choices": [
+                    {
+                        "school": row,
+                        "facilities_url": _school_workspace_section_url("facilities", row),
+                        "grades_url": _school_workspace_section_url("grades", row),
+                    }
+                    for row in School.objects.select_related("city", "state").order_by("school_name")
+                ],
             },
         )
 
@@ -1044,8 +1114,39 @@ def school_workspace(request):
                 **admin.site.each_context(request),
                 "title": "Choose a school",
                 "section": selection_section,
-                "schools": School.objects.select_related("city", "state").order_by("school_name"),
+                "school_choices": [
+                    {
+                        "school": row,
+                        "facilities_url": _school_workspace_section_url("facilities", row),
+                        "grades_url": _school_workspace_section_url("grades", row),
+                    }
+                    for row in School.objects.select_related("city", "state").order_by("school_name")
+                ],
             },
+        )
+    if assigned_id is not None and school_slug and school.slug != school_slug:
+        return redirect(_school_workspace_section_url(active_section, school))
+    legacy_query = any(
+        key in request.GET
+        for key in ("section", "campus", "grade_group", "school_id")
+    )
+    if request.method == "GET" and not school_slug and legacy_query:
+        return redirect(
+            _school_workspace_section_url(
+                active_section,
+                school,
+                campus=request.GET.get("campus"),
+                grade_group=request.GET.get("grade_group"),
+            )
+        )
+    if request.method == "GET" and assigned_id is not None and not school_slug:
+        return redirect(
+            _school_workspace_section_url(
+                active_section,
+                school,
+                campus=subsection_slug if active_section == "facilities" else None,
+                grade_group=subsection_slug if active_section == "grades" else None,
+            )
         )
     if request.method == "POST":
         if request.POST.get("fee_action"):
@@ -1094,7 +1195,11 @@ def school_workspace(request):
     }
     if active_section not in allowed_sections:
         active_section = "overview"
-    campus_group = (request.GET.get("campus") or "ACADEMIC").upper()
+    campus_group = (
+        (subsection_slug or request.GET.get("campus") or "ACADEMIC")
+        .replace("-", "_")
+        .upper()
+    )
     campus_labels = {key: (label, hint) for key, label, hint in CAMPUS_GROUPS}
     if campus_group not in campus_labels:
         campus_group = "ACADEMIC"
@@ -1118,7 +1223,11 @@ def school_workspace(request):
         for row in offered_grades
     ]
     offered_ids = {row.grade_id for row in offered_grades}
-    grade_group = (request.GET.get("grade_group") or "EARLY").upper()
+    grade_group = (
+        (subsection_slug or request.GET.get("grade_group") or "EARLY")
+        .replace("-", "_")
+        .upper()
+    )
     if grade_group not in {key for key, _label in GRADE_GROUPS}:
         grade_group = "EARLY"
     grade_catalog = _grade_catalog_rows(
@@ -1162,17 +1271,16 @@ def school_workspace(request):
     reviews = list(review_queryset.order_by("-created_at")[:50])
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
-    workspace_school_id = school.pk if assigned_id is None else None
     section_urls = {
-        "fees": _school_workspace_section_url("fees", workspace_school_id),
-        "campus": _school_workspace_section_url("facilities", workspace_school_id),
-        "sports": _school_workspace_section_url("facilities", workspace_school_id, campus="SPORTS"),
-        "hostel": _school_workspace_section_url("facilities", workspace_school_id, campus="ACCOMMODATION"),
-        "dining": _school_workspace_section_url("facilities", workspace_school_id, campus="DINING"),
-        "healthcare": _school_workspace_section_url("facilities", workspace_school_id, campus="HEALTH"),
-        "safety": _school_workspace_section_url("facilities", workspace_school_id, campus="SAFETY"),
-        "transport": _school_workspace_section_url("facilities", workspace_school_id, campus="TRANSPORT"),
-        "academics": _school_workspace_section_url("grades", workspace_school_id),
+        "fees": _school_workspace_section_url("fees", school),
+        "campus": _school_workspace_section_url("facilities", school),
+        "sports": _school_workspace_section_url("facilities", school, campus="SPORTS"),
+        "hostel": _school_workspace_section_url("facilities", school, campus="ACCOMMODATION"),
+        "dining": _school_workspace_section_url("facilities", school, campus="DINING"),
+        "healthcare": _school_workspace_section_url("facilities", school, campus="HEALTH"),
+        "safety": _school_workspace_section_url("facilities", school, campus="SAFETY"),
+        "transport": _school_workspace_section_url("facilities", school, campus="TRANSPORT"),
+        "academics": _school_workspace_section_url("grades", school),
     }
     gaps = [
         {
@@ -1190,6 +1298,21 @@ def school_workspace(request):
         **admin.site.each_context(request),
         "title": school.school_name,
         "school": school,
+        "breadcrumbs": [
+            {"label": school.school_name, "url": _school_workspace_section_url("overview", school)},
+            {
+                "label": {
+                    "overview": "Overview",
+                    "facilities": "Facilities",
+                    "grades": "Grades",
+                    "fees": "Fees & admissions",
+                    "photographs": "Photographs",
+                    "documents": "Documents",
+                    "reviews": "Reviews",
+                }.get(active_section, active_section.replace("-", " ").title()),
+                "url": "",
+            },
+        ],
         "view_public_url": (
             public_school_url(school)
             if school.status and school.verification_status == "VERIFIED"
@@ -1221,24 +1344,41 @@ def school_workspace(request):
         "school_url": school_url,
         "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
         "facilities_url": _school_workspace_section_url(
-            "facilities", workspace_school_id, campus=campus_group
+            "facilities", school, campus=campus_group
         ),
         "grades_url": _school_workspace_section_url(
-            "grades", workspace_school_id, grade_group=grade_group
+            "grades", school, grade_group=grade_group
         ),
-        "fees_url": _school_workspace_section_url("fees", workspace_school_id),
-        "photos_url": _school_workspace_section_url("photographs", workspace_school_id),
-        "documents_url": _school_workspace_section_url("documents", workspace_school_id),
-        "reviews_url": _school_workspace_section_url("reviews", workspace_school_id),
+        "fees_url": _school_workspace_section_url("fees", school),
+        "photos_url": _school_workspace_section_url("photographs", school),
+        "documents_url": _school_workspace_section_url("documents", school),
+        "reviews_url": _school_workspace_section_url("reviews", school),
+        "overview_url": _school_workspace_section_url("overview", school),
+        "workspace_section_url": _school_workspace_section_url(
+            active_section,
+            school,
+            campus=campus_group if active_section == "facilities" else None,
+            grade_group=grade_group if active_section == "grades" else None,
+        ),
         "can_select_school": assigned_id is None,
-        "subscription_url": reverse("admin:school_subscriptions"),
+        "subscription_url": _school_subscription_section_url(school, "plans"),
         "grade_group": grade_group,
         "grade_groups": [
-            {"key": key, "label": label, "active": key == grade_group}
+            {
+                "key": key,
+                "label": label,
+                "active": key == grade_group,
+                "url": _school_workspace_section_url("grades", school, grade_group=key),
+            }
             for key, label in GRADE_GROUPS
         ],
         "campus_groups": [
-            {"key": key, "label": label, "active": key == campus_group}
+            {
+                "key": key,
+                "label": label,
+                "active": key == campus_group,
+                "url": _school_workspace_section_url("facilities", school, campus=key),
+            }
             for key, label, _hint in CAMPUS_GROUPS
         ],
         "campus_group": campus_group,
@@ -1317,20 +1457,41 @@ def _grade_catalog_rows(grades, offered_ids, grade_group):
     return catalog
 
 
-def school_subscription_page(request):
+def school_subscription_page(request, school_slug=None, section_slug=None):
     """Read-only plan, subscription, and payment details for one school."""
     from apps.schools.models import School
     from apps.subscriptions.access import current_subscription
     from apps.subscriptions.models import SchoolSubscription, SubscriptionPayment, SubscriptionPlan
 
     school_id = assigned_school_id(request.user)
-    if school_id is None:
+    if school_id is not None:
+        school = School.objects.filter(pk=school_id).first()
+    elif (request.user.is_staff or request.user.is_superuser) and school_slug:
+        school = School.objects.filter(slug=school_slug).first()
+    else:
+        school = None
+    if school is None:
         return redirect("admin:index")
-    school = School.objects.get(pk=school_id)
+    section_slug = section_slug or "plans"
+    if request.method == "GET" and school_slug != school.slug:
+        return redirect(_school_subscription_section_url(school, section_slug))
     context = {
         **admin.site.each_context(request),
         "title": f"Subscription · {school.school_name}",
         "school": school,
+        "workspace_url": _school_workspace_section_url("overview", school),
+        "subscription_url": _school_subscription_section_url(school, section_slug),
+        "breadcrumbs": [
+            {"label": school.school_name, "url": _school_workspace_section_url("overview", school)},
+            {
+                "label": {
+                    "plans": "Subscription plans",
+                    "plan": "My plan",
+                    "payments": "Payment history",
+                }.get(section_slug, "Subscription"),
+                "url": "",
+            },
+        ],
         "plans": SubscriptionPlan.objects.filter(status=True),
         "subscriptions": SchoolSubscription.objects.filter(school=school)
         .select_related("plan")
@@ -1393,6 +1554,26 @@ def install_admin_dashboard():
 
     def get_urls():
         return [
+            path(
+                "school-workspace/select/<slug:section_slug>/",
+                admin.site.admin_view(school_workspace),
+                name="school_workspace_select",
+            ),
+            path(
+                "school-workspace/<slug:school_slug>/<slug:section_slug>/<slug:subsection_slug>/",
+                admin.site.admin_view(school_workspace),
+                name="school_workspace_subsection",
+            ),
+            path(
+                "school-workspace/<slug:school_slug>/<slug:section_slug>/",
+                admin.site.admin_view(school_workspace),
+                name="school_workspace_section",
+            ),
+            path(
+                "school-subscriptions/<slug:school_slug>/<slug:section_slug>/",
+                admin.site.admin_view(school_subscription_page),
+                name="school_subscription_section",
+            ),
             path(
                 "school-workspace/",
                 admin.site.admin_view(school_workspace),

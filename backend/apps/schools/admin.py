@@ -404,10 +404,12 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         return render_fee_structures_panel(obj)
 
     @admin.display(description="Fee management")
-    def school_admin_fee_workspace_link(self, _obj):
+    def school_admin_fee_workspace_link(self, obj):
+        from config.admin_dashboard import _school_workspace_section_url
+
         return format_html(
-            '<a class="button" href="{}?section=fees#fees">Manage fees in the school workspace</a>',
-            reverse("admin:school_workspace"),
+            '<a class="button" href="{}">Manage fees in the school workspace</a>',
+            _school_workspace_section_url("fees", obj),
         )
 
     @admin.display(description="Logo preview")
@@ -940,12 +942,16 @@ class SchoolFacilityAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     )
 
     def changelist_view(self, request, extra_context=None):
+        from config.admin_dashboard import _school_workspace_section_url
+
         school_id = assigned_school_id(request.user)
         if school_id is not None:
-            return redirect(
-                f"{reverse('admin:school_workspace')}?section=facilities&campus=ACADEMIC#facilities"
-            )
-        return redirect(f"{reverse('admin:school_workspace')}?section=facilities")
+            return redirect(_school_workspace_section_url(
+                "facilities",
+                School.objects.filter(pk=school_id).first(),
+                campus="ACADEMIC",
+            ))
+        return redirect(_school_workspace_section_url("facilities"))
 
 
 @admin.register(SchoolGrade)
@@ -983,9 +989,13 @@ class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     list_select_related = ("school", "grade")
 
     def changelist_view(self, request, extra_context=None):
+        from config.admin_dashboard import _school_workspace_section_url
+
         school_id = assigned_school_id(request.user)
         if school_id is not None:
-            return redirect(
-                f"{reverse('admin:school_workspace')}?section=grades&grade_group=EARLY#grades"
-            )
-        return redirect(f"{reverse('admin:school_workspace')}?section=grades")
+            return redirect(_school_workspace_section_url(
+                "grades",
+                School.objects.filter(pk=school_id).first(),
+                grade_group="EARLY",
+            ))
+        return redirect(_school_workspace_section_url("grades"))

@@ -128,6 +128,25 @@
 }
 
 /* ---------------- Welcome desk ---------------- */
+.be-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.be-breadcrumbs a {
+  color: #145da0;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.be-breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
 .be-welcome {
   display: grid;
   gap: 18px;

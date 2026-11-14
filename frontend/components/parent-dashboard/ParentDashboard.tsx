@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Bookmark, Check, FileText, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
 import {
@@ -97,10 +97,10 @@ export function AdmissionProgress({ status }: { status: string }) {
 }
 
 export default function ParentDashboard() {
-  const params = useSearchParams();
+  const pathname = usePathname();
   const router = useRouter();
-  const requested = params.get("section");
-  const section: SectionId = SECTIONS.some(([id]) => id === requested) ? (requested as SectionId) : "dashboard";
+  const requested = pathname.split("/").filter(Boolean)[2];
+  const section: SectionId = SECTIONS.find(([id]) => id === requested)?.[0] ?? "dashboard";
   const { data, loading, error, reload } = useDashboardData(dashboards.parent);
   const [applications, setApplications] = useState<ParentApplication[] | null>(null);
   const [profile, setProfile] = useState<ParentProfileData | null>(null);
@@ -126,7 +126,7 @@ export default function ParentDashboard() {
   }, [section, data]);
 
   function openSection(next: SectionId) {
-    router.replace(next === "dashboard" ? "/dashboard/parent/" : `/dashboard/parent/?section=${next}`);
+    router.push(next === "dashboard" ? "/dashboard/parent/" : `/dashboard/parent/${next}/`);
   }
 
   return (
@@ -135,6 +135,13 @@ export default function ParentDashboard() {
       eyebrow="PARENT DASHBOARD"
       title="Track your admission applications"
       subtitle="See every school you have applied to, school updates, and documents still needed."
+      breadcrumbs={[
+        { label: "Home", href: "/" },
+        { label: "Parent dashboard", href: "/dashboard/parent/" },
+        ...(section === "dashboard"
+          ? [{ label: "Overview" }]
+          : [{ label: SECTIONS.find(([id]) => id === section)?.[1] ?? "Dashboard" }]),
+      ]}
     >
       <nav className="pd-nav" aria-label="Parent dashboard">
         {SECTIONS.map(([id, label]) => (
@@ -166,7 +173,7 @@ export default function ParentDashboard() {
           <DashboardPanel
             title="Recently viewed schools"
             subtitle="Pick up where you left off in your school search."
-            action={<Link className="dash-link" href="/dashboard/parent/?section=recent">View all</Link>}
+            action={<Link className="dash-link" href="/dashboard/parent/recent/">View all</Link>}
           >
             <RecentSchoolsPanel
               schools={data.recently_viewed_schools.slice(0, 4)}
@@ -321,7 +328,7 @@ function ApplicationList({
     <DashboardPanel
       title={maxRows ? "Application progress" : "My applications"}
       subtitle="Track each school's updates, next steps, and document requests."
-      action={maxRows ? <Link className="dash-link" href="/dashboard/parent/?section=applications">View all</Link> : undefined}
+      action={maxRows ? <Link className="dash-link" href="/dashboard/parent/applications/">View all</Link> : undefined}
     >
       {showFilters && applications && (
         <div className="pd-app-filters" aria-label="Filter applications">
@@ -535,7 +542,7 @@ function Shortlist({
   return (
     <DashboardPanel
       title="Shortlisted schools"
-      action={<Link className="dash-link" href="/compare?source=shortlist">Compare schools</Link>}
+      action={<Link className="dash-link" href="/dashboard/parent/compare/">Compare schools</Link>}
     >
       <ul className="dash-cards">
         {data.shortlist.filter((item) => !removed[item.school_id]).map((item) => (
