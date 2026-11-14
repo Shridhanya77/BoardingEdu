@@ -4,6 +4,24 @@ import django.core.validators
 from django.db import migrations, models
 
 
+class AddFieldIfMissing(migrations.AddField):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.model_name)
+        if not self.allow_migrate_model(schema_editor.connection.alias, model):
+            return
+
+        with schema_editor.connection.cursor() as cursor:
+            columns = schema_editor.connection.introspection.get_table_description(
+                cursor,
+                model._meta.db_table,
+            )
+        field = model._meta.get_field(self.name)
+        if any(column.name == field.column for column in columns):
+            return
+
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,7 +29,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        AddFieldIfMissing(
             model_name='school',
             name='student_teacher_ratio',
             field=models.PositiveSmallIntegerField(blank=True, help_text='Enter students per teacher; the public profile displays this as N:1.', null=True, validators=[django.core.validators.MinValueValidator(1)], verbose_name='Students per teacher'),
