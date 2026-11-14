@@ -103,27 +103,35 @@ export function schoolSearchPath(query: string): string {
 }
 
 /**
- * Geographical listing URL. School type is the trailing path segment.
+ * Geographical listing URL. School category is represented by the trailing path segment.
  *   /india/
  *   /india/maharashtra/
  *   /india/maharashtra/panchgani/
  *   /india/maharashtra/pune/kothrud/
  *   /india/maharashtra/boarding-schools/
+ *   /india/maharashtra/day-boarding-schools/
  */
 export function placeListingPath(parts: {
   countrySlug: string;
   stateSlug?: string | null;
   citySlug?: string | null;
   locationSlug?: string | null;
-  category?: HomeSchoolCategory | null;
+  category?: HomeSchoolCategory | "day-boarding-school" | null;
 }): string {
   const slugs = [
     parts.countrySlug,
     parts.stateSlug,
     parts.citySlug,
     parts.locationSlug,
-  ].filter((slug): slug is string => Boolean(slug)).map(toSeoSlug);
-  return withCategorySegment(`/${slugs.join("/")}`, parts.category);
+  ]
+    .filter((slug): slug is string => Boolean(slug))
+    .map(toSeoSlug)
+    .filter(Boolean);
+  const path = `/${slugs.join("/")}`;
+  if (parts.category === "day-boarding-school") {
+    return `${withTrailingSlash(path)}day-boarding-schools/`;
+  }
+  return withCategorySegment(path, parts.category);
 }
 
 /**

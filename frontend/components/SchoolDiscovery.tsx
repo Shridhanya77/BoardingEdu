@@ -52,6 +52,7 @@ import type {
   SchoolFilters,
   SchoolListItem,
   SchoolTypeListItem,
+  StateListItem,
   GuideSummary as ApiGuideSummary,
 } from "@/lib/api";
 import FeeRangeFilter from "@/components/search/FeeRangeFilter";
@@ -95,6 +96,13 @@ function boardSymbol(boardCode: string, boardName: string) {
   if (identifier.includes("NIOS")) return <Building2 size={34} strokeWidth={1.8} />;
   if (identifier.includes("FINLAND")) return <Star size={34} strokeWidth={1.8} />;
   return <BookOpen size={34} strokeWidth={1.8} />;
+}
+
+function boardBadgeCode(boardCode: string, boardName: string) {
+  return (boardCode.trim() || boardName)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 7);
 }
 
 function listingGradeRangeLabel(gradesRange: string): string {
@@ -756,6 +764,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citiesError, setCitiesError] = useState<string | null>(null);
   const [citiesRetry, setCitiesRetry] = useState(0);
+  const [states, setStates] = useState<StateListItem[]>([]);
+  const [statesLoading, setStatesLoading] = useState(isHomePage);
+  const [statesError, setStatesError] = useState<string | null>(null);
+  const [statesRetry, setStatesRetry] = useState(0);
   const [locations, setLocations] = useState<LocationListItem[]>([]);
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const [schoolFaqs, setSchoolFaqs] = useState<SchoolFAQListItem[]>([]);
@@ -1392,24 +1404,39 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
    * Rendered above Top cities so parents can zoom out before picking a city.
    */
   const rankedStates = useMemo(() => {
-    const grouped = new Map<string, StateBrowseItem & { featured: number }>();
+    const grouped = new Map<
+      string,
+      { count: number; featured: number; countrySlug: string }
+    >();
     for (const city of cities) {
-      const count = city.schools_count ?? 0;
       const current = grouped.get(city.state_id) ?? {
-        state_id: city.state_id,
-        state_name: city.state_name,
-        state_slug: city.state_slug ?? city.state_name,
-        country_slug: city.country_slug ?? city.country_name,
         count: 0,
         featured: 0,
+        countrySlug: city.country_slug ?? toSeoSlug(city.country_name),
       };
-      current.count += count;
+      current.count += city.schools_count ?? 0;
       current.featured += city.featured_schools_count ?? 0;
       grouped.set(city.state_id, current);
     }
-    return [...grouped.values()]
-      .sort((left, right) => right.featured - left.featured || right.count - left.count || left.state_name.localeCompare(right.state_name));
-  }, [cities]);
+    return states
+      .flatMap((state) => {
+        const totals = grouped.get(state.state_id);
+        if (!totals) return [];
+        return [{
+          state_id: state.state_id,
+          state_name: state.state_name,
+          state_slug: state.slug,
+          country_slug: totals.countrySlug,
+          count: totals.count,
+          featured: totals.featured,
+        }];
+      })
+      .sort((left, right) =>
+        right.featured - left.featured ||
+        right.count - left.count ||
+        left.state_name.localeCompare(right.state_name),
+      );
+  }, [cities, states]);
   const stateCards = useMemo(
     () => rankedStates.filter((state) => state.count > 0).slice(0, 8),
     [rankedStates],
@@ -2159,6 +2186,38 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       cancelled = true;
     };
   }, [citiesRetry]);
+
+  useEffect(() => {
+    if (!isHomePage) {
+      setStatesLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setStatesLoading(true);
+    setStatesError(null);
+    geography
+      .states()
+      .then((response) => fetchAllPages(response))
+      .then((rows) => {
+        if (!cancelled) setStates(rows.filter((state) => state.status));
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setStates([]);
+          setStatesError(
+            reason instanceof Error ? reason.message : "Could not load states.",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStatesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isHomePage, statesRetry]);
 
   useEffect(() => {
     if (!isBoardingOnlySelection(schoolType, schoolTypes)) return;
@@ -3181,7 +3240,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
-      {stateCards.length > 0 && (
+      {(stateCards.length > 0 || statesLoading || statesError) && (
         <section className="home-section home-section--states" id="states">
           <div className="home-section__heading">
             <div>
@@ -3191,45 +3250,56 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </div>
           </div>
 
-          <div
-            className="city-grid"
-            role="region"
-            aria-label="Top states, scroll horizontally to see more"
-            tabIndex={0}
-          >
-            {stateCards.map((state, index) => (
-              <Link
-                className={`city-card state-city-trigger city-card--${index + 1}`}
-                key={state.state_id}
-                href={placeListingPath({
-                  countrySlug: state.country_slug,
-                  stateSlug: state.state_slug,
-                })}
-                onClick={(event) => {
-                  event.preventDefault();
-                  openTypePicker({
-                    title: `Schools in ${state.state_name}`,
-                    subtitle: "Choose the school type you want to explore.",
-                    hrefFor: (category) => placeListingPath({
-                      countrySlug: state.country_slug,
-                      stateSlug: state.state_slug,
-                      category,
-                    }),
-                    showAllOption: false,
-                  });
-                }}
-                style={{ background: placeBackdrop(state.state_slug) }}
-                aria-label={`${state.state_name}, ${state.count} schools listed`}
-              >
-                <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
-                <span className="city-card__name">{state.state_name}</span>
-                <span className="city-card__state">{state.count} schools listed</span>
-                <span className="city-card__action">
-                  View schools <ArrowRight size={14} aria-hidden />
-                </span>
-              </Link>
-            ))}
-          </div>
+          {statesError && (
+            <p className="section-error" role="alert">
+              States unavailable: {statesError}{" "}
+              <button type="button" onClick={() => setStatesRetry((count) => count + 1)}>
+                Retry
+              </button>
+            </p>
+          )}
+          {statesLoading && <p className="section-empty" role="status">Loading states…</p>}
+          {stateCards.length > 0 && (
+            <div
+              className="city-grid"
+              role="region"
+              aria-label="Top states, scroll horizontally to see more"
+              tabIndex={0}
+            >
+              {stateCards.map((state, index) => (
+                <Link
+                  className={`city-card state-city-trigger city-card--${index + 1}`}
+                  key={state.state_id}
+                  href={placeListingPath({
+                    countrySlug: state.country_slug,
+                    stateSlug: state.state_slug,
+                  })}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openTypePicker({
+                      title: `Schools in ${state.state_name}`,
+                      subtitle: "Choose the school type you want to explore.",
+                      hrefFor: (category) => placeListingPath({
+                        countrySlug: state.country_slug,
+                        stateSlug: state.state_slug,
+                        category,
+                      }),
+                      showAllOption: false,
+                    });
+                  }}
+                  style={{ background: placeBackdrop(state.state_slug) }}
+                  aria-label={`${state.state_name}, ${state.count} schools listed`}
+                >
+                  <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="city-card__name">{state.state_name}</span>
+                  <span className="city-card__state">{state.count} schools listed</span>
+                  <span className="city-card__action">
+                    View schools <ArrowRight size={14} aria-hidden />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
           <div className="home-section__more">
             <button type="button" className="secondary-button" onClick={() => setAllStatesOpen(true)}>
               Explore All States
@@ -3492,7 +3562,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     }}
                   >
                     <span className="board-card__mark" aria-hidden="true">
-                      {boardSymbol(boardItem.board_code, boardItem.board_name)}
+                      <span className={`board-card__seal board-card__seal--${boardGroup(boardItem)}`}>
+                        <span className="board-card__seal-icon">
+                          {boardSymbol(boardItem.board_code, boardItem.board_name)}
+                        </span>
+                        <span className="board-card__seal-code">
+                          {boardBadgeCode(boardItem.board_code, boardItem.board_name)}
+                        </span>
+                      </span>
                     </span>
                     <span className="board-card__name">{boardItem.board_name}</span>
 
@@ -4431,11 +4508,22 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               <span className="sr-only">Search states</span>
               <input type="search" value={allStateQuery} onChange={(event) => setAllStateQuery(event.target.value)} placeholder="Search states" />
             </label>
-            <p className="state-explorer__result-count" role="status" aria-live="polite">
-              Showing {visibleStates.length} {visibleStates.length === 1 ? "state" : "states"} with school listings
-            </p>
+            {!statesLoading && !statesError && (
+              <p className="state-explorer__result-count" role="status" aria-live="polite">
+                Showing {visibleStates.length} {visibleStates.length === 1 ? "state" : "states"} with school listings
+              </p>
+            )}
             <div className="state-explorer__cities">
-              {visibleStates.map((state) => (
+              {statesLoading && <p className="section-empty" role="status">Loading states…</p>}
+              {statesError && (
+                <p className="section-error" role="alert">
+                  States could not be loaded: {statesError}{" "}
+                  <button type="button" onClick={() => setStatesRetry((count) => count + 1)}>
+                    Retry
+                  </button>
+                </p>
+              )}
+              {!statesLoading && !statesError && visibleStates.map((state) => (
                 <Link
                   key={state.state_id}
                   className="state-city-card"
@@ -4464,7 +4552,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   </div>
                 </Link>
               ))}
-              {!visibleStates.length && <p className="state-explorer__empty">No states match that search.</p>}
+              {!statesLoading && !statesError && !visibleStates.length && (
+                <p className="state-explorer__empty">No states match that search.</p>
+              )}
             </div>
           </section>
         </div>

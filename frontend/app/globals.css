@@ -5517,13 +5517,13 @@ select:focus-visible {
   padding: 4px;
   background: #eaf4ff;
   border-color: #bfdbfe;
-  box-shadow: 0 8px 20px rgb(23 69 107 / 18%), 0 0 0 5px rgb(59 130 246 / 11%);
+  box-shadow: 0 8px 20px rgb(11 31 54 / 22%), 0 0 0 5px rgb(11 31 54 / 16%);
 }
 
 .site-header--hero.site-header--scrolled .brand:hover {
   background: #dceeff;
-  border-color: #93c5fd;
-  box-shadow: 0 10px 24px rgb(23 69 107 / 24%), 0 0 0 6px rgb(59 130 246 / 14%);
+  border-color: #7f9bb5;
+  box-shadow: 0 10px 24px rgb(11 31 54 / 28%), 0 0 0 6px rgb(11 31 54 / 18%);
   transform: translateY(-1px);
 }
 
@@ -6678,15 +6678,73 @@ select:focus-visible {
 
 .board-card__mark {
   width: 100%;
-  min-height: 74px;
-  padding: 18px 12px;
+  min-height: 100px;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #17456b;
+  background: transparent;
+}
+
+.board-card__seal {
+  position: relative;
+  width: 82px;
+  height: 82px;
   display: grid;
-  flex: 1;
   place-items: center;
-  color: #fff;
-  background: var(--board-color, #2142ad);
-  font-size: 21px;
-  letter-spacing: .04em;
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fff, #edf3f8);
+  box-shadow: 0 6px 18px rgb(3 19 36 / 20%), inset 0 0 0 5px #f7fafc;
+}
+
+.board-card__seal::before {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgb(23 69 107 / 32%);
+  border-radius: 50%;
+  content: "";
+}
+
+.board-card__seal--national {
+  --seal-ink: #17456b;
+  --seal-accent: #e8650f;
+}
+
+.board-card__seal--international {
+  --seal-ink: #2d577d;
+  --seal-accent: #3b7d75;
+}
+
+.board-card__seal--other {
+  --seal-ink: #4a5870;
+  --seal-accent: #b95730;
+}
+
+.board-card__seal-icon {
+  display: grid;
+  place-items: center;
+  color: var(--seal-ink, #17456b);
+  transform: translateY(-5px);
+}
+
+.board-card__seal-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.board-card__seal-code {
+  position: absolute;
+  bottom: 11px;
+  max-width: 60px;
+  overflow: hidden;
+  color: var(--seal-accent, #e8650f);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .07em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .board-card__name {
@@ -22580,7 +22638,15 @@ select:focus-visible {
 
 @media (min-width: 1201px) {
   .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+    grid-column: 4;
+    grid-row: 1;
+    max-height: 440px;
+    overflow-y: auto;
+    position: static;
   }
 
   .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
@@ -25701,19 +25767,19 @@ select:focus-visible {
     grid-column: 2;
   }
   .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    max-height: none;
-    overflow: visible;
+    grid-column: 4;
+    grid-row: 1;
+    max-height: 440px;
+    overflow-y: auto;
     position: static;
   }
   .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
   }
 }
@@ -25732,10 +25798,10 @@ select:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    max-height: none;
-    overflow: visible;
+    grid-column: 2;
+    grid-row: 1;
+    max-height: 440px;
+    overflow-y: auto;
   }
   .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
     grid-column: auto;

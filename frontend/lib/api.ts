@@ -635,6 +635,7 @@ export const schools = {
 // ---------- Geography (cascading dropdowns) ----------
 export const geography = {
   countries: () => request<PaginatedResponse<CountryListItem>>("/geography/countries/"),
+  states: () => request<PaginatedResponse<StateListItem>>("/geography/states/"),
   cities: () => request<PaginatedResponse<CityListItem>>("/geography/cities/"),
   locations: () => request<PaginatedResponse<LocationListItem>>("/geography/locations/"),
   statesOf: (countryId: string) =>

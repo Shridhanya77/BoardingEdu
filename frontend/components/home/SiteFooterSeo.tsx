@@ -9,13 +9,8 @@ import type {
   CityListItem,
   CountryListItem,
   LocationListItem,
-  SchoolTypeListItem,
 } from "@/lib/api";
-import {
-  homeSchoolCategories,
-  toSeoSlug,
-  type HomeSchoolCategory,
-} from "@/lib/seo-slugs";
+import { toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
 import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 
@@ -24,7 +19,6 @@ type Props = {
   boards?: BoardListItem[];
   countries?: CountryListItem[];
   locations?: LocationListItem[];
-  schoolTypes?: SchoolTypeListItem[];
   dataError?: string | null;
   showCallbackDock?: boolean;
 };
@@ -32,14 +26,14 @@ type Props = {
 type Category = {
   key: "day-school" | "boarding-school" | "day-boarding-school";
   label: string;
-  category: HomeSchoolCategory | null;
+  category: HomeSchoolCategory | "day-boarding-school";
   accent: string;
 };
 
 const CATEGORIES: Category[] = [
   { key: "day-school", label: "Day Schools", category: "day-school", accent: "#17456b" },
   { key: "boarding-school", label: "Boarding Schools", category: "residential-school", accent: "#e8650f" },
-  { key: "day-boarding-school", label: "Day Boarding Schools", category: null, accent: "#2e7d32" },
+  { key: "day-boarding-school", label: "Day Boarding Schools", category: "day-boarding-school", accent: "#2e7d32" },
 ];
 
 const TOP_STATE_LIMIT = 8;
@@ -67,34 +61,19 @@ function uniqueBy<T>(items: T[], keyOf: (item: T) => string): T[] {
 function categoryHref(
   cat: Category,
   pathParts: { countrySlug: string; stateSlug?: string | null; citySlug?: string | null },
-  dayBoardingTypeIds: string[],
 ): string {
-  if (cat.category) {
-    return placeListingPath({
-      countrySlug: pathParts.countrySlug,
-      stateSlug: pathParts.stateSlug,
-      citySlug: pathParts.citySlug,
-      category: cat.category,
-    });
-  }
-  // Day Boarding: filter by day-boarding school type IDs via query param
-  const base = placeListingPath({
+  return placeListingPath({
     countrySlug: pathParts.countrySlug,
     stateSlug: pathParts.stateSlug,
     citySlug: pathParts.citySlug,
+    category: cat.category,
   });
-  const url = new URL(base, "https://boardingeu.invalid");
-  if (dayBoardingTypeIds.length) {
-    dayBoardingTypeIds.forEach((id) => url.searchParams.append("school_type", id));
-  }
-  return `${url.pathname}${url.search}`;
 }
 
 export default function SiteFooterSeo({
   cities = [],
   boards = [],
   countries = [],
-  schoolTypes = [],
   dataError,
   showCallbackDock = true,
 }: Props) {
@@ -112,14 +91,6 @@ export default function SiteFooterSeo({
     setOpenStates((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const uniqueCities = useMemo(() => uniqueBy(cities, (city) => city.city_id), [cities]);
-
-  const dayBoardingTypeIds = useMemo(
-    () =>
-      schoolTypes
-        .filter((t) => homeSchoolCategories(t.type_code, t.slug, t.type_name).length === 2)
-        .map((t) => t.school_type_id),
-    [schoolTypes],
-  );
 
   // Group cities by state, sorted by total schools desc
   const stateGroups = useMemo<StateGroup[]>(() => {
@@ -201,7 +172,6 @@ export default function SiteFooterSeo({
                             stateSlug: state.stateSlug,
                             citySlug: city.slug,
                           },
-                          dayBoardingTypeIds,
                         )}
                       >
                         {city.city_name}
