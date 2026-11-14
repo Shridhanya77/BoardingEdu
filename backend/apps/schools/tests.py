@@ -65,8 +65,9 @@ class PublicSchoolUrlTests(SimpleTestCase):
     @override_settings(
         FRONTEND_URL="https://boardingedu-bay.vercel.app",
         PUBLIC_SITE_URL="https://www.boardingedu.com",
+        PUBLIC_FRONTEND_URL="https://boardingedu-bay.vercel.app",
     )
-    def test_public_school_url_uses_public_site_domain_and_canonical_profile_path(self):
+    def test_public_school_url_uses_deployed_vercel_domain_and_canonical_profile_path(self):
         school = SimpleNamespace(
             country=SimpleNamespace(slug="india", country_name="India"),
             state=SimpleNamespace(slug="karnataka", state_name="Karnataka"),
@@ -76,12 +77,12 @@ class PublicSchoolUrlTests(SimpleTestCase):
 
         self.assertEqual(
             public_school_url(school),
-            "https://www.boardingedu.com/india/karnataka/bengaluru/sample-public-school/",
+            "https://boardingedu-bay.vercel.app/india/karnataka/bengaluru/sample-public-school/",
         )
 
 
 class SchoolCardPublicUrlTests(SimpleTestCase):
-    @override_settings(PUBLIC_SITE_URL="https://www.boardingedu.test")
+    @override_settings(PUBLIC_FRONTEND_URL="https://boardingedu.test")
     def test_school_card_uses_canonical_deployed_profile_url_and_sanitizes_slug(self):
         school = SimpleNamespace(
             pk="school-id",
@@ -100,7 +101,7 @@ class SchoolCardPublicUrlTests(SimpleTestCase):
 
         self.assertEqual(
             profile_url,
-            "https://www.boardingedu.test/india/karna-taka/bengaluru/sample-academy/",
+            "https://boardingedu.test/india/karna-taka/bengaluru/sample-academy/",
         )
         self.assertNotIn("?", profile_url)
 
@@ -225,7 +226,7 @@ class SchoolContentAdminNavigationTests(SimpleTestCase):
         self.assertIn("section=grades", grade_response.url)
         self.assertIn("grade_group=EARLY", grade_response.url)
 
-    def test_platform_facility_and_grade_links_open_the_school_list(self):
+    def test_platform_facility_and_grade_links_open_the_school_selector(self):
         request = RequestFactory().get("/admin/schools/schoolgrade/")
         request.user = SimpleNamespace(is_authenticated=True, is_superuser=True)
 
@@ -236,8 +237,126 @@ class SchoolContentAdminNavigationTests(SimpleTestCase):
             SchoolGrade, admin.site
         ).changelist_view(request)
 
-        self.assertEqual(facility_response.url, reverse("admin:schools_school_changelist"))
-        self.assertEqual(grade_response.url, reverse("admin:schools_school_changelist"))
+        self.assertEqual(
+            facility_response.url,
+            f"{reverse('admin:school_workspace')}?section=facilities",
+        )
+        self.assertEqual(
+            grade_response.url,
+            f"{reverse('admin:school_workspace')}?section=grades",
+        )
+
+
+@override_settings(PUBLIC_FRONTEND_URL="https://boardingedu-bay.vercel.app")
+class SchoolWorkspaceSelectionTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        country = Country.objects.create(
+            country_code="IN",
+            country_name="India",
+            slug="india-admin-workspace",
+        )
+        state = State.objects.create(
+            country=country,
+            state_code="KA",
+            state_name="Karnataka",
+            slug="karnataka-admin-workspace",
+        )
+        city = City.objects.create(
+            state=state,
+            city_code="BLR",
+            city_name="Bengaluru",
+            slug="bengaluru-admin-workspace",
+        )
+        cls.school = School.objects.create(
+            school_code="ADM-FAC-1",
+            school_name="Admin Facilities School",
+            slug="admin-facilities-school",
+            country=country,
+            state=state,
+            city=city,
+            address="Bengaluru",
+            status=True,
+            verification_status="VERIFIED",
+        )
+        cls.facility = Facility.objects.create(
+            facility_code="ADM-LIB",
+            category="ACADEMIC",
+            facility_name="Library",
+            slug="admin-library",
+        )
+        SchoolFacility.objects.create(
+            school=cls.school,
+            facility=cls.facility,
+            available=True,
+        )
+        grade = Grade.objects.create(
+            grade_code="ADM-G1",
+            grade_name="Grade 1",
+            sort_order=1,
+        )
+        SchoolGrade.objects.create(school=cls.school, grade=grade)
+        cls.admin_user = User.objects.create_superuser(
+            username="workspace-admin",
+            email="workspace-admin@example.test",
+            password="secret-pass",
+            role=User.ROLE_SUPER_ADMIN,
+        )
+
+    def setUp(self):
+        self.client.force_login(self.admin_user)
+
+    def test_platform_admin_can_select_school_and_view_facilities(self):
+        selector = self.client.get(
+            reverse("admin:school_workspace"),
+            {"section": "facilities"},
+        )
+        self.assertEqual(selector.status_code, 200)
+        self.assertContains(selector, self.school.school_name)
+        self.assertContains(selector, "Open facilities")
+
+        workspace = self.client.get(
+            reverse("admin:school_workspace"),
+            {"section": "facilities", "school_id": self.school.pk},
+        )
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, "Library")
+        self.assertContains(workspace, "Classrooms &amp; laboratories")
+        self.assertContains(
+            workspace,
+            "https://boardingedu-bay.vercel.app/india-admin-workspace/"
+            "karnataka-admin-workspace/bengaluru-admin-workspace/admin-facilities-school/",
+        )
+
+    def test_facility_action_keeps_the_selected_school(self):
+        response = self.client.post(
+            reverse("admin:school_workspace") + "?section=facilities&campus=ACADEMIC",
+            {
+                "school_id": self.school.pk,
+                "facility": self.facility.pk,
+                "campus": "ACADEMIC",
+                "campus_action": "yes",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"school_id={self.school.pk}", response.url)
+        workspace = self.client.get(response.url)
+        self.assertContains(workspace, self.school.school_name)
+
+    def test_platform_admin_can_select_school_and_view_grades(self):
+        workspace = self.client.get(
+            reverse("admin:school_workspace"),
+            {
+                "section": "grades",
+                "grade_group": "PRIMARY",
+                "school_id": self.school.pk,
+            },
+        )
+
+        self.assertEqual(workspace.status_code, 200)
+        self.assertContains(workspace, "Grades offered")
+        self.assertContains(workspace, "Grade 1")
 
 
 class AdminRelatedModalTests(TestCase):

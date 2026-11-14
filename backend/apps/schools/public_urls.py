@@ -11,4 +11,4 @@ def public_school_url(school):
         seo_slug(school.slug),
     )
     path = "/".join(segment for segment in segments if segment)
-    return f"{settings.PUBLIC_SITE_URL}/{path}/"
+    return f"{settings.PUBLIC_FRONTEND_URL}/{path}/"

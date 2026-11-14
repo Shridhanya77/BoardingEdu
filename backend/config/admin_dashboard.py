@@ -17,6 +17,7 @@ from django.db.models.functions import TruncMonth
 from django.core.validators import URLValidator
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
+from django.utils.http import urlencode
 from django.utils import timezone
 
 from apps.users.school_admin_scope import (
@@ -349,6 +350,22 @@ def school_admin_menu(request):
     }]
 
 
+def _school_workspace_section_url(section, school_id=None, **params):
+    query = {"section": section, **params}
+    if school_id is not None:
+        query["school_id"] = school_id
+    return f"{reverse('admin:school_workspace')}?{urlencode(query)}#{section}"
+
+
+def _school_workspace_redirect(request, section, **params):
+    school_id = (
+        assigned_school_id(request.user)
+        or request.POST.get("school_id")
+        or request.GET.get("school_id")
+    )
+    return redirect(_school_workspace_section_url(section, school_id, **params))
+
+
 def _apply_campus_choice(request, school):
     """Same Yes/No campus control as the school admin frontend."""
     from apps.schools.models import Facility, SchoolContentChange, SchoolFacility
@@ -358,7 +375,7 @@ def _apply_campus_choice(request, school):
     allowed = {key for key, _label, _hint in CAMPUS_GROUPS}
     if action not in {"yes", "no"} or group not in allowed:
         messages.error(request, "Choose Yes or No for a campus facility.")
-        return redirect(f"{reverse('admin:school_workspace')}?section=facilities")
+        return _school_workspace_redirect(request, "facilities")
     facility = Facility.objects.filter(pk=request.POST.get("facility") or "", status=True, category__iexact=group).first()
     if facility is None:
         messages.error(request, "That facility is not in this campus group.")
@@ -399,9 +416,7 @@ def _apply_campus_choice(request, school):
             request,
             f"Removing {facility.facility_name} was sent for Super Admin approval.",
         )
-    return redirect(
-        f"{reverse('admin:school_workspace')}?section=facilities&campus={group}#facilities"
-    )
+    return _school_workspace_redirect(request, "facilities", campus=group)
 
 
 def _apply_grade_choice(request, school):
@@ -511,9 +526,7 @@ def _apply_grade_choice(request, school):
     group = (request.POST.get("grade_group") or "PRIMARY").upper()
     if group not in {key for key, _label in GRADE_GROUPS}:
         group = "PRIMARY"
-    return redirect(
-        f"{reverse('admin:school_workspace')}?section=grades&grade_group={group}#grades"
-    )
+    return _school_workspace_redirect(request, "grades", grade_group=group)
 
 
 def _apply_admission_resource(request, school):
@@ -525,7 +538,7 @@ def _apply_admission_resource(request, school):
             resource_id = uuid.UUID(request.POST.get("resource_id") or "")
         except (ValueError, TypeError):
             messages.error(request, "Choose a valid admission document.")
-            return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+            return _school_workspace_redirect(request, "documents")
         resource = SchoolAdmissionResource.objects.filter(
             resource_id=resource_id,
             school=school,
@@ -556,7 +569,7 @@ def _apply_admission_resource(request, school):
             upload = request.FILES.get("file")
             if upload is not None and document_url:
                 messages.error(request, "Choose a PDF upload or a document URL, not both.")
-                return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+                return _school_workspace_redirect(request, "documents")
             if upload is not None:
                 from apps.dashboards.school_ops import _store_school_document
 
@@ -566,13 +579,13 @@ def _apply_admission_resource(request, school):
                         request,
                         str(failure.data.get("detail") or "The PDF could not be uploaded."),
                     )
-                    return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+                    return _school_workspace_redirect(request, "documents")
             elif document_url:
                 try:
                     URLValidator(schemes=["http", "https"])(document_url)
                 except DjangoValidationError:
                     messages.error(request, "Enter a valid public HTTP or HTTPS document URL.")
-                    return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+                    return _school_workspace_redirect(request, "documents")
             if not document_url:
                 messages.error(request, "Add a PDF upload or a public document URL.")
             else:
@@ -613,11 +626,11 @@ def _apply_admission_resource(request, school):
                     )
     else:
         messages.error(request, "Choose an action for the admission document.")
-    return redirect(f"{reverse('admin:school_workspace')}?section=documents#documents")
+    return _school_workspace_redirect(request, "documents")
 
 
-def _fee_workspace_redirect():
-    return redirect(f"{reverse('admin:school_workspace')}?section=fees#fees")
+def _fee_workspace_redirect(request):
+    return _school_workspace_redirect(request, "fees")
 
 
 def _fee_amount(raw, frequency):
@@ -679,18 +692,18 @@ def _apply_fee_action(request, school):
         frequency = request.POST.get("payment_frequency") or ""
         if not name or len(name) > 200:
             messages.error(request, "Enter a fee name of 200 characters or fewer.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         if category not in dict(FeeItem.CATEGORY_CHOICES):
             messages.error(request, "Choose a fee category.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         if frequency not in dict(FeeItem.PAYMENT_FREQUENCY_CHOICES):
             messages.error(request, "Choose how often this fee is charged.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         try:
             amount = _fee_amount(request.POST.get("amount"), frequency)
         except DjangoValidationError as exc:
             messages.error(request, " ".join(exc.messages))
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         grade_id = request.POST.get("grade") or ""
         grade = None
         if grade_id:
@@ -698,7 +711,7 @@ def _apply_fee_action(request, school):
                 grade_id = uuid.UUID(grade_id)
             except (TypeError, ValueError):
                 messages.error(request, "Choose a valid grade offered by this school.")
-                return _fee_workspace_redirect()
+                return _fee_workspace_redirect(request)
             school_grade = SchoolGrade.objects.select_related("grade").filter(
                 school=school,
                 grade_id=grade_id,
@@ -707,7 +720,7 @@ def _apply_fee_action(request, school):
             ).first()
             if school_grade is None:
                 messages.error(request, "Choose a valid grade offered by this school.")
-                return _fee_workspace_redirect()
+                return _fee_workspace_redirect(request)
             grade = school_grade.grade
         academic_year_id = request.POST.get("academic_year") or ""
         if academic_year_id:
@@ -715,7 +728,7 @@ def _apply_fee_action(request, school):
                 academic_year_id = uuid.UUID(academic_year_id)
             except (TypeError, ValueError):
                 messages.error(request, "Choose a valid active academic year.")
-                return _fee_workspace_redirect()
+                return _fee_workspace_redirect(request)
             academic_year = AcademicYear.objects.filter(
                 pk=academic_year_id,
                 status=True,
@@ -727,7 +740,7 @@ def _apply_fee_action(request, school):
             ).first()
         if academic_year is None:
             messages.error(request, "Choose an active academic year before adding fees.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         structure = _school_fee_structure(school, academic_year)
         item_code = re.sub(r"[^A-Z0-9]+", "-", name.upper()).strip("-")[:24] or "FEE"
         suffix = 2
@@ -794,14 +807,14 @@ def _apply_fee_action(request, school):
             fee_item_id = uuid.UUID(request.POST.get("fee_item_id") or "")
         except (TypeError, ValueError):
             messages.error(request, "Choose a valid fee item.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         item = FeeItem.objects.select_related("fee_structure").filter(
             fee_item_id=fee_item_id,
             fee_structure__school=school,
         ).first()
         if item is None:
             messages.error(request, "That fee item is not on this school.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         if action == "delete":
             submit_school_content_change(
                 school,
@@ -817,12 +830,12 @@ def _apply_fee_action(request, school):
             name = (request.POST.get("item_name") or "").strip()
             if not name or len(name) > 200:
                 messages.error(request, "Enter a fee name of 200 characters or fewer.")
-                return _fee_workspace_redirect()
+                return _fee_workspace_redirect(request)
             try:
                 item.amount = _fee_amount(request.POST.get("amount"), item.payment_frequency)
             except DjangoValidationError as exc:
                 messages.error(request, " ".join(exc.messages))
-                return _fee_workspace_redirect()
+                return _fee_workspace_redirect(request)
             item.item_name = name
             try:
                 item.full_clean()
@@ -857,14 +870,14 @@ def _apply_fee_action(request, school):
             structure_id = uuid.UUID(request.POST.get("fee_structure_id") or "")
         except (TypeError, ValueError):
             messages.error(request, "Choose a valid fee structure.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         structure = FeeStructure.objects.filter(
             fee_structure_id=structure_id,
             school=school,
         ).first()
         if structure is None:
             messages.error(request, "That fee structure is not on this school.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         publish = action == "publish"
         pending_fee_items = SchoolContentChange.objects.filter(
             school=school,
@@ -882,7 +895,7 @@ def _apply_fee_action(request, school):
             and not has_pending_amount
         ):
             messages.error(request, "Add at least one fee amount before publishing.")
-            return _fee_workspace_redirect()
+            return _fee_workspace_redirect(request)
         submit_school_content_change(
             school,
             request.user,
@@ -900,7 +913,7 @@ def _apply_fee_action(request, school):
         )
     else:
         messages.error(request, "Choose an action for fees.")
-    return _fee_workspace_redirect()
+    return _fee_workspace_redirect(request)
 
 
 def _clean_seats(raw):
@@ -917,7 +930,7 @@ def _clean_seats(raw):
 
 
 def school_workspace(request):
-    """Home for a school administrator: their profile and the leads they received."""
+    """Workspace for school administrators and platform staff managing a school."""
     from apps.admissions.models import AdmissionEnquiry
     from apps.reviews.models import Review
     from apps.schools.completeness import build_profile_completion
@@ -931,11 +944,54 @@ def school_workspace(request):
         SchoolProfileChange,
     )
 
-    school_id = assigned_school_id(request.user)
-    if school_id is None:
+    assigned_id = assigned_school_id(request.user)
+    if assigned_id is not None:
+        school_id = assigned_id
+    elif request.user.is_staff or request.user.is_superuser:
+        school_id = (
+            request.POST.get("school_id")
+            if request.method == "POST"
+            else request.GET.get("school_id")
+        )
+    else:
         return redirect("admin:index")
+
+    active_section = request.GET.get("section") or "overview"
+    selection_section = (
+        active_section if active_section in {"facilities", "grades"} else "facilities"
+    )
+    if not school_id:
+        if active_section not in {"facilities", "grades"}:
+            return redirect("admin:index")
+        schools = School.objects.select_related("city", "state").order_by("school_name")
+        return render(
+            request,
+            "admin/school_workspace_select.html",
+            {
+                **admin.site.each_context(request),
+                "title": "Choose a school",
+                "section": selection_section,
+                "schools": schools,
+            },
+        )
+
+    try:
+        school_id = uuid.UUID(str(school_id))
+    except (TypeError, ValueError, AttributeError):
+        messages.error(request, "Select a valid school to manage.")
+        return render(
+            request,
+            "admin/school_workspace_select.html",
+            {
+                **admin.site.each_context(request),
+                "title": "Choose a school",
+                "section": selection_section,
+                "schools": School.objects.select_related("city", "state").order_by("school_name"),
+            },
+        )
+
     school = (
-        School.objects        .select_related("country", "city", "state")
+        School.objects.select_related("country", "city", "state")
         .prefetch_related(
             "school_types",
             "boards",
@@ -946,8 +1002,21 @@ def school_workspace(request):
             "fee_structures__academic_year",
             "fee_structures__fee_items__grade",
         )
-        .get(pk=school_id)
+        .filter(pk=school_id)
+        .first()
     )
+    if school is None:
+        messages.error(request, "Select a valid school to manage.")
+        return render(
+            request,
+            "admin/school_workspace_select.html",
+            {
+                **admin.site.each_context(request),
+                "title": "Choose a school",
+                "section": selection_section,
+                "schools": School.objects.select_related("city", "state").order_by("school_name"),
+            },
+        )
     if request.method == "POST":
         if request.POST.get("fee_action"):
             return _apply_fee_action(request, school)
@@ -984,7 +1053,6 @@ def school_workspace(request):
             "status": lead.get_status_display(),
         })
 
-    active_section = request.GET.get("section") or "overview"
     allowed_sections = {
         "overview",
         "facilities",
@@ -1064,17 +1132,17 @@ def school_workspace(request):
     reviews = list(review_queryset.order_by("-created_at")[:50])
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
-    workspace_url = reverse("admin:school_workspace")
+    workspace_school_id = school.pk if assigned_id is None else None
     section_urls = {
-        "fees": f"{workspace_url}?section=fees#fees",
-        "campus": reverse("admin:schools_schoolfacility_changelist"),
-        "sports": reverse("admin:schools_schoolfacility_changelist"),
-        "hostel": reverse("admin:schools_schoolfacility_changelist"),
-        "dining": reverse("admin:schools_schoolfacility_changelist"),
-        "healthcare": reverse("admin:schools_schoolfacility_changelist"),
-        "safety": reverse("admin:schools_schoolfacility_changelist"),
-        "transport": reverse("admin:schools_schoolfacility_changelist"),
-        "academics": reverse("admin:schools_schoolgrade_changelist"),
+        "fees": _school_workspace_section_url("fees", workspace_school_id),
+        "campus": _school_workspace_section_url("facilities", workspace_school_id),
+        "sports": _school_workspace_section_url("facilities", workspace_school_id, campus="SPORTS"),
+        "hostel": _school_workspace_section_url("facilities", workspace_school_id, campus="ACCOMMODATION"),
+        "dining": _school_workspace_section_url("facilities", workspace_school_id, campus="DINING"),
+        "healthcare": _school_workspace_section_url("facilities", workspace_school_id, campus="HEALTH"),
+        "safety": _school_workspace_section_url("facilities", workspace_school_id, campus="SAFETY"),
+        "transport": _school_workspace_section_url("facilities", workspace_school_id, campus="TRANSPORT"),
+        "academics": _school_workspace_section_url("grades", workspace_school_id),
     }
     gaps = [
         {
@@ -1122,12 +1190,17 @@ def school_workspace(request):
         "active_section": active_section,
         "school_url": school_url,
         "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
-        "facilities_url": f"{reverse('admin:school_workspace')}?section=facilities&campus={campus_group}#facilities",
-        "grades_url": f"{reverse('admin:school_workspace')}?section=grades&grade_group={grade_group}#grades",
-        "fees_url": f"{workspace_url}?section=fees#fees",
-        "photos_url": f"{reverse('admin:school_workspace')}?section=photographs#photographs",
-        "documents_url": f"{reverse('admin:school_workspace')}?section=documents#documents",
-        "reviews_url": f"{reverse('admin:school_workspace')}?section=reviews#reviews",
+        "facilities_url": _school_workspace_section_url(
+            "facilities", workspace_school_id, campus=campus_group
+        ),
+        "grades_url": _school_workspace_section_url(
+            "grades", workspace_school_id, grade_group=grade_group
+        ),
+        "fees_url": _school_workspace_section_url("fees", workspace_school_id),
+        "photos_url": _school_workspace_section_url("photographs", workspace_school_id),
+        "documents_url": _school_workspace_section_url("documents", workspace_school_id),
+        "reviews_url": _school_workspace_section_url("reviews", workspace_school_id),
+        "can_select_school": assigned_id is None,
         "subscription_url": reverse("admin:school_subscriptions"),
         "grade_group": grade_group,
         "grade_groups": [

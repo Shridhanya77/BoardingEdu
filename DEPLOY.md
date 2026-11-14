@@ -32,6 +32,7 @@ Set these on the web service. Do not commit the secret values:
 | `CSRF_TRUSTED_ORIGINS` | `https://boardingedu-bay.vercel.app` |
 | `FRONTEND_URL` | `https://boardingedu-bay.vercel.app` |
 | `PUBLIC_SITE_URL` | `https://www.boardingedu.com` |
+| `PUBLIC_FRONTEND_URL` | `https://boardingedu-bay.vercel.app` |
 | `CLOUDFLARE_R2_ACCOUNT_ID` | Cloudflare account ID for the R2 media bucket |
 | `CLOUDFLARE_R2_ACCESS_KEY_ID` / `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 credentials with read access to school images |
 | `CLOUDFLARE_R2_BUCKET` | Bucket name |

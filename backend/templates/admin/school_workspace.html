@@ -18,6 +18,9 @@
       </p>
     </div>
     <div class="be-welcome__actions">
+      {% if can_select_school %}
+      <a href="{% url 'admin:school_workspace' %}?section=facilities"><strong>{% translate "Choose another school" %}</strong><span>{% translate "Switch school workspace" %}</span></a>
+      {% endif %}
       <a href="{{ school_url }}"><strong>{% translate "Edit school profile" %}</strong><span>{% translate "Contact, photos, about" %}</span></a>
       {% if view_public_url %}
       <a href="{{ view_public_url }}" target="_blank" rel="noopener"><strong>{% translate "View in public site" %}</strong><span>{% translate "See the approved profile" %}</span></a>
@@ -111,7 +114,7 @@
     <p>{% translate "Choose the facilities available at your school. These details help families understand your campus." %}</p>
     <div class="be-campus-tabs">
       {% for group in campus_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?section=facilities&amp;campus={{ group.key }}#facilities">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="?section=facilities&amp;campus={{ group.key }}&amp;school_id={{ school.pk }}#facilities">{{ group.label }}</a>
       {% endfor %}
     </div>
     <p>{{ campus_hint }}</p>
@@ -122,6 +125,7 @@
         <span>{{ item.name }}</span>
         <form method="post" action="?section=facilities&amp;campus={{ campus_group }}#facilities">
           {% csrf_token %}
+          <input type="hidden" name="school_id" value="{{ school.pk }}">
           <input type="hidden" name="facility" value="{{ item.id }}">
           <input type="hidden" name="campus" value="{{ campus_group }}">
           <button type="submit" name="campus_action" value="yes" class="{% if item.available %}is-yes{% endif %}">{% translate "Yes" %}</button>
@@ -142,11 +146,12 @@
     <p>{% translate "Grades are the classes this school admits. Seats are optional; leave the field blank if they are not decided yet." %}</p>
     <div class="be-campus-tabs" aria-label="{% translate 'Grade levels' %}">
       {% for group in grade_groups %}
-      <a class="{% if group.active %}is-active{% endif %}" href="?section=grades&amp;grade_group={{ group.key }}#grades">{{ group.label }}</a>
+      <a class="{% if group.active %}is-active{% endif %}" href="?section=grades&amp;grade_group={{ group.key }}&amp;school_id={{ school.pk }}#grades">{{ group.label }}</a>
       {% endfor %}
     </div>
     <form class="be-grade-form" method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
       {% csrf_token %}
+      <input type="hidden" name="school_id" value="{{ school.pk }}">
       <input type="hidden" name="grade_group" value="{{ grade_group }}">
       <select name="grade" required>
         <option value="">{% translate "Choose a grade" %}</option>
@@ -173,6 +178,7 @@
           <td>
             <form class="be-grade-seats" method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
               {% csrf_token %}
+              <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="school_grade" value="{{ row.id }}">
               <input type="hidden" name="grade_group" value="{{ grade_group }}">
               <input type="number" name="seats_available" min="0" inputmode="numeric" value="{% if row.seats is not None %}{{ row.seats }}{% endif %}" placeholder="—" aria-label="{% translate 'Seats available' %}">
@@ -182,6 +188,7 @@
           <td class="be-table__action">
             <form method="post" action="?section=grades&amp;grade_group={{ grade_group }}#grades">
               {% csrf_token %}
+              <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="school_grade" value="{{ row.id }}">
               <input type="hidden" name="grade_group" value="{{ grade_group }}">
               <button type="submit" name="grade_action" value="remove">{% translate "Remove" %}</button>
@@ -204,6 +211,7 @@
     {% if fee_years %}
     <form class="be-fee-form" method="post" action="?section=fees#fees">
       {% csrf_token %}
+      <input type="hidden" name="school_id" value="{{ school.pk }}">
       <label>
         {% translate "Academic year" %}
         <select name="academic_year" required>
@@ -267,6 +275,7 @@
           </div>
           <form method="post" action="?section=fees#fees">
             {% csrf_token %}
+            <input type="hidden" name="school_id" value="{{ school.pk }}">
             <input type="hidden" name="fee_structure_id" value="{{ structure.fee_structure_id }}">
             {% if structure.published %}
             <button type="submit" name="fee_action" value="unpublish" class="be-btn be-btn--ghost">{% translate "Unpublish" %}</button>
@@ -285,6 +294,7 @@
             </div>
             <form method="post" action="?section=fees#fees" class="be-fee-item__edit">
               {% csrf_token %}
+              <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="fee_item_id" value="{{ item.fee_item_id }}">
               <label>
                 {% translate "Fee name" %}
@@ -298,6 +308,7 @@
             </form>
             <form method="post" action="?section=fees#fees" class="be-fee-item__delete">
               {% csrf_token %}
+              <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="fee_item_id" value="{{ item.fee_item_id }}">
               <button type="submit" name="fee_action" value="delete">{% translate "Delete" %}</button>
             </form>
@@ -357,6 +368,7 @@
     <p>{% translate "Add public links to your school brochure and documents families need for admission." %}</p>
     <form class="be-resource-form" method="post" action="?section=documents#documents" enctype="multipart/form-data">
       {% csrf_token %}
+      <input type="hidden" name="school_id" value="{{ school.pk }}">
       <select name="resource_type" required aria-label="{% translate 'Document type' %}">
         {% for value, label in resource_type_choices %}
         <option value="{{ value }}">{{ label }}</option>
@@ -399,6 +411,7 @@
           <td class="be-table__action">
             <form method="post" action="?section=documents#documents">
               {% csrf_token %}
+              <input type="hidden" name="school_id" value="{{ school.pk }}">
               <input type="hidden" name="resource_id" value="{{ resource.resource_id }}">
               <button type="submit" name="resource_action" value="remove">{% translate "Remove" %}</button>
             </form>

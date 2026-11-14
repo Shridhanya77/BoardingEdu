@@ -369,8 +369,13 @@ def _trust_https_origin(host):
         CSRF_TRUSTED_ORIGINS.append(origin)
 
 
-# Canonical public host used by server-rendered school-card links.
+# Canonical website host and deployed frontend host for school profile links.
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "https://www.boardingedu.com").rstrip("/")
+# The deployed Next.js site that serves school profiles.
+PUBLIC_FRONTEND_URL = os.getenv(
+    "PUBLIC_FRONTEND_URL",
+    "https://boardingedu-bay.vercel.app",
+).rstrip("/")
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")

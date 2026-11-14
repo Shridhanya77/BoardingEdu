@@ -945,7 +945,7 @@ class SchoolFacilityAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             return redirect(
                 f"{reverse('admin:school_workspace')}?section=facilities&campus=ACADEMIC#facilities"
             )
-        return redirect("admin:schools_school_changelist")
+        return redirect(f"{reverse('admin:school_workspace')}?section=facilities")
 
 
 @admin.register(SchoolGrade)
@@ -988,4 +988,4 @@ class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
             return redirect(
                 f"{reverse('admin:school_workspace')}?section=grades&grade_group=EARLY#grades"
             )
-        return redirect("admin:schools_school_changelist")
+        return redirect(f"{reverse('admin:school_workspace')}?section=grades")
