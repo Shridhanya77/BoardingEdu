@@ -3948,6 +3948,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   <FeaturedSchoolCarousel
                     schools={featuredSchools}
                     label={`Featured schools in ${listingPlaceLabel}`}
+                    autoAdvance
                   />
                 </>
               ) : (
@@ -3967,7 +3968,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   <p>Scroll through featured listings to compare schools before you refine your search.</p>
                 </div>
               </div>
-              <FeaturedSchoolCarousel schools={featuredSchools} />
+              <FeaturedSchoolCarousel schools={featuredSchools} autoAdvance />
             </section>
           )}
 

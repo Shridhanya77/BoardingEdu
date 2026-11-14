@@ -35,6 +35,8 @@ import {
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { useDashboardData } from "@/components/dashboard/DashboardShell";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
+import { SITE_URL } from "@/lib/site";
 
 const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   SUBMITTED: "Enquiry submitted",
@@ -176,15 +178,15 @@ export default function SchoolAdminConsole() {
 
   const school = data?.school;
   const publicHref = school
-    ? schoolProfilePathFromSlugs({
+    ? new URL(schoolProfilePathFromSlugs({
         countrySlug: school.country_slug,
         stateSlug: school.state_slug,
         citySlug: school.city_slug,
         schoolSlug: school.slug,
         schoolName: school.school_name,
         schoolTypes: school.school_types_detail,
-      })
-    : "/";
+      }), SITE_URL).toString()
+    : SITE_URL;
 
   return (
     <main className="sa-app">
@@ -330,7 +332,7 @@ export default function SchoolAdminConsole() {
           <AcademicsEditor
             data={data}
             busy={busy}
-            onAddGrade={(grade, seats) => run(() => dashboards.saveGrade({ grade, seats_available: seats }).then(() => undefined), "Grade sent for Super Admin approval.")}
+            onAddGrade={(grades, seats) => run(() => dashboards.saveGrade({ grades, seats_available: seats }).then(() => undefined), "Grade changes sent for Super Admin approval.")}
             onUpdateGrade={(id, seats) => run(() => dashboards.updateGrade(id, { seats_available: seats }).then(() => undefined), "Seat changes sent for Super Admin approval.")}
             onRemoveGrade={(id) => {
               if (!window.confirm("Remove this grade from the school?")) return;
@@ -794,15 +796,19 @@ function AcademicsEditor({
 }: {
   data: SchoolDashboardData;
   busy: boolean;
-  onAddGrade: (grade: string, seats: number | null) => void;
+  onAddGrade: (grades: string[], seats: number | null) => void;
   onUpdateGrade: (id: string, seats: number | null) => void;
   onRemoveGrade: (id: string) => void;
 }) {
-  const [grade, setGrade] = useState(data.catalog.grades[0]?.grade_id ?? "");
+  const gradeOptions = gradeSelectOptions(data.catalog.grades);
+  const [grade, setGrade] = useState(gradeOptions[0]?.grade_id ?? "");
   const [seats, setSeats] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [rowError, setRowError] = useState<string | null>(null);
   const offered = new Set(data.grades.map((row) => row.grade));
+  const gradesToAdd = gradeSelectionIds(data.catalog.grades, grade).filter(
+    (gradeId) => !offered.has(gradeId),
+  );
 
   function draftFor(row: SchoolGradeRecord) {
     return drafts[row.school_grade_id] ?? (row.seats_available === null ? "" : String(row.seats_available));
@@ -833,18 +839,18 @@ function AcademicsEditor({
           className="sa-inline"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!grade) return;
-            onAddGrade(grade, seats ? Number(seats) : null);
+            if (!gradesToAdd.length) return;
+            onAddGrade(gradesToAdd, seats ? Number(seats) : null);
             setSeats("");
           }}
         >
           <select value={grade} onChange={(event) => setGrade(event.target.value)}>
-            {data.catalog.grades.map((item) => (
+            {gradeOptions.map((item) => (
               <option key={item.grade_id} value={item.grade_id}>{item.grade_name}</option>
             ))}
           </select>
           <input inputMode="numeric" placeholder="Seats" value={seats} onChange={(event) => setSeats(event.target.value)} />
-          <button className="sa-primary" type="submit" disabled={busy || offered.has(grade)}>Add grade</button>
+          <button className="sa-primary" type="submit" disabled={busy || !gradesToAdd.length}>Add grade</button>
         </form>
         {rowError && <p className="sa-banner sa-banner--error" role="alert">{rowError}</p>}
         <table className="sa-table">

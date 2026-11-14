@@ -13,6 +13,7 @@ from apps.users.models import User
 from apps.users.school_admin_scope import (
     AssignedSchoolAdminMixin,
     CatalogVisibleToSchoolAdminMixin,
+    assigned_school_id,
     manages_own_school,
 )
 from config.school_media import rewrite_school_media_url
@@ -938,6 +939,15 @@ class SchoolFacilityAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         "facility",
     )
 
+    def changelist_view(self, request, extra_context=None):
+        school_id = assigned_school_id(request.user)
+        if school_id is not None:
+            return redirect(
+                f"{reverse('admin:school_workspace')}?section=facilities&campus=ACADEMIC#facilities"
+            )
+        return redirect("admin:schools_school_changelist")
+
+
 @admin.register(SchoolGrade)
 class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     school_admin_can_add = False
@@ -971,3 +981,11 @@ class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     )
 
     list_select_related = ("school", "grade")
+
+    def changelist_view(self, request, extra_context=None):
+        school_id = assigned_school_id(request.user)
+        if school_id is not None:
+            return redirect(
+                f"{reverse('admin:school_workspace')}?section=grades&grade_group=EARLY#grades"
+            )
+        return redirect("admin:schools_school_changelist")

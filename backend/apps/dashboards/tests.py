@@ -12,6 +12,7 @@ from apps.schools.admin import ProfileGapFilter, SchoolAdmin
 from apps.schools.completeness import build_profile_completion
 from apps.schools.models import (
     Facility,
+    Grade,
     School,
     SchoolAdmissionResource,
     SchoolContentChange,
@@ -150,6 +151,42 @@ class SchoolAdminIsolationTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertFalse(SchoolFacility.objects.filter(school=self.own).exists())
         self.assertFalse(SchoolContentChange.objects.filter(school=self.own).exists())
+
+    def test_school_admin_can_submit_pre_nursery_and_nursery_together(self):
+        pre_nursery = Grade.objects.create(
+            grade_code="PN",
+            grade_name="Pre Nursery",
+            sort_order=900,
+        )
+        nursery = Grade.objects.create(
+            grade_code="NUR",
+            grade_name="Nursery",
+            sort_order=901,
+        )
+        client = APIClient()
+        client.force_authenticate(self.admin)
+
+        response = client.post(
+            "/api/dashboards/school/grades/",
+            {
+                "grades": [str(pre_nursery.pk), str(nursery.pk)],
+                "seats_available": 12,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 202, response.data)
+        self.assertEqual(len(response.data["submission_ids"]), 2)
+        pending = SchoolContentChange.objects.filter(
+            school=self.own,
+            content_type=SchoolContentChange.TYPE_GRADE,
+            status=SchoolContentChange.STATUS_PENDING,
+        )
+        self.assertEqual(pending.count(), 2)
+        self.assertEqual(
+            {change.payload["seats_available"] for change in pending},
+            {12},
+        )
 
     def test_facility_write_ignores_a_client_supplied_school_id(self):
         client = APIClient()

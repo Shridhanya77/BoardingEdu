@@ -35,8 +35,8 @@
           <a href="{% url 'admin:school_workspace' %}">Home</a>
           <a href="{% url 'admin:schools_school_changelist' %}">School profile</a>
           <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Leads</a>
-          <a href="{% url 'admin:schools_schoolfacility_changelist' %}">Facilities</a>
-          <a href="{% url 'admin:schools_schoolgrade_changelist' %}">Grades</a>
+          <a href="{% url 'admin:school_workspace' %}?section=facilities&amp;campus=ACADEMIC#facilities">Facilities</a>
+          <a href="{% url 'admin:school_workspace' %}?section=grades&amp;grade_group=EARLY#grades">Grades</a>
           <a href="{% url 'admin:fees_feestructure_changelist' %}">Fees</a>
         {% endif %}
       </nav>

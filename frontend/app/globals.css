@@ -26686,3 +26686,221 @@ select:focus-visible {
     right: 8px;
   }
 }
+
+.compare-matrix-scroller {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #9eb4c5 transparent;
+  scrollbar-width: thin;
+}
+
+.compare-matrix {
+  overflow: visible;
+}
+
+.compare-matrix__scroll-hint {
+  display: none;
+}
+
+.featured-school-carousel__controls button[aria-pressed="true"] {
+  color: #fff;
+  background: #17456b;
+  border-color: #17456b;
+}
+
+@media (min-width: 901px) {
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__actions {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__actions > .school-card__enquire,
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__actions > .school-compare {
+    grid-row: 1;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__actions > .school-card__enquire {
+    grid-column: 1;
+  }
+
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__actions > .school-compare {
+    grid-column: 2;
+  }
+
+  .discovery-page--listing .school-list--list.school-list--listing .school-card__actions > .school-card__view {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .mobile-navigation .mobile-navigation__explore-toggle {
+    width: 100%;
+    justify-content: space-between;
+    color: #233b53;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+  }
+
+  .mobile-navigation .mobile-navigation__explore-toggle.is-active {
+    color: #17456b;
+    background: #edf5fb;
+    border-color: #d7e8f5;
+  }
+
+  .mobile-navigation__explore-toggle svg {
+    transition: transform 160ms ease;
+  }
+
+  .mobile-navigation__explore-toggle[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+
+  .mobile-navigation__explore-links {
+    display: grid;
+    gap: 2px;
+    padding: 2px 0 6px 12px;
+  }
+
+  .mobile-navigation .mobile-navigation__type-link {
+    min-height: 42px;
+    padding: 10px 14px;
+    color: #36546e;
+    background: #f7fafc;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .mobile-navigation .mobile-navigation__type-link[aria-current="page"] {
+    color: #17456b;
+    background: #e8f2f8;
+    font-weight: 750;
+  }
+}
+
+@media (max-width: 760px) {
+  .home-how-it-works {
+    display: none;
+  }
+
+  .home-faq-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-faq-categories {
+    display: none;
+  }
+
+  .home-section--types .type-browse-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .home-section--types .type-browse-card {
+    min-height: 112px;
+    padding: 16px;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .home-section--types .type-browse-card p,
+  .home-section--types .type-browse-card__action,
+  .home-section--types .type-browse-note {
+    display: none;
+  }
+
+  .pd-nav {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    margin: 0 -14px 18px;
+    padding: 9px 14px;
+    background: rgb(247 250 252 / 96%);
+    border-bottom: 1px solid #dfe7ef;
+    box-shadow: 0 6px 16px rgb(23 50 74 / 8%);
+    backdrop-filter: blur(12px);
+    scrollbar-width: none;
+  }
+
+  .pd-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pd-nav button {
+    min-height: 40px;
+    border: 1px solid #dce5ed;
+    box-shadow: 0 2px 6px rgb(23 50 74 / 5%);
+  }
+
+  .pd-nav button.is-active {
+    border-color: #0b5f8a;
+    box-shadow: 0 4px 10px rgb(11 95 138 / 20%);
+  }
+
+  .compare-matrix__scroll-hint {
+    display: block;
+    margin: 8px 14px 12px;
+    color: #60738a;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .compare-page--studio .compare-page__heading--center {
+    min-height: 0;
+    margin: 14px -14px 18px;
+    padding: 46px 16px 20px;
+    overflow-x: clip;
+  }
+
+  .compare-page--studio .compare-page__heading h1 {
+    font-size: clamp(30px, 8vw, 38px);
+  }
+
+  .compare-page--studio .compare-page__heading > button {
+    position: static;
+    justify-self: start;
+    min-height: 38px;
+    margin-top: 12px;
+  }
+
+  .compare-slots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .compare-page--studio .compare-slot-picker .compare-slot__select {
+    min-height: 160px;
+  }
+
+  .compare-page--studio .compare-school-card {
+    min-height: 0;
+    padding: 16px 12px 12px;
+  }
+
+  .compare-school-card__actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .compare-school-card__actions a,
+  .compare-school-card__actions button {
+    min-height: 40px;
+    flex: 1 1 0;
+    font-size: 11px;
+  }
+
+  .compare-slot-picker__search .compare-school-picker__results {
+    position: static;
+    max-height: 40dvh;
+  }
+}

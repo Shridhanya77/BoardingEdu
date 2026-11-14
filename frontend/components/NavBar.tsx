@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth, dashboardPathForRole } from "@/lib/auth";
 import type { UserRole } from "@/lib/api";
+import { schoolDirectoryPath } from "@/lib/school-urls";
 import CounsellingModal from "@/components/home/CounsellingModal";
 import { Button } from "@/components/ui/Button";
 
@@ -61,6 +62,7 @@ export default function NavBar() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileExploreOpen, setMobileExploreOpen] = useState(false);
   const [counsellingOpen, setCounsellingOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ export default function NavBar() {
   useEffect(() => {
     setMenuOpen(false);
     setMobileNavOpen(false);
+    setMobileExploreOpen(false);
   }, [pathname]);
   useEffect(() => {
     if (!mobileNavOpen) return;
@@ -108,6 +111,10 @@ export default function NavBar() {
     : "";
   const role = user?.role ?? null;
   const links = headerLinks(role, pathname);
+  const mobileExploreOptions = [
+    { label: "Day Schools", href: schoolDirectoryPath("day-school") },
+    { label: "Boarding Schools", href: schoolDirectoryPath("residential-school") },
+  ];
   const showCounselling = !role || role === "PARENT";
   const dashboardHref = user ? dashboardPathForRole(user.role) : "/";
   const onHomePage = pathname === "/" || pathname === "";
@@ -227,7 +234,10 @@ export default function NavBar() {
         aria-label={mobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
         aria-controls="mobile-primary-navigation"
         aria-expanded={mobileNavOpen}
-        onClick={() => setMobileNavOpen((open) => !open)}
+        onClick={() => {
+          setMobileNavOpen((open) => !open);
+          setMobileExploreOpen(false);
+        }}
       >
         {mobileNavOpen ? <X size={22} aria-hidden /> : <Menu size={22} aria-hidden />}
       </button>
@@ -237,14 +247,49 @@ export default function NavBar() {
             className="mobile-navigation__backdrop"
             type="button"
             aria-label="Close navigation menu"
-            onClick={() => setMobileNavOpen(false)}
+            onClick={() => {
+              setMobileNavOpen(false);
+              setMobileExploreOpen(false);
+            }}
           />
           <nav
             className="mobile-navigation"
             id="mobile-primary-navigation"
             aria-label="Mobile primary"
           >
-            {links.map((item) => (
+            {links.map((item) => item.label === "Explore Schools" ? (
+              <div className="mobile-navigation__explore" key={item.href}>
+                <button
+                  className={`mobile-navigation__link mobile-navigation__explore-toggle${item.active ? " is-active" : ""}`}
+                  type="button"
+                  aria-expanded={mobileExploreOpen}
+                  aria-controls="mobile-explore-links"
+                  onClick={() => setMobileExploreOpen((open) => !open)}
+                >
+                  {item.label}
+                  <ChevronDown size={16} aria-hidden />
+                </button>
+                {mobileExploreOpen && (
+                  <div className="mobile-navigation__explore-links" id="mobile-explore-links">
+                    {mobileExploreOptions.map((option) => (
+                      <Link
+                        className="mobile-navigation__type-link"
+                        href={option.href}
+                        key={option.href}
+                        onClick={() => setMobileNavOpen(false)}
+                        aria-current={
+                          pathname === option.href || pathname === option.href.replace(/\/$/, "")
+                            ? "page"
+                            : undefined
+                        }
+                      >
+                        {option.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
               <Link
                 className={`mobile-navigation__link${item.active ? " is-active" : ""}`}
                 href={item.href}

@@ -1651,8 +1651,13 @@ export const dashboards = {
     }),
   removeFacility: (id: string) =>
     authRequest<void>(`/dashboards/school/facilities/${id}/`, { method: "DELETE" }),
-  saveGrade: (payload: { grade: string; seats_available?: number | null }) =>
-    authRequest<SchoolGradeRecord>("/dashboards/school/grades/", {
+  saveGrade: (payload: { grade?: string; grades?: string[]; seats_available?: number | null }) =>
+    authRequest<{
+      pending_review: boolean;
+      submission_id: string | null;
+      submission_ids: string[];
+      detail: string;
+    }>("/dashboards/school/grades/", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

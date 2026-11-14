@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 from botocore.exceptions import BotoCoreError, ClientError
 from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
 from django.core.validators import URLValidator
+from django.db import transaction
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -458,8 +459,21 @@ class SchoolGradeWriteView(SchoolAdminAPIView):
         school, error = self.owned_school(request)
         if error:
             return error
-        grade = Grade.objects.filter(pk=request.data.get("grade"), status=True).first()
-        if grade is None:
+        raw_grade_ids = request.data.get("grades")
+        if raw_grade_ids is None:
+            raw_grade_ids = [request.data.get("grade")]
+        if not isinstance(raw_grade_ids, list) or not raw_grade_ids:
+            return Response({"detail": "Choose a grade from the list."}, status=400)
+        try:
+            grade_ids = [str(uuid.UUID(str(value))) for value in raw_grade_ids]
+        except (ValueError, TypeError, AttributeError):
+            return Response({"detail": "Choose a grade from the list."}, status=400)
+        if len(set(grade_ids)) != len(grade_ids):
+            return Response({"detail": "Choose each grade only once."}, status=400)
+        grades = list(
+            Grade.objects.filter(pk__in=grade_ids, status=True).order_by("sort_order")
+        )
+        if len(grades) != len(grade_ids):
             return Response({"detail": "Choose a grade from the list."}, status=400)
         seats = request.data.get("seats_available")
         if seats in ("", None):
@@ -471,22 +485,27 @@ class SchoolGradeWriteView(SchoolAdminAPIView):
                 return Response({"detail": "Seats must be a whole number."}, status=400)
             if seats < 0:
                 return Response({"detail": "Seats cannot be negative."}, status=400)
-        change = submit_school_content_change(
-            school,
-            request.user,
-            SchoolContentChange.TYPE_GRADE,
-            f"GRADE:{grade.pk}",
-            {
-                "grade_id": str(grade.pk),
-                "seats_available": seats,
-                "is_active": True,
-            },
-            target_id=grade.pk,
-        )
+        with transaction.atomic():
+            changes = [
+                submit_school_content_change(
+                    school,
+                    request.user,
+                    SchoolContentChange.TYPE_GRADE,
+                    f"GRADE:{grade.pk}",
+                    {
+                        "grade_id": str(grade.pk),
+                        "seats_available": seats,
+                        "is_active": True,
+                    },
+                    target_id=grade.pk,
+                )
+                for grade in grades
+            ]
         return Response(
             {
                 "pending_review": True,
-                "submission_id": str(change.change_id),
+                "submission_id": str(changes[0].change_id) if len(changes) == 1 else None,
+                "submission_ids": [str(change.change_id) for change in changes],
                 "detail": "Grade changes were sent to the Super Admin for approval.",
             },
             status=202,

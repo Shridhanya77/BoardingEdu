@@ -62,6 +62,10 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
     { field: "safety_rating", label: "Safety & wellbeing" },
     { field: "communication_rating", label: "Communication & admissions" },
   ] as const;
+  const ratedCategories = ratingCategories.filter(({ field }) => {
+    const category = summary?.category_ratings?.[field];
+    return category?.average != null && Boolean(category.count);
+  });
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -144,20 +148,16 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
         </div>
       </div>
 
-      {summary && (
+      {ratedCategories.length > 0 && (
         <div className="reviews-category-ratings">
-          {ratingCategories.map(({ field, label }) => {
-            const category = summary.category_ratings?.[field];
+          {ratedCategories.map(({ field, label }) => {
+            const category = summary?.category_ratings?.[field];
             return (
               <div className="reviews-category-ratings__item" key={field}>
                 <span>{label}</span>
-                <strong>
-                  {category?.average != null ? `${category.average.toFixed(1)} / 5` : "Not rated"}
-                </strong>
+                <strong>{category?.average?.toFixed(1)} / 5</strong>
                 <small>
-                  {category?.count
-                    ? `${category.count} parent rating${category.count === 1 ? "" : "s"}`
-                    : "No category ratings yet"}
+                  {category?.count} parent rating{category?.count === 1 ? "" : "s"}
                 </small>
               </div>
             );

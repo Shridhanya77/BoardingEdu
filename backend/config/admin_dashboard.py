@@ -11,6 +11,7 @@ import uuid
 from django.contrib import admin, messages
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from django.core.validators import URLValidator
@@ -316,7 +317,7 @@ def school_admin_menu(request):
         ("School profile", school_url, None),
         ("Leads", reverse("admin:admissions_admissionenquiry_changelist"), None),
         ("Facilities", f"{workspace_url}?section=facilities&campus=ACADEMIC#facilities", None),
-        ("Grades", f"{workspace_url}?section=grades&grade_group=PRIMARY#grades", None),
+        ("Grades", f"{workspace_url}?section=grades&grade_group=EARLY#grades", None),
         ("Fees & admissions", f"{workspace_url}?section=fees#fees", None),
         ("Photographs", f"{workspace_url}?section=photographs#photographs", None),
         ("Brochure & documents", f"{workspace_url}?section=documents#documents", None),
@@ -409,39 +410,56 @@ def _apply_grade_choice(request, school):
 
     action = request.POST.get("grade_action")
     if action == "add":
-        grade = Grade.objects.filter(pk=request.POST.get("grade") or "", status=True).first()
-        if grade is None:
+        raw_grade_ids = (request.POST.get("grade") or "").split(",")
+        try:
+            grade_ids = [uuid.UUID(value) for value in raw_grade_ids]
+        except (ValueError, TypeError, AttributeError):
+            grade_ids = []
+        if not grade_ids or len(set(grade_ids)) != len(grade_ids):
             messages.error(request, "Choose a grade from the list.")
         else:
-            seats, invalid = _clean_seats(request.POST.get("seats_available"))
-            if invalid:
-                messages.error(request, "Seats must be a whole number.")
+            grades = list(
+                Grade.objects.filter(pk__in=grade_ids, status=True).order_by("sort_order")
+            )
+            if len(grades) != len(grade_ids):
+                messages.error(request, "Choose a grade from the list.")
             else:
-                existing = SchoolGrade.objects.filter(
-                    school=school, grade=grade
-                ).first()
-                submit_school_content_change(
-                    school,
-                    request.user,
-                    SchoolContentChange.TYPE_GRADE,
-                    f"GRADE:{grade.pk}",
-                    {
-                        "grade_id": str(grade.pk),
-                        "seats_available": seats,
-                        "entry_age_min": (
-                            existing.entry_age_min if existing else None
-                        ),
-                        "entry_age_max": (
-                            existing.entry_age_max if existing else None
-                        ),
-                        "is_active": True,
-                    },
-                    target_id=grade.pk,
-                )
-                messages.success(
-                    request,
-                    f"{grade.grade_name} was sent for Super Admin approval.",
-                )
+                seats, invalid = _clean_seats(request.POST.get("seats_available"))
+                if invalid:
+                    messages.error(request, "Seats must be a whole number.")
+                else:
+                    with transaction.atomic():
+                        for grade in grades:
+                            existing = SchoolGrade.objects.filter(
+                                school=school, grade=grade
+                            ).first()
+                            submit_school_content_change(
+                                school,
+                                request.user,
+                                SchoolContentChange.TYPE_GRADE,
+                                f"GRADE:{grade.pk}",
+                                {
+                                    "grade_id": str(grade.pk),
+                                    "seats_available": seats,
+                                    "entry_age_min": (
+                                        existing.entry_age_min if existing else None
+                                    ),
+                                    "entry_age_max": (
+                                        existing.entry_age_max if existing else None
+                                    ),
+                                    "is_active": True,
+                                },
+                                target_id=grade.pk,
+                            )
+                    label = (
+                        "Pre-Nursery/Nursery"
+                        if all(_is_early_combined_grade(grade) for grade in grades)
+                        else ", ".join(grade.grade_name for grade in grades)
+                    )
+                    messages.success(
+                        request,
+                        f"{label} was sent for Super Admin approval.",
+                    )
     elif action == "seats":
         row = SchoolGrade.objects.filter(
             pk=request.POST.get("school_grade") or "", school=school
@@ -1002,14 +1020,14 @@ def school_workspace(request):
         for row in offered_grades
     ]
     offered_ids = {row.grade_id for row in offered_grades}
-    grade_group = (request.GET.get("grade_group") or "PRIMARY").upper()
+    grade_group = (request.GET.get("grade_group") or "EARLY").upper()
     if grade_group not in {key for key, _label in GRADE_GROUPS}:
-        grade_group = "PRIMARY"
-    grade_catalog = [
-        {"id": grade.grade_id, "name": grade.grade_name}
-        for grade in Grade.objects.filter(status=True).order_by("sort_order")
-        if grade.grade_id not in offered_ids and _grade_group(grade.grade_name) == grade_group
-    ]
+        grade_group = "EARLY"
+    grade_catalog = _grade_catalog_rows(
+        list(Grade.objects.filter(status=True).order_by("sort_order")),
+        offered_ids,
+        grade_group,
+    )
     grades = [
         row for row in grades
         if _grade_group(row["name"]) == grade_group
@@ -1163,6 +1181,36 @@ def _grade_group(grade_name):
     if grade_number <= 12:
         return "SENIOR"
     return "OTHER"
+
+
+def _is_early_combined_grade(grade):
+    code = re.sub(r"[^A-Z0-9]", "", (getattr(grade, "grade_code", "") or "").upper())
+    name = re.sub(r"[^A-Z0-9]", "", (getattr(grade, "grade_name", "") or "").upper())
+    return (
+        code in {"PN", "PRENUR", "PRENURSERY", "NUR", "NURSERY"}
+        or "PRENURSERY" in name
+        or name in {"NUR", "NURSERY"}
+    )
+
+
+def _grade_catalog_rows(grades, offered_ids, grade_group):
+    grouped = [grade for grade in grades if _grade_group(grade.grade_name) == grade_group]
+    early_grades = [grade for grade in grouped if _is_early_combined_grade(grade)]
+    catalog = []
+    missing_early_grades = [
+        grade for grade in early_grades if grade.grade_id not in offered_ids
+    ]
+    if grade_group == "EARLY" and missing_early_grades:
+        catalog.append({
+            "id": ",".join(str(grade.grade_id) for grade in missing_early_grades),
+            "name": "Pre-Nursery/Nursery",
+        })
+    catalog.extend(
+        {"id": grade.grade_id, "name": grade.grade_name}
+        for grade in grouped
+        if grade not in early_grades and grade.grade_id not in offered_ids
+    )
+    return catalog
 
 
 def school_subscription_page(request):

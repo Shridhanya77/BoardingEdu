@@ -583,7 +583,7 @@ export default async function SchoolProfile({
                 <div className="school-travel__heading">
                   <span className="school-location-card__eyebrow">PLAN YOUR VISIT</span>
                   <h3 id="school-travel-heading">Travel &amp; accessibility</h3>
-                  <p>Find nearby transport and landmarks. Confirm routes and travel times before visiting.</p>
+                  <p>See estimated road distances and drive times from the school. Confirm routes before visiting.</p>
                 </div>
                 <SchoolTravelPanel
                   latitude={hasCoordinates ? latitude : null}

@@ -10,7 +10,7 @@ from django.core.management.base import CommandError
 from django.db import connection
 from django.http import QueryDict
 from django.urls import reverse
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from PIL import Image
@@ -21,9 +21,15 @@ from apps.fees.admin import FeeItemInline
 from apps.geography.models import City, Country, Location, State
 from apps.users.models import SchoolAdminProfile, User
 from .management.commands.manage_school_photos import Command as ManageSchoolPhotosCommand
-from config.admin_dashboard import _grade_group
+from config.admin_dashboard import _grade_catalog_rows, _grade_group
 from config.school_media import cover_image_url_for_school
-from .admin import SchoolAdmin, SchoolGradeInline, SchoolPhotoInline
+from .admin import (
+    SchoolAdmin,
+    SchoolFacilityAdmin,
+    SchoolGradeAdmin,
+    SchoolGradeInline,
+    SchoolPhotoInline,
+)
 from .management.commands.import_scraped_schools import Command as ImportScrapedSchoolsCommand
 from .models import (
     Board,
@@ -43,6 +49,7 @@ from .models import (
 from .profile_changes import review_school_profile_change
 from .content_changes import review_school_content_change, submit_school_content_change
 from .public_urls import public_school_url
+from .templatetags.school_cards import school_card
 from .serializers import (
     SchoolDetailSerializer,
     SchoolListSerializer,
@@ -71,6 +78,31 @@ class PublicSchoolUrlTests(SimpleTestCase):
             public_school_url(school),
             "https://www.boardingedu.com/india/karnataka/bengaluru/sample-public-school/",
         )
+
+
+class SchoolCardPublicUrlTests(SimpleTestCase):
+    @override_settings(PUBLIC_SITE_URL="https://www.boardingedu.test")
+    def test_school_card_uses_canonical_deployed_profile_url_and_sanitizes_slug(self):
+        school = SimpleNamespace(
+            pk="school-id",
+            verification_status="VERIFIED",
+            school_types=SimpleNamespace(all=lambda: []),
+            school_image_url="",
+            school_logo_url="",
+            school_name="Sample Academy",
+            country=SimpleNamespace(slug="india?", country_name="India"),
+            state=SimpleNamespace(slug="karna?taka", state_name="Karnataka"),
+            city=SimpleNamespace(slug="bengaluru", city_name="Bengaluru"),
+            slug="sample?academy",
+        )
+
+        profile_url = school_card(school)["profile_url"]
+
+        self.assertEqual(
+            profile_url,
+            "https://www.boardingedu.test/india/karna-taka/bengaluru/sample-academy/",
+        )
+        self.assertNotIn("?", profile_url)
 
 
 class ImportedSchoolSlugTests(SimpleTestCase):
@@ -136,6 +168,95 @@ class SchoolAdminGradeGroupingTests(SimpleTestCase):
         self.assertEqual(_grade_group("Standard 10"), "SECONDARY")
         self.assertEqual(_grade_group("Grade 12"), "SENIOR")
         self.assertEqual(_grade_group("Foundation"), "OTHER")
+
+    def test_grade_catalog_combines_early_years_before_lkg(self):
+        pre_nursery = SimpleNamespace(
+            grade_id="00000000-0000-0000-0000-000000000001",
+            grade_code="PN",
+            grade_name="Pre Nursery",
+        )
+        nursery = SimpleNamespace(
+            grade_id="00000000-0000-0000-0000-000000000002",
+            grade_code="NUR",
+            grade_name="Nursery",
+        )
+        lkg = SimpleNamespace(
+            grade_id="00000000-0000-0000-0000-000000000003",
+            grade_code="LKG",
+            grade_name="LKG",
+        )
+
+        catalog = _grade_catalog_rows([pre_nursery, nursery, lkg], set(), "EARLY")
+
+        self.assertEqual(
+            catalog,
+            [
+                {
+                    "id": (
+                        "00000000-0000-0000-0000-000000000001,"
+                        "00000000-0000-0000-0000-000000000002"
+                    ),
+                    "name": "Pre-Nursery/Nursery",
+                },
+                {"id": lkg.grade_id, "name": "LKG"},
+            ],
+        )
+
+
+class SchoolContentAdminNavigationTests(SimpleTestCase):
+    def test_school_admin_facility_and_grade_links_open_the_school_workspace(self):
+        request_factory = RequestFactory()
+        request = request_factory.get("/admin/schools/schoolfacility/")
+        request.user = SimpleNamespace(
+            is_authenticated=True,
+            is_superuser=False,
+            role=User.ROLE_SCHOOL_ADMIN,
+            school_admin_profile=SimpleNamespace(school_id="school-id"),
+        )
+
+        facility_response = SchoolFacilityAdmin(
+            SchoolFacility, admin.site
+        ).changelist_view(request)
+        grade_response = SchoolGradeAdmin(
+            SchoolGrade, admin.site
+        ).changelist_view(request)
+
+        self.assertIn("section=facilities", facility_response.url)
+        self.assertIn("section=grades", grade_response.url)
+        self.assertIn("grade_group=EARLY", grade_response.url)
+
+    def test_platform_facility_and_grade_links_open_the_school_list(self):
+        request = RequestFactory().get("/admin/schools/schoolgrade/")
+        request.user = SimpleNamespace(is_authenticated=True, is_superuser=True)
+
+        facility_response = SchoolFacilityAdmin(
+            SchoolFacility, admin.site
+        ).changelist_view(request)
+        grade_response = SchoolGradeAdmin(
+            SchoolGrade, admin.site
+        ).changelist_view(request)
+
+        self.assertEqual(facility_response.url, reverse("admin:schools_school_changelist"))
+        self.assertEqual(grade_response.url, reverse("admin:schools_school_changelist"))
+
+
+class AdminRelatedModalTests(TestCase):
+    def test_related_add_popup_can_render_in_a_same_origin_frame(self):
+        user = User.objects.create_superuser(
+            username="related-modal-admin",
+            email="related-modal-admin@example.test",
+            password="secret-pass",
+            role=User.ROLE_SUPER_ADMIN,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("admin:geography_country_add"),
+            {"_popup": "1"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("X-Frame-Options"), "SAMEORIGIN")
 
 
 class SchoolImageAdminTests(SimpleTestCase):

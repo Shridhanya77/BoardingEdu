@@ -410,7 +410,8 @@ if not DEBUG:
     # Preload is hard to undo, so it is opt-in
     SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() == "true"
 
-X_FRAME_OPTIONS = "DENY"
+# Jazzmin's related-object dialogs load admin forms in same-origin iframes.
+X_FRAME_OPTIONS = "SAMEORIGIN"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 

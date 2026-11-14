@@ -806,6 +806,12 @@ export default function ComparePage({
           </div>
         ) : (
           <>
+          <div
+            className="compare-matrix-scroller"
+            role="region"
+            aria-label="Side-by-side school comparison; scroll horizontally to compare all schools"
+            tabIndex={0}
+          >
             <div className="compare-matrix__schools">
               <div className="compare-matrix__label">SCHOOL</div>
               {comparisonSchools.map((school, index) => {
@@ -870,6 +876,8 @@ export default function ComparePage({
                 <p className="compare-category-panel__empty-state">No differences found in this category.</p>
               )}
             </div>
+            </div>
+            <p className="compare-matrix__scroll-hint">Swipe horizontally to see each school&apos;s details.</p>
           </>
         )}
         </section>
