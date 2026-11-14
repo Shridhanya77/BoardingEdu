@@ -26191,8 +26191,10 @@ select:focus-visible {
   .discovery-page--listing .results-layout--school-grid > .school-results {
     grid-row: 1;
     min-width: 0;
+    height: calc(100vh - 112px);
     max-height: calc(100vh - 112px);
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .discovery-page--listing .filters-panel {
     position: sticky;
