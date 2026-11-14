@@ -1,5 +1,6 @@
 import uuid
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils.text import slugify
@@ -161,6 +162,13 @@ class School(models.Model):
     # SCHOOL ATTRIBUTES
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='COED', null=False)
     established_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    student_teacher_ratio = models.PositiveSmallIntegerField(
+        verbose_name="Students per teacher",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Enter students per teacher; the public profile displays this as N:1.",
+    )
     pincode = models.CharField(max_length=20, blank=True)
     address = models.CharField(max_length=500, null=False)
     lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)

@@ -228,6 +228,7 @@ def build_school_admin_payload(user, enquiry_rows):
             "address": school.address,
             "pincode": school.pincode,
             "established_year": school.established_year,
+            "student_teacher_ratio": school.student_teacher_ratio,
             "boards": [str(board.pk) for board in school.boards.all()],
             "school_type_ids": [str(school_type.pk) for school_type in school.school_types.all()],
             "school_types_detail": [

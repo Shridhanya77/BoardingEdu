@@ -21,6 +21,7 @@ PROFILE_CHANGE_FIELDS = frozenset(
         "school_types",
         "gender",
         "established_year",
+        "student_teacher_ratio",
         "pincode",
         "address",
         "lat",

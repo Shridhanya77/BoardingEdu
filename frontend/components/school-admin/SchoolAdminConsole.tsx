@@ -714,6 +714,10 @@ function ProfileEditor({
     address: school.address,
     pincode: school.pincode,
     established_year: school.established_year ? String(school.established_year) : "",
+    student_teacher_ratio:
+      school.student_teacher_ratio != null
+        ? String(school.student_teacher_ratio)
+        : "",
     school_logo_url: school.school_logo_url,
     school_image_url: school.school_image_url,
     admission_open: school.admission_open,
@@ -739,6 +743,15 @@ function ProfileEditor({
       setLocalError("Choose at least one school type and one education board.");
       return;
     }
+    if (
+      draft.student_teacher_ratio &&
+      (!/^\d+$/.test(draft.student_teacher_ratio) ||
+        Number(draft.student_teacher_ratio) < 1 ||
+        Number(draft.student_teacher_ratio) > 32767)
+    ) {
+      setLocalError("Enter a whole-number student-teacher ratio from 1 to 32767.");
+      return;
+    }
     setLocalError(null);
     onSave({
       short_name: draft.short_name,
@@ -751,6 +764,9 @@ function ProfileEditor({
       address: draft.address,
       pincode: draft.pincode,
       established_year: draft.established_year ? Number(draft.established_year) : null,
+      student_teacher_ratio: draft.student_teacher_ratio
+        ? Number(draft.student_teacher_ratio)
+        : null,
       school_logo_url: draft.school_logo_url,
       school_image_url: draft.school_image_url,
       admission_open: draft.admission_open,
@@ -768,6 +784,17 @@ function ProfileEditor({
       <div className="sa-form-grid">
         <label>Short name<input value={draft.short_name} onChange={(event) => setDraft({ ...draft, short_name: event.target.value })} /></label>
         <label>Year established<input inputMode="numeric" value={draft.established_year} onChange={(event) => setDraft({ ...draft, established_year: event.target.value })} /></label>
+        <label>Students per teacher
+          <input
+            type="number"
+            min="1"
+            max="32767"
+            step="1"
+            value={draft.student_teacher_ratio}
+            onChange={(event) => setDraft({ ...draft, student_teacher_ratio: event.target.value })}
+          />
+          <small>Displayed to families as N:1.</small>
+        </label>
         <label className="sa-span">Tagline<input value={draft.tagline} maxLength={200} onChange={(event) => setDraft({ ...draft, tagline: event.target.value })} /></label>
         <label className="sa-span">Description<textarea rows={5} value={draft.about} onChange={(event) => setDraft({ ...draft, about: event.target.value })} /></label>
         <label>Phone<input value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} placeholder="+91 98765 43210" /></label>
@@ -1760,6 +1787,7 @@ function profilePayload(data: SchoolDashboardData): SchoolPortalUpdate {
     address: data.school.address,
     pincode: data.school.pincode,
     established_year: data.school.established_year,
+    student_teacher_ratio: data.school.student_teacher_ratio,
     school_logo_url: data.school.school_logo_url,
     school_image_url: data.school.school_image_url,
     admission_open: data.school.admission_open,

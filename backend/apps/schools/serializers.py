@@ -343,6 +343,7 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             'tagline',
             'admission_open',
             'established_year',
+            'student_teacher_ratio',
             'boarding_required',
             'is_featured',
             'status',
@@ -555,6 +556,7 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
 
             'gender',
             'established_year',
+            'student_teacher_ratio',
             'pincode',
             'address',
             'lat',
@@ -1091,6 +1093,12 @@ class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
         max_length=50,
     )
     email = serializers.EmailField(required=False, allow_blank=True)
+    student_teacher_ratio = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        max_value=32767,
+    )
     pending_profile_change = serializers.SerializerMethodField()
 
     class Meta:
@@ -1109,6 +1117,7 @@ class SchoolPortalSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "address",
             "pincode",
             "established_year",
+            "student_teacher_ratio",
             "gender",
             "school_logo_url",
             "school_image_url",

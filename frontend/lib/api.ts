@@ -352,6 +352,7 @@ export type SchoolListItem = {
   admission_open?: boolean;
   seo_keywords?: string[];
   established_year: number | null;
+  student_teacher_ratio: number | null;
   annual_fee: string | null;
   average_rating: number | null;
   review_count: number;
@@ -1128,6 +1129,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     email: school.email,
     principal_name: school.principal_name,
     established_year: school.established_year,
+    student_teacher_ratio: school.student_teacher_ratio,
     annual_fee: null,
     average_rating: null,
     review_count: 0,
@@ -1376,6 +1378,7 @@ export type SchoolDashboardData = {
     address: string;
     pincode: string;
     established_year: number | null;
+    student_teacher_ratio: number | null;
     boards: string[];
     school_type_ids: string[];
     school_types_detail: SchoolTypeListItem[];
@@ -1455,6 +1458,7 @@ export type SchoolPortalData = {
   address: string;
   pincode: string;
   established_year: number | null;
+  student_teacher_ratio: number | null;
   school_logo_url: string;
   school_image_url: string;
   gender: string;
@@ -1480,6 +1484,7 @@ export type SchoolPortalUpdate = Pick<
   | "address"
   | "pincode"
   | "established_year"
+  | "student_teacher_ratio"
   | "school_logo_url"
   | "school_image_url"
   | "gender"

@@ -462,6 +462,31 @@ class SchoolImageAdminTests(SimpleTestCase):
         self.assertNotIn("photo_upload", SchoolPhotoInline.fields)
 
 
+class SchoolAdminIdentityFieldsTests(SimpleTestCase):
+    def test_school_code_and_slug_are_read_only_only_after_creation(self):
+        model_admin = SchoolAdmin(School, admin.site)
+        request = SimpleNamespace(
+            user=SimpleNamespace(
+                is_superuser=True,
+                role=User.ROLE_SUPER_ADMIN,
+            )
+        )
+        existing_school = SimpleNamespace(pk="existing-school")
+
+        self.assertIn(
+            "school_code",
+            model_admin.get_readonly_fields(request, existing_school),
+        )
+        self.assertIn(
+            "slug",
+            model_admin.get_readonly_fields(request, existing_school),
+        )
+        self.assertNotIn("school_code", model_admin.get_readonly_fields(request))
+        self.assertNotIn("slug", model_admin.get_readonly_fields(request))
+        self.assertEqual(model_admin.get_prepopulated_fields(request, existing_school), {})
+        self.assertIn("slug", model_admin.get_prepopulated_fields(request))
+
+
 class SchoolPhotoCommandImageTests(SimpleTestCase):
     def test_images_are_optimized_to_webp_and_gallery_images_are_watermarked(self):
         source = BytesIO()
@@ -1702,6 +1727,42 @@ class SchoolProfileReviewWorkflowTests(TestCase):
         pending.refresh_from_db()
         self.assertEqual(pending.status, "REJECTED")
         self.assertEqual(pending.review_note, "Please correct the description.")
+
+    def test_student_teacher_ratio_is_exposed_and_requires_approval(self):
+        self.school.student_teacher_ratio = 18
+        self.school.save(update_fields=["student_teacher_ratio"])
+        self.assertEqual(
+            SchoolDetailSerializer(self.school).data["student_teacher_ratio"],
+            18,
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.school_admin)
+        response = client.patch(
+            "/api/schools/schools/mine/",
+            {"student_teacher_ratio": 24},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 202, response.data)
+        self.assertEqual(response.data["student_teacher_ratio"], 18)
+        pending = self.school.profile_changes.get(status="PENDING")
+        self.assertEqual(pending.changes["student_teacher_ratio"], 24)
+
+        review_school_profile_change(
+            pending.change_id,
+            self.reviewer,
+            approve=True,
+            note="Ratio verified",
+        )
+        self.school.refresh_from_db()
+        self.assertEqual(self.school.student_teacher_ratio, 24)
+
+        invalid_response = client.patch(
+            "/api/schools/schools/mine/",
+            {"student_teacher_ratio": 0},
+            format="json",
+        )
+        self.assertEqual(invalid_response.status_code, 400)
 
     def test_only_super_admin_can_approve_school_content_changes(self):
         facility = Facility.objects.create(

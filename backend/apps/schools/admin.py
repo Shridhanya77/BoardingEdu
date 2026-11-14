@@ -497,6 +497,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                 "fields": (
                     "tagline",
                     "about",
+                    "student_teacher_ratio",
                     "admission_open",
                     "profile_review_status",
                 ),
@@ -744,6 +745,10 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            for name in ("school_code", "slug"):
+                if name not in fields:
+                    fields.append(name)
         if manages_own_school(request.user):
             for name in (
                 "school_code",
@@ -760,7 +765,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         return fields
 
     def get_prepopulated_fields(self, request, obj=None):
-        if manages_own_school(request.user):
+        if obj is not None or manages_own_school(request.user):
             return {}
         return super().get_prepopulated_fields(request, obj)
 

@@ -271,6 +271,14 @@ export default async function SchoolProfile({
     },
     { label: "Classes offered", value: classesRange, icon: GraduationCap },
     {
+      label: "Student-teacher ratio",
+      value:
+        school.student_teacher_ratio != null
+          ? `${school.student_teacher_ratio}:1`
+          : null,
+      icon: Users,
+    },
+    {
       label: "Education board",
       value: school.boards_detail.length
         ? boardsAffiliatedLabel(school.boards_detail)
