@@ -1933,6 +1933,10 @@ body.be-login-page {
 
 /* Friendlier Django school-admin navigation and dashboard controls. */
 body.be-school-admin #nav-sidebar {
+  position: sticky;
+  top: 56px;
+  align-self: flex-start;
+  max-height: calc(100vh - 56px);
   border-right: 0;
   background: linear-gradient(180deg, #10243a, #172f46);
   color: #e7f0f8;

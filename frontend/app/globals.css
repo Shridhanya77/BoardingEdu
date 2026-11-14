@@ -24682,7 +24682,7 @@ select:focus-visible {
     background-size: auto;
     background-color: #f4f7fb;
   }
-  .sa-sidebar { position: static; height: auto; background: linear-gradient(180deg, #1f2d3d 0%, #16202c 100%); }
+  .sa-sidebar { position: sticky; top: 0; z-index: 30; height: auto; background: linear-gradient(180deg, #1f2d3d 0%, #16202c 100%); }
   .sa-sidebar nav { flex-direction: row; overflow-x: auto; }
   .sa-sidebar button { width: auto; white-space: nowrap; }
   .sa-sidebar__foot { margin-top: 0; }
