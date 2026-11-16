@@ -1,6 +1,5 @@
 """Liveness and readiness probes for container/orchestrator health checks."""
 import os
-import urllib.request
 
 from django.core.cache import cache
 from django.db import connection
@@ -8,20 +7,6 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
 APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
-
-
-@require_GET
-def outbound_ip(request):
-    """TEMPORARY: returns the server's public outbound IP.
-
-    Used to find Render's dynamic outbound IP so it can be added to Brevo's
-    authorized IP list. Remove this endpoint after the IP is allowlisted."""
-    try:
-        ip = urllib.request.urlopen("https://ifconfig.me", timeout=5).read().decode().strip()
-    except Exception as exc:
-        return JsonResponse({"error": str(exc)}, status=502)
-    return JsonResponse({"outbound_ip": ip})
-
 
 
 def _check_database():
@@ -47,7 +32,7 @@ def _check_cache():
 
 def _check_search():
     """Search is optional; returns None when not configured."""
-    url = os.getenv("MEILISEARCH_URL", "").strip()
+    url = os.getenv("MEILI_URL", "").strip()
     if not url:
         return None, "not configured"
     try:
