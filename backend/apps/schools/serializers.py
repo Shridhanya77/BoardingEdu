@@ -24,7 +24,42 @@ from .models import (
     SchoolFacility,
     SchoolGrade,
     SchoolFAQ,
+    FeaturedPromotion,
 )
+
+
+def featured_promotion_payload(school, request):
+    """Public banner fields for an active promotion, or None."""
+    try:
+        promotion = school.featured_promotion
+    except FeaturedPromotion.DoesNotExist:
+        return None
+    if promotion is None or not promotion.is_publicly_active():
+        return None
+
+    highlights = [
+        line.strip()
+        for line in (promotion.highlights or "").splitlines()
+        if line.strip()
+    ][:4]
+    if not highlights:
+        facilities = getattr(school, "_prefetched_objects_cache", {}).get("school_facilities")
+        if facilities is None:
+            facilities = school.school_facilities.filter(available=True).select_related("facility")
+        highlights = [
+            row.facility.facility_name
+            for row in facilities
+            if getattr(row, "available", True) and getattr(row, "facility_id", None)
+        ][:4]
+
+    return {
+        "label": promotion.label,
+        "label_display": promotion.get_label_display(),
+        "description": promotion.description,
+        "highlights": highlights,
+        "banner_url": rewrite_school_media_url(promotion.banner_url, request) if promotion.banner_url else "",
+        "priority": promotion.priority,
+    }
 from .seo import school_seo_keywords
 
 
@@ -283,6 +318,7 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     safety_rating = serializers.FloatField(read_only=True, allow_null=True)
     communication_rating = serializers.FloatField(read_only=True, allow_null=True)
     grades_range = serializers.SerializerMethodField()
+    promotion = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -346,6 +382,7 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             'student_teacher_ratio',
             'boarding_required',
             'is_featured',
+            'promotion',
             'status',
             'published_at',
             'updated_at',
@@ -439,6 +476,9 @@ class SchoolListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             return start
         return f"{start} - {end}"
 
+    def get_promotion(self, obj):
+        return featured_promotion_payload(obj, self.context.get("request"))
+
 
 class SchoolPhotoListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     class Meta:
@@ -522,6 +562,7 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
     seo_keywords = serializers.SerializerMethodField()
+    promotion = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -570,6 +611,7 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             'admission_open',
             'boarding_required',
             'is_featured',
+            'promotion',
             'status',
             'verification_status',
             'published_at',
@@ -618,6 +660,9 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
 
     def get_seo_keywords(self, obj):
         return school_seo_keywords(obj)
+
+    def get_promotion(self, obj):
+        return featured_promotion_payload(obj, self.context.get("request"))
 
     def get_school_image_url(self, obj):
         return rewrite_school_media_url(

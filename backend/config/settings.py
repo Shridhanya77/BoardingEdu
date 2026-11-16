@@ -214,8 +214,11 @@ def _database_requires_ssl(url):
         return True
     if explicit in {"0", "false", "no"}:
         return False
-    host = urlparse(url).hostname or ""
-    if host.endswith(".render.com"):
+    host = (urlparse(url).hostname or "").lower()
+    # Render and Railway public proxies reject non-TLS Postgres handshakes.
+    # DEBUG used to skip SSL for every non-Render host, which made a local
+    # process fail while connecting to those proxies.
+    if host.endswith(".render.com") or host.endswith(".rlwy.net") or host.endswith(".railway.app"):
         return True
     return not DEBUG
 

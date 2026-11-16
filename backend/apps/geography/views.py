@@ -5,6 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Count, Q
 
+from apps.schools.querysets import featured_visibility_q
 from config.pagination import CityDirectoryPagination
 from .models import Country, State, City, Location
 from .serializers import (
@@ -84,7 +85,7 @@ class CityViewSet(ReadWriteModelViewSet):
         schools_count=Count('schools', filter=Q(schools__status=True), distinct=True),
         featured_schools_count=Count(
             'schools',
-            filter=Q(schools__status=True, schools__is_featured=True),
+            filter=Q(schools__status=True) & featured_visibility_q("schools"),
             distinct=True,
         ),
     )

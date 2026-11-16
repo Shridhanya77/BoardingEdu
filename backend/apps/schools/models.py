@@ -231,6 +231,95 @@ class School(models.Model):
         return f"{self.school_code} - {self.school_name}"
 
 
+class FeaturedPromotion(models.Model):
+    """Platform-wide promotional placement for one published school.
+
+    School administrators do not own this record. Public pages show it only
+    while it is active and inside the optional date window.
+    """
+
+    LABEL_FEATURED = "FEATURED"
+    LABEL_SPONSORED = "SPONSORED"
+    LABEL_CHOICES = [
+        (LABEL_FEATURED, "Featured"),
+        (LABEL_SPONSORED, "Sponsored"),
+    ]
+
+    promotion_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.OneToOneField(
+        School,
+        on_delete=models.CASCADE,
+        related_name="featured_promotion",
+        db_column="school_id",
+    )
+    banner_url = models.URLField(
+        max_length=500,
+        blank=True,
+        help_text="Promotional image. Leave blank to use the school's cover image.",
+    )
+    description = models.CharField(
+        max_length=280,
+        blank=True,
+        help_text="Short line shown on the homepage and listing banners.",
+    )
+    highlights = models.TextField(
+        blank=True,
+        help_text="One facility or highlight per line. Up to four are shown.",
+    )
+    label = models.CharField(max_length=20, choices=LABEL_CHOICES, default=LABEL_FEATURED)
+    priority = models.PositiveIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Higher numbers are shown first.",
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    starts_on = models.DateField(null=True, blank=True)
+    ends_on = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "featured_promotions"
+        ordering = ["-priority", "school__school_name"]
+        verbose_name = "Featured promotion"
+        verbose_name_plural = "Featured promotions"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
+            raise ValidationError({"ends_on": "The end date must be on or after the start date."})
+
+    def is_publicly_active(self, today=None):
+        from django.utils import timezone
+
+        if not self.is_active:
+            return False
+        today = today or timezone.localdate()
+        if self.starts_on and self.starts_on > today:
+            return False
+        if self.ends_on and self.ends_on < today:
+            return False
+        return True
+
+    def sync_school_featured_flag(self):
+        School.objects.filter(pk=self.school_id).update(is_featured=self.is_publicly_active())
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+        self.sync_school_featured_flag()
+
+    def delete(self, *args, **kwargs):
+        school_id = self.school_id
+        result = super().delete(*args, **kwargs)
+        School.objects.filter(pk=school_id).update(is_featured=False)
+        return result
+
+    def __str__(self):
+        return f"{self.get_label_display()} · {self.school}"
+
+
 class SchoolVerificationEvent(models.Model):
     event_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(

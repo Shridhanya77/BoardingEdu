@@ -29,6 +29,7 @@ from .models import (
     SchoolFacility,
     SchoolGrade,
     SchoolFAQ,
+    FeaturedPromotion,
     SchoolVerificationEvent,
     SchoolProfileChange,
     SchoolContentChange,
@@ -1004,3 +1005,114 @@ class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                 grade_group="EARLY",
             ))
         return redirect(_school_workspace_section_url("grades"))
+
+
+def _is_platform_promotion_admin(user):
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and (
+            getattr(user, "is_superuser", False)
+            or getattr(user, "role", None) in {User.ROLE_STAFF_ADMIN, User.ROLE_SUPER_ADMIN}
+        )
+    )
+
+
+class FeaturedPromotionAdminForm(forms.ModelForm):
+    banner_upload = forms.ImageField(
+        required=False,
+        help_text=(
+            "Upload a promotional image. It is resized to at most 1600px, "
+            "saved as WebP, watermarked, and stored with the school's other images. "
+            "Leave this empty to keep or paste an existing image address."
+        ),
+    )
+
+    class Meta:
+        model = FeaturedPromotion
+        fields = "__all__"
+
+
+@admin.register(FeaturedPromotion)
+class FeaturedPromotionAdmin(admin.ModelAdmin):
+    form = FeaturedPromotionAdminForm
+    autocomplete_fields = ("school",)
+    list_select_related = ("school", "school__city")
+    list_display = (
+        "school",
+        "label",
+        "priority",
+        "is_active",
+        "starts_on",
+        "ends_on",
+        "updated_at",
+    )
+    list_filter = ("label", "is_active")
+    search_fields = ("school__school_name", "school__school_code", "description")
+    ordering = ("-priority", "school__school_name")
+    readonly_fields = ("created_at", "updated_at", "banner_preview")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "school",
+                    "label",
+                    "description",
+                    "highlights",
+                    "banner_upload",
+                    "banner_url",
+                    "banner_preview",
+                )
+            },
+        ),
+        (
+            "Schedule",
+            {
+                "fields": (
+                    "is_active",
+                    "priority",
+                    "starts_on",
+                    "ends_on",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+    def has_module_permission(self, request):
+        return _is_platform_promotion_admin(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return _is_platform_promotion_admin(request.user)
+
+    def has_add_permission(self, request):
+        return _is_platform_promotion_admin(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return _is_platform_promotion_admin(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return _is_platform_promotion_admin(request.user)
+
+    @admin.display(description="Banner preview")
+    def banner_preview(self, obj):
+        return media_preview_html(getattr(obj, "banner_url", ""))
+
+    def save_model(self, request, obj, form, change):
+        upload = form.cleaned_data.get("banner_upload")
+        if upload:
+            from uuid import uuid4
+
+            from django.core.files.base import ContentFile
+            from django.core.files.storage import default_storage
+
+            from .images import optimize_school_image
+
+            optimized = optimize_school_image(upload.read(), add_watermark=True)
+            stored_name = default_storage.save(
+                f"schools/promos/{uuid4().hex}.webp",
+                ContentFile(optimized),
+            )
+            obj.banner_url = default_storage.url(stored_name)
+        super().save_model(request, obj, form, change)

@@ -319,6 +319,15 @@ export const users = {
 };
 
 // ---------- Schools ----------
+export type SchoolPromotion = {
+  label: "FEATURED" | "SPONSORED";
+  label_display: string;
+  description: string;
+  highlights: string[];
+  banner_url: string;
+  priority: number;
+};
+
 export type SchoolListItem = {
   school_id: string;                  // UUID
   school_code: string;
@@ -363,6 +372,7 @@ export type SchoolListItem = {
   grades_range?: string | null;
   boarding_required: boolean;
   is_featured: boolean;
+  promotion?: SchoolPromotion | null;
   status: boolean;
   published_at: string | null;
   updated_at: string;
@@ -1136,6 +1146,7 @@ export function schoolDetailToListItem(school: SchoolDetail): SchoolListItem {
     grades_range: null,
     boarding_required: school.boarding_required,
     is_featured: school.is_featured,
+    promotion: school.promotion ?? null,
     status: school.status,
     published_at: school.published_at,
     updated_at: school.updated_at,

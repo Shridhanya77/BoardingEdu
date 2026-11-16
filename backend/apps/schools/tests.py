@@ -693,6 +693,49 @@ class SchoolClassificationTests(TestCase):
         featured.refresh_from_db()
         self.assertTrue(featured.is_featured)
 
+    def test_expired_or_inactive_promotions_are_hidden_from_the_public_filter(self):
+        from datetime import date, timedelta
+
+        from apps.schools.models import FeaturedPromotion
+
+        active = self.create_school("PROMO-ACTIVE")
+        expired = self.create_school("PROMO-EXPIRED")
+        paused = self.create_school("PROMO-PAUSED")
+        today = date.today()
+        FeaturedPromotion.objects.create(
+            school=active,
+            description="Open day this month",
+            highlights="Science labs\nSports grounds",
+            priority=5,
+            is_active=True,
+        )
+        FeaturedPromotion.objects.create(
+            school=expired,
+            description="Last year's campaign",
+            is_active=True,
+            starts_on=today - timedelta(days=30),
+            ends_on=today - timedelta(days=1),
+        )
+        expired.is_featured = True
+        expired.save(update_fields=["is_featured"])
+        FeaturedPromotion.objects.create(
+            school=paused,
+            description="Paused campaign",
+            is_active=False,
+        )
+
+        response = self.client.get("/api/schools/schools/", {"is_featured": "true"})
+        codes = [item["school_code"] for item in response.data["results"]]
+        self.assertEqual(codes, ["PROMO-ACTIVE"])
+        promotion = response.data["results"][0]["promotion"]
+        self.assertEqual(promotion["label"], "FEATURED")
+        self.assertEqual(promotion["description"], "Open day this month")
+        self.assertEqual(promotion["highlights"], ["Science labs", "Sports grounds"])
+        active.refresh_from_db()
+        paused.refresh_from_db()
+        self.assertTrue(active.is_featured)
+        self.assertFalse(paused.is_featured)
+
     def test_type_migration_merges_legacy_full_boarding_school_assignments(self):
         school = self.create_school('MIGRATE-FULL-BOARDING')
         school.school_types.add(self.full_boarding)

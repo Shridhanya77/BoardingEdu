@@ -62,6 +62,7 @@ import CounsellingSection from "@/components/home/CounsellingSection";
 import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
 import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
+import FeaturedPromoBanner from "@/components/home/FeaturedPromoBanner";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import FeaturedSchoolCarousel from "@/components/home/FeaturedSchoolCarousel";
 import RecentlyViewedSchools from "@/components/home/RecentlyViewedSchools";
@@ -828,6 +829,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
   const featuredSchoolIds = useMemo(
     () => new Set(featuredSchools.map((school) => school.school_id)),
+    [featuredSchools],
+  );
+  const promotedSchools = useMemo(
+    () => featuredSchools.filter((school) => school.promotion),
+    [featuredSchools],
+  );
+  const featuredCardSchools = useMemo(
+    () => featuredSchools.filter((school) => !school.promotion),
     [featuredSchools],
   );
   const displayTopBoardingSchools = useMemo(
@@ -3052,6 +3061,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </Link>
       </section>
 
+      {!featuredLoading && promotedSchools.length > 0 && (
+        <FeaturedPromoBanner schools={promotedSchools} />
+      )}
+
       {isHomePage && (
         <>
       <section className="trust-strip" aria-label="Verified BoardingEdu directory facts">
@@ -3626,9 +3639,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <div className="featured-state featured-state--error" role="alert">
             {featuredError}
           </div>
-        ) : featuredSchools.length > 0 ? (
-          <FeaturedSchoolCards schools={featuredSchools} />
-        ) : (
+        ) : featuredCardSchools.length > 0 ? (
+          <FeaturedSchoolCards schools={featuredCardSchools} />
+        ) : promotedSchools.length > 0 ? null : (
           <p className="section-empty">
             Featured schools will appear here when the directory has published
             listings.
@@ -3934,6 +3947,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             {locationsError && activeCityId && (
               <p className="listing-place-spotlight__error" role="status">{locationsError}</p>
             )}
+            {(featuredLoading || featuredError || featuredCardSchools.length > 0 || promotedSchools.length === 0) && (
             <div className="listing-place-spotlight__featured">
               <div className="home-section__heading">
                 <div>
@@ -3951,7 +3965,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 <p className="section-empty" role="status">Loading featured schools…</p>
               ) : featuredError ? (
                 <p className="listing-place-spotlight__error" role="alert">{featuredError}</p>
-              ) : featuredSchools.length ? (
+              ) : featuredCardSchools.length ? (
                 <>
                   {featuredFallback && (
                     <p className="section-empty">
@@ -3959,7 +3973,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                     </p>
                   )}
                   <FeaturedSchoolCarousel
-                    schools={featuredSchools}
+                    schools={featuredCardSchools}
                     label={`Featured schools in ${listingPlaceLabel}`}
                     autoAdvance
                   />
@@ -3968,11 +3982,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 <p className="section-empty">No schools are listed for this area yet.</p>
               )}
             </div>
+            )}
           </section>
         )}
 
         {!activeCountryId && !activeStateId && !activeCityId &&
-          !featuredLoading && !featuredError && featuredSchools.length > 0 && (
+          !featuredLoading && !featuredError && featuredCardSchools.length > 0 && (
             <section className="listing-directory-carousel" aria-labelledby="listing-directory-carousel-heading">
               <div className="listing-directory-carousel__heading">
                 <div>
@@ -3981,7 +3996,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   <p>Scroll through featured listings to compare schools before you refine your search.</p>
                 </div>
               </div>
-              <FeaturedSchoolCarousel schools={featuredSchools} autoAdvance />
+              <FeaturedSchoolCarousel schools={featuredCardSchools} autoAdvance />
             </section>
           )}
 

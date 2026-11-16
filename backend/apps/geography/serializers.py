@@ -1,5 +1,7 @@
+from django.db.models import Q
 from rest_framework import serializers
 
+from apps.schools.querysets import featured_visibility_q
 from .models import Country, State, City, Location
 
 
@@ -98,7 +100,7 @@ class CityListSerializer(serializers.ModelSerializer):
     def get_featured_schools_count(self, obj):
         if hasattr(obj, 'featured_schools_count'):
             return obj.featured_schools_count
-        return obj.schools.filter(status=True, is_featured=True).count()
+        return obj.schools.filter(Q(status=True) & featured_visibility_q()).count()
 
 
 class LocationListSerializer(serializers.ModelSerializer):

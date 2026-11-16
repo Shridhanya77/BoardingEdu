@@ -126,7 +126,7 @@ class SchoolFilter(django_filters.FilterSet):
         field_name='school_types',
         queryset=SchoolType.objects.all(),
     )
-    is_featured = django_filters.BooleanFilter(field_name='is_featured')
+    is_featured = django_filters.BooleanFilter(method='filter_is_featured')
     min_fee = django_filters.NumberFilter(method='filter_min_fee')
     max_fee = django_filters.NumberFilter(method='filter_max_fee')
 
@@ -161,6 +161,21 @@ class SchoolFilter(django_filters.FilterSet):
         if not matching_type_ids:
             return queryset.none()
         return queryset.filter(school_types__in=matching_type_ids).distinct()
+
+    def filter_is_featured(self, queryset, name, value):
+        from .querysets import featured_visibility_q
+
+        featured = featured_visibility_q()
+        queryset = queryset.filter(featured) if value else queryset.exclude(featured)
+        if value:
+            queryset = queryset.annotate(
+                featured_priority=Coalesce(
+                    "featured_promotion__priority",
+                    Value(0),
+                    output_field=IntegerField(),
+                )
+            ).order_by("-featured_priority", "school_name", "school_id")
+        return queryset
 
     def filter_country(self, queryset, name, country):
         # Keep the denormalized school geography FKs consistent with the hierarchy.
@@ -353,7 +368,7 @@ class FacilityViewSet(ReadWriteModelViewSet):
 class SchoolViewSet(ReadWriteModelViewSet):
     queryset = (
         School.objects.select_related(
-            'country', 'state', 'city', 'location'
+            'country', 'state', 'city', 'location', 'featured_promotion'
         )
         .prefetch_related(
             'boards',
