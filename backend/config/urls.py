@@ -41,7 +41,10 @@ from apps.notifications.otp_views import (
     OtpResendView,
     OtpVerifyView,
 )
-from apps.users.serializers import EmailOrUsernameTokenObtainPairSerializer
+from apps.users.serializers import (
+    ApprovedSchoolAdminTokenRefreshSerializer,
+    EmailOrUsernameTokenObtainPairSerializer,
+)
 from apps.dashboards.views import PublicPlatformSummaryView
 from .health import healthz, outbound_ip, readyz
 from .admin_dashboard import install_admin_dashboard
@@ -53,6 +56,10 @@ install_admin_dashboard()
 
 class EmailOrUsernameTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
+
+
+class ApprovedSchoolAdminTokenRefreshView(TokenRefreshView):
+    serializer_class = ApprovedSchoolAdminTokenRefreshSerializer
 
 
 def root_redirect_view(request):
@@ -132,7 +139,7 @@ urlpatterns = [
     path("api/auth/otp/email/verify/", EmailChangeVerifyView.as_view(), name="otp-email-verify"),
     path(
         "api/auth/jwt/token/refresh/",
-        TokenRefreshView.as_view(),
+        ApprovedSchoolAdminTokenRefreshView.as_view(),
         name="token_refresh",
     ),
     path(

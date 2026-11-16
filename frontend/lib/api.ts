@@ -238,7 +238,7 @@ export const auth = {
       body: JSON.stringify({ username, password }),
     }),
   verifyOtp: (payload: { email: string; otp: string; purpose: "register" | "login" | "password_reset"; password?: string }) =>
-    request<{ access?: string; refresh?: string; detail?: string }>("/auth/otp/verify/", {
+    request<{ access?: string; refresh?: string; detail?: string; application_pending?: boolean }>("/auth/otp/verify/", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

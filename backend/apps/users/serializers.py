@@ -4,6 +4,7 @@ from django.contrib.auth.models import update_last_login
 from rest_framework_simplejwt.serializers import (
     TokenObtainPairSerializer,
     TokenObtainSerializer,
+    TokenRefreshSerializer,
 )
 from rest_framework_simplejwt.settings import api_settings
 from django.contrib.auth import get_user_model
@@ -43,6 +44,12 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
                 raise AuthenticationFailed(
                     "This school administrator account is not assigned to a school."
                 )
+            from apps.users.school_admin_scope import school_admin_is_approved
+
+            if not school_admin_is_approved(user):
+                raise AuthenticationFailed(
+                    "Your school application is awaiting admin approval."
+                )
 
         from apps.notifications.otp import OTP_ROLES, OtpError, issue_otp
         from rest_framework.exceptions import APIException
@@ -66,6 +73,25 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
         if api_settings.UPDATE_LAST_LOGIN:
             update_last_login(None, user)
         return data
+
+
+class ApprovedSchoolAdminTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        refresh = self.token_class(attrs["refresh"])
+        user_id = refresh.get(api_settings.USER_ID_CLAIM)
+        user = UserModel.objects.filter(
+            **{api_settings.USER_ID_FIELD: user_id}
+        ).first()
+        if user and user.role == UserModel.ROLE_SCHOOL_ADMIN:
+            from apps.users.school_admin_scope import school_admin_is_approved
+
+            if not school_admin_is_approved(user):
+                raise AuthenticationFailed(
+                    "Your school application is awaiting admin approval."
+                )
+        return super().validate(attrs)
+
+
 # ======================================================================
 # USER — LIST SERIALIZER
 # ======================================================================

@@ -27,6 +27,17 @@ def assigned_school_id(user):
         return None
 
 
+def school_admin_is_approved(user):
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "role", None) != User.ROLE_SCHOOL_ADMIN:
+        return False
+    try:
+        return user.school_admin_profile.school.verification_status == "VERIFIED"
+    except ObjectDoesNotExist:
+        return False
+
+
 def manages_own_school(user):
     return assigned_school_id(user) is not None
 
@@ -59,6 +70,15 @@ class BoardingEduAdminAuthenticationForm(AdminAuthenticationForm):
 
     def confirm_login_allowed(self, user):
         AuthenticationForm.confirm_login_allowed(self, user)
+        if (
+            not user.is_superuser
+            and user.role == User.ROLE_SCHOOL_ADMIN
+            and not school_admin_is_approved(user)
+        ):
+            raise forms.ValidationError(
+                _("Your school application is awaiting admin approval."),
+                code="school_pending_approval",
+            )
         if user.is_staff or user.is_superuser or assigned_school_id(user) is not None:
             return
         raise forms.ValidationError(

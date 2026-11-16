@@ -8,9 +8,19 @@
 <section class="be-home-stats">
   <a href="{% url 'admin:schools_school_changelist' %}"><span>Schools</span><strong>{{ s.school_total }}</strong></a>
   <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
-  <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=PENDING"><span>Pending</span><strong>{{ s.verification.pending }}</strong></a>
+  <a href="{% url 'admin:schools_school_verification_queue' %}"><span>Pending applications</span><strong>{{ s.verification.pending }}</strong></a>
   <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}"><span>New leads</span><strong>{{ s.enquiry_new }}</strong></a>
 </section>
+
+{% if s.verification.pending %}
+<section class="be-directory" role="status">
+  <header>
+    <h2>New school applications need review</h2>
+    <a href="{% url 'admin:schools_school_verification_queue' %}">Review applications</a>
+  </header>
+  <p>{{ s.verification.pending }} school application{{ s.verification.pending|pluralize }} {{ s.verification.pending|yesno:"is,are" }} waiting for approval.</p>
+</section>
+{% endif %}
 
 <section class="be-directory">
   <header>

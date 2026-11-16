@@ -46,7 +46,7 @@ class UserRegistrationContactValidationTests(SimpleTestCase):
 
 
 class PendingSchoolAdminLoginTests(TestCase):
-    def test_pending_school_admin_can_sign_in_to_the_website_panel(self):
+    def test_school_admin_cannot_sign_in_or_refresh_until_school_is_approved(self):
         country = Country.objects.create(country_code="IN", country_name="India", slug="india-login")
         state = State.objects.create(
             country=country, state_code="KA", state_name="Karnataka", slug="karnataka-login"
@@ -71,8 +71,7 @@ class PendingSchoolAdminLoginTests(TestCase):
         admin = User.objects.get(username="pending-school-admin")
         SchoolAdminProfile.objects.create(user=admin, school=school, designation="Principal")
 
-        from unittest.mock import patch
-
+        from apps.notifications.otp import issue_otp
         from django.test import override_settings
 
         with override_settings(
@@ -87,20 +86,53 @@ class PendingSchoolAdminLoginTests(TestCase):
             send.return_value.ok = True
             send.return_value.json.return_value = {
                 "success": True,
-                "result": {"delivered": ["pending-school-admin has no email"], "queued": [], "message_id": "cf-1"},
+                "result": {"delivered": [admin.email], "queued": [], "message_id": "cf-1"},
             }
             admin.email = "pending-admin@example.test"
             admin.save(update_fields=["email"])
             send.return_value.json.return_value["result"]["delivered"] = [admin.email]
-            challenge = APIClient().post(
+            issue_otp(admin, "register", client_ip="127.0.0.1")
+            client = APIClient()
+            registration_verification = client.post(
+                "/api/auth/otp/verify/",
+                {"email": admin.email, "otp": "123456", "purpose": "register"},
+                format="json",
+            )
+            self.assertEqual(registration_verification.status_code, 200)
+            self.assertTrue(registration_verification.data.get("application_pending"))
+            self.assertNotIn("access", registration_verification.data)
+            self.assertNotIn("refresh", registration_verification.data)
+
+            denied = client.post(
+                "/api/auth/jwt/token/",
+                {"username": "pending-school-admin", "password": "secret-pass"},
+                format="json",
+            )
+            self.assertEqual(denied.status_code, 401, denied.data)
+            self.assertIn("awaiting admin approval", str(denied.data))
+
+            from rest_framework_simplejwt.tokens import RefreshToken
+
+            pending_refresh = RefreshToken.for_user(admin)
+            refresh_denied = client.post(
+                "/api/auth/jwt/token/refresh/",
+                {"refresh": str(pending_refresh)},
+                format="json",
+            )
+            self.assertEqual(refresh_denied.status_code, 401, refresh_denied.data)
+
+            school.verification_status = "VERIFIED"
+            school.status = True
+            school.save(update_fields=["verification_status", "status"])
+            challenge = client.post(
                 "/api/auth/jwt/token/",
                 {"username": "pending-school-admin", "password": "secret-pass"},
                 format="json",
             )
             self.assertEqual(challenge.status_code, 200, challenge.data)
             self.assertTrue(challenge.data.get("otp_required"))
-            self.assertNotIn("access", challenge.data)
-            response = APIClient().post(
+            self.assertEqual(challenge.data.get("purpose"), "login")
+            response = client.post(
                 "/api/auth/otp/verify/",
                 {"email": admin.email, "otp": "123456", "purpose": "login"},
                 format="json",
@@ -108,7 +140,7 @@ class PendingSchoolAdminLoginTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("access", response.data)
-        refreshed = APIClient().post(
+        refreshed = client.post(
             "/api/auth/jwt/token/refresh/",
             {"refresh": response.data["refresh"]},
             format="json",
@@ -134,7 +166,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             state=state,
             city=city,
             address="Bengaluru",
-            verification_status="PENDING",
+            verification_status="VERIFIED",
         )
         other = School.objects.create(
             school_code="OTHER-ADMIN",
@@ -152,6 +184,27 @@ class SchoolAdminBackendLoginTests(TestCase):
             role=User.ROLE_SCHOOL_ADMIN,
         )
         SchoolAdminProfile.objects.create(user=user, school=own, designation="Principal")
+        pending_school = School.objects.create(
+            school_code="PENDING-ADMIN",
+            school_name="Pending Admin School",
+            slug="pending-admin-school",
+            country=country,
+            state=state,
+            city=city,
+            address="Bengaluru",
+            verification_status="PENDING",
+        )
+        pending_user = User.objects.create_user(
+            username="pending-backend-school-admin",
+            email="pending-principal@own-admin.test",
+            password="secret-pass",
+            role=User.ROLE_SCHOOL_ADMIN,
+        )
+        SchoolAdminProfile.objects.create(
+            user=pending_user,
+            school=pending_school,
+            designation="Principal",
+        )
         reviewer = User.objects.create_user(
             username="workspace-superadmin",
             password="secret-pass",
@@ -172,6 +225,13 @@ class SchoolAdminBackendLoginTests(TestCase):
         )
         self.assertEqual(rejected.status_code, 200)
         self.assertContains(rejected, "Please enter the correct")
+
+        pending_login = client.post(
+            "/admin/login/",
+            {"username": pending_user.username, "password": "secret-pass"},
+        )
+        self.assertEqual(pending_login.status_code, 200)
+        self.assertContains(pending_login, "awaiting admin approval")
 
         for identifier in (user.username, user.email):
             client.logout()
@@ -319,6 +379,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             },
         )
         self.assertEqual(fee_add.status_code, 302)
+        self.assertEqual(fee_add.url, fees_url)
         own_structure = FeeStructure.objects.get(school=own, academic_year=year)
         self.assertFalse(FeeItem.objects.filter(fee_structure=own_structure).exists())
         approve_latest_content_change()
@@ -337,6 +398,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             },
         )
         self.assertEqual(rejected_fee.status_code, 302)
+        self.assertEqual(rejected_fee.url, fees_url)
         self.assertFalse(FeeItem.objects.filter(item_name="Negative fee").exists())
 
         fee_update = client.post(
@@ -349,6 +411,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             },
         )
         self.assertEqual(fee_update.status_code, 302)
+        self.assertEqual(fee_update.url, fees_url)
         own_fee.refresh_from_db()
         self.assertEqual(own_fee.item_name, "Tuition fee")
         self.assertEqual(own_fee.amount, 12000)
@@ -362,6 +425,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"fee_action": "publish", "fee_structure_id": str(own_structure.pk)},
         )
         self.assertEqual(fee_publish.status_code, 302)
+        self.assertEqual(fee_publish.url, fees_url)
         own_structure.refresh_from_db()
         self.assertFalse(own_structure.published)
         approve_latest_content_change()
@@ -372,6 +436,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"fee_action": "unpublish", "fee_structure_id": str(own_structure.pk)},
         )
         self.assertEqual(fee_unpublish.status_code, 302)
+        self.assertEqual(fee_unpublish.url, fees_url)
         own_structure.refresh_from_db()
         self.assertTrue(own_structure.published)
         approve_latest_content_change()
@@ -397,6 +462,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"fee_action": "delete", "fee_item_id": str(foreign_fee.pk)},
         )
         self.assertEqual(foreign_fee_delete.status_code, 302)
+        self.assertEqual(foreign_fee_delete.url, fees_url)
         self.assertTrue(FeeItem.objects.filter(pk=foreign_fee.pk).exists())
 
         fee_delete = client.post(
@@ -404,6 +470,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"fee_action": "delete", "fee_item_id": str(own_fee.pk)},
         )
         self.assertEqual(fee_delete.status_code, 302)
+        self.assertEqual(fee_delete.url, fees_url)
         self.assertTrue(FeeItem.objects.filter(pk=own_fee.pk).exists())
         approve_latest_content_change()
         self.assertFalse(FeeItem.objects.filter(pk=own_fee.pk).exists())
@@ -624,6 +691,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "yes"},
         )
         self.assertEqual(turned_on.status_code, 302)
+        self.assertEqual(turned_on.url, facilities_url)
         self.assertFalse(
             SchoolFacility.objects.filter(
                 school=own, facility=library, available=True
@@ -634,6 +702,7 @@ class SchoolAdminBackendLoginTests(TestCase):
             {"facility": str(library.facility_id), "campus": "ACADEMIC", "campus_action": "no"},
         )
         self.assertEqual(turned_off.status_code, 302)
+        self.assertEqual(turned_off.url, facilities_url)
         self.assertFalse(SchoolFacility.objects.filter(school=own, facility=library).exists())
 
         leads = client.get(reverse("admin:admissions_admissionenquiry_changelist"))
@@ -672,6 +741,16 @@ class PlatformAdminPanelTests(TestCase):
             phone="919876543210",
             verification_status="VERIFIED",
         )
+        School.objects.create(
+            school_code="PANEL-PENDING",
+            school_name="Pending school application",
+            slug="pending-school-application-panel",
+            country=country,
+            state=state,
+            city=city,
+            address="Bhongir",
+            verification_status="PENDING",
+        )
         User.objects.create_superuser(
             username="panel-super",
             email="panel-super@boardingedu.test",
@@ -689,7 +768,9 @@ class PlatformAdminPanelTests(TestCase):
         self.assertEqual(home.status_code, 200)
         self.assertContains(home, "Sri Sri Academy")
         self.assertContains(home, "Approved")
-        self.assertContains(home, "Pending approval")
+        self.assertContains(home, "Pending school applications")
+        self.assertContains(home, "New school applications need review")
+        self.assertContains(home, reverse("admin:schools_school_verification_queue"))
 
         schools = client.get(reverse("admin:schools_school_changelist"))
         self.assertContains(schools, "office@srisri.test")

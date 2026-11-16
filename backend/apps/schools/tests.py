@@ -152,6 +152,93 @@ class SchoolRegistrationContactValidationTests(SimpleTestCase):
             serializer.fields["email"].run_validation("not-an-email")
 
 
+class SchoolApplicationRegistrationTests(TestCase):
+    def test_registration_creates_a_pending_application_visible_to_admin(self):
+        country = Country.objects.create(
+            country_code="IN",
+            country_name="India",
+            slug="india-school-application",
+        )
+        state = State.objects.create(
+            country=country,
+            state_code="KA",
+            state_name="Karnataka",
+            slug="karnataka-school-application",
+        )
+        city = City.objects.create(
+            state=state,
+            city_code="BLR",
+            city_name="Bengaluru",
+            slug="bengaluru-school-application",
+            status=True,
+        )
+        email_response = Mock(status_code=200, ok=True)
+        email_response.json.return_value = {
+            "success": True,
+            "result": {
+                "delivered": ["application-contact@example.test"],
+                "queued": [],
+                "message_id": "application-test",
+            },
+        }
+
+        with override_settings(
+            OTP_BACKEND="memory",
+            CLOUDFLARE_EMAIL_API_TOKEN="test-token",
+            CLOUDFLARE_EMAIL_ACCOUNT_ID="test-account",
+            CLOUDFLARE_EMAIL_FROM="no-reply@boardingedu.com",
+        ), patch("apps.notifications.otp.generate_code", return_value="654321"), patch(
+            "apps.notifications.email_provider.requests.post",
+            return_value=email_response,
+        ):
+            registration = APIClient().post(
+                "/api/schools/schools/register/",
+                {
+                    "school_name": "New Applicant Academy",
+                    "city": str(city.pk),
+                    "address": "Bengaluru",
+                    "contact_full_name": "Principal Applicant",
+                    "username": "applicant-principal",
+                    "email": "application-contact@example.test",
+                    "phone": "+91 98765 43210",
+                    "password": "application-password-123",
+                    "password_confirm": "application-password-123",
+                },
+                format="json",
+            )
+
+        self.assertEqual(registration.status_code, 201, registration.data)
+        self.assertTrue(registration.data.get("otp_required"))
+        school = School.objects.get(school_name="New Applicant Academy")
+        applicant = User.objects.get(username="applicant-principal")
+        self.assertEqual(school.verification_status, "PENDING")
+        self.assertFalse(school.status)
+        self.assertFalse(applicant.is_email_verified)
+        self.assertEqual(
+            SchoolAdminProfile.objects.get(user=applicant).school,
+            school,
+        )
+
+        admin_user = User.objects.create_user(
+            username="application-reviewer",
+            password="test-password",
+            role=User.ROLE_STAFF_ADMIN,
+            is_staff=True,
+        )
+        admin_client = APIClient()
+        admin_client.force_login(admin_user)
+        dashboard = admin_client.get(reverse("admin:index"))
+        self.assertContains(dashboard, "New school applications need review")
+        self.assertContains(
+            dashboard,
+            reverse("admin:schools_school_verification_queue"),
+        )
+        queue = admin_client.get(
+            reverse("admin:schools_school_verification_queue")
+        )
+        self.assertContains(queue, school.school_name)
+
+
 class SchoolBulkEntryAdminTests(SimpleTestCase):
     def test_school_and_fee_inlines_offer_multiple_rows_per_save(self):
         self.assertEqual(SchoolGradeInline.extra, 5)
