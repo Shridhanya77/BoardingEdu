@@ -49,7 +49,10 @@ jobs:
       - name: Django system checks
         run: python manage.py check
       - name: Run tests
-        run: python manage.py test --noinput
+        run: |
+          pip install coverage
+          coverage run --source=apps,config manage.py test --noinput
+          coverage report -m
       - name: Generate & validate OpenAPI schema
         run: python manage.py spectacular --validate --file schema.yml
 
