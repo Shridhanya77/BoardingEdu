@@ -556,7 +556,7 @@ function TopBoardingSchools({
   const schools = category === "residential-school" ? boardingSchools : daySchools;
 
   return (
-    <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading">
+    <aside className="top-boarding-schools" aria-labelledby="top-boarding-schools-heading" tabIndex={0}>
       <div className="top-boarding-schools__heading">
         <span className="section-eyebrow">TOP PICKS</span>
         <h2 id="top-boarding-schools-heading">
@@ -4187,7 +4187,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </aside>
           </div>
 
-          <div className="school-results" ref={schoolResultsRef}>
+          <div className="school-results">
             {requiresIndiaRegion && !geoRegion && (
               <div className="listing-region-hint" role="status">
                 <MapPin size={18} aria-hidden />
@@ -4296,6 +4296,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             </div>
 
+            <div
+              className="school-results__scroll"
+              ref={schoolResultsRef}
+              role="region"
+              aria-label="School results"
+              tabIndex={0}
+            >
             {activeFilters.length > 0 && (
               <div className="active-filters" aria-label="Applied filters">
                 <span className="active-filters__label">Applied</span>
@@ -4423,6 +4430,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               />
             )}
             {!isHomePage && loadMoreContent}
+            </div>
           </div>
         </div>
         {isHomePage && loadMoreContent}

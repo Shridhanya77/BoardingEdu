@@ -26178,13 +26178,13 @@ select:focus-visible {
   align-self: stretch;
 }
 
-.discovery-page--listing .school-results > .top-boarding-schools {
-  width: 100%;
-  margin-top: 20px;
-  grid-column: auto;
-  max-height: none;
-  overflow: visible;
-  position: static;
+.discovery-page--listing .school-results__scroll {
+  height: calc(100vh - 180px);
+  min-height: 320px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 @media (min-width: 1201px) {
@@ -26227,6 +26227,18 @@ select:focus-visible {
     grid-row: auto;
     position: static;
   }
+}
+
+.discovery-page--listing .school-results__scroll > .top-boarding-schools,
+.discovery-page--listing .school-list--listing-with-top-picks > .top-boarding-schools {
+  width: 100%;
+  height: min(360px, calc(100vh - 180px));
+  min-height: 200px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  position: static;
+  scrollbar-width: thin;
 }
 
 .discovery-page--listing .school-results__toolbar {
