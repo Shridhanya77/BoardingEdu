@@ -2243,11 +2243,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [isHomePage, statesRetry]);
 
   useEffect(() => {
-    if (!isBoardingOnlySelection(schoolType, schoolTypes)) return;
+    if (
+      !isBoardingOnlySelection(schoolType, schoolTypes) ||
+      initialCity ||
+      initialLocation
+    ) {
+      return;
+    }
     if (geoCity) setGeoCity("");
     if (geoLocation) setGeoLocation("");
     if (locationGroups.length) setLocationGroups([]);
-  }, [schoolType, schoolTypes, geoCity, geoLocation, locationGroups.length]);
+  }, [schoolType, schoolTypes, geoCity, geoLocation, locationGroups.length, initialCity, initialLocation]);
 
   useEffect(() => {
     if (

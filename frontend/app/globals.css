@@ -26263,6 +26263,68 @@ select:focus-visible {
   .pd-progress small { font-size: 9px; }
 }
 
+@media (min-width: 768px) {
+  .discovery-page--listing .results-layout {
+    grid-template-columns: clamp(190px, 20vw, 260px) minmax(0, 1fr);
+    gap: clamp(14px, 1.4vw, 20px);
+  }
+
+  .discovery-page--listing .results-layout > .filters-column {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .discovery-page--listing .results-layout > .school-results {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin-left: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  align-items: stretch;
+  gap: clamp(12px, 1.3vw, 20px);
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  max-height: none;
+  overflow: visible;
+  position: static;
+}
+
+@media (min-width: 1201px) and (max-width: 1599px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1600px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+    grid-column: 4;
+    grid-row: 1;
+    max-height: 440px;
+    overflow-y: auto;
+  }
+}
+
 .counselling__form > .country-phone-field,
 .discovery-page--home .counselling__form > .country-phone-field {
   width: 100%;
