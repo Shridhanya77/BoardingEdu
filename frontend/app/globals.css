@@ -21901,8 +21901,7 @@ select:focus-visible {
   box-shadow: 0 12px 30px rgb(15 35 58 / 9%);
 }
 
-/* Filters | results | top-picks stay in their own columns. The card grid is
-   never widened past its column, so cards can no longer overlap the filters. */
+/* Filters and results stay in separate columns; the school grid fills the results column. */
 .discovery-page--listing .school-list--grid.school-list--listing {
   width: 100%;
   margin-left: 0;
@@ -22135,13 +22134,6 @@ select:focus-visible {
   .discovery-page--listing .school-list--grid.school-list--listing > .school-card {
     grid-column: auto !important;
     grid-row: auto !important;
-  }
-
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    height: auto;
-    max-height: none;
   }
 
   .discovery-page--listing .results-layout--top-picks-in-grid {
@@ -22392,12 +22384,6 @@ select:focus-visible {
 
   .discovery-page--listing .school-list--list.school-list--listing .school-card__footer {
     padding-left: 10px;
-  }
-}
-
-@media (min-width: 1201px) {
-  .discovery-page--listing .school-list--grid.school-list--listing > .school-card--continued-in-next-row {
-    display: none;
   }
 }
 
@@ -22738,65 +22724,13 @@ select:focus-visible {
   grid-column: 2;
 }
 
-.discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
-  display: none;
-}
-
-.discovery-page--listing .school-list--continuation > .school-card {
-  align-self: stretch;
-}
-
-.discovery-page--listing .results-layout--school-grid > .top-boarding-schools {
-  grid-column: 2;
-}
-
-.discovery-page--listing .school-list--grid.school-list--listing {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-}
-
-.discovery-page--listing .school-list--grid.school-list--listing > .school-card {
-  align-self: start;
-}
-
-.discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-  grid-column: 1 / -1;
-  grid-row: auto;
-  max-height: none;
-  overflow: visible;
-  position: static;
-}
-
-@media (min-width: 1201px) {
-  .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 4;
-    grid-row: 1;
-    max-height: 440px;
-    overflow-y: auto;
-    position: static;
-  }
-
-  .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
-    width: 100%;
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 20px;
-  }
-}
-
-@media (max-width: 900px) {
+@media (max-width: 760px) {
   .discovery-page--listing .results-layout--school-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .discovery-page--listing .results-layout--school-grid > .school-results,
-  .discovery-page--listing .results-layout--school-grid > .top-boarding-schools {
+  .discovery-page--listing .results-layout--school-grid > .school-results {
     grid-column: 1;
   }
 
@@ -22807,11 +22741,6 @@ select:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 1;
-    grid-row: auto;
-    max-height: none;
-  }
 }
 
 @media (min-width: 701px) and (max-width: 760px) {
@@ -22838,7 +22767,7 @@ select:focus-visible {
   overflow: visible;
 }
 
-@media (min-width: 801px) {
+@media (min-width: 768px) {
   .discovery-page--listing .filters-column {
     align-self: stretch;
   }
@@ -24827,17 +24756,6 @@ select:focus-visible {
   .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > label.school-compare { grid-row: 2; }
   .discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > a.school-card__view { grid-row: 3; }
 
-  /* The Top Picks panel sits inside the card grid, so let it span both columns
-     instead of collapsing into a single half-width column. */
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (min-width: 701px) and (max-width: 1200px) {
-  .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 /* --- 2. Home featured cards: one per row on small phones -------------------
@@ -26166,16 +26084,16 @@ select:focus-visible {
   .discovery-page--listing .results-layout--school-grid > .school-results {
     grid-row: 1;
     min-width: 0;
-    height: calc(100vh - 112px);
-    max-height: calc(100vh - 112px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
   .discovery-page--listing .filters-panel {
     position: sticky;
     top: 96px;
-    max-height: none;
-    overflow: visible;
+    max-height: calc(100vh - 112px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
@@ -26193,22 +26111,6 @@ select:focus-visible {
   .discovery-page--listing .results-layout--school-grid > .school-results {
     grid-column: 2;
   }
-  .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 4;
-    grid-row: 1;
-    max-height: 440px;
-    overflow-y: auto;
-    position: static;
-  }
-  .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 20px;
-  }
 }
 
 @media (min-width: 901px) and (max-width: 1200px) {
@@ -26221,19 +26123,6 @@ select:focus-visible {
   .discovery-page--listing .results-layout--school-grid > .school-results {
     grid-column: 2;
   }
-  .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 2;
-    grid-row: 1;
-    max-height: 440px;
-    overflow-y: auto;
-  }
-  .discovery-page--listing .school-list.school-list--grid.school-list--listing.school-list--continuation {
-    grid-column: auto;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 801px) and (max-width: 900px) {
@@ -26245,15 +26134,6 @@ select:focus-visible {
   .discovery-page--listing .results-layout > .school-results,
   .discovery-page--listing .results-layout--school-grid > .school-results {
     grid-column: 2;
-  }
-  .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    max-height: none;
-    overflow: visible;
   }
 }
 
@@ -26298,31 +26178,72 @@ select:focus-visible {
   align-self: stretch;
 }
 
-.discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
-  grid-column: 1 / -1;
-  grid-row: auto;
+.discovery-page--listing .school-results > .top-boarding-schools {
+  width: 100%;
+  margin-top: 20px;
+  grid-column: auto;
   max-height: none;
   overflow: visible;
   position: static;
 }
 
-@media (min-width: 1201px) and (max-width: 1599px) {
-  .discovery-page--listing .school-list--grid.school-list--listing {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1600px) {
-  .discovery-page--listing .school-list--grid.school-list--listing {
+@media (min-width: 1201px) {
+  .discovery-page--listing .school-list--grid.school-list--listing.school-list--listing-with-top-picks {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+  .discovery-page--listing .school-list--listing-with-top-picks > .top-boarding-schools {
     grid-column: 4;
     grid-row: 1;
-    max-height: 440px;
-    overflow-y: auto;
+    align-self: start;
+    max-height: none;
+    overflow: visible;
+    position: static;
   }
+}
+
+@media (min-width: 768px) and (max-width: 1200px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-list--listing-with-top-picks > .top-boarding-schools {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: start;
+    max-height: none;
+    overflow: visible;
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing > .top-boarding-schools {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    position: static;
+  }
+}
+
+.discovery-page--listing .school-results__toolbar {
+  padding: 8px 0;
+  position: sticky;
+  top: 72px;
+  z-index: 20;
+  background: #fff;
+}
+
+.discovery-page--listing .featured-school-carousel__viewport {
+  width: 100%;
+  min-width: 0;
+}
+
+.discovery-page--listing .featured-school-carousel__viewport .featured-card {
+  flex-grow: 1;
 }
 
 .counselling__form > .country-phone-field,

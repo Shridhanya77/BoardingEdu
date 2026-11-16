@@ -4374,41 +4374,42 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {!error && (results.length > 0 || displayResults.length > 0) && (
-              <>
-                <div className={`school-list school-list--${schoolView} school-list--listing`}>
-                  {displayResults.map((school, index) => (
-                    <SchoolCard
-                      key={school.school_id}
-                      school={school}
-                      selectedBoards={board}
-                      selectedSchoolTypes={schoolType}
-                      className={schoolView === "grid" && index >= (isHomePage ? 7 : 3) ? "school-card--continued-in-next-row" : ""}
-                    />
-                  ))}
-                  {schoolView === "grid" && (
-                    <TopBoardingSchools
-                      category={topSchoolsCategory}
-                      boardName={selectedTopBoardName ?? null}
-                      boardingSchools={displayTopBoardingSchools}
-                      daySchools={displayTopDaySchools}
-                      loading={topBoardingSchoolsLoading}
-                      error={topBoardingSchoolsError}
-                    />
-                  )}
-                </div>
-              </>
-            )}
-            {schoolView === "grid" && displayResults.length > (isHomePage ? 7 : 3) && (
-              <div className="school-list school-list--grid school-list--listing school-list--continuation">
-                {displayResults.slice(isHomePage ? 7 : 3).map((school) => (
+            {!error && displayResults.length > 0 && (
+              <div
+                className={`school-list school-list--${schoolView} school-list--listing${
+                  schoolView === "grid" && !isHomePage
+                    ? " school-list--listing-with-top-picks"
+                    : ""
+                }`}
+              >
+                {(schoolView === "grid" && isHomePage ? displayResults.slice(0, 7) : displayResults).map((school) => (
                   <SchoolCard
-                    key={`continuation-${school.school_id}`}
+                    key={school.school_id}
                     school={school}
                     selectedBoards={board}
                     selectedSchoolTypes={schoolType}
                   />
                 ))}
+                {schoolView === "grid" && (
+                  <TopBoardingSchools
+                    category={topSchoolsCategory}
+                    boardName={selectedTopBoardName ?? null}
+                    boardingSchools={displayTopBoardingSchools}
+                    daySchools={displayTopDaySchools}
+                    loading={topBoardingSchoolsLoading}
+                    error={topBoardingSchoolsError}
+                  />
+                )}
+                {schoolView === "grid" &&
+                  isHomePage &&
+                  displayResults.slice(7).map((school) => (
+                    <SchoolCard
+                      key={school.school_id}
+                      school={school}
+                      selectedBoards={board}
+                      selectedSchoolTypes={schoolType}
+                    />
+                  ))}
               </div>
             )}
             {(schoolView === "list" || error || displayResults.length === 0) && (
