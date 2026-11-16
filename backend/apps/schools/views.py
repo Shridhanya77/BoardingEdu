@@ -169,6 +169,8 @@ class SchoolFilter(django_filters.FilterSet):
         return queryset.filter(school_types__in=matching_type_ids).distinct()
 
     def filter_facility(self, queryset, name, facilities):
+        if not facilities:
+            return queryset
         return queryset.filter(
             school_facilities__facility__in=facilities,
             school_facilities__available=True,

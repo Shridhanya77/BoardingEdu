@@ -740,6 +740,10 @@ class SchoolClassificationTests(TestCase):
             available=False,
         )
 
+        unfiltered_response = self.client.get("/api/schools/schools/")
+        self.assertEqual(unfiltered_response.status_code, 200)
+        self.assertEqual(unfiltered_response.data["count"], 2)
+
         response = self.client.get(
             "/api/schools/schools/",
             {"facility": str(facility.pk)},

@@ -1,3 +1,7 @@
+param(
+    [switch]$UseSQLite
+)
+
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
@@ -27,13 +31,44 @@ if (-not $python) {
     $python = $pythonCommand.Source
 }
 
-$databasePath = Join-Path $PSScriptRoot "db.sqlite3"
-$databaseUrlPath = $databasePath.Replace([char]92, [char]47)
-$env:DATABASE_URL = "sqlite:///$databaseUrlPath"
+if ($UseSQLite) {
+    $databasePath = Join-Path $PSScriptRoot "db.sqlite3"
+    $databaseUrlPath = $databasePath.Replace([char]92, [char]47)
+    $env:DATABASE_URL = "sqlite:///$databaseUrlPath"
+    Write-Host "Using local SQLite database: $databasePath"
+} else {
+    $databaseUrl = $env:DATABASE_URL
+    if (-not $databaseUrl) {
+        $databaseSetting = Get-Content (Join-Path $PSScriptRoot ".env") -ErrorAction SilentlyContinue |
+            Where-Object { $_ -match '^\s*DATABASE_URL\s*=' } |
+            Select-Object -First 1
+        if ($databaseSetting) {
+            $databaseUrl = ($databaseSetting -split "=", 2)[1].Trim().Trim('"').Trim("'")
+        }
+    }
+
+    if (-not $databaseUrl) {
+        throw "DATABASE_URL is missing. Configure a local PostgreSQL URL or start with -UseSQLite."
+    }
+
+    try {
+        $databaseUri = [Uri]$databaseUrl
+    } catch {
+        throw "DATABASE_URL is invalid. Configure a local PostgreSQL URL or start with -UseSQLite."
+    }
+
+    $localDatabaseHosts = @("localhost", "127.0.0.1", "::1")
+    if ($databaseUri.Scheme -ne "sqlite" -and $databaseUri.Host -notin $localDatabaseHosts) {
+        throw "Refusing to start against non-local database host '$($databaseUri.Host)'. Use -UseSQLite for an isolated local database."
+    }
+
+    $env:DATABASE_URL = $databaseUrl
+    Write-Host "Using configured local database host: $($databaseUri.Host)"
+}
+
 $env:DEBUG = "True"
 $env:ALLOWED_HOSTS = "localhost,127.0.0.1"
 
-Write-Host "Using local SQLite database: $databasePath"
 & $python manage.py check
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
