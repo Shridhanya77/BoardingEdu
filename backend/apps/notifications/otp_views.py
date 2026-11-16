@@ -49,14 +49,6 @@ class OtpVerifyView(APIView):
             return Response({"detail": PUBLIC_FAILURE}, status=400)
         if purpose == "login" and not user.is_email_verified:
             return Response({"detail": "Verify your email before signing in."}, status=403)
-        if purpose == "login" and user.role == User.ROLE_SCHOOL_ADMIN:
-            from apps.users.school_admin_scope import school_admin_is_approved
-
-            if not school_admin_is_approved(user):
-                return Response(
-                    {"detail": "Your school application is awaiting admin approval."},
-                    status=403,
-                )
         try:
             verify_otp(user, purpose, code)
         except OtpError as exc:
@@ -65,19 +57,6 @@ class OtpVerifyView(APIView):
             user.is_email_verified = True
             user.email_verified_at = timezone.now()
             user.save(update_fields=["is_email_verified", "email_verified_at"])
-            if user.role == User.ROLE_SCHOOL_ADMIN:
-                from apps.users.school_admin_scope import school_admin_is_approved
-
-                if not school_admin_is_approved(user):
-                    return Response(
-                        {
-                            "detail": (
-                                "Your email is verified. Your school application "
-                                "is awaiting admin approval before you can sign in."
-                            ),
-                            "application_pending": True,
-                        }
-                    )
         if purpose == "password_reset":
             password = request.data.get("password") or ""
             try:

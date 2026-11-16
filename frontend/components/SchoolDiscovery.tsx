@@ -43,7 +43,6 @@ import { boardsAffiliatedLabel } from "@/lib/board-labels";
 import type {
   BoardListItem,
   CityListItem,
-  FacilityListItem,
   LocationListItem,
   ReviewListItem,
   PublicRatingSummary,
@@ -615,18 +614,14 @@ function randomFeaturedSelection(
     const randomIndex = Math.floor(Math.random() * (index + 1));
     [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex]!, shuffled[index]!];
   }
-  shuffled.sort(
-    (left, right) =>
-      (right.promotion?.priority ?? 0) - (left.promotion?.priority ?? 0),
-  );
   const selected = shuffled.slice(0, Math.min(shuffled.length, count));
   const required = shuffled.find((school) => requiredSchoolIds.has(school.school_id));
   if (required && !selected.some((school) => school.school_id === required.school_id)) {
     selected[selected.length - 1] = required;
-    selected.sort(
-      (left, right) =>
-        (right.promotion?.priority ?? 0) - (left.promotion?.priority ?? 0),
-    );
+    for (let index = selected.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [selected[index], selected[randomIndex]] = [selected[randomIndex]!, selected[index]!];
+    }
   }
   return selected;
 }
@@ -780,9 +775,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   );
   const [boardsError, setBoardsError] = useState<string | null>(null);
   const [boardsRetry, setBoardsRetry] = useState(0);
-  const [facilities, setFacilities] = useState<FacilityListItem[]>([]);
-  const [facilitiesLoading, setFacilitiesLoading] = useState(true);
-  const [facilitiesError, setFacilitiesError] = useState<string | null>(null);
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [citiesLoading, setCitiesLoading] = useState(true);
   const [citiesError, setCitiesError] = useState<string | null>(null);
@@ -799,7 +791,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const schoolResultsRef = useRef<HTMLDivElement>(null);
   const [boardSearch, setBoardSearch] = useState("");
   const [board, setBoard] = useState<string[]>([]);
-  const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
   const [feeRange, setFeeRange] = useState<[number, number]>([
     0,
     3_000_000,
@@ -836,10 +827,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [featuredSchools, setFeaturedSchools] = useState<SchoolListItem[]>([]);
-  const resultSchoolIds = useMemo(
-    () => new Set(results.map((school) => school.school_id)),
-    [results],
-  );
   const featuredSchoolIds = useMemo(
     () => new Set(featuredSchools.map((school) => school.school_id)),
     [featuredSchools],
@@ -854,21 +841,15 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   );
   const displayTopBoardingSchools = useMemo(
     () => uniqueSchoolsById(topBoardingSchools)
-      .filter((school) =>
-        !featuredSchoolIds.has(school.school_id) &&
-        !resultSchoolIds.has(school.school_id),
-      )
+      .filter((school) => !featuredSchoolIds.has(school.school_id))
       .slice(0, 10),
-    [featuredSchoolIds, resultSchoolIds, topBoardingSchools],
+    [featuredSchoolIds, topBoardingSchools],
   );
   const displayTopDaySchools = useMemo(
     () => uniqueSchoolsById(topDaySchools)
-      .filter((school) =>
-        !featuredSchoolIds.has(school.school_id) &&
-        !resultSchoolIds.has(school.school_id),
-      )
+      .filter((school) => !featuredSchoolIds.has(school.school_id))
       .slice(0, 10),
-    [featuredSchoolIds, resultSchoolIds, topDaySchools],
+    [featuredSchoolIds, topDaySchools],
   );
   const topPickSchools = topSchoolsCategory === "residential-school"
     ? displayTopBoardingSchools
@@ -1346,10 +1327,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const hasMoreResults = page * PAGE_SIZE < totalCount;
   const displayResults = useMemo(() => {
     if (directoryRecommendationsLoading) return [];
-    return uniqueSchoolsById(results).filter(
-      (school) => isHomePage || !featuredSchoolIds.has(school.school_id),
-    );
-  }, [directoryRecommendationsLoading, featuredSchoolIds, isHomePage, results]);
+    return uniqueSchoolsById(results);
+  }, [directoryRecommendationsLoading, results]);
   const lastResultIndex = displayResults.length;
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
@@ -1396,7 +1375,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
    * hidden in the filter panel, because Day Boarding belongs to both families.
    */
   const filterSelectionFamily = homeSchoolCategoryForIds(schoolType, schoolTypes);
-  const queryKey = `${search}|${geoCountry}|${geoRegion}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${selectedFacilities.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
+  const queryKey = `${search}|${geoCountry}|${geoRegion}|${geoState}|${geoCity}|${geoLocation}|${locationGroups.join(";")}|${schoolType.join(",")}|${homeCategory ?? ""}|${board.join(",")}|${feeMin ?? ""}|${feeMax ?? ""}|${gender ?? ""}|${ordering ?? ""}`;
 
   const activeQuery = useRef(queryKey);
   activeQuery.current = queryKey;
@@ -1848,7 +1827,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       school_type: schoolType,
       home_category: homeCategory ? homeSchoolCategoryPath(homeCategory) : undefined,
       board: resolvedBoardIds,
-      facility: selectedFacilities,
       min_fee: feeMin,
       max_fee: feeMax,
       gender,
@@ -1896,7 +1874,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     return () => {
       cancelled = true;
     };
-  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoRegion, geoState, geoCity, geoLocation, initialCountry, initialState, initialCity, initialLocation, locationGroups, selectedIndiaRegionStateIds, selectedIndiaRegion, activeCountryId, regionCountryId, requiresIndiaRegion, citiesLoading, citiesError, schoolType, homeCategory, board, selectedFacilities, feeMin, feeMax, gender, ordering, page, queryKey, retryCount, isHomePage]);
+  }, [boards, queryRestored, schoolTypesLoaded, pendingTypeSlug, schoolTypes, search, geoCountry, geoRegion, geoState, geoCity, geoLocation, initialCountry, initialState, initialCity, initialLocation, locationGroups, selectedIndiaRegionStateIds, selectedIndiaRegion, activeCountryId, regionCountryId, requiresIndiaRegion, citiesLoading, citiesError, schoolType, homeCategory, board, feeMin, feeMax, gender, ordering, page, queryKey, retryCount, isHomePage]);
 
   useEffect(() => {
     if (
@@ -1952,7 +1930,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       // links keep their board filter instead of falling back to every board.
       const scopedBoards = params.getAll("board");
       setBoard(scopedBoards.length ? scopedBoards : initialBoardKey ? initialBoardKey.split(",") : []);
-      setSelectedFacilities(params.getAll("facility"));
       setSchoolType(initialSchoolTypeKey ? initialSchoolTypeKey.split(",") : []);
       setHomeCategory(initialHomeCategory ?? homeSchoolCategoryFromValue(params.get("home_category")));
       setGeoCountry(initialCountry ?? "");
@@ -1985,7 +1962,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setSearch(initialSearch);
     setSearchInput(initialSearch);
     setBoard(params.getAll("board"));
-    setSelectedFacilities(params.getAll("facility"));
     const initialTypes = params.getAll("school_type");
     const typeSlug = params.get("type");
     const requestedHomeCategory = params.get("home_category");
@@ -2189,36 +2165,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       })
       .finally(() => {
         if (!cancelled) setBoardsLoading(false);
-      });
-
-    setFacilitiesLoading(true);
-    setFacilitiesError(null);
-    schools
-      .facilities()
-      .then((response) => fetchAllPages(response))
-      .then((rows) => {
-        if (!cancelled) {
-          setFacilities(
-            rows
-              .filter((facility) => facility.status)
-              .sort((left, right) =>
-                left.category.localeCompare(right.category) ||
-                left.facility_name.localeCompare(right.facility_name),
-              ),
-          );
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          setFacilitiesError(
-            reason instanceof Error
-              ? reason.message
-              : "Could not load facility filters.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setFacilitiesLoading(false);
       });
 
     return () => {
@@ -2582,7 +2528,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setSearch("");
     setSchoolType([]);
     setBoard([]);
-    setSelectedFacilities([]);
     setGeoCountry("");
     setGeoRegion("");
     const pathnameRegion = pathname.split("/").filter(Boolean)[1];
@@ -2605,16 +2550,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }
 
   const hasFilters = Boolean(
-    search || geoCountry || geoState || geoCity || geoLocation || locationGroups.length > 0 || schoolType.length > 0 || board.length > 0 || selectedFacilities.length > 0 || gender || ordering !== DEFAULT_ORDERING
+    search || geoCountry || geoState || geoCity || geoLocation || locationGroups.length > 0 || schoolType.length > 0 || board.length > 0 || gender || ordering !== DEFAULT_ORDERING
       || feeMin !== undefined || feeMax !== undefined
   );
-  const activeFilterCount =
-    board.length +
-    schoolType.length +
-    selectedFacilities.length +
-    (geoCountry || geoRegion || geoState || geoCity || geoLocation || locationGroups.length ? 1 : 0) +
-    (gender ? 1 : 0) +
-    (feeMin !== undefined || feeMax !== undefined ? 1 : 0);
 
   /**
    * Every applied filter as a removable chip, so visitors can see exactly what
@@ -2658,17 +2596,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         label: item?.board_name ?? "Education board",
         onClear: () =>
           setBoard((current) => current.filter((id) => id !== boardId)),
-      };
-    }),
-    ...selectedFacilities.map((facilityId) => {
-      const item = facilities.find((entry) => entry.facility_id === facilityId);
-      return {
-        key: `facility-${facilityId}`,
-        label: item?.facility_name ?? "Facility",
-        onClear: () =>
-          setSelectedFacilities((current) =>
-            current.filter((id) => id !== facilityId),
-          ),
       };
     }),
     ...(gender
@@ -2729,7 +2656,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setSearch(query);
     setBoard([]);
     setSchoolType([]);
-    setSelectedFacilities([]);
     setFeeRange([0, 3_000_000]);
     setGender(undefined);
   }
@@ -2798,7 +2724,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setSearchInput("");
     setSearch("");
     setSchoolType([]);
-    setSelectedFacilities([]);
     setFeeRange([0, 3_000_000]);
     setGender(undefined);
   }
@@ -2817,7 +2742,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     setSearchInput("");
     setSearch("");
     setBoard([]);
-    setSelectedFacilities([]);
     setFeeRange([0, 3_000_000]);
     setGender(undefined);
     if (
@@ -3137,44 +3061,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </Link>
       </section>
 
-      {isHomePage && (
-        <section className="home-section home-section--featured" id="featured">
-          <div className="home-section__heading">
-            <div>
-              <div className="section-eyebrow">FEATURED SCHOOLS</div>
-              <h2>Featured Schools</h2>
-            </div>
-            <Link href="/schools">
-              Browse the directory <ArrowRight size={15} />
-            </Link>
-          </div>
-
-          {featuredLoading ? (
-            <div className="featured-state" role="status">
-              <LoaderCircle className="spin" size={20} />
-              Loading schools…
-            </div>
-          ) : featuredError ? (
-            <div className="featured-state featured-state--error" role="alert">
-              {featuredError}
-            </div>
-          ) : (
-            <>
-              {promotedSchools.length > 0 && (
-                <FeaturedPromoBanner schools={promotedSchools} />
-              )}
-              {featuredCardSchools.length > 0 && (
-                <FeaturedSchoolCards schools={featuredCardSchools} />
-              )}
-              {featuredSchools.length === 0 && (
-                <p className="section-empty">
-                  Featured schools will appear here when the directory has published
-                  listings.
-                </p>
-              )}
-            </>
-          )}
-        </section>
+      {!featuredLoading && promotedSchools.length > 0 && (
+        <FeaturedPromoBanner schools={promotedSchools} />
       )}
 
       {isHomePage && (
@@ -3730,6 +3618,37 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
+      <section className="home-section home-section--featured" id="featured">
+        <div className="home-section__heading">
+          <div>
+            <div className="section-eyebrow">A FEW PLACES TO BEGIN</div>
+            <h2>Featured schools</h2>
+          </div>
+
+          <Link href="/schools">
+            Browse the directory <ArrowRight size={15} />
+          </Link>
+        </div>
+
+        {featuredLoading ? (
+          <div className="featured-state" role="status">
+            <LoaderCircle className="spin" size={20} />
+            Loading schools…
+          </div>
+        ) : featuredError ? (
+          <div className="featured-state featured-state--error" role="alert">
+            {featuredError}
+          </div>
+        ) : featuredCardSchools.length > 0 ? (
+          <FeaturedSchoolCards schools={featuredCardSchools} />
+        ) : promotedSchools.length > 0 ? null : (
+          <p className="section-empty">
+            Featured schools will appear here when the directory has published
+            listings.
+          </p>
+        )}
+      </section>
+
       <CounsellingSection />
 
       <section className="home-section talk-to-us" id="talk-to-us">
@@ -4028,8 +3947,58 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             {locationsError && activeCityId && (
               <p className="listing-place-spotlight__error" role="status">{locationsError}</p>
             )}
+            {(featuredLoading || featuredError || featuredCardSchools.length > 0 || promotedSchools.length === 0) && (
+            <div className="listing-place-spotlight__featured">
+              <div className="home-section__heading">
+                <div>
+                  <div className="section-eyebrow">
+                    {featuredFallback
+                      ? "LOCAL SCHOOLS"
+                      : browsedRegion
+                        ? "REGIONAL PICKS"
+                        : "LOCAL PICKS"}
+                  </div>
+                  <h2>{homeCategory === "day-school" ? "Featured Day Schools" : homeCategory === "residential-school" ? "Featured Boarding Schools" : "Featured Schools"}</h2>
+                </div>
+              </div>
+              {featuredLoading ? (
+                <p className="section-empty" role="status">Loading featured schools…</p>
+              ) : featuredError ? (
+                <p className="listing-place-spotlight__error" role="alert">{featuredError}</p>
+              ) : featuredCardSchools.length ? (
+                <>
+                  {featuredFallback && (
+                    <p className="section-empty">
+                      No featured schools are listed in this area yet. Here are other published schools nearby.
+                    </p>
+                  )}
+                  <FeaturedSchoolCarousel
+                    schools={featuredCardSchools}
+                    label={`Featured schools in ${listingPlaceLabel}`}
+                    autoAdvance
+                  />
+                </>
+              ) : (
+                <p className="section-empty">No schools are listed for this area yet.</p>
+              )}
+            </div>
+            )}
           </section>
         )}
+
+        {!activeCountryId && !activeStateId && !activeCityId &&
+          !featuredLoading && !featuredError && featuredCardSchools.length > 0 && (
+            <section className="listing-directory-carousel" aria-labelledby="listing-directory-carousel-heading">
+              <div className="listing-directory-carousel__heading">
+                <div>
+                  <span className="section-eyebrow">SCHOOLS TO EXPLORE</span>
+                  <h2 id="listing-directory-carousel-heading">Featured schools</h2>
+                  <p>Scroll through featured listings to compare schools before you refine your search.</p>
+                </div>
+              </div>
+              <FeaturedSchoolCarousel schools={featuredCardSchools} autoAdvance />
+            </section>
+          )}
 
         <div className="section-heading">
           <div>
@@ -4089,199 +4058,120 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </button>
             </div>
 
-            <details className="filter-group">
-              <summary>
-                Location
-                {activeCountryId ||
-                activeStateId ||
-                activeCityId ||
-                initialLocation ||
-                geoRegion ||
-                locationGroups.length > 0
-                  ? " (1)"
-                  : ""}
-              </summary>
-              <div className="filter-group__content">
-                <p className="filter-select-label">
-                  Current area: <strong>{listingPlaceLabel}</strong>
+            <fieldset className="filter-group">
+              <legend>School type{schoolType.length ? ` (${schoolType.length})` : ""}</legend>
+              <div className="filter-checklist" id="school-type-filter">
+                {(["Day School", "Day Boarding School", "Boarding School"] as const).map((label) => {
+                  const rows = schoolTypes.filter((type) =>
+                    schoolTypeLabel(type.type_code, type.slug, type.type_name) === label &&
+                    (!homeCategory ||
+                      homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(homeCategory)),
+                  );
+                  const ids = rows.map((type) => type.school_type_id);
+                  if (!ids.length) return null;
+                  const selected = ids.some((id) => schoolType.includes(id));
+                  // Day Boarding belongs to both families, so a typed or checked
+                  // selection hides only the opposite extreme, never Day Boarding.
+                  if (!homeCategory && !selected && filterSelectionFamily &&
+                      !rows.some((type) =>
+                        homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(filterSelectionFamily))) {
+                    return null;
+                  }
+                  return <label className="filter-check" key={label}>
+                    <input type="checkbox" checked={selected} onChange={() => {
+                      setSchoolType((current) => selected
+                        ? current.filter((id) => !ids.includes(id))
+                        : [...new Set([...current, ...ids])]);
+                      trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
+                    }} />
+                    <span>{label}</span>
+                  </label>;
+                })}
+              </div>
+
+              {schoolTypesError && (
+                <p className="filter-error" role="alert">
+                  School type filters unavailable: {schoolTypesError}
                 </p>
-                <p className="filter-select-label">
-                  Search for a city above or choose a region to narrow schools.
-                </p>
-                <button
-                  type="button"
-                  className="filter-location__button"
-                  onClick={() => setRegionPickerOpen(true)}
-                >
-                  Choose region
-                </button>
-              </div>
-            </details>
+              )}
+            </fieldset>
 
-            <details className="filter-group">
-              <summary>School Type{schoolType.length ? ` (${schoolType.length})` : ""}</summary>
-              <div className="filter-group__content">
-                <div className="filter-checklist" id="school-type-filter">
-                  {(["Day School", "Day Boarding School", "Boarding School"] as const).map((label) => {
-                    const rows = schoolTypes.filter((type) =>
-                      schoolTypeLabel(type.type_code, type.slug, type.type_name) === label &&
-                      (!homeCategory ||
-                        homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(homeCategory)),
-                    );
-                    const ids = rows.map((type) => type.school_type_id);
-                    if (!ids.length) return null;
-                    const selected = ids.some((id) => schoolType.includes(id));
-                    // Day Boarding belongs to both families, so a typed or checked
-                    // selection hides only the opposite extreme, never Day Boarding.
-                    if (!homeCategory && !selected && filterSelectionFamily &&
-                        !rows.some((type) =>
-                          homeSchoolCategories(type.type_code, type.slug, type.type_name).includes(filterSelectionFamily))) {
-                      return null;
-                    }
-                    return <label className="filter-check" key={label}>
-                      <input type="checkbox" checked={selected} onChange={() => {
-                        setSchoolType((current) => selected
-                          ? current.filter((id) => !ids.includes(id))
-                          : [...new Set([...current, ...ids])]);
-                        trackSearchEvent("filter_applied", { filter_type: "school_type", selected: !selected });
-                      }} />
-                      <span>{label}</span>
-                    </label>;
-                  })}
-                </div>
-                {schoolTypesError && (
-                  <p className="filter-error" role="alert">
-                    School type filters unavailable: {schoolTypesError}
-                  </p>
-                )}
-              </div>
-            </details>
-
-            <details className="filter-group">
-              <summary>Board{board.length ? ` (${board.length})` : ""}</summary>
-              <div className="filter-group__content">
-                <div className="filter-checklist" id="board-filter">
-                  {boards.map((item) => (
-                    <label className="filter-check" key={item.board_id}>
-                      <input
-                        type="checkbox"
-                        checked={board.includes(item.board_id)}
-                        onChange={() => {
-                          const selected = !board.includes(item.board_id);
-                          setBoard((current) =>
-                            selected
-                              ? [...current, item.board_id]
-                              : current.filter((id) => id !== item.board_id)
-                          );
-                          trackSearchEvent("filter_applied", {
-                            filter_type: "board",
-                            selected,
-                          });
-                        }}
-                      />
-                      <span>{item.board_name}</span>
-                    </label>
-                  ))}
-                </div>
-                {boardsError && (
-                  <p className="filter-error" role="alert">
-                    Education board filters unavailable: {boardsError}
-                  </p>
-                )}
-              </div>
-            </details>
-
-            <details className="filter-group">
-              <summary>Annual Fee{feeMin !== undefined || feeMax !== undefined ? " (1)" : ""}</summary>
-              <div className="filter-group__content">
-                <p className="filter-select-label">
-                  Published fee details for the current academic year
-                </p>
-                <FeeRangeFilter
-                  value={feeRange}
-                  onValueCommit={(next) => {
-                    setFeeRange(next);
-                    trackSearchEvent("filter_applied", {
-                      filter_type: "fees",
-                      values: [`${next[0]}-${next[1]}`],
-                    });
-                  }}
-                />
-              </div>
-            </details>
-
-            <details className="filter-group">
-              <summary>
-                Facilities{selectedFacilities.length ? ` (${selectedFacilities.length})` : ""}
-              </summary>
-              <div className="filter-group__content">
-                {facilitiesLoading ? (
-                  <p className="filter-select-label" role="status">Loading facilities…</p>
-                ) : facilitiesError ? (
-                  <p className="filter-error" role="alert">
-                    Facilities could not be loaded: {facilitiesError}
-                  </p>
-                ) : (
-                  <div className="filter-checklist" id="facility-filter">
-                    {facilities.map((facility) => {
-                      const selected = selectedFacilities.includes(facility.facility_id);
-                      return (
-                        <label className="filter-check" key={facility.facility_id}>
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => {
-                              setSelectedFacilities((current) =>
-                                selected
-                                  ? current.filter((id) => id !== facility.facility_id)
-                                  : [...current, facility.facility_id],
-                              );
-                              trackSearchEvent("filter_applied", {
-                                filter_type: "facility",
-                                selected: !selected,
-                              });
-                            }}
-                          />
-                          <span>{facility.facility_name}</span>
-                        </label>
-                      );
-                    })}
-                    {!facilities.length && (
-                      <p className="filter-select-label">No facilities are available.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </details>
-
-            <details className="filter-group">
-              <summary>Gender{gender ? " (1)" : ""}</summary>
-              <div className="filter-group__content">
-                <div className="gender-options">
-                  {genderOptions.map((option) => (
-                    <button
-                      key={option.label}
-                      type="button"
-                      className={
-                        gender === option.value
-                          ? "gender-option gender-option--active"
-                          : "gender-option"
-                      }
-                      aria-pressed={gender === option.value}
-                      onClick={() => {
-                        setGender(option.value);
+            <fieldset className="filter-group">
+              <legend>Education board{board.length ? ` (${board.length})` : ""}</legend>
+              <div className="filter-checklist" id="board-filter">
+                {boards.map((item) => (
+                  <label className="filter-check" key={item.board_id}>
+                    <input
+                      type="checkbox"
+                      checked={board.includes(item.board_id)}
+                      onChange={() => {
+                        const selected = !board.includes(item.board_id);
+                        setBoard((current) =>
+                          selected
+                            ? [...current, item.board_id]
+                            : current.filter((id) => id !== item.board_id)
+                        );
                         trackSearchEvent("filter_applied", {
-                          filter_type: "gender",
-                          selected: option.value ?? "all",
+                          filter_type: "board",
+                          selected,
                         });
                       }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                    />
+                    <span>{item.board_name}</span>
+                  </label>
+                ))}
               </div>
-            </details>
+              {boardsError && (
+                <p className="filter-error" role="alert">
+                  Education board filters unavailable: {boardsError}
+                </p>
+              )}
+            </fieldset>
+
+            <fieldset className="filter-group">
+              <legend>Annual fee</legend>
+              <p className="filter-select-label">
+                Published fee details for the current academic year
+              </p>
+              <FeeRangeFilter
+                value={feeRange}
+                onValueCommit={(next) => {
+                  setFeeRange(next);
+                  trackSearchEvent("filter_applied", {
+                    filter_type: "fees",
+                    values: [`${next[0]}-${next[1]}`],
+                  });
+                }}
+              />
+            </fieldset>
+
+            <fieldset className="filter-group">
+              <legend>Gender</legend>
+
+              <div className="gender-options">
+                {genderOptions.map((option) => (
+                  <button
+                    key={option.label}
+                    type="button"
+                    className={
+                      gender === option.value
+                        ? "gender-option gender-option--active"
+                        : "gender-option"
+                    }
+                    aria-pressed={gender === option.value}
+                    onClick={() => {
+                      setGender(option.value);
+                      trackSearchEvent("filter_applied", {
+                        filter_type: "gender",
+                        selected: option.value ?? "all",
+                      });
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
             <div className="filters-panel__apply">
               <button type="button" onClick={closeFilters}>
@@ -4292,42 +4182,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           <div className="school-results" ref={schoolResultsRef}>
-            {!isHomePage &&
-              (featuredLoading || featuredError || featuredSchools.length > 0) && (
-                <section
-                  className="listing-directory-carousel listing-directory-carousel--results"
-                  aria-labelledby="listing-directory-carousel-heading"
-                >
-                  <div className="listing-directory-carousel__heading">
-                    <div>
-                      <span className="section-eyebrow">
-                        {featuredFallback ? "LOCAL PICKS" : "FEATURED SCHOOLS"}
-                      </span>
-                      <h2 id="listing-directory-carousel-heading">
-                        {featuredFallback ? "Schools to explore" : "Featured schools"}
-                      </h2>
-                      <p>
-                        {featuredFallback
-                          ? "No featured schools are listed in this area yet. Explore these published schools nearby."
-                          : `Explore schools selected for ${listingPlaceLabel}.`}
-                      </p>
-                    </div>
-                  </div>
-                  {featuredLoading ? (
-                    <p className="section-empty" role="status">Loading featured schools…</p>
-                  ) : featuredError ? (
-                    <p className="listing-place-spotlight__error" role="alert">
-                      Featured schools could not be loaded: {featuredError}
-                    </p>
-                  ) : featuredSchools.length > 0 ? (
-                    <FeaturedSchoolCarousel
-                      schools={featuredSchools}
-                      label={`Featured schools in ${listingPlaceLabel}`}
-                      autoAdvance
-                    />
-                  ) : null}
-                </section>
-              )}
             {requiresIndiaRegion && !geoRegion && (
               <div className="listing-region-hint" role="status">
                 <MapPin size={18} aria-hidden />
@@ -4372,9 +4226,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               >
                 <SlidersHorizontal size={15} />
                 Filters
-                {activeFilterCount > 0 && (
+                {(board.length + schoolType.length + (gender ? 1 : 0) +
+                  (feeMin !== undefined || feeMax !== undefined ? 1 : 0)) > 0 && (
                   <span className="mobile-filter-trigger__count">
-                    {activeFilterCount}
+                    {board.length + schoolType.length + (gender ? 1 : 0) +
+                      (feeMin !== undefined || feeMax !== undefined ? 1 : 0)}
                   </span>
                 )}
               </button>
@@ -4513,25 +4369,52 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             )}
 
             {!error && (results.length > 0 || displayResults.length > 0) && (
-              <div className={`school-list school-list--${schoolView} school-list--listing`}>
-                  {displayResults.map((school) => (
+              <>
+                <div className={`school-list school-list--${schoolView} school-list--listing`}>
+                  {displayResults.map((school, index) => (
                     <SchoolCard
                       key={school.school_id}
                       school={school}
                       selectedBoards={board}
                       selectedSchoolTypes={schoolType}
+                      className={schoolView === "grid" && index >= (isHomePage ? 7 : 3) ? "school-card--continued-in-next-row" : ""}
                     />
                   ))}
+                  {schoolView === "grid" && (
+                    <TopBoardingSchools
+                      category={topSchoolsCategory}
+                      boardName={selectedTopBoardName ?? null}
+                      boardingSchools={displayTopBoardingSchools}
+                      daySchools={displayTopDaySchools}
+                      loading={topBoardingSchoolsLoading}
+                      error={topBoardingSchoolsError}
+                    />
+                  )}
+                </div>
+              </>
+            )}
+            {schoolView === "grid" && displayResults.length > (isHomePage ? 7 : 3) && (
+              <div className="school-list school-list--grid school-list--listing school-list--continuation">
+                {displayResults.slice(isHomePage ? 7 : 3).map((school) => (
+                  <SchoolCard
+                    key={`continuation-${school.school_id}`}
+                    school={school}
+                    selectedBoards={board}
+                    selectedSchoolTypes={schoolType}
+                  />
+                ))}
               </div>
             )}
-            <TopBoardingSchools
-              category={topSchoolsCategory}
-              boardName={selectedTopBoardName ?? null}
-              boardingSchools={displayTopBoardingSchools}
-              daySchools={displayTopDaySchools}
-              loading={topBoardingSchoolsLoading}
-              error={topBoardingSchoolsError}
-            />
+            {(schoolView === "list" || error || displayResults.length === 0) && (
+              <TopBoardingSchools
+                category={topSchoolsCategory}
+                boardName={selectedTopBoardName ?? null}
+                boardingSchools={displayTopBoardingSchools}
+                daySchools={displayTopDaySchools}
+                loading={topBoardingSchoolsLoading}
+                error={topBoardingSchoolsError}
+              />
+            )}
             {!isHomePage && loadMoreContent}
           </div>
         </div>

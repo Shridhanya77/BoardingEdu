@@ -24,7 +24,6 @@ from django.utils.text import slugify
 from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
     assigned_school_id,
-    school_admin_is_approved,
 )
 from apps.schools.content_changes import submit_school_content_change
 from apps.schools.public_urls import public_school_url
@@ -169,7 +168,7 @@ def build_stats():
         _card("Boarding schools", day_boarding.get("FULL-BOARDING", day_boarding.get("BOARDING", 0)), "schools_school_changelist", "brand"),
         _card("Day boarding", day_boarding.get("DAY-BOARDING", 0), "schools_school_changelist", "brand"),
         _card("Verified schools", schools["verified"], "schools_school_changelist", "info", "Approved for public search"),
-        _card("Pending school applications", schools["pending_verification"], "schools_school_verification_queue", "warn", "Needs review"),
+        _card("Pending Verification", schools["pending_verification"], "schools_school_changelist", "warn", "Needs review"),
         _card("Unverified schools", schools["unverified"], "schools_school_changelist", "warn", "Not yet submitted or rejected"),
         _card("Missing logos", gaps["missing_logo"], "schools_school_changelist", "warn", "Open the missing-logo filter", "profile_gap=logo"),
         _card("Missing cover photos", gaps["missing_cover"], "schools_school_changelist", "warn", "Open the missing-cover filter", "profile_gap=cover"),
@@ -1519,11 +1518,9 @@ def install_admin_dashboard():
     original_get_app_list = admin.site.get_app_list
 
     def has_permission(request):
-        if getattr(request.user, "role", None) == "SCHOOL_ADMIN":
-            return school_admin_is_approved(request.user)
         if original_has_permission(request):
             return True
-        return False
+        return assigned_school_id(request.user) is not None
 
     def index(request, extra_context=None):
         if assigned_school_id(request.user) is not None:

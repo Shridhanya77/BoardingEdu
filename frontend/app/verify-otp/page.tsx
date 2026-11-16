@@ -14,7 +14,6 @@ function OtpVerification() {
   const [email, setEmail] = useState(params.get("email") || "");
   const [otp, setOtp] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [applicationPending, setApplicationPending] = useState(false);
   const [seconds, setSeconds] = useState(60);
   const [busy, setBusy] = useState(false);
 
@@ -30,13 +29,8 @@ function OtpVerification() {
     setMessage(null);
     try {
       const result = await auth.verifyOtp({ email: email.trim(), otp, purpose });
-      if (result.application_pending) {
-        setApplicationPending(true);
-        setMessage(result.detail || "Your school application is awaiting admin approval.");
-        return;
-      }
       if (!result.access || !result.refresh) {
-        setMessage(result.detail || "That code could not be verified.");
+        setMessage("That code could not be verified.");
         return;
       }
       window.localStorage.setItem("boardingedu.tokens", JSON.stringify({ access: result.access, refresh: result.refresh }));
@@ -65,7 +59,7 @@ function OtpVerification() {
       <section className="account-card otp-card">
         <h1>Enter your verification code</h1>
         <p>We sent a six-digit code to your email. It expires in five minutes.</p>
-        {!applicationPending && <form onSubmit={verify}>
+        <form onSubmit={verify}>
           <label>
             Email
             <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
@@ -83,12 +77,10 @@ function OtpVerification() {
             />
           </label>
           <button className="primary-button" type="submit" disabled={busy || otp.length !== 6}>Verify code</button>
-        </form>}
-        {!applicationPending && (
-          <button type="button" disabled={seconds > 0} onClick={() => void resend()}>
-            {seconds > 0 ? `Resend code in ${seconds}s` : "Resend code"}
-          </button>
-        )}
+        </form>
+        <button type="button" disabled={seconds > 0} onClick={() => void resend()}>
+          {seconds > 0 ? `Resend code in ${seconds}s` : "Resend code"}
+        </button>
         {message && <p role="status">{message}</p>}
         <p><Link href="/login">Back to sign in</Link></p>
       </section>

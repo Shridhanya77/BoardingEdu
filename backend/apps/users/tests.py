@@ -46,7 +46,7 @@ class UserRegistrationContactValidationTests(SimpleTestCase):
 
 
 class PendingSchoolAdminLoginTests(TestCase):
-    def test_pending_school_admin_can_verify_email_but_cannot_sign_in_before_approval(self):
+    def test_pending_school_admin_can_sign_in_to_the_website_panel(self):
         country = Country.objects.create(country_code="IN", country_name="India", slug="india-login")
         state = State.objects.create(
             country=country, state_code="KA", state_name="Karnataka", slug="karnataka-login"
@@ -67,7 +67,6 @@ class PendingSchoolAdminLoginTests(TestCase):
             username="pending-school-admin",
             password="secret-pass",
             role=User.ROLE_SCHOOL_ADMIN,
-            is_email_verified=False,
         )
         admin = User.objects.get(username="pending-school-admin")
         SchoolAdminProfile.objects.create(user=admin, school=school, designation="Principal")
@@ -93,41 +92,15 @@ class PendingSchoolAdminLoginTests(TestCase):
             admin.email = "pending-admin@example.test"
             admin.save(update_fields=["email"])
             send.return_value.json.return_value["result"]["delivered"] = [admin.email]
-            client = APIClient()
-            denied = client.post(
-                "/api/auth/jwt/token/",
-                {"username": "pending-school-admin", "password": "secret-pass"},
-                format="json",
-            )
-            self.assertEqual(denied.status_code, 401, denied.data)
-
-            resend = client.post(
-                "/api/auth/otp/resend/",
-                {"email": admin.email, "purpose": "register"},
-                format="json",
-            )
-            self.assertEqual(resend.status_code, 200, resend.data)
-            verified = client.post(
-                "/api/auth/otp/verify/",
-                {"email": admin.email, "otp": "123456", "purpose": "register"},
-                format="json",
-            )
-            self.assertEqual(verified.status_code, 200, verified.data)
-            self.assertTrue(verified.data.get("application_pending"))
-            self.assertNotIn("access", verified.data)
-            self.assertNotIn("refresh", verified.data)
-
-            school.verification_status = "VERIFIED"
-            school.status = True
-            school.save(update_fields=["verification_status", "status"])
-            challenge = client.post(
+            challenge = APIClient().post(
                 "/api/auth/jwt/token/",
                 {"username": "pending-school-admin", "password": "secret-pass"},
                 format="json",
             )
             self.assertEqual(challenge.status_code, 200, challenge.data)
             self.assertTrue(challenge.data.get("otp_required"))
-            response = client.post(
+            self.assertNotIn("access", challenge.data)
+            response = APIClient().post(
                 "/api/auth/otp/verify/",
                 {"email": admin.email, "otp": "123456", "purpose": "login"},
                 format="json",
@@ -135,7 +108,13 @@ class PendingSchoolAdminLoginTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
+        refreshed = APIClient().post(
+            "/api/auth/jwt/token/refresh/",
+            {"refresh": response.data["refresh"]},
+            format="json",
+        )
+        self.assertEqual(refreshed.status_code, 200, refreshed.data)
+        self.assertIn("access", refreshed.data)
 
 
 class SchoolAdminBackendLoginTests(TestCase):
@@ -156,7 +135,6 @@ class SchoolAdminBackendLoginTests(TestCase):
             city=city,
             address="Bengaluru",
             verification_status="PENDING",
-            status=False,
         )
         other = School.objects.create(
             school_code="OTHER-ADMIN",
@@ -180,22 +158,13 @@ class SchoolAdminBackendLoginTests(TestCase):
             role=User.ROLE_SUPER_ADMIN,
             is_staff=True,
         )
-        client = APIClient()
-        client.force_login(reviewer)
-        dashboard = client.get("/admin/")
-        self.assertEqual(dashboard.status_code, 200)
-        self.assertContains(dashboard, "New school applications need review")
-        self.assertContains(
-            dashboard,
-            reverse("admin:schools_school_verification_queue"),
-        )
-        client.logout()
         parent = User.objects.create_user(
             username="backend-parent",
             email="parent@own-admin.test",
             password="secret-pass",
             role=User.ROLE_PARENT,
         )
+        client = APIClient()
 
         rejected = client.post(
             "/admin/login/",
@@ -204,16 +173,6 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertEqual(rejected.status_code, 200)
         self.assertContains(rejected, "Please enter the correct")
 
-        pending_sign_in = client.post(
-            "/admin/login/",
-            {"username": user.username, "password": "secret-pass", "next": "/admin/"},
-        )
-        self.assertEqual(pending_sign_in.status_code, 200)
-        self.assertContains(pending_sign_in, "awaiting admin approval")
-
-        own.verification_status = "VERIFIED"
-        own.status = True
-        own.save(update_fields=["verification_status", "status"])
         for identifier in (user.username, user.email):
             client.logout()
             signed_in = client.post(
