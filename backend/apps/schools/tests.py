@@ -227,6 +227,8 @@ class SchoolApplicationRegistrationTests(TestCase):
             role=User.ROLE_STAFF_ADMIN,
             is_staff=True,
         )
+        school.is_featured = True
+        school.save(update_fields=["is_featured"])
         admin_client = APIClient()
         admin_client.force_login(admin_user)
         dashboard = admin_client.get(reverse("admin:index"))
@@ -234,6 +236,12 @@ class SchoolApplicationRegistrationTests(TestCase):
         self.assertContains(
             dashboard,
             reverse("admin:schools_school_verification_queue"),
+        )
+        self.assertContains(dashboard, "Featured Schools")
+        self.assertContains(dashboard, school.school_name)
+        self.assertContains(
+            dashboard,
+            f"{reverse('admin:schools_school_changelist')}?is_featured__exact=1",
         )
         queue = admin_client.get(
             reverse("admin:schools_school_verification_queue")

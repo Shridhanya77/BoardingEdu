@@ -27628,3 +27628,369 @@ select:focus-visible {
     transform: none;
   }
 }
+
+.discovery-page--listing .hero {
+  min-height: 0;
+  padding: 24px max(24px, calc((100% - 1840px) / 2)) 16px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: start;
+  column-gap: 0;
+  overflow: visible;
+}
+
+.discovery-page--listing .hero__copy {
+  max-width: none;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+}
+
+.discovery-page--listing .hero-art {
+  display: none;
+}
+
+.discovery-page--listing .hero__kicker {
+  padding: 6px 10px;
+}
+
+.discovery-page--listing .hero h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.12;
+}
+
+.discovery-page--listing .hero__copy > p {
+  max-width: 1100px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.discovery-page--listing .hero-finder {
+  width: min(1320px, 100%);
+  margin-top: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.discovery-page--listing .hero-finder .finder-group legend {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.discovery-page--listing .hero-finder .finder-group + .finder-group {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.discovery-page--listing .hero-finder .school-type-choice {
+  min-height: 58px;
+  padding: 7px 9px;
+  gap: 7px;
+}
+
+.discovery-page--listing .hero-finder .school-type-choice__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.discovery-page--listing .hero-finder .school-type-choice__copy {
+  gap: 2px;
+}
+
+.discovery-page--listing .hero-finder .school-type-choice__copy strong {
+  font-size: 13px;
+}
+
+.discovery-page--listing .hero-finder .school-type-choice__copy small {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.discovery-page--listing .hero-finder .finder-group__fields {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.discovery-page--listing .hero-finder .finder-field {
+  gap: 4px;
+}
+
+.discovery-page--listing .hero-finder .finder-field > span {
+  font-size: 12px;
+}
+
+.discovery-page--listing .hero-finder .finder-field > button,
+.discovery-page--listing .hero-finder .finder-field select,
+.discovery-page--listing .hero-finder .finder-field input {
+  min-height: 36px;
+}
+
+.discovery-page--listing .hero-finder .finder-location-summary {
+  margin-top: 6px;
+}
+
+.discovery-page--listing .hero-finder .finder-actions {
+  margin-top: 8px;
+}
+
+.discovery-page--listing .hero-finder__submit {
+  min-height: 36px;
+}
+
+.discovery-page--listing .hero-search__shortcuts {
+  margin-top: 5px;
+}
+
+.discovery-page--listing .hero-scroll {
+  position: static;
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: end;
+  margin-top: 8px;
+  transform: none;
+}
+
+.discovery-page--listing .discovery-content {
+  margin-top: 12px;
+}
+
+.discovery-page--listing .school-results {
+  scroll-margin-top: 68px;
+}
+
+.discovery-page--listing .listing-place-spotlight {
+  margin: 12px 0;
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+
+.discovery-page--listing .listing-place-spotlight__heading h2 {
+  margin: 4px 0;
+  font-size: clamp(18px, 2vw, 24px);
+}
+
+.discovery-page--listing .listing-place-spotlight__heading p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.discovery-page--listing .listing-place-spotlight__places {
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.discovery-page--listing .listing-place-spotlight__places a {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.discovery-page--listing .section-heading {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+}
+
+.discovery-page--listing .section-heading h2 {
+  margin: 4px 0;
+  font-size: clamp(19px, 2vw, 24px);
+}
+
+.discovery-page--listing .section-heading p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.discovery-page--listing .listing-seo-copy {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.discovery-page--listing .results-layout {
+  gap: 14px;
+}
+
+.discovery-page--listing .school-results__toolbar {
+  min-height: 32px;
+  margin-bottom: 6px;
+  padding: 4px 0;
+}
+
+.discovery-page--listing .school-results__scroll {
+  height: calc(100vh - 112px);
+  min-height: 320px;
+  max-height: calc(100vh - 112px);
+}
+
+.discovery-page--listing .active-filters {
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+}
+
+.discovery-page--listing .active-filter {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing {
+  row-gap: 6px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card {
+  min-height: 0;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__media {
+  height: auto;
+  aspect-ratio: 3 / 1;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__body {
+  min-height: 0;
+  padding: 6px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__top {
+  gap: 6px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__eyebrow {
+  min-height: 0;
+  gap: 5px;
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__title h3 {
+  min-height: 0;
+  margin-bottom: 2px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__location {
+  min-height: 0;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__tags {
+  margin: 4px 0;
+  gap: 2px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-tag {
+  min-height: 18px;
+  padding: 2px 5px;
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__footer {
+  min-height: 0;
+  padding-top: 3px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions {
+  width: 100%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__enquire,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__view,
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-compare {
+  min-width: 0;
+  min-height: 30px;
+  padding: 3px 2px;
+  justify-content: center;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing .school-card__actions > .school-card__view {
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.discovery-page--listing .school-results__scroll > .top-boarding-schools,
+.discovery-page--listing .school-list--listing-with-top-picks > .top-boarding-schools {
+  height: min(220px, calc(100vh - 140px));
+  min-height: 180px;
+  max-height: calc(100vh - 140px);
+}
+
+@media (min-width: 901px) {
+  .discovery-page--listing .hero-finder {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.8fr);
+    align-items: start;
+    gap: 8px 18px;
+  }
+
+  .discovery-page--listing .hero-finder > .finder-group--location,
+  .discovery-page--listing .hero-finder > .finder-actions {
+    grid-column: 2;
+  }
+
+  .discovery-page--listing .hero-finder > .finder-group--school-type {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+
+  .discovery-page--listing .hero-finder > .finder-actions {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .discovery-page--listing .hero-finder {
+    display: block;
+  }
+
+  .discovery-page--listing .hero-finder .finder-group__fields {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .discovery-page--listing .hero {
+    padding: 18px 16px 14px;
+  }
+
+  .discovery-page--listing .hero h1 {
+    font-size: clamp(26px, 6vw, 34px);
+  }
+
+  .discovery-page--listing .hero-finder .finder-group__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .discovery-page--listing .hero-finder .finder-field:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .discovery-page--listing .hero-finder .finder-group__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discovery-page--listing .hero-finder .finder-field:first-child {
+    grid-column: auto;
+  }
+
+  .discovery-page--listing .school-list--grid.school-list--listing .school-card__media {
+    aspect-ratio: 2.1 / 1;
+  }
+}

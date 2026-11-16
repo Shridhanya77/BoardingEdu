@@ -278,6 +278,12 @@ def build_stats():
             .prefetch_related("school_types")
             .order_by("-created_at")[:6]
         ),
+        "featured_school_total": schools["featured"],
+        "featured_schools": list(
+            School.objects.filter(is_featured=True)
+            .select_related("country", "state", "city")
+            .order_by("school_name", "pk")[:8]
+        ),
     }
 
 

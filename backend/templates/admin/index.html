@@ -22,6 +22,27 @@
 </section>
 {% endif %}
 
+{% if user.is_superuser or user.role == "SUPER_ADMIN" or user.role == "STAFF_ADMIN" %}
+<section class="be-directory">
+  <header>
+    <h2>Featured Schools <span>({{ s.featured_school_total }})</span></h2>
+    <a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">View all</a>
+  </header>
+  {% if s.featured_schools %}
+    <div class="be-review-links">
+      {% for school in s.featured_schools %}
+        <a href="{% url 'admin:schools_school_change' school.pk %}">
+          <strong>{{ school.school_name }}</strong>
+          <span>{% if school.city %}{{ school.city.city_name }}{% endif %}{% if school.city and school.state %}, {% endif %}{% if school.state %}{{ school.state.state_name }}{% endif %}</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="be-empty">No schools are marked as featured.</p>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="be-directory">
   <header>
     <h2>{% translate "Review and administration" %}</h2>

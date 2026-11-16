@@ -64,7 +64,6 @@ import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedPromoBanner from "@/components/home/FeaturedPromoBanner";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
-import FeaturedSchoolCarousel from "@/components/home/FeaturedSchoolCarousel";
 import RecentlyViewedSchools from "@/components/home/RecentlyViewedSchools";
 import AnimatedCount from "@/components/home/AnimatedCount";
 import GuideBrowser from "@/components/guides/GuideBrowser";
@@ -686,14 +685,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [trustDetailsOpen, setTrustDetailsOpen] = useState(false);
   const [faqSearch, setFaqSearch] = useState("");
   useEffect(() => {
-    const destinationPath = window.sessionStorage.getItem(finderScrollStorageKey);
-    if (!destinationPath) return;
-    window.sessionStorage.removeItem(finderScrollStorageKey);
-    if (destinationPath !== pathname) return;
+    if (window.sessionStorage.getItem(finderScrollStorageKey)) {
+      window.sessionStorage.removeItem(finderScrollStorageKey);
+    }
+    if (isHomePage) return;
     window.requestAnimationFrame(() => {
-      document.getElementById("schools")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const target =
+        document.querySelector(".home-section--states") ??
+        document.getElementById("school-results") ??
+        document.getElementById("schools");
+      target?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
     });
-  }, [pathname]);
+  }, [isHomePage, pathname]);
   useEffect(() => {
     if (!isHomePage) return;
     const onboardingSeenKey = "boardingeu:school-discovery-onboarding-seen";
@@ -860,7 +866,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [comparedSchools, featuredSchools]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
-  const [featuredFallback, setFeaturedFallback] = useState(false);
   const [geoCountry, setGeoCountry] = useState("");
   const [geoRegion, setGeoRegion] = useState("");
   const [geoState, setGeoState] = useState("");
@@ -1315,16 +1320,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     : `Browse ${listingSubject} in ${listingPlaceLabel}. Compare fees, boards, and facilities.`;
   const firstResultIndex = totalCount === 0 ? 0 : 1;
   const resultsHeading = `${listingSubject} in ${listingPlaceLabel}`;
-  const directoryRecommendationsLoading =
-    !isHomePage && (featuredLoading || topBoardingSchoolsLoading);
   const hasMoreResults = page * PAGE_SIZE < totalCount;
   const displayResults = useMemo(() => {
-    if (directoryRecommendationsLoading) return [];
-    const uniqueResults = uniqueSchoolsById(results);
-    return isHomePage
-      ? uniqueResults
-      : uniqueResults.filter((school) => !featuredSchoolIds.has(school.school_id));
-  }, [directoryRecommendationsLoading, featuredSchoolIds, isHomePage, results]);
+    return uniqueSchoolsById(results);
+  }, [results]);
   const lastResultIndex = displayResults.length;
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
@@ -1876,7 +1875,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     if (
       isHomePage ||
       loading ||
-      directoryRecommendationsLoading ||
       !hasMoreResults ||
       error ||
       loadMoreError
@@ -1899,7 +1897,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [
-    directoryRecommendationsLoading,
     error,
     hasMoreResults,
     isHomePage,
@@ -2353,7 +2350,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       };
     }
     setFeaturedError(null);
-    setFeaturedFallback(false);
 
     const featuredFilters: SchoolFilters = {
       is_featured: true,
@@ -2438,7 +2434,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         });
         if (cancelled) return;
         setFeaturedSchools(priorityFeaturedSelection(localResponse.results, new Set(), 4));
-        setFeaturedFallback(localResponse.results.length > 0);
       } catch (reason: unknown) {
         if (!cancelled) {
           setFeaturedError(
@@ -2641,7 +2636,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       router.push(schoolDirectoryPath());
       return;
     }
-    document.getElementById("schools")?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("school-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function searchFor(query: string) {
@@ -2974,6 +2969,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             locationError={locationError}
             homeSearch={homeSearchEnabled}
             mobileCategory={!isHomePage ? initialHomeCategory : null}
+            regionPromptEnabled={!requiresIndiaRegion}
             onChange={handleFinderChange}
             onSubmit={handleFinderSubmit}
           />
@@ -3059,7 +3055,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <span className="hero-art__dot" />
         </div>
 
-        <Link className="hero-scroll" href={isHomePage ? "/schools" : "#schools"}>
+        <Link className="hero-scroll" href={isHomePage ? "/schools" : "#school-results"}>
           <span /> {isHomePage ? "Explore schools" : "Scroll to schools"}
         </Link>
       </section>
@@ -4139,7 +4135,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             </aside>
           </div>
 
-          <div className="school-results">
+          <div className="school-results" id="school-results">
             {requiresIndiaRegion && !geoRegion && (
               <div className="listing-region-hint" role="status">
                 <MapPin size={18} aria-hidden />
@@ -4197,7 +4193,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   <Building2 size={16} />
                 </span>
                 <span>
-                  {loading || directoryRecommendationsLoading
+                  {loading && results.length === 0
                     ? "Searching schools…"
                     : totalCount === 0
                       ? "No schools found"
@@ -4255,45 +4251,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               aria-label="School results"
               tabIndex={0}
             >
-            {!featuredLoading && featuredError ? (
-              <p className="listing-place-spotlight__error" role="alert">
-                Featured schools could not be loaded: {featuredError}
-              </p>
-            ) : !featuredLoading && featuredSchools.length > 0 ? (
-              <section className="listing-directory-carousel" aria-labelledby="listing-directory-carousel-heading">
-                <div className="listing-directory-carousel__heading">
-                  <div>
-                    <span className="section-eyebrow">
-                      {featuredFallback
-                        ? "LOCAL SCHOOLS"
-                        : browsedRegion
-                          ? "REGIONAL PICKS"
-                          : activeCountryId || activeStateId || activeCityId
-                            ? "LOCAL PICKS"
-                            : "SCHOOLS TO EXPLORE"}
-                    </span>
-                    <h2 id="listing-directory-carousel-heading">
-                      {featuredFallback
-                        ? `Schools in ${listingPlaceLabel}`
-                        : activeCountryId || activeStateId || activeCityId
-                          ? `Featured schools in ${listingPlaceLabel}`
-                          : "Featured schools"}
-                    </h2>
-                    <p>
-                      {featuredFallback
-                        ? "No featured schools are listed in this area yet. Explore other published schools nearby."
-                        : "Explore highlighted schools before browsing the full directory."}
-                    </p>
-                  </div>
-                </div>
-                <FeaturedSchoolCarousel
-                  schools={featuredSchools}
-                  label={`Featured schools in ${listingPlaceLabel}`}
-                  autoAdvance
-                />
-              </section>
-            ) : null}
-
             {activeFilters.length > 0 && (
               <div className="active-filters" aria-label="Applied filters">
                 <span className="active-filters__label">Applied</span>
@@ -4337,7 +4294,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </div>
             )}
 
-            {(loading && results.length === 0 || directoryRecommendationsLoading) && (
+            {loading && results.length === 0 && (
               <div className="school-list school-list--skeleton" role="status">
                 <span className="sr-only">Finding schools for you…</span>
                 {Array.from({ length: 4 }, (_, index) => (
@@ -4354,7 +4311,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             )}
 
             {!loading &&
-              !directoryRecommendationsLoading &&
               !error &&
               displayResults.length === 0 &&
               !hasMoreResults && (

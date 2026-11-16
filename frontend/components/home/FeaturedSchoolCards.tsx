@@ -40,20 +40,16 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
   const initials = (school.short_name || school.school_name).slice(0, 2);
-  const promotionalImage = school.promotion?.banner_url?.trim();
-  const photo = promotionalImage
-    ? publicSchoolImageUrl(promotionalImage)
-    : schoolCoverImageUrl(school);
-  const label = school.promotion?.label_display || (school.is_featured ? "Featured" : "");
+  const photo = schoolCoverImageUrl(school);
 
   return (
     <div className="featured-card__cover">
-      {label && <span className="featured-card__tag">{label}</span>}
+      {school.is_featured && <span className="featured-card__tag">Featured</span>}
       {photo && !photoFailed ? (
         <Image
           className="featured-card__photo"
           src={photo}
-          alt={`${school.school_name}${promotionalImage ? " promotional banner" : " campus"}`}
+          alt={`${school.school_name} campus`}
           fill
           sizes="(max-width: 720px) 100vw, 280px"
           unoptimized

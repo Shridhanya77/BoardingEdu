@@ -12,7 +12,7 @@ import { indiaRegionListingPath, placeListingPath } from "@/lib/school-urls";
 
 export type HeroFinderValue = { country: string; region: string; state: string; city: string; location: string; board: string[]; schoolType: string[] };
 type FinderCategory = HomeSchoolCategory | SchoolTypeCategory;
-type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; mobileCategory?: HomeSchoolCategory | null; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
+type Props = { value: HeroFinderValue; schoolTypes: SchoolTypeListItem[]; locationMessage: string | null; locationError: string | null; homeSearch?: boolean; mobileCategory?: HomeSchoolCategory | null; regionPromptEnabled?: boolean; onChange: (next: HeroFinderValue) => void; onSubmit: (path: string) => void };
 type LocationOption = { id: string; name: string };
 
 function LocationCombobox({
@@ -89,7 +89,7 @@ const schoolTypeCategories: { id: SchoolTypeCategory; label: string }[] = [
   { id: "boarding-school", label: "Boarding School" },
 ];
 
-export default function HeroFinder({ value, schoolTypes, locationMessage, locationError, homeSearch = true, mobileCategory = null, onChange, onSubmit }: Props) {
+export default function HeroFinder({ value, schoolTypes, locationMessage, locationError, homeSearch = true, mobileCategory = null, regionPromptEnabled = true, onChange, onSubmit }: Props) {
   const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [states, setStates] = useState<StateListItem[]>([]);
   const [cities, setCities] = useState<CityListItem[]>([]);
@@ -129,7 +129,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     states.some((item) => item.status && indiaRegionForState(item.state_name, item.slug)?.id === region.id),
   ).map((region) => ({ id: region.id, label: region.label }));
   useEffect(() => {
-    if (!isIndia || value.state || value.region) {
+    if (!regionPromptEnabled || !isIndia || value.state || value.region) {
       setRegionPickerOpen(false);
       if (!isIndia) setDismissedRegionPickerFor("");
       return;
@@ -146,6 +146,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
     dismissedRegionPickerFor,
     isIndia,
     loadingStates,
+    regionPromptEnabled,
     value.country,
     value.region,
     value.state,
