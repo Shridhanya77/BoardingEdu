@@ -104,6 +104,8 @@ class NullsLastOrderingFilter(filters.OrderingFilter):
             resolved.append('school_name')
         if 'school_id' not in requested:
             resolved.append('school_id')
+        if request.query_params.get("is_featured", "").lower() in {"true", "1", "yes", "on"}:
+            resolved.insert(0, F("featured_priority").desc())
         return resolved
 
 
@@ -117,6 +119,10 @@ class SchoolFilter(django_filters.FilterSet):
     board = django_filters.ModelMultipleChoiceFilter(
         field_name='boards',
         queryset=Board.objects.all(),
+    )
+    facility = django_filters.ModelMultipleChoiceFilter(
+        queryset=Facility.objects.filter(status=True),
+        method='filter_facility',
     )
     grade = django_filters.ModelMultipleChoiceFilter(
         method='filter_grades',
@@ -161,6 +167,12 @@ class SchoolFilter(django_filters.FilterSet):
         if not matching_type_ids:
             return queryset.none()
         return queryset.filter(school_types__in=matching_type_ids).distinct()
+
+    def filter_facility(self, queryset, name, facilities):
+        return queryset.filter(
+            school_facilities__facility__in=facilities,
+            school_facilities__available=True,
+        ).distinct()
 
     def filter_is_featured(self, queryset, name, value):
         from .querysets import featured_visibility_q

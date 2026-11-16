@@ -15,6 +15,7 @@ from .models import (
     SchoolAdminProfile,
     StaffAdminProfile,
 )
+from .school_admin_scope import school_admin_is_approved
 
 UserModel = get_user_model()
 
@@ -42,6 +43,10 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
             if school is None:
                 raise AuthenticationFailed(
                     "This school administrator account is not assigned to a school."
+                )
+            if not school_admin_is_approved(user):
+                raise AuthenticationFailed(
+                    "Your school application is awaiting admin approval."
                 )
 
         from apps.notifications.otp import OTP_ROLES, OtpError, issue_otp

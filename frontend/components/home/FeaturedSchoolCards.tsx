@@ -44,7 +44,11 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
 
   return (
     <div className="featured-card__cover">
-      {school.is_featured && <span className="featured-card__tag">Featured</span>}
+      {(school.is_featured || school.promotion) && (
+        <span className="featured-card__tag">
+          {school.promotion?.label_display || "Featured"}
+        </span>
+      )}
       {photo && !photoFailed ? (
         <Image
           className="featured-card__photo"

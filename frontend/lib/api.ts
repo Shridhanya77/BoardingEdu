@@ -238,7 +238,7 @@ export const auth = {
       body: JSON.stringify({ username, password }),
     }),
   verifyOtp: (payload: { email: string; otp: string; purpose: "register" | "login" | "password_reset"; password?: string }) =>
-    request<{ access?: string; refresh?: string; detail?: string }>("/auth/otp/verify/", {
+    request<{ access?: string; refresh?: string; detail?: string; application_pending?: boolean }>("/auth/otp/verify/", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
@@ -452,6 +452,7 @@ export type SchoolFilters = {
   school_type?: string | string[];
   home_category?: "day-school" | "boarding-schools" | "residential-school";
   board?: string | string[];
+  facility?: string | string[];
   grade?: string | string[];
   min_fee?: number;
   max_fee?: number;
@@ -474,6 +475,15 @@ export type SchoolTypeListItem = {
   type_code: string;
   type_name: string;
   slug: string;
+  status: boolean;
+};
+export type FacilityListItem = {
+  facility_id: string;
+  facility_code: string;
+  category: string;
+  facility_name: string;
+  slug: string;
+  icon_url: string;
   status: boolean;
 };
 export type BoardListItem = {
@@ -619,6 +629,10 @@ export const schools = {
   page: (url: string) => request<PaginatedResponse<SchoolListItem>>(url),
   types: () => request<PaginatedResponse<SchoolTypeListItem>>("/schools/school-types/"),
   boards: () => request<PaginatedResponse<BoardListItem>>("/schools/boards/"),
+  facilities: () =>
+    request<PaginatedResponse<FacilityListItem>>(
+      "/schools/facilities/?status=true&page_size=100",
+    ),
   grades: () => request<PaginatedResponse<GradeListItem>>("/schools/grades/"),
   faqs: (filters: Partial<Record<"country" | "state" | "city" | "location" | "board" | "school_type", string>> = {}) => {
     const params = new URLSearchParams();

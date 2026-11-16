@@ -693,6 +693,64 @@ class SchoolClassificationTests(TestCase):
         featured.refresh_from_db()
         self.assertTrue(featured.is_featured)
 
+    def test_featured_priority_precedes_requested_rating_order(self):
+        from apps.schools.models import FeaturedPromotion
+
+        lower_priority = self.create_school("AAA-LOW-PRIORITY")
+        higher_priority = self.create_school("ZZZ-HIGH-PRIORITY")
+        FeaturedPromotion.objects.create(school=lower_priority, priority=1)
+        FeaturedPromotion.objects.create(school=higher_priority, priority=10)
+
+        response = self.client.get(
+            "/api/schools/schools/",
+            {"is_featured": "true", "ordering": "-average_rating"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [school["school_code"] for school in response.data["results"]],
+            ["ZZZ-HIGH-PRIORITY", "AAA-LOW-PRIORITY"],
+        )
+
+    def test_facility_filter_only_returns_schools_with_available_facility(self):
+        from apps.schools.models import Facility, SchoolFacility
+
+        with_facility = self.create_school("FACILITY-MATCH")
+        without_facility = self.create_school("FACILITY-MISS")
+        facility = Facility.objects.create(
+            facility_code="FILTER-LIBRARY",
+            category="ACADEMIC",
+            facility_name="Library",
+            slug="filter-library",
+        )
+        SchoolFacility.objects.create(
+            school=with_facility,
+            facility=facility,
+            available=True,
+        )
+        unavailable_facility = Facility.objects.create(
+            facility_code="FILTER-LAB",
+            category="ACADEMIC",
+            facility_name="Laboratory",
+            slug="filter-laboratory",
+        )
+        SchoolFacility.objects.create(
+            school=without_facility,
+            facility=unavailable_facility,
+            available=False,
+        )
+
+        response = self.client.get(
+            "/api/schools/schools/",
+            {"facility": str(facility.pk)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [school["school_code"] for school in response.data["results"]],
+            ["FACILITY-MATCH"],
+        )
+
     def test_expired_or_inactive_promotions_are_hidden_from_the_public_filter(self):
         from datetime import date, timedelta
 
