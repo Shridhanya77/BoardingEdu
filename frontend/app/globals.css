@@ -27836,7 +27836,13 @@ select:focus-visible {
 }
 
 .discovery-page--listing .school-list--grid.school-list--listing {
-  row-gap: 6px;
+  gap: 22px;
+}
+
+@media (max-width: 700px) {
+  .discovery-page--listing .school-list--grid.school-list--listing {
+    gap: 16px;
+  }
 }
 
 .discovery-page--listing .school-list--grid.school-list--listing .school-card {
