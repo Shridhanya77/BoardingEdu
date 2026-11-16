@@ -13,7 +13,6 @@ const nextConfig = {
       { protocol: "https", hostname: "boardingedu.com", pathname: "/media/**" },
       { protocol: "https", hostname: "www.boardingedu.com", pathname: "/media/**" },
       { protocol: "https", hostname: "media.boardingedu.com", pathname: "/**" },
-      { protocol: "https", hostname: "media.boardingeu.com", pathname: "/**" },
       { protocol: "https", hostname: "imagedelivery.net", pathname: "/**" },
       { protocol: "https", hostname: "*.imagedelivery.net", pathname: "/**" },
       { protocol: "https", hostname: "*.r2.dev", pathname: "/**" },
