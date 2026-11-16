@@ -24,6 +24,7 @@ from .management.commands.manage_school_photos import Command as ManageSchoolPho
 from config.admin_dashboard import _grade_catalog_rows, _grade_group
 from config.school_media import cover_image_url_for_school
 from .admin import (
+    FeaturedPromotionAdmin,
     SchoolAdmin,
     SchoolFacilityAdmin,
     SchoolGradeAdmin,
@@ -34,6 +35,7 @@ from .management.commands.import_scraped_schools import Command as ImportScraped
 from .models import (
     Board,
     Facility,
+    FeaturedPromotion,
     Grade,
     School,
     SchoolAdmissionResource,
@@ -549,6 +551,65 @@ class SchoolImageAdminTests(SimpleTestCase):
         self.assertNotIn("photo_upload", SchoolPhotoInline.fields)
 
 
+class FeaturedPromotionAdminPermissionTests(SimpleTestCase):
+    def setUp(self):
+        self.model_admin = FeaturedPromotionAdmin(FeaturedPromotion, admin.site)
+
+    @staticmethod
+    def request(user):
+        return SimpleNamespace(user=user)
+
+    def test_staff_admin_requires_explicit_promotion_model_permissions(self):
+        permissions = set()
+        staff_user = SimpleNamespace(
+            is_authenticated=True,
+            is_superuser=False,
+            role=User.ROLE_STAFF_ADMIN,
+            has_perm=lambda permission: permission in permissions,
+        )
+        request = self.request(staff_user)
+
+        self.assertFalse(self.model_admin.has_module_permission(request))
+        self.assertFalse(self.model_admin.has_add_permission(request))
+
+        permissions.add("schools.view_featuredpromotion")
+        self.assertTrue(self.model_admin.has_module_permission(request))
+        self.assertTrue(self.model_admin.has_view_permission(request))
+        self.assertFalse(self.model_admin.has_add_permission(request))
+
+        permissions.add("schools.add_featuredpromotion")
+        self.assertTrue(self.model_admin.has_add_permission(request))
+
+    def test_school_admin_cannot_manage_platform_promotions(self):
+        school_user = SimpleNamespace(
+            is_authenticated=True,
+            is_superuser=False,
+            role=User.ROLE_SCHOOL_ADMIN,
+            has_perm=lambda permission: True,
+        )
+        request = self.request(school_user)
+
+        self.assertFalse(self.model_admin.has_module_permission(request))
+        self.assertFalse(self.model_admin.has_view_permission(request))
+        self.assertFalse(self.model_admin.has_add_permission(request))
+        self.assertFalse(self.model_admin.has_change_permission(request))
+        self.assertFalse(self.model_admin.has_delete_permission(request))
+
+    def test_super_admin_can_manage_all_promotions(self):
+        admin_user = SimpleNamespace(
+            is_authenticated=True,
+            is_superuser=False,
+            role=User.ROLE_SUPER_ADMIN,
+        )
+        request = self.request(admin_user)
+
+        self.assertTrue(self.model_admin.has_module_permission(request))
+        self.assertTrue(self.model_admin.has_view_permission(request))
+        self.assertTrue(self.model_admin.has_add_permission(request))
+        self.assertTrue(self.model_admin.has_change_permission(request))
+        self.assertTrue(self.model_admin.has_delete_permission(request))
+
+
 class SchoolAdminIdentityFieldsTests(SimpleTestCase):
     def test_school_code_and_slug_are_read_only_only_after_creation(self):
         model_admin = SchoolAdmin(School, admin.site)
@@ -783,14 +844,13 @@ class SchoolClassificationTests(TestCase):
     def test_expired_or_inactive_promotions_are_hidden_from_the_public_filter(self):
         from datetime import date, timedelta
 
-        from apps.schools.models import FeaturedPromotion
-
         active = self.create_school("PROMO-ACTIVE")
         expired = self.create_school("PROMO-EXPIRED")
         paused = self.create_school("PROMO-PAUSED")
         today = date.today()
         FeaturedPromotion.objects.create(
             school=active,
+            heading="Open Day at the School",
             description="Open day this month",
             highlights="Science labs\nSports grounds",
             priority=5,
@@ -816,12 +876,34 @@ class SchoolClassificationTests(TestCase):
         self.assertEqual(codes, ["PROMO-ACTIVE"])
         promotion = response.data["results"][0]["promotion"]
         self.assertEqual(promotion["label"], "FEATURED")
+        self.assertEqual(promotion["heading"], "Open Day at the School")
         self.assertEqual(promotion["description"], "Open day this month")
         self.assertEqual(promotion["highlights"], ["Science labs", "Sports grounds"])
         active.refresh_from_db()
         paused.refresh_from_db()
         self.assertTrue(active.is_featured)
         self.assertFalse(paused.is_featured)
+
+    def test_featured_priority_precedes_requested_school_sorting(self):
+        low_priority = self.create_school("PROMO-LOW")
+        high_priority = self.create_school("PROMO-HIGH")
+        low_priority.school_name = "A School"
+        high_priority.school_name = "Z School"
+        low_priority.save(update_fields=["school_name"])
+        high_priority.save(update_fields=["school_name"])
+        FeaturedPromotion.objects.create(school=low_priority, priority=1)
+        FeaturedPromotion.objects.create(school=high_priority, priority=10)
+
+        response = self.client.get(
+            "/api/schools/schools/",
+            {"is_featured": "true", "ordering": "school_name"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [school["school_code"] for school in response.data["results"]],
+            ["PROMO-HIGH", "PROMO-LOW"],
+        )
 
     def test_type_migration_merges_legacy_full_boarding_school_assignments(self):
         school = self.create_school('MIGRATE-FULL-BOARDING')

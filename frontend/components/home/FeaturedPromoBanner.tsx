@@ -59,6 +59,7 @@ export default function FeaturedPromoBanner({
 
   const promotion = school.promotion;
   const image = imageFailed ? "" : schoolImage(school);
+  const heading = promotion?.heading?.trim() || school.school_name;
   const location = [school.city_name, school.state_name].filter(Boolean).join(", ");
   const boards = boardsAffiliatedLabel(school.boards_detail);
   const types = Array.from(new Set(
@@ -81,7 +82,7 @@ export default function FeaturedPromoBanner({
           {image ? (
             <Image
               src={image}
-              alt=""
+              alt={`${school.school_name} promotional banner`}
               fill
               sizes="(max-width: 800px) 100vw, 520px"
               unoptimized
@@ -99,7 +100,7 @@ export default function FeaturedPromoBanner({
 
         <div className="promo-banner__copy">
           <p className="promo-banner__eyebrow">Promoted schools</p>
-          <h2>{school.school_name}</h2>
+          <h2>{heading}</h2>
           {location && (
             <p className="promo-banner__place">
               <MapPin size={15} aria-hidden />

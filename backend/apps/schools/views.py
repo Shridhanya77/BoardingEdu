@@ -516,6 +516,13 @@ class SchoolViewSet(ReadWriteModelViewSet):
                 'boards',
                 'school_types',
                 Prefetch(
+                    'school_facilities',
+                    queryset=SchoolFacility.objects.filter(available=True)
+                    .select_related('facility')
+                    .order_by('facility__category', 'facility__facility_name'),
+                    to_attr='_prefetched_school_facilities',
+                ),
+                Prefetch(
                     'school_grades',
                     queryset=SchoolGrade.objects.filter(is_active=True).select_related('grade'),
                 ),
@@ -544,6 +551,13 @@ class SchoolViewSet(ReadWriteModelViewSet):
                 )
             )
         )
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        if self.request.query_params.get('is_featured', '').lower() == 'true':
+            ordering = queryset.query.order_by or ('school_name', 'school_id')
+            queryset = queryset.order_by('-featured_priority', *ordering)
+        return queryset
 
     def get_permissions(self):
         if self.action == 'register':

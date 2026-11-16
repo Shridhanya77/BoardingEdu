@@ -604,26 +604,19 @@ function boardSearchPath(board: BoardListItem, category?: HomeSchoolCategory | n
   return `${url.pathname}${url.search}`;
 }
 
-function randomFeaturedSelection(
+function priorityFeaturedSelection(
   schools: SchoolListItem[],
   requiredSchoolIds: ReadonlySet<string> = new Set(),
-  count = 4 + Math.floor(Math.random() * 2),
+  count = 4,
 ) {
-  const shuffled = uniqueSchoolsById(schools);
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex]!, shuffled[index]!];
-  }
-  const selected = shuffled.slice(0, Math.min(shuffled.length, count));
-  const required = shuffled.find((school) => requiredSchoolIds.has(school.school_id));
+  const ordered = uniqueSchoolsById(schools);
+  const selected = ordered.slice(0, Math.min(ordered.length, count));
+  const required = ordered.find((school) => requiredSchoolIds.has(school.school_id));
   if (required && !selected.some((school) => school.school_id === required.school_id)) {
     selected[selected.length - 1] = required;
-    for (let index = selected.length - 1; index > 0; index -= 1) {
-      const randomIndex = Math.floor(Math.random() * (index + 1));
-      [selected[index], selected[randomIndex]] = [selected[randomIndex]!, selected[index]!];
-    }
   }
-  return selected;
+  const selectedIds = new Set(selected.map((school) => school.school_id));
+  return ordered.filter((school) => selectedIds.has(school.school_id));
 }
 
 function HomeSectionTypeSelector({
@@ -1327,8 +1320,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const hasMoreResults = page * PAGE_SIZE < totalCount;
   const displayResults = useMemo(() => {
     if (directoryRecommendationsLoading) return [];
-    return uniqueSchoolsById(results);
-  }, [directoryRecommendationsLoading, results]);
+    const uniqueResults = uniqueSchoolsById(results);
+    return isHomePage
+      ? uniqueResults
+      : uniqueResults.filter((school) => !featuredSchoolIds.has(school.school_id));
+  }, [directoryRecommendationsLoading, featuredSchoolIds, isHomePage, results]);
   const lastResultIndex = displayResults.length;
   const relatedSearchItems = useMemo(() => {
     const category = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
@@ -2313,6 +2309,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   useEffect(() => {
     let cancelled = false;
     setFeaturedLoading(true);
+    setFeaturedSchools([]);
     const activeCountry = geoCountry || initialCountry;
     const activeState = geoState || initialState;
     const activeCity = geoCity || initialCity;
@@ -2420,7 +2417,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         }
         if (featuredCandidates.length > 0) {
           setFeaturedSchools(
-            randomFeaturedSelection(featuredCandidates, otherLocationIds, 4),
+            priorityFeaturedSelection(featuredCandidates, otherLocationIds, 4),
           );
           return;
         }
@@ -2440,7 +2437,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           status: true,
         });
         if (cancelled) return;
-        setFeaturedSchools(randomFeaturedSelection(localResponse.results, new Set(), 4));
+        setFeaturedSchools(priorityFeaturedSelection(localResponse.results, new Set(), 4));
         setFeaturedFallback(localResponse.results.length > 0);
       } catch (reason: unknown) {
         if (!cancelled) {
@@ -3067,7 +3064,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </Link>
       </section>
 
-      {!featuredLoading && promotedSchools.length > 0 && (
+      {isHomePage && !featuredLoading && promotedSchools.length > 0 && (
         <FeaturedPromoBanner schools={promotedSchools} />
       )}
 
@@ -3624,36 +3621,41 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </div>
       </section>
 
-      <section className="home-section home-section--featured" id="featured">
-        <div className="home-section__heading">
-          <div>
-            <div className="section-eyebrow">A FEW PLACES TO BEGIN</div>
-            <h2>Featured schools</h2>
+      {(featuredLoading ||
+        Boolean(featuredError) ||
+        featuredCardSchools.length > 0 ||
+        promotedSchools.length === 0) && (
+        <section className="home-section home-section--featured" id="featured">
+          <div className="home-section__heading">
+            <div>
+              <div className="section-eyebrow">A FEW PLACES TO BEGIN</div>
+              <h2>Featured schools</h2>
+            </div>
+
+            <Link href="/schools">
+              Browse the directory <ArrowRight size={15} />
+            </Link>
           </div>
 
-          <Link href="/schools">
-            Browse the directory <ArrowRight size={15} />
-          </Link>
-        </div>
-
-        {featuredLoading ? (
-          <div className="featured-state" role="status">
-            <LoaderCircle className="spin" size={20} />
-            Loading schools…
-          </div>
-        ) : featuredError ? (
-          <div className="featured-state featured-state--error" role="alert">
-            {featuredError}
-          </div>
-        ) : featuredCardSchools.length > 0 ? (
-          <FeaturedSchoolCards schools={featuredCardSchools} />
-        ) : promotedSchools.length > 0 ? null : (
-          <p className="section-empty">
-            Featured schools will appear here when the directory has published
-            listings.
-          </p>
-        )}
-      </section>
+          {featuredLoading ? (
+            <div className="featured-state" role="status">
+              <LoaderCircle className="spin" size={20} />
+              Loading schools…
+            </div>
+          ) : featuredError ? (
+            <div className="featured-state featured-state--error" role="alert">
+              {featuredError}
+            </div>
+          ) : featuredCardSchools.length > 0 ? (
+            <FeaturedSchoolCards schools={featuredCardSchools} />
+          ) : (
+            <p className="section-empty">
+              Featured schools will appear here when the directory has published
+              listings.
+            </p>
+          )}
+        </section>
+      )}
 
       <CounsellingSection />
 
@@ -3953,58 +3955,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             {locationsError && activeCityId && (
               <p className="listing-place-spotlight__error" role="status">{locationsError}</p>
             )}
-            {(featuredLoading || featuredError || featuredCardSchools.length > 0 || promotedSchools.length === 0) && (
-            <div className="listing-place-spotlight__featured">
-              <div className="home-section__heading">
-                <div>
-                  <div className="section-eyebrow">
-                    {featuredFallback
-                      ? "LOCAL SCHOOLS"
-                      : browsedRegion
-                        ? "REGIONAL PICKS"
-                        : "LOCAL PICKS"}
-                  </div>
-                  <h2>{homeCategory === "day-school" ? "Featured Day Schools" : homeCategory === "residential-school" ? "Featured Boarding Schools" : "Featured Schools"}</h2>
-                </div>
-              </div>
-              {featuredLoading ? (
-                <p className="section-empty" role="status">Loading featured schools…</p>
-              ) : featuredError ? (
-                <p className="listing-place-spotlight__error" role="alert">{featuredError}</p>
-              ) : featuredCardSchools.length ? (
-                <>
-                  {featuredFallback && (
-                    <p className="section-empty">
-                      No featured schools are listed in this area yet. Here are other published schools nearby.
-                    </p>
-                  )}
-                  <FeaturedSchoolCarousel
-                    schools={featuredCardSchools}
-                    label={`Featured schools in ${listingPlaceLabel}`}
-                    autoAdvance
-                  />
-                </>
-              ) : (
-                <p className="section-empty">No schools are listed for this area yet.</p>
-              )}
-            </div>
-            )}
           </section>
         )}
-
-        {!activeCountryId && !activeStateId && !activeCityId &&
-          !featuredLoading && !featuredError && featuredCardSchools.length > 0 && (
-            <section className="listing-directory-carousel" aria-labelledby="listing-directory-carousel-heading">
-              <div className="listing-directory-carousel__heading">
-                <div>
-                  <span className="section-eyebrow">SCHOOLS TO EXPLORE</span>
-                  <h2 id="listing-directory-carousel-heading">Featured schools</h2>
-                  <p>Scroll through featured listings to compare schools before you refine your search.</p>
-                </div>
-              </div>
-              <FeaturedSchoolCarousel schools={featuredCardSchools} autoAdvance />
-            </section>
-          )}
 
         <div className="section-heading">
           <div>
@@ -4303,6 +4255,45 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               aria-label="School results"
               tabIndex={0}
             >
+            {!featuredLoading && featuredError ? (
+              <p className="listing-place-spotlight__error" role="alert">
+                Featured schools could not be loaded: {featuredError}
+              </p>
+            ) : !featuredLoading && featuredSchools.length > 0 ? (
+              <section className="listing-directory-carousel" aria-labelledby="listing-directory-carousel-heading">
+                <div className="listing-directory-carousel__heading">
+                  <div>
+                    <span className="section-eyebrow">
+                      {featuredFallback
+                        ? "LOCAL SCHOOLS"
+                        : browsedRegion
+                          ? "REGIONAL PICKS"
+                          : activeCountryId || activeStateId || activeCityId
+                            ? "LOCAL PICKS"
+                            : "SCHOOLS TO EXPLORE"}
+                    </span>
+                    <h2 id="listing-directory-carousel-heading">
+                      {featuredFallback
+                        ? `Schools in ${listingPlaceLabel}`
+                        : activeCountryId || activeStateId || activeCityId
+                          ? `Featured schools in ${listingPlaceLabel}`
+                          : "Featured schools"}
+                    </h2>
+                    <p>
+                      {featuredFallback
+                        ? "No featured schools are listed in this area yet. Explore other published schools nearby."
+                        : "Explore highlighted schools before browsing the full directory."}
+                    </p>
+                  </div>
+                </div>
+                <FeaturedSchoolCarousel
+                  schools={featuredSchools}
+                  label={`Featured schools in ${listingPlaceLabel}`}
+                  autoAdvance
+                />
+              </section>
+            ) : null}
+
             {activeFilters.length > 0 && (
               <div className="active-filters" aria-label="Applied filters">
                 <span className="active-filters__label">Applied</span>

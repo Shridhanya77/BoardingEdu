@@ -1007,13 +1007,22 @@ class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         return redirect(_school_workspace_section_url("grades"))
 
 
-def _is_platform_promotion_admin(user):
-    return bool(
-        getattr(user, "is_authenticated", False)
-        and (
-            getattr(user, "is_superuser", False)
-            or getattr(user, "role", None) in {User.ROLE_STAFF_ADMIN, User.ROLE_SUPER_ADMIN}
-        )
+def _is_platform_promotion_admin(user, permission=None):
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if (
+        getattr(user, "is_superuser", False)
+        or getattr(user, "role", None) == User.ROLE_SUPER_ADMIN
+    ):
+        return True
+    if getattr(user, "role", None) != User.ROLE_STAFF_ADMIN:
+        return False
+
+    if permission:
+        return user.has_perm(f"schools.{permission}_featuredpromotion")
+    return any(
+        user.has_perm(f"schools.{action}_featuredpromotion")
+        for action in ("view", "add", "change", "delete")
     )
 
 
@@ -1057,6 +1066,7 @@ class FeaturedPromotionAdmin(admin.ModelAdmin):
                 "fields": (
                     "school",
                     "label",
+                    "heading",
                     "description",
                     "highlights",
                     "banner_upload",
@@ -1084,20 +1094,52 @@ class FeaturedPromotionAdmin(admin.ModelAdmin):
         return _is_platform_promotion_admin(request.user)
 
     def has_view_permission(self, request, obj=None):
-        return _is_platform_promotion_admin(request.user)
+        return (
+            _is_platform_promotion_admin(request.user, "view")
+            or _is_platform_promotion_admin(request.user, "change")
+        )
 
     def has_add_permission(self, request):
-        return _is_platform_promotion_admin(request.user)
+        return _is_platform_promotion_admin(request.user, "add")
 
     def has_change_permission(self, request, obj=None):
-        return _is_platform_promotion_admin(request.user)
+        return _is_platform_promotion_admin(request.user, "change")
 
     def has_delete_permission(self, request, obj=None):
-        return _is_platform_promotion_admin(request.user)
+        return _is_platform_promotion_admin(request.user, "delete")
 
     @admin.display(description="Banner preview")
     def banner_preview(self, obj):
-        return media_preview_html(getattr(obj, "banner_url", ""))
+        if obj is None or obj.pk is None:
+            return "Save the promotion to preview its school and banner."
+        location = ", ".join(
+            value
+            for value in (
+                getattr(obj.school.city, "city_name", ""),
+                getattr(obj.school.state, "state_name", ""),
+            )
+            if value
+        ) or "Location not set"
+        highlights = [
+            item.strip()
+            for item in (obj.highlights or "").splitlines()
+            if item.strip()
+        ][:4]
+        highlight_list = format_html_join(
+            "",
+            "<li>{}</li>",
+            ((item,) for item in highlights),
+        )
+        return format_html(
+            '<div style="max-width:520px"><strong>{}</strong><p>{} · {}</p>'
+            '<p>{}</p><ul>{}</ul>{}</div>',
+            obj.heading or obj.school.school_name,
+            location,
+            obj.get_label_display(),
+            obj.description or "No promotional description",
+            highlight_list,
+            media_preview_html(obj.banner_url),
+        )
 
     def save_model(self, request, obj, form, change):
         upload = form.cleaned_data.get("banner_upload")

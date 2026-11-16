@@ -252,6 +252,7 @@ class FeaturedPromotion(models.Model):
         related_name="featured_promotion",
         db_column="school_id",
     )
+    heading = models.CharField(max_length=120, blank=True)
     banner_url = models.URLField(
         max_length=500,
         blank=True,

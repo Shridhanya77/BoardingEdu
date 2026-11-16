@@ -322,6 +322,7 @@ export const users = {
 export type SchoolPromotion = {
   label: "FEATURED" | "SPONSORED";
   label_display: string;
+  heading: string;
   description: string;
   highlights: string[];
   banner_url: string;

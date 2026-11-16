@@ -43,7 +43,9 @@ def featured_promotion_payload(school, request):
         if line.strip()
     ][:4]
     if not highlights:
-        facilities = getattr(school, "_prefetched_objects_cache", {}).get("school_facilities")
+        facilities = getattr(school, "_prefetched_school_facilities", None)
+        if facilities is None:
+            facilities = getattr(school, "_prefetched_objects_cache", {}).get("school_facilities")
         if facilities is None:
             facilities = school.school_facilities.filter(available=True).select_related("facility")
         highlights = [
@@ -55,6 +57,7 @@ def featured_promotion_payload(school, request):
     return {
         "label": promotion.label,
         "label_display": promotion.get_label_display(),
+        "heading": promotion.heading,
         "description": promotion.description,
         "highlights": highlights,
         "banner_url": rewrite_school_media_url(promotion.banner_url, request) if promotion.banner_url else "",
