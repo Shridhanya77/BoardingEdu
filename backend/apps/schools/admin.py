@@ -1102,8 +1102,9 @@ class FeaturedPromotionAdminForm(forms.ModelForm):
             logger.exception("Could not store a featured promotion banner")
             self.add_error(
                 "banner_upload",
-                "The banner was processed but could not be saved to media storage. "
-                "Check the media-storage configuration and try again.",
+                "The banner was processed but could not be saved to Cloudflare R2. "
+                "Check the configuration and confirm the token has Object Read & "
+                "Write permission for the configured bucket.",
             )
         return cleaned_data
 

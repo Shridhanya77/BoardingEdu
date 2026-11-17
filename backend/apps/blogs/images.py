@@ -13,8 +13,9 @@ from apps.schools.images import optimize_school_image
 logger = logging.getLogger(__name__)
 
 CLOUDFLARE_STORAGE_ERROR = (
-    "The image was optimized but could not be stored in Cloudflare. "
-    "Check the R2 configuration and try again."
+    "The image was optimized but could not be stored in Cloudflare R2. "
+    "Check the R2 configuration and confirm the token has Object Read & Write "
+    "permission for the configured bucket."
 )
 
 

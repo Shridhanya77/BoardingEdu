@@ -670,7 +670,10 @@ class FeaturedPromotionAdminFormTests(SimpleTestCase):
             form.clean()
 
         self.assertIn("banner_upload", form.errors)
-        self.assertIn("media storage", str(form.errors["banner_upload"]))
+        self.assertIn(
+            "Write permission for the configured bucket",
+            str(form.errors["banner_upload"]),
+        )
 
 
 class SchoolAdminIdentityFieldsTests(SimpleTestCase):

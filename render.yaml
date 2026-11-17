@@ -54,6 +54,7 @@ services:
         value: "^https://boardingedu(-[a-z0-9-]+)?\\.vercel\\.app$"
       - key: CLOUDFLARE_R2_ACCOUNT_ID
         sync: false
+      # The token must have Object Read & Write permission for this bucket.
       - key: CLOUDFLARE_R2_ACCESS_KEY_ID
         sync: false
       - key: CLOUDFLARE_R2_SECRET_ACCESS_KEY

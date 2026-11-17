@@ -35,7 +35,7 @@ Set these on the web service. Do not commit the secret values:
 | `PUBLIC_SITE_URL` | `https://www.boardingedu.com` |
 | `PUBLIC_FRONTEND_URL` | `https://boardingedu-bay.vercel.app` |
 | `CLOUDFLARE_R2_ACCOUNT_ID` | Cloudflare account ID for the R2 media bucket |
-| `CLOUDFLARE_R2_ACCESS_KEY_ID` / `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 credentials with read access to school images |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID` / `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | R2 token with Object Read & Write permission scoped to the configured bucket (uploads require write access) |
 | `CLOUDFLARE_R2_BUCKET` | Bucket name |
 | `CLOUDFLARE_R2_PUBLIC_BASE` | Public bucket URL ending in `/schools` |
 | `BREVO_API_KEY` | A Brevo API key (`xkeysib-...`) if verification email should send |

@@ -363,3 +363,4 @@ class PublicBlogApiTests(TestCase):
             failed_upload = client.post(url, {**payload, "content": self.published.content, "cover_image": tiny_png("broken.png")})
         self.assertEqual(failed_upload.status_code, 200)
         self.assertContains(failed_upload, "could not be stored in Cloudflare")
+        self.assertContains(failed_upload, "Object Read &amp; Write")
