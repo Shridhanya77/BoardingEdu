@@ -5,6 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import dj_database_url
+from celery.schedules import crontab
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -541,6 +542,15 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = not REDIS_IS_AVAILABLE
 CELERY_TASK_EAGER_PROPAGATES = True
+# Periodic saved-search alert dispatch. Requires a Celery beat process
+# (`celery -A config beat`) alongside the worker; the same work can also be
+# triggered by cron via `manage.py send_saved_search_alerts`.
+CELERY_BEAT_SCHEDULE = {
+    "saved-search-alerts": {
+        "task": "apps.notifications.tasks.deliver_saved_search_alerts",
+        "schedule": crontab(hour="*/6"),
+    },
+}
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "").strip()

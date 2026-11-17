@@ -1,0 +1,95 @@
+cwd = C:\Users\HP\OneDrive\Documents\BoardingEdu\backend
+venv exists? True
+sys.executable = C:\Users\HP\OneDrive\Documents\BoardingEdu\backend\venv\Scripts\python.exe
+
+=== PHASE 1: manage.py check ===
+import django OK
+django.setup() OK
+check stdout:
+System check identified no issues (0 silenced).
+
+PASS check: no exception
+
+=== PHASE 2: DB ping ===
+DB ping SELECT 1 = (1,)
+  database=boardingedu  server=::1:5432
+
+=== PHASE 3: urlpatterns (import only) ===
+  top-level url_patterns count: 10
+    URLResolver            route=admin/                                                  name=None
+    URLResolver            route=api-auth/                                               name=None
+    URLPattern             route=api/auth/jwt/token/                                     name=token_obtain_pair
+    URLPattern             route=api/auth/jwt/token/refresh/                             name=token_refresh
+    URLPattern             route=api/auth/jwt/token/verify/                              name=token_verify
+    URLResolver            route=api/geography/                                          name=None
+    URLResolver            route=api/schools/                                            name=None
+    URLResolver            route=api/fees/                                               name=None
+    URLResolver            route=api/users/                                              name=None
+    URLResolver            route=api/admissions/                                         name=None
+
+=== PHASE 4: apps module imports ===
+  ✓ admin                -> django.contrib.admin
+  ✓ auth                 -> django.contrib.auth
+  ✓ contenttypes         -> django.contrib.contenttypes
+  ✓ sessions             -> django.contrib.sessions
+  ✓ messages             -> django.contrib.messages
+  ✓ staticfiles          -> django.contrib.staticfiles
+  ✓ rest_framework       -> rest_framework
+  ✓ rest_framework_simplejwt -> rest_framework_simplejwt
+  ✓ token_blacklist      -> rest_framework_simplejwt.token_blacklist
+  ✓ corsheaders          -> corsheaders
+  ✓ django_filters       -> django_filters
+  ✓ geography            -> apps.geography
+  ✓ schools              -> apps.schools
+  ✓ fees                 -> apps.fees
+  ✓ admissions           -> apps.admissions
+  ✓ users                -> apps.users
+  ✓ search               -> apps.search
+All apps import OK
+
+=== PHASE 5: showmigrations (first 6 apps) ===
+ [X] 0001_initial
+ [X] 0002_logentry_remove_auto_add
+ [X] 0003_logentry_add_action_flag_choices
+admissions
+ [X] 0001_initial
+ [X] 0001_initial
+ [X] 0002_alter_permission_name_max_length
+ [X] 0003_alter_user_email_max_length
+ [X] 0004_alter_user_username_opts
+ [X] 0005_alter_user_last_login_null
+ [X] 0006_require_contenttypes_0002
+ [X] 0007_alter_validators_add_error_messages
+ [X] 0008_alter_user_username_max_length
+ [X] 0009_alter_user_last_name_max_length
+ [X] 0010_alter_group_name_max_length
+ [X] 0011_update_proxy_permissions
+ [X] 0012_alter_user_first_name_max_length
+ [X] 0001_initial
+ [X] 0002_remove_content_type_name
+fees
+ [X] 0001_initial
+geography
+ [X] 0001_initial
+schools
+ [X] 0001_initial
+ [X] 0001_initial
+ [X] 0001_initial
+ [X] 0002_outstandingtoken_jti_hex
+ [X] 0003_auto_20171017_2007
+ [X] 0004_auto_20171017_2013
+ [X] 0005_remove_outstandingtoken_jti
+ [X] 0006_auto_20171017_2113
+ [X] 0007_auto_20171017_2214
+ [X] 0008_migrate_to_bigautofield
+ [X] 0010_fix_migrate_to_bigautofield
+ [X] 0011_linearizes_history
+ [X] 0012_alter_outstandingtoken_user
+ [X] 0013_alter_blacklistedtoken_options_and_more
+users
+ [X] 0001_initial
+
+=== PHASE 6: WSGI handler (same code path as runserver) ===
+  get_wsgi_application() OK: WSGIHandler
+
+==== FINAL STATUS ====  EVERY CHECK PASSED => runserver WILL BOOT CLEANLY

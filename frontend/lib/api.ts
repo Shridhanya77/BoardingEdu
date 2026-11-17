@@ -492,6 +492,15 @@ export type GradeListItem = {
   sort_order: number;
   status: boolean;
 };
+export type FacilityListItem = {
+  facility_id: string;
+  facility_code: string;
+  category: string;
+  facility_name: string;
+  slug: string;
+  icon_url: string | null;
+  status: boolean;
+};
 export type SchoolFAQListItem = {
   faq_id: string;
   question: string;
@@ -620,6 +629,7 @@ export const schools = {
   page: (url: string) => request<PaginatedResponse<SchoolListItem>>(url),
   types: () => request<PaginatedResponse<SchoolTypeListItem>>("/schools/school-types/"),
   boards: () => request<PaginatedResponse<BoardListItem>>("/schools/boards/"),
+  facilities: () => request<PaginatedResponse<FacilityListItem>>("/schools/facilities/"),
   grades: () => request<PaginatedResponse<GradeListItem>>("/schools/grades/"),
   faqs: (filters: Partial<Record<"country" | "state" | "city" | "location" | "board" | "school_type", string>> = {}) => {
     const params = new URLSearchParams();
@@ -1782,6 +1792,101 @@ export const dashboards = {
     }),
   admin: () => authRequest<AdminDashboardData>("/dashboards/admin/"),
   staffAdmin: () => authRequest<StaffAdminDashboardData>("/dashboards/staff-admin/"),
+};
+
+// ---------- Parent saved searches ----------
+export type SavedSearchGeoDetail = { id: string; name: string; slug: string } | null;
+
+export type SavedSearchAlertFrequency = "INSTANT" | "DAILY" | "WEEKLY" | "OFF";
+
+export type SavedSearch = {
+  saved_search_id: string;
+  name: string;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+  location: string | null;
+  country_detail: SavedSearchGeoDetail;
+  state_detail: SavedSearchGeoDetail;
+  city_detail: SavedSearchGeoDetail;
+  location_detail: SavedSearchGeoDetail;
+  home_category: string;
+  school_types: string[];
+  boards: string[];
+  facilities: string[];
+  gender: string;
+  min_fee: string | null;
+  max_fee: string | null;
+  keywords: string;
+  alert_frequency: SavedSearchAlertFrequency;
+  is_active: boolean;
+  last_notified_at: string | null;
+  created_at: string;
+  updated_at: string;
+  label: string;
+  match_count: number;
+};
+
+export type SavedSearchInput = {
+  name?: string;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  location?: string | null;
+  home_category?: string;
+  school_types?: string[];
+  boards?: string[];
+  facilities?: string[];
+  gender?: string;
+  min_fee?: string | null;
+  max_fee?: string | null;
+  keywords?: string;
+  alert_frequency?: SavedSearchAlertFrequency;
+  is_active?: boolean;
+};
+
+export const savedSearches = {
+  list: () => authRequest<SavedSearch[]>("/dashboards/parent/saved-searches/"),
+  create: (payload: SavedSearchInput) =>
+    authRequest<SavedSearch>("/dashboards/parent/saved-searches/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: SavedSearchInput) =>
+    authRequest<SavedSearch>(`/dashboards/parent/saved-searches/${encodeURIComponent(id)}/`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    authRequest<{ deleted: boolean }>(
+      `/dashboards/parent/saved-searches/${encodeURIComponent(id)}/`,
+      { method: "DELETE" },
+    ),
+};
+
+export type NotificationPreference = {
+  email: string;
+  saved_search_alerts: boolean;
+  admission_opening_alerts: boolean;
+  unsubscribed_at: string | null;
+};
+
+export const notificationPreferences = {
+  get: () => authRequest<NotificationPreference>("/notifications/preferences/"),
+  update: (payload: Partial<Pick<NotificationPreference, "saved_search_alerts" | "admission_opening_alerts">>) =>
+    authRequest<NotificationPreference>("/notifications/preferences/", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  unsubscribeStatus: (token: string) =>
+    request<{ valid: boolean; unsubscribed?: boolean; email?: string }>(
+      `/notifications/unsubscribe/${encodeURIComponent(token)}/`,
+    ),
+  unsubscribe: (token: string) =>
+    request<{ valid: boolean; unsubscribed: boolean }>(
+      `/notifications/unsubscribe/${encodeURIComponent(token)}/`,
+      { method: "POST" },
+    ),
 };
 
 export const subscriptions = {

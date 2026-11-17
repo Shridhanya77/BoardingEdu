@@ -18,7 +18,7 @@ from apps.admissions.models import AdmissionEnquiry, Child, CounsellingRequest
 from apps.reviews.models import Review
 from apps.schools.models import School
 from apps.schools.querysets import public_school_queryset
-from apps.users.models import ParentShortlist, User
+from apps.users.models import ParentShortlist, SavedSearch, User
 from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
 from .models import RecentSchoolView
 from .school_ops import build_school_admin_payload
@@ -286,6 +286,75 @@ class SchoolEnquiryStatusView(APIView):
         return Response(
             _enquiry_row(enquiry, include_contacts=viewer_can_see_contacts(request.user, enquiry))
         )
+
+
+class ParentSavedSearchView(APIView):
+    """Parents save, list and replay school-search criteria from their dashboard."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _profile(self, request):
+        if getattr(request.user, "role", None) != User.ROLE_PARENT:
+            return None
+        return getattr(request.user, "parent_profile", None)
+
+    def _queryset(self, profile):
+        return (
+            SavedSearch.objects.filter(parent_profile=profile)
+            .select_related("country", "state", "city", "location")
+            .prefetch_related("school_types", "boards", "facilities")
+        )
+
+    def get(self, request):
+        profile = self._profile(request)
+        if profile is None:
+            return Response({"detail": "Saved searches are for parent accounts."}, status=403)
+        from apps.users.saved_search_serializers import SavedSearchSerializer
+
+        return Response(SavedSearchSerializer(self._queryset(profile), many=True).data)
+
+    def post(self, request):
+        profile = self._profile(request)
+        if profile is None:
+            return Response({"detail": "Saved searches are for parent accounts."}, status=403)
+        from apps.users.saved_search_serializers import SavedSearchSerializer
+
+        serializer = SavedSearchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        saved = serializer.save(parent_profile=profile)
+        return Response(SavedSearchSerializer(saved).data, status=201)
+
+
+class ParentSavedSearchItemView(APIView):
+    """Edit or delete one of a parent's saved searches."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _saved_search(self, request, saved_search_id):
+        if getattr(request.user, "role", None) != User.ROLE_PARENT:
+            return None
+        return SavedSearch.objects.filter(
+            saved_search_id=saved_search_id,
+            parent_profile__user=request.user,
+        ).first()
+
+    def patch(self, request, saved_search_id):
+        saved = self._saved_search(request, saved_search_id)
+        if saved is None:
+            return Response({"detail": "Saved search not found."}, status=404)
+        from apps.users.saved_search_serializers import SavedSearchSerializer
+
+        serializer = SavedSearchSerializer(saved, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, saved_search_id):
+        saved = self._saved_search(request, saved_search_id)
+        if saved is None:
+            return Response({"detail": "Saved search not found."}, status=404)
+        saved.delete()
+        return Response({"deleted": True})
 
 
 class ParentShortlistView(APIView):

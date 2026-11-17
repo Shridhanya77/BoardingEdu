@@ -11,12 +11,13 @@ from .models import EmailDelivery
 logger = logging.getLogger(__name__)
 
 
-def _render_and_send(delivery, *, heading, body, action_label="", action_url=""):
+def _render_and_send(delivery, *, heading, body, action_label="", action_url="", unsubscribe_url=""):
     context = {
         "heading": heading,
         "body": body,
         "action_label": action_label,
         "action_url": action_url,
+        "unsubscribe_url": unsubscribe_url,
         "logo_url": f"{settings.FRONTEND_URL}/BoardingEdu_LOGO.jpeg",
         "frontend_url": settings.FRONTEND_URL,
     }
@@ -54,6 +55,7 @@ def send_email_now(
     body,
     action_label="",
     action_url="",
+    unsubscribe_url="",
 ):
     delivery = EmailDelivery.objects.create(
         recipient=recipient,
@@ -66,6 +68,7 @@ def send_email_now(
         body=body,
         action_label=action_label,
         action_url=action_url,
+        unsubscribe_url=unsubscribe_url,
     )
 
 
@@ -78,6 +81,7 @@ def queue_email(
     body,
     action_label="",
     action_url="",
+    unsubscribe_url="",
 ):
     delivery = EmailDelivery.objects.create(
         recipient=recipient,
@@ -94,6 +98,7 @@ def queue_email(
                 body,
                 action_label,
                 action_url,
+                unsubscribe_url,
             )
         except (OperationalError, RedisError) as exc:
             delivery.status = EmailDelivery.Status.FAILED
@@ -112,6 +117,7 @@ def queue_email(
                 body=body,
                 action_label=action_label,
                 action_url=action_url,
+                unsubscribe_url=unsubscribe_url,
             )
         except EmailDeliveryError as exc:
             logger.info(

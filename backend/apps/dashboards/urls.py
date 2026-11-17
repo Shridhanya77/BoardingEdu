@@ -13,6 +13,8 @@ from .views import (
     ParentDashboardView,
     ParentRecentSchoolView,
     ParentRecentSchoolItemView,
+    ParentSavedSearchItemView,
+    ParentSavedSearchView,
     ParentShortlistView,
     PublicPlatformSummaryView,
     SchoolDashboardView,
@@ -67,6 +69,16 @@ urlpatterns = [
     ),
     path("parent/", ParentDashboardView.as_view(), name="parent"),
     path("parent/shortlist/", ParentShortlistView.as_view(), name="parent-shortlist"),
+    path(
+        "parent/saved-searches/",
+        ParentSavedSearchView.as_view(),
+        name="parent-saved-searches",
+    ),
+    path(
+        "parent/saved-searches/<uuid:saved_search_id>/",
+        ParentSavedSearchItemView.as_view(),
+        name="parent-saved-search",
+    ),
     path("parent/recently-viewed/", ParentRecentSchoolView.as_view(), name="parent-recently-viewed"),
     path(
         "parent/recently-viewed/clear/",

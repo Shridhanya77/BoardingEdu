@@ -48,16 +48,17 @@ jobs:
         continue-on-error: true
       - name: Django system checks
         run: python manage.py check
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           pip install coverage
           coverage run --source=apps,config manage.py test --noinput
           coverage report -m
+          coverage report --fail-under=70
       - name: Generate & validate OpenAPI schema
         run: python manage.py spectacular --validate --file schema.yml
 
   frontend:
-    name: Frontend (lint + build)
+    name: Frontend (lint + unit tests + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -78,5 +79,39 @@ jobs:
         continue-on-error: true
       - name: Lint
         run: npm run lint
+      - name: Unit tests
+        run: npm test
       - name: Build
         run: npm run build
+
+  e2e:
+    name: Frontend E2E (SEO routing)
+    runs-on: ubuntu-latest
+    needs: frontend
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+     NEXT_PUBLIC_API_BASE: https://boardingedu-backend.onrender.com/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Build
+        run: npm run build
+      - name: Run E2E tests
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

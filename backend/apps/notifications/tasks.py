@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=3)
-def deliver_email(self, delivery_id, heading, body, action_label="", action_url=""):
+def deliver_email(self, delivery_id, heading, body, action_label="", action_url="", unsubscribe_url=""):
     try:
         delivery = EmailDelivery.objects.get(delivery_id=delivery_id)
         _render_and_send(
@@ -19,6 +19,7 @@ def deliver_email(self, delivery_id, heading, body, action_label="", action_url=
             body=body,
             action_label=action_label,
             action_url=action_url,
+            unsubscribe_url=unsubscribe_url,
         )
     except EmailDeliveryError as exc:
         if self.request.retries >= self.max_retries:
@@ -28,3 +29,12 @@ def deliver_email(self, delivery_id, heading, body, action_label="", action_url=
             )
             raise
         raise self.retry(exc=exc, countdown=2 ** (self.request.retries + 1))
+
+
+@shared_task
+def deliver_saved_search_alerts():
+    """Periodic task: email parents when new schools match their saved searches."""
+    from .matching import run_saved_search_alerts
+
+    return run_saved_search_alerts()
+

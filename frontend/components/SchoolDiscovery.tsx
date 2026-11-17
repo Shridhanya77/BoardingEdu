@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   LoaderCircle,
   List as ListView,
+  Map as MapView,
   MapPin,
   Mail,
   MessageSquare,
@@ -26,9 +27,10 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { CSSProperties, FormEvent } from "react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
 import {
   apiErrorMessage,
   dashboards,
@@ -84,6 +86,20 @@ import {
   howItWorksSteps,
 } from "@/lib/home-content";
 import { useSearchExperience } from "@/lib/search-experience";
+import JsonLd from "@/components/JsonLd";
+import EmptyState, { type EmptyStateLink, type EmptyStateLinkGroup } from "@/components/ui/EmptyState";
+import { itemListJsonLd } from "@/lib/structured-data";
+
+// Leaflet is loaded only when the map view is opened, so the default
+// grid/list experience keeps its original bundle size.
+const SchoolMap = dynamic(() => import("@/components/school-map/SchoolMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="school-map">
+      <p className="school-map__note">Loading map…</p>
+    </div>
+  ),
+});
 
 function boardLogoVariant(
   board: BoardListItem,
@@ -813,7 +829,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [results, setResults] = useState<SchoolListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [schoolView, setSchoolView] = useState<"grid" | "list">("grid");
+  const [schoolView, setSchoolView] = useState<"grid" | "list" | "map">("grid");
   const [topBoardingSchools, setTopBoardingSchools] = useState<SchoolListItem[]>([]);
   const [topDaySchools, setTopDaySchools] = useState<SchoolListItem[]>([]);
   const [topBoardingSchoolsError, setTopBoardingSchoolsError] = useState<string | null>(null);
@@ -1397,6 +1413,78 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       );
   }, [cities]);
   const cityCards = useMemo(() => rankedCities.slice(0, 8), [rankedCities]);
+  /**
+   * Concrete ways to widen a search that returned nothing, derived from the filters
+   * the visitor actually applied so the copy stays truthful.
+   */
+  const emptyStateHints = useMemo<ReactNode[]>(() => {
+    const hints: ReactNode[] = [];
+    if (search) hints.push(`Try a shorter or differently spelled search instead of “${search}”.`);
+    if (board.length > 0) hints.push("Remove the board filter to include schools following other curricula.");
+    if (schoolType.length > 0 || homeCategory) hints.push("Switch between day and boarding school types to widen the results.");
+    if (feeMin !== undefined || feeMax !== undefined) hints.push("Expand the fee range to include more schools.");
+    if (gender) hints.push("Clear the gender filter to include co-ed and single-gender schools.");
+    if (geoLocation || locationGroups.length > 0) hints.push("Drop the locality filter and search the whole city instead.");
+    if (hints.length === 0) hints.push("Try browsing a nearby city or a different school type.");
+    return hints.slice(0, 4);
+  }, [board.length, feeMax, feeMin, gender, geoLocation, homeCategory, locationGroups.length, schoolType.length, search]);
+  /**
+   * No-result recovery links: nearby cities that actually have listings, the same
+   * alternate searches shown at the bottom of the page, and related guides.
+   */
+  const emptyStateLinkGroups = useMemo<EmptyStateLinkGroup[]>(() => {
+    const groups: EmptyStateLinkGroup[] = [];
+    const seen = new Set<string>();
+    const cityLinks: EmptyStateLink[] = [];
+    const cityPool = rankedCities.filter((city) => city.city_id !== activeCityId);
+    const nearby = activeStateId
+      ? cityPool.filter((city) => city.state_id === activeStateId)
+      : activeCountryId
+        ? cityPool.filter((city) => city.country_id === activeCountryId)
+        : cityPool;
+    for (const city of nearby.length > 0 ? nearby : cityPool) {
+      if (cityLinks.length >= 6) break;
+      const href = placeListingPath({
+        countrySlug: city.country_slug ?? city.country_name,
+        stateSlug: city.state_slug ?? city.state_name,
+        citySlug: city.slug,
+      });
+      if (seen.has(href)) continue;
+      seen.add(href);
+      cityLinks.push({
+        label: `Schools in ${city.city_name}`,
+        href,
+        meta: `${city.schools_count ?? 0} schools`,
+      });
+    }
+    if (cityLinks.length > 0) {
+      groups.push({
+        label: activeStateId || activeCityId ? "Nearby cities" : "Popular cities",
+        links: cityLinks,
+      });
+    }
+    const alternativeLinks = relatedSearchItems
+      .filter((item) => !seen.has(item.href))
+      .slice(0, 6)
+      .map((item) => ({ label: item.label, href: item.href }));
+    if (alternativeLinks.length > 0) {
+      groups.push({ label: "Related searches", links: alternativeLinks });
+    }
+    const guideLinks = publishedGuides
+      .slice(0, 3)
+      .map((guide) => ({ label: guide.title, href: `/guides/${guide.slug}` }));
+    if (guideLinks.length > 0) {
+      groups.push({ label: "Related guides", links: guideLinks, layout: "list" });
+    }
+    return groups;
+  }, [
+    activeCityId,
+    activeCountryId,
+    activeStateId,
+    publishedGuides,
+    rankedCities,
+    relatedSearchItems,
+  ]);
   const boardCards = useMemo(() => {
     const query = boardSearch.trim().toLocaleLowerCase();
     return boards.filter((item) =>
@@ -4241,11 +4329,21 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                   <ListView size={16} aria-hidden />
                   <span>List</span>
                 </button>
+                <button
+                  type="button"
+                  className={schoolView === "map" ? "is-active" : ""}
+                  aria-label="Show schools on a map"
+                  aria-pressed={schoolView === "map"}
+                  onClick={() => setSchoolView("map")}
+                >
+                  <MapView size={16} aria-hidden />
+                  <span>Map</span>
+                </button>
               </div>
             </div>
 
             <div
-              className="school-results__scroll"
+              className={`school-results__scroll${schoolView === "map" ? " school-results__scroll--map" : ""}`}
               ref={schoolResultsRef}
               role="region"
               aria-label="School results"
@@ -4314,21 +4412,41 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               !error &&
               displayResults.length === 0 &&
               !hasMoreResults && (
-              <div className="state-panel state-panel--empty">
-                <Search size={25} />
-                <h3>No schools found</h3>
-                <p>
-                  {search
+              <EmptyState
+                variant="panel"
+                icon={Search}
+                title="No schools found"
+                description={
+                  search
                     ? `No schools matched “${search}”. Try a city or shorter search.`
-                    : "Your selected filters do not match any schools. Remove a filter to broaden the results."}
-                </p>
-                <button type="button" onClick={clearFilters}>
-                  {search ? "Clear search and filters" : "Clear filters"}
-                </button>
-              </div>
+                    : "Your selected filters do not match any schools. Remove a filter to broaden the results."
+                }
+                hints={emptyStateHints}
+                linkGroups={emptyStateLinkGroups}
+                action={
+                  <button type="button" onClick={clearFilters}>
+                    {search ? "Clear search and filters" : "Clear filters"}
+                  </button>
+                }
+              />
             )}
 
-            {!error && displayResults.length > 0 && (
+            {!error && !isHomePage && displayResults.length > 0 && schoolView !== "map" && (
+              <JsonLd
+                data={itemListJsonLd({
+                  name: search ? `Schools matching “${search}”` : "Schools on BoardingEdu",
+                  items: displayResults
+                    .slice(0, 20)
+                    .map((school) => ({ name: school.school_name, url: schoolHref(school) })),
+                })}
+              />
+            )}
+
+            {!error && displayResults.length > 0 && schoolView === "map" && (
+              <SchoolMap schools={displayResults} />
+            )}
+
+            {!error && displayResults.length > 0 && schoolView !== "map" && (
               <div
                 className={`school-list school-list--${schoolView} school-list--listing${
                   schoolView === "grid" && !isHomePage
@@ -4376,7 +4494,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 error={topBoardingSchoolsError}
               />
             )}
-            {!isHomePage && loadMoreContent}
+            {!isHomePage && schoolView !== "map" && loadMoreContent}
             </div>
           </div>
         </div>

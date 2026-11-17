@@ -1,0 +1,10 @@
+# Railway service settings when Root Directory = backend (recommended).
+[build]
+builder = "NIXPACKS"
+buildCommand = "chmod +x ./build.sh && ./build.sh"
+
+[deploy]
+startCommand = "bash ./start.sh"
+healthcheckPath = "/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"

@@ -12,6 +12,7 @@ import {
   useDashboardData,
 } from "@/components/dashboard/DashboardShell";
 import ParentSchoolFinder from "@/components/parent-dashboard/ParentSchoolFinder";
+import { SavedSearches } from "@/components/parent-dashboard/SavedSearches";
 import {
   apiErrorMessage,
   dashboards,
@@ -31,6 +32,7 @@ const SECTIONS = [
   ["students", "My Children"],
   ["finder", "Find Schools"],
   ["shortlist", "Shortlisted Schools"],
+  ["saved-searches", "Saved Searches"],
   ["recent", "Recently Viewed"],
   ["documents", "Documents"],
   ["notifications", "Notifications"],
@@ -61,6 +63,10 @@ const SECTION_COPY: Record<SectionId, { title: string; subtitle: string }> = {
   shortlist: {
     title: "Your shortlisted schools",
     subtitle: "Keep your leading options together and compare them side by side.",
+  },
+  "saved-searches": {
+    title: "Saved searches",
+    subtitle: "Reuse your filters and get emailed when new matching schools are added.",
   },
   recent: {
     title: "Recently viewed",
@@ -262,6 +268,7 @@ export default function ParentDashboard() {
       )}
       {data && section === "finder" && <ParentSchoolFinder />}
       {data && section === "shortlist" && <Shortlist data={data} onError={setLocalError} />}
+      {data && section === "saved-searches" && <SavedSearches onError={setLocalError} />}
       {data && section === "recent" && (
         <DashboardPanel
           title="Recently viewed schools"

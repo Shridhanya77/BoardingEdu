@@ -30,6 +30,14 @@ services:
         fromDatabase:
           name: boardingedu-db
           property: connectionString
+      # Managed Redis feeds the cache backend, sessions and DRF throttling.
+      # Without it the app falls back to per-process memory caches, so rate
+      # limits would not be shared across Render instances.
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: boardingedu-redis
+          property: connectionString
       - key: OTP_BACKEND
         value: database
       - key: FRONTEND_URL
@@ -76,3 +84,10 @@ services:
       #   sync: false
       # - key: CLOUDFLARE_EMAIL_FROM
       #   value: no-reply@boardingedu.com
+
+  # Key Value (Redis) backing the cache, sessions and DRF throttling.
+  - type: redis
+    name: boardingedu-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []

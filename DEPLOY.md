@@ -13,13 +13,14 @@ choose **New → Blueprint** and connect this repository. It creates:
 | Resource | Name |
 |---|---|
 | PostgreSQL 16 | `boardingedu-db` |
+| Key Value (Redis) | `boardingedu-redis` |
 | Web service | `boardingedu-backend` (root directory `backend`) |
 
 Build command: `chmod +x ./build.sh && ./build.sh`  
 Start command: `bash ./start.sh` (collects static files, migrates, then runs Gunicorn)  
 Health check: `/healthz`
 
-If the web service already exists, set those same commands on it instead of creating a second service. Point `DATABASE_URL` at the Render database **Internal Database URL**. Leave `DATABASE_SSL_REQUIRE` empty: hosts ending in `.render.com` use TLS, and Render's private hostname does not. Do not copy a `REDIS_URL` from Railway. The blueprint stores OTP codes in the database (`OTP_BACKEND=database`).
+If the web service already exists, set those same commands on it instead of creating a second service. Point `DATABASE_URL` at the Render database **Internal Database URL**. Leave `DATABASE_SSL_REQUIRE` empty: hosts ending in `.render.com` use TLS, and Render's private hostname does not. Do not copy a `REDIS_URL` from Railway — the blueprint provisions its own `boardingedu-redis` service and injects `REDIS_URL` from it. Redis backs the Django cache, sessions and DRF throttling; without it the app falls back to per-process memory caches and rate limits are not shared across instances. The blueprint stores OTP codes in the database (`OTP_BACKEND=database`).
 
 Set these on the web service. Do not commit the secret values:
 
@@ -108,6 +109,88 @@ frequency for each, then set the structure to active and published. Variable
 or distance-based items can leave the amount blank; the profile presents these
 as Dynamic. Only active, published structures appear on school profiles.
 Counselling submissions require `admissions.0003_counsellingrequest`.
+
+## 4. Backup & disaster recovery
+
+BoardingEdu has three stateful dependencies. Each has a different recovery
+model, so treat them separately.
+
+| Dependency | State | Backup | Recovery |
+|---|---|---|---|
+| Render PostgreSQL (`boardingedu-db`) | All relational data: users, schools, fees, applications, enquiries | Render automated daily backups (paid plans) + offsite `pg_dump` | Restore snapshot or `pg_restore` a dump into a fresh instance |
+| Cloudflare R2 bucket | School images and uploaded media | R2 object versioning / lifecycle rules; the bucket is the source of truth | Re-point the bucket; objects are content-addressed and idempotent |
+| Render Redis (`boardingedu-redis`) | Cache, sessions, Celery broker | None needed | Ephemeral by design — a restart only drops cached data and forces session re-login |
+
+`OTP_BACKEND=database` means one-time codes survive a Redis loss. Do **not**
+switch OTP to Redis on Render; Redis is treated as disposable.
+
+### Recovery objectives
+
+- **RPO (max data loss):** ≤ 24 h with Render's automatic daily backups. Reduce
+  to hours by scheduling a daily offsite `pg_dump` (below).
+- **RTO (time to restore):** ≤ 1 h once a dump or snapshot is available.
+
+### Take an offsite backup
+
+Run from a machine with the Render **External Database URL** (never commit it):
+
+```powershell
+$env:PGDATABASE_URL = "<render-external-database-url>"
+pg_dump --no-owner --no-privileges --format=custom --file "boardingedu-$(Get-Date -Format yyyyMMdd-HHmm).dump" $env:PGDATABASE_URL
+```
+
+Store the dump in an access-controlled location (e.g. an R2 bucket with a
+`private/` prefix) and keep at least 30 daily copies. A backup that only lives
+next to the database it protects is not a backup.
+
+### Restore into a fresh database
+
+1. Provision a new Render PostgreSQL instance (or empty database).
+2. Copy its **External Database URL**.
+3. Restore the most recent dump:
+
+   ```powershell
+   pg_restore --no-owner --no-privileges --clean --if-exists --dbname "<new-external-database-url>" "boardingedu-YYYYMMDD-HHMM.dump"
+   ```
+
+4. Point the `boardingedu-backend` service's `DATABASE_URL` at the restored
+   instance and redeploy. `start.sh` runs `migrate` on boot, which will no-op
+   when the restored schema is current and apply any missing migrations
+   otherwise.
+5. Confirm `/readyz` reports the database and search subsystems as healthy, then
+   load a school listing and a school profile in the browser.
+
+If the restore target already has rows, prefer `--clean --if-exists` (as above)
+or restore into an empty database and swap `DATABASE_URL` afterwards.
+
+### Recovering from a Redis outage
+
+Redis is not authoritative. On a Redis incident:
+
+1. Confirm the `REDIS_URL` value is still injected (Blueprint → web service →
+   Environment).
+2. Restart the service; sessions rebuild and DRF throttle counters reset.
+3. Expect users to re-authenticate (cached sessions were dropped) and Celery
+   tasks to resume once the broker is reachable.
+
+Because `IGNORE_EXCEPTIONS` is enabled, a Redis outage degrades the cache but
+does not 500 the API.
+
+### Recovering from an accidental deletion / bad migration
+
+1. Take a fresh dump **before** repairing anything.
+2. Restore the last known-good dump into a scratch database.
+3. Diff the affected tables, then replay only the missing rows into production.
+4. If the whole dataset is compromised, promote the scratch restore by
+   swapping `DATABASE_URL` per the restore steps above.
+
+### Post-incident checks
+
+- Rotate `SECRET_KEY`, database credentials, R2 keys and `BREVO_API_KEY` if the
+  incident involved credential exposure.
+- Purge any secrets that were committed to git (use `git filter-repo` and force
+  push with team sign-off) and confirm the CI `pip-audit` / `npm audit` jobs are
+  still green.
 
 ## Local development
 

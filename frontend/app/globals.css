@@ -301,6 +301,85 @@
 .be-empty__icon { color: var(--line); }
 .be-empty__title { color: var(--ink); font-size: var(--text-lg); font-weight: 700; margin: 0; }
 .be-empty__desc { margin: 0; max-width: 360px; font-size: var(--text-sm); }
+.be-empty__hints {
+  width: 100%;
+  max-width: 430px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.be-empty__hints li {
+  position: relative;
+  padding-left: 16px;
+  color: #7e8982;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.be-empty__hints li + li { margin-top: 4px; }
+.be-empty__hints li::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #749781;
+}
+.be-empty__links {
+  width: 100%;
+  max-width: 620px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+.be-empty__links-label {
+  color: #8a968d;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.be-empty__links ul {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  list-style: none;
+}
+.be-empty__links a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 11px;
+  color: #1c715c;
+  background: #f2f8f5;
+  border: 1px solid #d8e9e1;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.be-empty__links a:hover { background: #e4f2eb; border-color: #bcdccd; }
+.be-empty__link-meta { color: #8a968d; font-size: 10px; font-weight: 400; }
+.be-empty__links--list ul { flex-direction: column; align-items: center; gap: 3px; }
+.be-empty__links--list a {
+  padding: 0;
+  color: #1c715c;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.be-empty__links--list a:hover { background: none; color: #145444; }
 
 /* ----- Toast ----- */
 .be-toast-container {
@@ -18670,6 +18749,98 @@ select:focus-visible {
   box-shadow: 0 2px 6px rgb(23 69 107 / 20%);
 }
 
+/* School map view */
+.school-map {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.school-map__canvas {
+  width: 100%;
+  height: clamp(360px, 62vh, 640px);
+  border: 1px solid #dfe8f1;
+  border-radius: 16px;
+  background: #eef3f8;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.school-map__note {
+  margin: 0;
+  color: #526278;
+  font-size: 13px;
+}
+
+.discovery-page--listing .school-results__scroll--map {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.school-map-marker {
+  background: transparent;
+  border: 0;
+}
+
+.school-map-marker__dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: linear-gradient(135deg, #0b5f8a, #17456b);
+  box-shadow: 0 2px 6px rgb(16 36 58 / 35%);
+}
+
+.school-map-popup {
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+}
+
+.school-map-popup__image {
+  width: 100%;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.school-map-popup__body {
+  display: grid;
+  gap: 3px;
+}
+
+.school-map-popup__body strong {
+  color: #17324a;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.school-map-popup__place,
+.school-map-popup__meta {
+  color: #526278;
+  font-size: 12px;
+}
+
+.school-map-popup__body a {
+  color: #0b5f8a;
+  font-weight: 700;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.school-map-popup__body a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .school-map__canvas {
+    height: 62vh;
+    border-radius: 12px;
+  }
+}
+
 .school-list--grid:not(.school-list--skeleton) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
@@ -25908,6 +26079,133 @@ select:focus-visible {
 .pd-shortlist .dash-card > button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+/* Saved searches & email preferences */
+.pd-saved-search-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pd-saved-search-head strong {
+  color: #17324a;
+  font-size: 15px;
+}
+
+.pd-saved-search-meta {
+  color: #5b7186 !important;
+  font-size: 12px;
+}
+
+.pd-saved-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.pd-saved-search-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pd-saved-search-form {
+  gap: 14px;
+}
+
+.pd-saved-search-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.pd-saved-search-form label,
+.pd-saved-search-choices legend {
+  color: #33475a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pd-saved-search-choices {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid #e4eaf0;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.pd-saved-search-choices legend {
+  padding: 0 6px;
+}
+
+.pd-saved-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.pd-saved-search-chips label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d9e3ee;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #f7fafc;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.pd-saved-search-chips label:hover {
+  background: #eef4fa;
+}
+
+.pd-saved-search-chips label.is-selected {
+  border-color: #0b5f8a;
+  background: #e6f1f9;
+  color: #0b456f;
+}
+
+.pd-saved-search-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.pd-saved-search-check input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.pd-saved-search-check > span {
+  display: grid;
+  gap: 2px;
+}
+
+.pd-saved-search-check > span > span {
+  color: #5b7186;
+  font-weight: 500;
+}
+
+.pd-saved-search-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pd-preference-list li {
+  display: block;
 }
 
 @media (max-width: 960px) {

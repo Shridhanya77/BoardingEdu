@@ -1,5 +1,4 @@
 import logging
-import re
 import uuid
 from rest_framework import viewsets, filters
 from rest_framework.decorators import action
@@ -8,13 +7,12 @@ from rest_framework.response import Response
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.db.models import (
-    Avg, Case, Count, DecimalField, F, FloatField, IntegerField, Min, OuterRef, Prefetch,
-    Q, Subquery, Sum, When, Value,
+    Avg, Count, F, FloatField, IntegerField, OuterRef, Prefetch,
+    Q, Subquery, Sum, Value,
 )
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
-from apps.fees.models import FeeItem
 from apps.geography.models import City, Country, Location, State
 from apps.reviews.models import Review
 from config.pagination import SchoolDirectoryPagination
@@ -23,7 +21,11 @@ from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, Sch
 from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
 from .profile_changes import submit_school_profile_changes
-from .querysets import public_school_queryset
+from .querysets import (
+    annual_fee_subquery as _shared_annual_fee_subquery,
+    public_school_queryset,
+    school_type_ids_for_home_category,
+)
 from .serializers import (
     BoardDetailSerializer, BoardListSerializer,
     SchoolTypeDetailSerializer, SchoolTypeListSerializer,
@@ -137,27 +139,8 @@ class SchoolFilter(django_filters.FilterSet):
             'gender', 'status', 'verification_status', 'boarding_required', 'is_featured',
         ]
 
-    @staticmethod
-    def _home_school_categories(school_type):
-        value = f'{school_type.type_code} {school_type.slug} {school_type.type_name}'.lower().replace('_', '-')
-        if re.search(r'day[- ]boarding', value):
-            return {'day-school', 'residential-school'}
-        if re.search(r'\bboarding\b|\bresidential\b', value):
-            return {'residential-school'}
-        if re.search(r'\bday\b|day-school', value):
-            return {'day-school'}
-        return set()
-
     def filter_home_category(self, queryset, name, value):
-        if value == 'boarding-schools':
-            value = 'residential-school'
-        if value not in ('day-school', 'residential-school'):
-            return queryset.none()
-        matching_type_ids = [
-            school_type.pk
-            for school_type in SchoolType.objects.filter(status=True)
-            if value in self._home_school_categories(school_type)
-        ]
+        matching_type_ids = school_type_ids_for_home_category(value)
         if not matching_type_ids:
             return queryset.none()
         return queryset.filter(school_types__in=matching_type_ids).distinct()
@@ -256,52 +239,9 @@ class SchoolFilter(django_filters.FilterSet):
 
     @staticmethod
     def annual_fee_subquery():
-        """Starting yearly tuition, not the sum of every class and one-time fee."""
-        amount_field = DecimalField(max_digits=14, decimal_places=2)
-        annualized = Case(
-            When(payment_frequency="MONTHLY", then=F("amount") * Value(12)),
-            When(payment_frequency="QUARTERLY", then=F("amount") * Value(4)),
-            When(payment_frequency="HALF_YEARLY", then=F("amount") * Value(2)),
-            When(payment_frequency="TERM", then=F("amount") * Value(3)),
-            When(payment_frequency="ANNUAL", then=F("amount")),
-            default=None,
-            output_field=amount_field,
-        )
-        published = Q(
-            fee_structure__school_id=OuterRef("pk"),
-            fee_structure__status=True,
-            fee_structure__published=True,
-            amount__isnull=False,
-        ) & (
-            Q(fee_structure__academic_year__is_current=True)
-            | Q(fee_structure__academic_year__year_code__in=["2026-2027", "2026-27"])
-        )
-        tuition = (
-            Q(item_name__icontains="tuition")
-            | Q(item_name__icontains="composite")
-            | Q(item_name__icontains="annual fee")
-        )
-
-        def min_annual(extra=None):
-            qs = FeeItem.objects.filter(published).exclude(
-                payment_frequency__in=["ONE_TIME", "BY_DISTANCE", "DYNAMIC"],
-            )
-            if extra is not None:
-                qs = qs.filter(extra)
-            return (
-                qs.annotate(_annual=annualized)
-                .filter(_annual__isnull=False)
-                .order_by()
-                .values("fee_structure__school_id")
-                .annotate(total=Min("_annual"))
-                .values("total")[:1]
-            )
-
-        return Coalesce(
-            Subquery(min_annual(tuition), output_field=amount_field),
-            Subquery(min_annual(), output_field=amount_field),
-            output_field=amount_field,
-        )
+        """Starting yearly tuition. Delegates to the shared queryset helper so
+        the directory filters and saved-search matching agree on fees."""
+        return _shared_annual_fee_subquery()
 
     def _filter_fee(self, queryset, lookup, value):
         if value is None:

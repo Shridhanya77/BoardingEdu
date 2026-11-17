@@ -105,13 +105,30 @@ export type AggregateRating = {
   worstRating?: number;
 };
 
+/** A single genuine, published parent review used for Review structured data. */
+export type SchoolReview = {
+  author: string;
+  rating: number;
+  title?: string;
+  body?: string;
+  datePublished?: string;
+};
+
+const MAX_REVIEWS_IN_JSON_LD = 10;
+const MAX_REVIEW_BODY_LENGTH = 500;
+
 /**
  * Full schema.org/School graph for a profile page.
- * Includes BreadcrumbList so Google can render breadcrumb rich results.
+ * Includes BreadcrumbList and (only when genuine published data exists)
+ * AggregateRating and individual Review nodes so Google can render rich results.
  */
 export function schoolJsonLd(
   school: SchoolDetail,
-  options?: { aggregateRating?: AggregateRating | null; breadcrumbs?: Breadcrumb[] },
+  options?: {
+    aggregateRating?: AggregateRating | null;
+    breadcrumbs?: Breadcrumb[];
+    reviews?: SchoolReview[];
+  },
 ): JsonLd {
   const path = schoolCanonicalPath(school);
   const url = absoluteUrl(path);
@@ -133,6 +150,11 @@ export function schoolJsonLd(
   const sameAs = (school.videos_detail ?? [])
     .map((video) => video.video_url)
     .filter((value): value is string => Boolean(value));
+
+  // Only include reviews we can trust: genuine, published entries with a rating.
+  const reviews = (options?.reviews ?? [])
+    .filter((review) => Boolean(review.author) && Number.isFinite(review.rating) && review.rating > 0)
+    .slice(0, MAX_REVIEWS_IN_JSON_LD);
 
   const graph: JsonLd[] = [
     {
@@ -179,6 +201,23 @@ export function schoolJsonLd(
             bestRating: options.aggregateRating.bestRating ?? 5,
             worstRating: options.aggregateRating.worstRating ?? 1,
           }
+        : undefined,
+      review: reviews.length
+        ? reviews.map((review) => ({
+            "@type": "Review",
+            author: { "@type": "Person", name: review.author },
+            name: review.title || undefined,
+            reviewBody: review.body
+              ? review.body.slice(0, MAX_REVIEW_BODY_LENGTH)
+              : undefined,
+            datePublished: review.datePublished || undefined,
+            reviewRating: {
+              "@type": "Rating",
+              ratingValue: review.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+          }))
         : undefined,
     },
   ];

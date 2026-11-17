@@ -4,6 +4,8 @@
 {% if action_url %}{{ action_label }}: {{ action_url }}
 {% endif %}
 If you did not request this, you can safely ignore this email.
-
+{% if unsubscribe_url %}
+Unsubscribe from these alerts: {{ unsubscribe_url }}
+{% endif %}
 BoardingEdu
 {{ frontend_url }}

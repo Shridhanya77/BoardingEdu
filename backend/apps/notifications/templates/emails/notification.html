@@ -21,6 +21,9 @@
             </p>
             {% endif %}
             <p style="margin:0;color:#526575;font-size:13px;line-height:1.6;">If you did not request this, you can safely ignore this email.</p>
+            {% if unsubscribe_url %}
+            <p style="margin:12px 0 0;color:#526575;font-size:13px;line-height:1.6;">Prefer not to receive these alerts? <a href="{{ unsubscribe_url }}" style="color:#0b5f8a;">Unsubscribe</a>.</p>
+            {% endif %}
           </td></tr>
           <tr><td style="padding:18px 32px;background:#f4f7fa;color:#526575;font-size:12px;line-height:1.5;">
             BoardingEdu · Helping families find the right school<br>

@@ -313,7 +313,18 @@ export default async function SchoolProfile({
           worstRating: 1,
         }
       : null;
-  const structuredData = JSON.stringify(schoolJsonLd(school, { breadcrumbs, aggregateRating })).replace(/</g, "\\u003c");
+  const jsonLdReviews = (reviewData.reviews ?? [])
+    .filter((review) => review.status === "PUBLISHED" && review.rating > 0)
+    .map((review) => ({
+      author: review.author_name,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      datePublished: review.created_at ? review.created_at.slice(0, 10) : undefined,
+    }));
+  const structuredData = JSON.stringify(
+    schoolJsonLd(school, { breadcrumbs, aggregateRating, reviews: jsonLdReviews }),
+  ).replace(/</g, "\\u003c");
   const faqStructuredData = JSON.stringify(faqJsonLd(profileFaqs)).replace(/</g, "\\u003c");
   const galleryPhotos = buildProfileGalleryPhotos(school);
 

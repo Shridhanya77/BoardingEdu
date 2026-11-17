@@ -7,11 +7,86 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import EmailDelivery
+from .serializers import NotificationPreferenceSerializer
+
+
+class NotificationPreferenceView(APIView):
+    """A parent's email-alert consent toggles."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if getattr(request.user, "role", None) not in ("PARENT",):
+            return Response(
+                {"detail": "Notification preferences are available to parent accounts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from .models import NotificationPreference
+
+        preference = NotificationPreference.for_user(request.user)
+        return Response(NotificationPreferenceSerializer(preference).data)
+
+    def patch(self, request):
+        if getattr(request.user, "role", None) not in ("PARENT",):
+            return Response(
+                {"detail": "Notification preferences are available to parent accounts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from .models import NotificationPreference
+
+        preference = NotificationPreference.for_user(request.user)
+        serializer = NotificationPreferenceSerializer(
+            preference, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class UnsubscribeView(APIView):
+    """Token-based unsubscribe used by the link in alert emails."""
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def _preference(self, token):
+        from .models import NotificationPreference
+
+        return NotificationPreference.objects.filter(unsubscribe_token=token).first()
+
+    def get(self, request, token):
+        preference = self._preference(token)
+        if preference is None:
+            return Response({"valid": False}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {
+                "valid": True,
+                "unsubscribed": preference.is_unsubscribed,
+                "email": preference.user.email,
+            }
+        )
+
+    def post(self, request, token):
+        preference = self._preference(token)
+        if preference is None:
+            return Response({"valid": False}, status=status.HTTP_404_NOT_FOUND)
+        preference.saved_search_alerts = False
+        preference.admission_opening_alerts = False
+        preference.unsubscribed_at = timezone.now()
+        preference.save(
+            update_fields=[
+                "saved_search_alerts",
+                "admission_opening_alerts",
+                "unsubscribed_at",
+                "updated_at",
+            ]
+        )
+        return Response({"valid": True, "unsubscribed": True})
 
 
 def _verify_resend_webhook_signature(request):

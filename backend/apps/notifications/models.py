@@ -65,6 +65,41 @@ class ParentNotification(models.Model):
         return self.title
 
 
+class NotificationPreference(models.Model):
+    """Per-user email consent, including a token for one-click unsubscribe.
+
+    Absence of a row means the defaults below apply, so we never block
+    transactional email because a preference row was not created yet.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_preference",
+    )
+    saved_search_alerts = models.BooleanField(default=True)
+    admission_opening_alerts = models.BooleanField(default=True)
+    unsubscribed_at = models.DateTimeField(null=True, blank=True)
+    unsubscribe_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "notification_preferences"
+
+    def __str__(self):
+        return f"Preferences for {self.user_id}"
+
+    @property
+    def is_unsubscribed(self):
+        return self.unsubscribed_at is not None
+
+    @classmethod
+    def for_user(cls, user):
+        preference, _created = cls.objects.get_or_create(user=user)
+        return preference
+
+
 class OtpRecord(models.Model):
     """Fallback OTP storage used when Redis cannot be reached."""
 
