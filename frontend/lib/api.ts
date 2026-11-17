@@ -945,6 +945,80 @@ export const guideContent = {
   categories: () => request<PaginatedResponse<{ slug: string; name: string }>>("/guides/categories/"),
 };
 
+export type BlogCategoryItem = {
+  name: string;
+  slug: string;
+  description: string;
+  image_url: string | null;
+  display_order: number;
+};
+
+export type BlogCard = {
+  title: string;
+  slug: string;
+  short_description: string;
+  cover_image_url: string | null;
+  category: { name: string; slug: string };
+  author_name: string;
+  featured: boolean;
+  reading_time_minutes: number;
+  published_at: string | null;
+  updated_at: string;
+};
+
+export type BlogHeading = { id: string; text: string; level: number };
+
+export type BlogArticle = BlogCard & {
+  content: string;
+  headings: BlogHeading[];
+  related: BlogCard[];
+  meta_title: string;
+  meta_description: string;
+  canonical_url: string;
+  status: "draft" | "published" | "archived";
+  created_at: string;
+};
+
+export type BlogSubscriptionResult = {
+  subscribed: boolean;
+  already_subscribed: boolean;
+};
+
+function blogQuery(params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  });
+  const query = search.toString();
+  return query ? `?${query}` : "";
+}
+
+export const blogs = {
+  list: (page = 1, pageSize = 9) =>
+    request<PaginatedResponse<BlogCard>>(`/blogs/${blogQuery({ page, page_size: pageSize })}`),
+  featured: () =>
+    request<PaginatedResponse<BlogCard>>(`/blogs/featured/${blogQuery({ page_size: 6 })}`),
+  latest: (page = 1) =>
+    request<PaginatedResponse<BlogCard>>(`/blogs/latest/${blogQuery({ page, page_size: 9 })}`),
+  byCategory: (slug: string, page = 1) =>
+    request<PaginatedResponse<BlogCard>>(
+      `/blogs/category/${encodeURIComponent(slug)}/${blogQuery({ page, page_size: 9 })}`,
+    ),
+  search: (q: string, page = 1) =>
+    request<PaginatedResponse<BlogCard>>(`/blogs/search/${blogQuery({ q, page, page_size: 9 })}`),
+  bySlug: (slug: string) =>
+    request<BlogArticle>(`/blogs/${encodeURIComponent(slug)}/`),
+  preview: (slug: string) =>
+    authRequest<BlogArticle>(`/blogs/preview/${encodeURIComponent(slug)}/`),
+  categories: () =>
+    request<PaginatedResponse<BlogCategoryItem>>(`/blog-categories/${blogQuery({ page_size: 50 })}`),
+  subscribe: (email: string, consent: boolean) =>
+    request<BlogSubscriptionResult>("/blogs/subscribe/", {
+      method: "POST",
+      body: JSON.stringify({ email, consent }),
+    }),
+};
+
 export const admissions = {
   /**
    * Submit a new admission enquiry. Auth NOT required (guest enquiries allowed).

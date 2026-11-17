@@ -31,11 +31,13 @@ type HeaderLink = { href: string; label: string; active: boolean };
 function headerLinks(role: UserRole | null, pathname: string): HeaderLink[] {
   const home = pathname === "/" || pathname === "";
   const guides = pathname.startsWith("/guides");
+  const blogs = pathname.startsWith("/blogs");
   const compare = pathname.startsWith("/compare");
   const explore = pathname === "/india" || pathname.startsWith("/india/") || pathname.startsWith("/schools");
   const shared: HeaderLink[] = [
     { href: "/", label: "Home", active: home },
     { href: "/india/", label: "Explore Schools", active: explore || pathname === "/india" || pathname.startsWith("/india/") },
+    { href: "/blogs/", label: "Blogs", active: blogs },
   ];
   if (!role || role === "PARENT") {
     return [

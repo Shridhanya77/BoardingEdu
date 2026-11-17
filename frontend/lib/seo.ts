@@ -14,6 +14,9 @@ export function pageMetadata({
   keywords = [],
   index = true,
   image,
+  openGraphType = "website",
+  publishedTime,
+  modifiedTime,
 }: {
   title: string;
   description: string;
@@ -21,6 +24,9 @@ export function pageMetadata({
   keywords?: string[];
   index?: boolean;
   image?: string | null;
+  openGraphType?: "website" | "article";
+  publishedTime?: string;
+  modifiedTime?: string;
 }): Metadata {
   const boundedTitle = title.slice(0, 300);
   const boundedDescription = description.slice(0, 10_000);
@@ -46,12 +52,14 @@ export function pageMetadata({
         }
       : { index: false, follow: true },
     openGraph: {
-      type: "website",
+      type: openGraphType,
       siteName: SITE_NAME,
       title: boundedTitle,
       description: boundedDescription,
       url,
       images: [{ url: ogImage }],
+      ...(openGraphType === "article" && publishedTime ? { publishedTime } : {}),
+      ...(openGraphType === "article" && modifiedTime ? { modifiedTime } : {}),
     },
     twitter: {
       card: "summary_large_image",

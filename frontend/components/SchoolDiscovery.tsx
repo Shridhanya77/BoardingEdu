@@ -2411,8 +2411,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     let cancelled = false;
-    setFeaturedLoading(true);
-    setFeaturedSchools([]);
     const activeCountry = geoCountry || initialCountry;
     const activeState = geoState || initialState;
     const activeCity = geoCity || initialCity;
@@ -2450,7 +2448,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       };
     }
     if (isHomePage && schoolType.length > 0 && !schoolTypesLoaded) {
-      setFeaturedLoading(true);
       return () => {
         cancelled = true;
       };

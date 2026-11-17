@@ -329,6 +329,7 @@ export default function SiteFooterSeo({
       <div className="seo-footer__legal">
         <p>© 2026 BoardingEdu Technologies Pvt. Ltd. · All rights reserved.</p>
         <nav aria-label="Legal">
+          <Link href="/blogs/">Blogs</Link>
           <Link href="/privacy/">Privacy</Link>
           <Link href="/terms/">Terms</Link>
           <Link href="/about/">About</Link>

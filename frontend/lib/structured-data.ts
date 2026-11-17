@@ -67,6 +67,41 @@ export function faqJsonLd(items: { question: string; answer: string }[]): JsonLd
   };
 }
 
+export function blogPostingJsonLd(article: {
+  title: string;
+  description: string;
+  path: string;
+  publishedAt?: string | null;
+  updatedAt?: string | null;
+  authorName: string;
+  image?: string | null;
+  section?: string;
+}): JsonLd {
+  const pageUrl = absoluteUrl(article.path);
+  const data: JsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: article.title,
+    description: article.description,
+    mainEntityOfPage: pageUrl,
+    author: { "@type": "Person", name: article.authorName },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: {
+        "@type": "ImageObject",
+        url: `${SITE_URL}/BoardingEdu_LOGO.jpeg`,
+      },
+    },
+  };
+  if (article.publishedAt) data.datePublished = article.publishedAt;
+  if (article.updatedAt) data.dateModified = article.updatedAt;
+  if (article.image) data.image = [article.image];
+  if (article.section) data.articleSection = article.section;
+  return data;
+}
+
 export function breadcrumbJsonLd(items: Breadcrumb[]): JsonLd {
   return {
     "@context": "https://schema.org",

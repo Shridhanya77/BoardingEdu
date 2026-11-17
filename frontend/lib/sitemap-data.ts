@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { fetchAllPages, geography, schools } from "@/lib/api";
+import { blogs, fetchAllPages, geography, schools } from "@/lib/api";
 import { guideList } from "@/lib/guides";
 import { boardListingPath, placeListingPath, schoolDirectoryPath, schoolListPath } from "@/lib/school-urls";
 import { toSeoSlug, withTrailingSlash } from "@/lib/seo-slugs";
@@ -29,6 +29,7 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
     { url: loc("/cookies"), changeFrequency: "yearly", priority: 0.2 },
     { url: loc("/grievance"), changeFrequency: "yearly", priority: 0.2 },
     { url: loc("/guides"), changeFrequency: "weekly", priority: 0.6 },
+    { url: loc("/blogs"), changeFrequency: "daily", priority: 0.7 },
   ];
 
   for (const guide of guideList()) {
@@ -125,6 +126,34 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
     }
   } catch (error) {
     console.error("Could not load dynamic sitemap entries from the school API.", error);
+  }
+
+  try {
+    const [categoryPage, postPage] = await Promise.all([
+      blogs.categories(),
+      blogs.list(1, 100),
+    ]);
+    const [categories, posts] = await Promise.all([
+      fetchAllPages(categoryPage),
+      fetchAllPages(postPage),
+    ]);
+    for (const category of categories) {
+      entries.push({
+        url: loc(`/blogs/category/${category.slug}`),
+        changeFrequency: "weekly",
+        priority: 0.45,
+      });
+    }
+    for (const post of posts) {
+      entries.push({
+        url: loc(`/blogs/${post.slug}`),
+        lastModified: lastModified(post.updated_at),
+        changeFrequency: "monthly",
+        priority: post.featured ? 0.6 : 0.5,
+      });
+    }
+  } catch (error) {
+    console.error("Could not load blog entries for the sitemap.", error);
   }
 
   const uniqueEntries = new Map<string, MetadataRoute.Sitemap[number]>();

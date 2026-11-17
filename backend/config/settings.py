@@ -102,6 +102,7 @@ INSTALLED_APPS = [
     'apps.reviews.apps.ReviewsConfig',
     'apps.dashboards.apps.DashboardsConfig',
     'apps.guides.apps.GuidesConfig',
+    'apps.blogs.apps.BlogsConfig',
 ]
 
 JAZZMIN_SETTINGS = {
@@ -123,7 +124,7 @@ JAZZMIN_SETTINGS = {
     "navigation_expanded": True,
     "order_with_respect_to": [
         "schools", "admissions", "reviews", "users",
-        "geography", "fees", "search", "dashboards", "guides",
+        "geography", "fees", "search", "dashboards", "guides", "blogs",
     ],
     "icons": {
         "schools": "fas fa-school",
@@ -139,6 +140,9 @@ JAZZMIN_SETTINGS = {
         "search": "fas fa-search",
         "dashboards": "fas fa-chart-pie",
         "guides": "fas fa-book-open",
+        "blogs": "fas fa-newspaper",
+        "blogs.blogpost": "fas fa-newspaper",
+        "blogs.blogcategory": "fas fa-folder",
     },
     "related_modal_active": True,
     "show_ui_builder": False,
@@ -453,6 +457,7 @@ REST_FRAMEWORK = {
         'review': '10/hour',
         'enquiry': '10/hour',
         'registration_email': '10/hour',
+        'blog_subscribe': '5/hour',
     },
 }
 
@@ -562,6 +567,9 @@ BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
 BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL", "").strip()
 BREVO_SENDER_NAME = os.getenv("BREVO_SENDER_NAME", "BoardingEdu").strip()
 BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN", "").strip()
+# Optional Brevo contact list for the public blog newsletter. Blank keeps
+# subscribers in BoardingEdu only.
+BREVO_BLOG_LIST_ID = os.getenv("BREVO_BLOG_LIST_ID", "").strip()
 OTP_EXPIRY_SECONDS = int(os.getenv("OTP_EXPIRY_SECONDS", "300"))
 OTP_RESEND_COOLDOWN = int(os.getenv("OTP_RESEND_COOLDOWN", "60"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))

@@ -11,7 +11,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/login", "/signup", "/backend-api/", "/api/"],
+        disallow: ["/login", "/signup", "/backend-api/", "/api/", "/blogs/preview/"],
       },
       {
         userAgent: ["GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "PerplexityBot", "Google-Extended"],

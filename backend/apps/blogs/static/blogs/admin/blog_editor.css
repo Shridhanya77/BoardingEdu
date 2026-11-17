@@ -1,0 +1,35 @@
+.blog-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.blog-editor-toolbar__button {
+  border: 1px solid #c5d0dc;
+  background: #f4f7fb;
+  color: #17324d;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.blog-admin-preview {
+  max-width: 720px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid #d5dee8;
+  border-radius: 8px;
+  color: #1c2b39;
+  line-height: 1.7;
+}
+
+.blog-admin-preview img {
+  max-width: 100%;
+  height: auto;
+}
+
+#id_content {
+  min-height: 320px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
