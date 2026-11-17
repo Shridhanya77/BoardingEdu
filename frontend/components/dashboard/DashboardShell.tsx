@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AlertCircle,
   Building2,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { apiErrorMessage, type UserRole } from "@/lib/api";
 import { dashboardPathForRole, useAuth } from "@/lib/auth";
+import { usePreservedSidebarScroll } from "@/lib/use-preserved-sidebar-scroll";
 
 export type DashboardBreadcrumb = {
   label: string;
@@ -165,6 +166,13 @@ export function DashboardShell({
   const router = useRouter();
   const pathname = usePathname();
   const checking = status === "idle" || status === "loading";
+  const sidebarRef = useRef<HTMLElement | null>(null);
+
+  usePreservedSidebarScroll(
+    sidebarRef,
+    `boardingedu:dashboard-sidebar:${user?.role ?? "guest"}`,
+    `${pathname ?? ""}:${status}`,
+  );
 
   useEffect(() => {
     if (status === "guest") {
@@ -189,7 +197,7 @@ export function DashboardShell({
   return (
     <main className="dash-page">
       <div className="dash-layout">
-        <aside className="dash-sidebar">
+        <aside className="dash-sidebar" ref={sidebarRef}>
           <div className="dash-sidebar__brand">
             <LayoutDashboard size={18} aria-hidden />
             <div>
@@ -202,6 +210,7 @@ export function DashboardShell({
             <Link
               className={`dash-sidebar__link${pathname === "/dashboard/" ? " is-active" : ""}`}
               href="/dashboard/"
+              aria-current={pathname === "/dashboard/" ? "page" : undefined}
             >
               <LayoutDashboard size={16} aria-hidden /> Overview
             </Link>

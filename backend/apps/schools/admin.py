@@ -1039,7 +1039,7 @@ class FeaturedPromotionAdminForm(forms.ModelForm):
         required=False,
         help_text=(
             "Upload a promotional image. It is resized to at most 1600px, "
-            "saved as WebP, watermarked, and stored with the school's other images. "
+            "saved as WebP, watermarked, and stored in Cloudflare R2. "
             "Leave this empty to keep or paste an existing image address."
         ),
     )

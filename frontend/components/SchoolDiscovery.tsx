@@ -3790,7 +3790,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <FeaturedSchoolCarousel
               schools={featuredCardSchools}
               label="Featured schools"
-              autoAdvance
             />
           ) : (
             <p className="section-empty">

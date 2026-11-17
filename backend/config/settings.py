@@ -297,6 +297,8 @@ _r2_values = {
 _r2_missing = [name for name, value in _r2_values.items() if not value]
 
 if not _r2_missing:
+    from config.r2_tls import r2_ca_bundle
+
     _default_storage = {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
@@ -308,6 +310,7 @@ if not _r2_missing:
             "signature_version": "s3v4",
             "default_acl": None,        # R2 does not support ACLs
             "querystring_auth": False,  # plain public URLs, no signing
+            "verify": r2_ca_bundle(),
             "custom_domain": R2_PUBLIC_DOMAIN,
             "object_parameters": {
                 "CacheControl": "public, max-age=31536000, immutable",

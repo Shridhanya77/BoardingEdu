@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   Building2,
   ClipboardCheck,
@@ -35,6 +35,7 @@ import {
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { useDashboardData } from "@/components/dashboard/DashboardShell";
+import { usePreservedSidebarScroll } from "@/lib/use-preserved-sidebar-scroll";
 import { schoolProfilePathFromSlugs, toSeoSlug } from "@/lib/seo-slugs";
 import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
 import {
@@ -152,6 +153,13 @@ export default function SchoolAdminConsole() {
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const sidebarNavRef = useRef<HTMLElement | null>(null);
+
+  usePreservedSidebarScroll(
+    sidebarNavRef,
+    "boardingedu:school-admin-sidebar",
+    `${pathname}:${section}:${status}`,
+  );
 
   useEffect(() => {
     const nextSection = NAV.find((item) => item.id === routeSection)?.id ?? "overview";
@@ -226,7 +234,7 @@ export default function SchoolAdminConsole() {
           <strong>BoardingEdu</strong>
           <span>School admin</span>
         </div>
-        <nav aria-label="School administration">
+        <nav aria-label="School administration" ref={sidebarNavRef}>
           {NAV.map((item) => (
             <button
               key={item.id}

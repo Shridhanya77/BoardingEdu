@@ -1,16 +1,27 @@
 from datetime import timedelta
 from io import BytesIO
 
+from botocore.exceptions import ClientError
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.files.storage import InMemoryStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
 from .html import sanitize_blog_html
 from .models import BlogCategory, BlogPost, BlogSubscriber
+
+
+class BrokenCloudStorage(InMemoryStorage):
+    def _save(self, name, content):
+        raise ClientError(
+            {"Error": {"Code": "AccessDenied", "Message": "denied"}},
+            "PutObject",
+        )
 
 
 def tiny_png(name="cover.png"):
@@ -263,3 +274,92 @@ class PublicBlogApiTests(TestCase):
         staff_client.force_login(staff)
         self.assertEqual(staff_client.get("/admin/blogs/blogpost/").status_code, 200)
         self.assertEqual(staff_client.get("/admin/blogs/blogcategory/").status_code, 200)
+
+    def test_saving_a_published_article_in_admin_does_not_crash(self):
+        user_model = get_user_model()
+        admin_user = user_model.objects.create_superuser(
+            username="blog-save-admin",
+            email="blog-save-admin@example.test",
+            password="secret-pass",
+        )
+        admin_user.role = user_model.ROLE_SUPER_ADMIN
+        admin_user.save(update_fields=["role"])
+        client = APIClient()
+        client.force_login(admin_user)
+        url = reverse("admin:blogs_blogpost_change", args=[self.published.pk])
+        published_at = self.published.published_at
+        response = client.post(
+            url,
+            {
+                "title": self.published.title,
+                "slug": self.published.slug,
+                "category": self.category.pk,
+                "short_description": self.published.short_description,
+                "content": self.published.content,
+                "author_name": self.published.author_name,
+                "status": BlogPost.STATUS_PUBLISHED,
+                "published_at_0": published_at.date().isoformat(),
+                "published_at_1": published_at.strftime("%H:%M:%S"),
+            },
+        )
+        self.assertNotEqual(response.status_code, 500)
+        self.assertEqual(response.status_code, 302)
+
+        upload = client.post(
+            url,
+            {
+                "title": self.published.title,
+                "slug": self.published.slug,
+                "category": self.category.pk,
+                "short_description": self.published.short_description,
+                "content": "<h2>Updated</h2><p>Visible article text.</p>",
+                "author_name": self.published.author_name,
+                "status": BlogPost.STATUS_PUBLISHED,
+                "published_at_0": published_at.date().isoformat(),
+                "published_at_1": published_at.strftime("%H:%M:%S"),
+                "cover_image": tiny_png("replacement.png"),
+            },
+        )
+        self.assertNotEqual(upload.status_code, 500, getattr(upload, "content", b"")[:500])
+        self.assertEqual(upload.status_code, 302)
+        self.published.refresh_from_db()
+        self.assertTrue(self.published.cover_image.name.endswith(".webp"))
+        self.assertIn("Updated", self.published.content)
+
+    def test_storage_failure_and_empty_article_stay_on_the_form(self):
+        user_model = get_user_model()
+        admin_user = user_model.objects.create_superuser(
+            username="blog-error-admin",
+            email="blog-error-admin@example.test",
+            password="secret-pass",
+        )
+        admin_user.role = user_model.ROLE_SUPER_ADMIN
+        admin_user.save(update_fields=["role"])
+        client = APIClient()
+        client.force_login(admin_user)
+        url = reverse("admin:blogs_blogpost_change", args=[self.published.pk])
+        published_at = self.published.published_at
+        payload = {
+            "title": self.published.title,
+            "slug": self.published.slug,
+            "category": self.category.pk,
+            "short_description": self.published.short_description,
+            "content": "<script>alert(1)</script>",
+            "author_name": self.published.author_name,
+            "status": BlogPost.STATUS_PUBLISHED,
+            "published_at_0": published_at.date().isoformat(),
+            "published_at_1": published_at.strftime("%H:%M:%S"),
+        }
+        empty_article = client.post(url, payload)
+        self.assertEqual(empty_article.status_code, 200)
+        self.assertContains(empty_article, "Published articles need article text.")
+
+        with override_settings(
+            STORAGES={
+                "default": {"BACKEND": "apps.blogs.tests.BrokenCloudStorage"},
+                "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+            }
+        ):
+            failed_upload = client.post(url, {**payload, "content": self.published.content, "cover_image": tiny_png("broken.png")})
+        self.assertEqual(failed_upload.status_code, 200)
+        self.assertContains(failed_upload, "could not be stored in Cloudflare")

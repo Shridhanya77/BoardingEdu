@@ -32,12 +32,36 @@
           <a class="{% if request.GET.role__exact == 'SCHOOL_ADMIN' %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}?role__exact=SCHOOL_ADMIN">School administrators</a>
           <a class="{% if request.resolver_match.url_name == 'records_index' %}is-active{% endif %}" href="{% url 'admin:records_index' %}">All records</a>
         {% else %}
-          <a href="{% url 'admin:school_workspace' %}">Home</a>
-          <a href="{% url 'admin:schools_school_changelist' %}">School profile</a>
-          <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Leads</a>
-          <a href="{% url 'admin:school_workspace_select' section_slug='facilities' %}">Facilities</a>
-          <a href="{% url 'admin:school_workspace_select' section_slug='grades' %}">Grades</a>
-          <a href="{% url 'admin:fees_feestructure_changelist' %}">Fees</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'school_workspace' %}is-active{% endif %}"
+            href="{% url 'admin:school_workspace' %}"
+            {% if request.resolver_match.url_name == 'school_workspace' %}aria-current="page"{% endif %}
+          >Home</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'schools_school_changelist' %}is-active{% endif %}"
+            href="{% url 'admin:schools_school_changelist' %}"
+            {% if request.resolver_match.url_name == 'schools_school_changelist' %}aria-current="page"{% endif %}
+          >School profile</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}"
+            href="{% url 'admin:admissions_admissionenquiry_changelist' %}"
+            {% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}aria-current="page"{% endif %}
+          >Leads</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'facilities' %}is-active{% endif %}"
+            href="{% url 'admin:school_workspace_select' section_slug='facilities' %}"
+            {% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'facilities' %}aria-current="page"{% endif %}
+          >Facilities</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'grades' %}is-active{% endif %}"
+            href="{% url 'admin:school_workspace_select' section_slug='grades' %}"
+            {% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'grades' %}aria-current="page"{% endif %}
+          >Grades</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'fees_feestructure_changelist' %}is-active{% endif %}"
+            href="{% url 'admin:fees_feestructure_changelist' %}"
+            {% if request.resolver_match.url_name == 'fees_feestructure_changelist' %}aria-current="page"{% endif %}
+          >Fees</a>
         {% endif %}
       </nav>
     </aside>
@@ -65,5 +89,6 @@
       </main>
     </div>
   </div>
+  <script src="{% static 'admin/js/sidebar-scroll.js' %}" defer></script>
 </body>
 </html>

@@ -13934,6 +13934,10 @@ select:focus-visible {
 .dash-sidebar {
   position: sticky;
   top: 26px;
+  max-height: calc(100vh - 52px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 18px 16px;
   display: flex;
   flex-direction: column;
@@ -14689,7 +14693,8 @@ select:focus-visible {
   }
 
   .dash-sidebar {
-    position: static;
+      position: static;
+      max-height: calc(100vh - 40px);
   }
 
   .dash-sidebar__nav {
@@ -24654,16 +24659,27 @@ select:focus-visible {
   position: sticky;
   top: 0;
   height: 100vh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 22px 14px;
+  overflow: hidden;
   background: transparent;
   color: #fff;
 }
 .sa-brand strong { display: block; font-size: 1.05rem; }
 .sa-brand span { color: #d5e4f2; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
-.sa-sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+.sa-sidebar nav {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
 .sa-sidebar button {
   display: flex;
   align-items: center;
@@ -24915,8 +24931,8 @@ select:focus-visible {
     background-size: auto;
     background-color: #f4f7fb;
   }
-  .sa-sidebar { position: sticky; top: 0; z-index: 30; height: auto; background: linear-gradient(180deg, #1f2d3d 0%, #16202c 100%); }
-  .sa-sidebar nav { flex-direction: row; overflow-x: auto; }
+  .sa-sidebar { position: sticky; top: 0; z-index: 30; height: auto; overflow: visible; background: linear-gradient(180deg, #1f2d3d 0%, #16202c 100%); }
+  .sa-sidebar nav { min-width: 0; flex: 0 1 auto; flex-direction: row; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
   .sa-sidebar button { width: auto; white-space: nowrap; }
   .sa-sidebar__foot { margin-top: 0; }
   .sa-kpis, .sa-split, .sa-form-grid, .sa-inline, .sa-bars > div { grid-template-columns: 1fr; }
@@ -26624,7 +26640,8 @@ select:focus-visible {
 }
 
 .discovery-page--listing .featured-school-carousel__viewport .featured-card {
-  flex-grow: 1;
+  flex: 0 0 270px;
+  width: 270px;
 }
 
 .counselling__form > .country-phone-field,
@@ -26763,14 +26780,21 @@ select:focus-visible {
 .featured-school-carousel__viewport {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
+  scroll-snap-type: x proximity;
   scrollbar-color: #9eb4c5 transparent;
   scrollbar-width: thin;
 }
 
+.featured-school-carousel__viewport > .featured-cards {
+  width: max-content;
+  min-width: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
 .discovery-page--listing .featured-school-carousel__viewport > .featured-cards {
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   display: flex;
   grid-template-columns: none;
   align-items: stretch;
@@ -26778,8 +26802,9 @@ select:focus-visible {
 }
 
 .featured-school-carousel__viewport .featured-card {
+  flex: 0 0 270px;
+  width: 270px;
   min-width: 230px;
-  flex: 0 0 calc(25% - 11px);
   scroll-snap-align: start;
 }
 
@@ -27164,7 +27189,8 @@ select:focus-visible {
 
 @media (max-width: 1000px) {
   .featured-school-carousel__viewport .featured-card {
-    flex-basis: calc(50% - 7px);
+    flex-basis: 270px;
+    width: 270px;
   }
 
   .guide-browser__grid {
@@ -27231,6 +27257,7 @@ select:focus-visible {
 
   .featured-school-carousel__viewport .featured-card {
     flex-basis: min(84vw, 320px);
+    width: min(84vw, 320px);
   }
 
   .guide-browser__heading {
@@ -27665,7 +27692,8 @@ select:focus-visible {
 }
 
 .discovery-page--home .featured-school-carousel__viewport > .featured-cards {
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   display: flex;
   grid-template-columns: none;
   align-items: stretch;
@@ -27673,7 +27701,8 @@ select:focus-visible {
 }
 
 .discovery-page--home .featured-school-carousel__viewport .featured-card {
-  flex: 0 0 calc(25% - 14px);
+  flex: 0 0 270px;
+  width: 270px;
 }
 
 .discovery-page--home #featured .featured-card--compact,
@@ -27804,13 +27833,16 @@ select:focus-visible {
 
 @media (max-width: 1000px) {
   .discovery-page--home .featured-school-carousel__viewport .featured-card {
-    flex-basis: calc(50% - 9px);
+    flex-basis: 270px;
+    width: 270px;
   }
 }
 
 @media (max-width: 760px) {
-  .discovery-page--home .featured-school-carousel__viewport .featured-card {
+  .discovery-page--home .featured-school-carousel__viewport .featured-card,
+  .discovery-page--listing .featured-school-carousel__viewport .featured-card {
     flex-basis: min(84vw, 320px);
+    width: min(84vw, 320px);
   }
 
   .discovery-page--listing .school-list--listing.school-list--grid {

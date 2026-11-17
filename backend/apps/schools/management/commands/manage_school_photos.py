@@ -337,6 +337,8 @@ class Command(BaseCommand):
         import boto3
         from botocore.exceptions import BotoCoreError, ClientError
 
+        from config.r2_tls import r2_ca_bundle
+
         try:
             client = boto3.client(
                 "s3",
@@ -344,6 +346,7 @@ class Command(BaseCommand):
                 aws_access_key_id=settings.R2_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
                 region_name="auto",
+                verify=r2_ca_bundle(),
             )
             client.put_object(
                 Bucket=settings.R2_BUCKET_NAME,

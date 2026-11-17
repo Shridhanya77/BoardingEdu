@@ -229,12 +229,15 @@ def _r2_client():
     if not (account_id and access_key and secret_key):
         return None
 
+    from config.r2_tls import r2_ca_bundle
+
     return boto3.client(
         "s3",
         endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
         region_name="auto",
+        verify=r2_ca_bundle(),
     )
 
 

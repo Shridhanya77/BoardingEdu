@@ -741,13 +741,13 @@ class SchoolPhotoCommandImageTests(SimpleTestCase):
         ):
             command._upload_to_r2("school-cover-123.webp", b"optimized")
 
-        boto3.client.assert_called_once_with(
-            "s3",
-            endpoint_url="https://account.r2.cloudflarestorage.com",
-            aws_access_key_id="access-key",
-            aws_secret_access_key="secret-key",
-            region_name="auto",
-        )
+        boto3.client.assert_called_once()
+        client_kwargs = boto3.client.call_args.kwargs
+        self.assertEqual(client_kwargs["endpoint_url"], "https://account.r2.cloudflarestorage.com")
+        self.assertEqual(client_kwargs["aws_access_key_id"], "access-key")
+        self.assertEqual(client_kwargs["aws_secret_access_key"], "secret-key")
+        self.assertEqual(client_kwargs["region_name"], "auto")
+        self.assertTrue(client_kwargs["verify"])
         client.put_object.assert_called_once_with(
             Bucket="school-images",
             Key="schools/school-cover-123.webp",

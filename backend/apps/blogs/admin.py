@@ -1,11 +1,18 @@
+import logging
+
+from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
+from django.http import HttpResponseRedirect
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from .html import sanitize_blog_html
+from .images import persist_optimized_upload
 from .models import RESERVED_SLUGS, BlogCategory, BlogImage, BlogPost, BlogSubscriber
+
+logger = logging.getLogger(__name__)
 
 
 def _can_manage_blogs(request):
@@ -17,7 +24,31 @@ def _can_manage_blogs(request):
     return getattr(user, "role", None) in {"STAFF_ADMIN", "SUPER_ADMIN"}
 
 
+def _validation_text(exc):
+    if getattr(exc, "error_dict", None):
+        parts = []
+        for field, errors in exc.error_dict.items():
+            for error in errors:
+                parts.append(f"{field}: {error.message}")
+        if parts:
+            return "; ".join(parts)
+    messages_list = getattr(exc, "messages", None)
+    if messages_list:
+        return "; ".join(str(message) for message in messages_list)
+    return str(exc)
+
+
 class BlogAdminMixin:
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        except ValidationError as exc:
+            if request.method != "POST":
+                raise
+            logger.exception("Blog admin save failed for %s", self.model.__name__)
+            self.message_user(request, _validation_text(exc), level=messages.ERROR)
+            return HttpResponseRedirect(request.get_full_path())
+
     def has_module_permission(self, request):
         return _can_manage_blogs(request)
 
@@ -34,8 +65,39 @@ class BlogAdminMixin:
         return _can_manage_blogs(request)
 
 
+class BlogCategoryAdminForm(forms.ModelForm):
+    class Meta:
+        model = BlogCategory
+        fields = "__all__"
+
+    def clean_image(self):
+        return persist_optimized_upload(self.cleaned_data.get("image"), "blogs/categories")
+
+
+class BlogPostAdminForm(forms.ModelForm):
+    class Meta:
+        model = BlogPost
+        fields = "__all__"
+
+    def clean_content(self):
+        return sanitize_blog_html(self.cleaned_data.get("content") or "").html
+
+    def clean_cover_image(self):
+        return persist_optimized_upload(self.cleaned_data.get("cover_image"), "blogs/covers")
+
+
+class BlogImageAdminForm(forms.ModelForm):
+    class Meta:
+        model = BlogImage
+        fields = "__all__"
+
+    def clean_image(self):
+        return persist_optimized_upload(self.cleaned_data.get("image"), "blogs/inline")
+
+
 @admin.register(BlogCategory)
 class BlogCategoryAdmin(BlogAdminMixin, admin.ModelAdmin):
+    form = BlogCategoryAdminForm
     list_display = ("name", "slug", "display_order", "is_active", "updated_at")
     list_filter = ("is_active",)
     search_fields = ("name", "slug", "description")
@@ -46,6 +108,7 @@ class BlogCategoryAdmin(BlogAdminMixin, admin.ModelAdmin):
 
 @admin.register(BlogPost)
 class BlogPostAdmin(BlogAdminMixin, admin.ModelAdmin):
+    form = BlogPostAdminForm
     list_display = ("title", "category", "status", "featured", "author_name", "published_at", "updated_at")
     list_filter = ("status", "featured", "category")
     search_fields = ("title", "slug", "short_description", "author_name", "content")
@@ -150,6 +213,7 @@ class BlogPostAdmin(BlogAdminMixin, admin.ModelAdmin):
 
 @admin.register(BlogImage)
 class BlogImageAdmin(BlogAdminMixin, admin.ModelAdmin):
+    form = BlogImageAdminForm
     list_display = ("alt_text", "image_url", "created_at")
     search_fields = ("alt_text",)
     readonly_fields = ("image_url", "created_at")
