@@ -1,6 +1,11 @@
+import logging
+
+from botocore.exceptions import BotoCoreError, ClientError
 from django import forms
 from django.contrib import admin, messages
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ObjectDoesNotExist, SuspiciousFileOperation, ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import Count, Q
@@ -46,6 +51,9 @@ from .profile_changes import (
     submit_school_profile_changes,
 )
 from .public_urls import public_school_url
+
+
+logger = logging.getLogger(__name__)
 
 
 def media_preview_html(url):
@@ -1040,7 +1048,9 @@ class FeaturedPromotionAdminForm(forms.ModelForm):
         model = FeaturedPromotion
         fields = "__all__"
 
-    optimized_banner: bytes | None = None
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.optimized_banner: bytes | None = None
 
     def clean_banner_upload(self):
         upload = self.cleaned_data.get("banner_upload")
@@ -1060,6 +1070,42 @@ class FeaturedPromotionAdminForm(forms.ModelForm):
         finally:
             upload.seek(0)
         return upload
+
+    def clean(self):
+        cleaned_data = super().clean()
+        upload = cleaned_data.get("banner_upload")
+        starts_on = cleaned_data.get("starts_on")
+        ends_on = cleaned_data.get("ends_on")
+        if (
+            self.errors
+            or not upload
+            or self.optimized_banner is None
+            or (starts_on and ends_on and ends_on < starts_on)
+        ):
+            return cleaned_data
+
+        from uuid import uuid4
+
+        try:
+            stored_name = default_storage.save(
+                f"schools/promos/{uuid4().hex}.webp",
+                ContentFile(self.optimized_banner),
+            )
+            cleaned_data["banner_url"] = default_storage.url(stored_name)
+        except (
+            BotoCoreError,
+            ClientError,
+            OSError,
+            SuspiciousFileOperation,
+            ValueError,
+        ):
+            logger.exception("Could not store a featured promotion banner")
+            self.add_error(
+                "banner_upload",
+                "The banner was processed but could not be saved to media storage. "
+                "Check the media-storage configuration and try again.",
+            )
+        return cleaned_data
 
 
 @admin.register(FeaturedPromotion)
@@ -1161,18 +1207,3 @@ class FeaturedPromotionAdmin(admin.ModelAdmin):
             highlight_list,
             media_preview_html(obj.banner_url),
         )
-
-    def save_model(self, request, obj, form, change):
-        upload = form.cleaned_data.get("banner_upload")
-        if upload and form.optimized_banner is not None:
-            from uuid import uuid4
-
-            from django.core.files.base import ContentFile
-            from django.core.files.storage import default_storage
-
-            stored_name = default_storage.save(
-                f"schools/promos/{uuid4().hex}.webp",
-                ContentFile(form.optimized_banner),
-            )
-            obj.banner_url = default_storage.url(stored_name)
-        super().save_model(request, obj, form, change)

@@ -4,9 +4,11 @@ from importlib import import_module
 from io import BytesIO
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
+from botocore.exceptions import ClientError
 from django.apps import apps
 from django.contrib import admin
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.forms.utils import ErrorDict
 from django.core.management.base import CommandError
 from django.db import connection
 from django.http import QueryDict
@@ -244,6 +246,10 @@ class SchoolApplicationRegistrationTests(TestCase):
         self.assertContains(
             dashboard,
             f"{reverse('admin:schools_school_changelist')}?is_featured__exact=1",
+        )
+        self.assertContains(
+            dashboard,
+            f'href="{reverse("admin:schools_school_changelist")}?is_featured__exact=1">Featured schools</a>',
         )
         queue = admin_client.get(
             reverse("admin:schools_school_verification_queue")
@@ -639,6 +645,32 @@ class FeaturedPromotionAdminFormTests(SimpleTestCase):
             form.clean_banner_upload()
 
         self.assertIn("15 MB limit", str(raised.exception))
+
+    def test_banner_storage_failure_is_reported_as_a_form_error(self):
+        form = FeaturedPromotionAdminForm()
+        form._errors = ErrorDict()
+        form.cleaned_data = {
+            "banner_upload": SimpleUploadedFile(
+                "banner.jpg",
+                b"processed image",
+                content_type="image/jpeg",
+            ),
+            "banner_url": "",
+        }
+        form.optimized_banner = b"optimized image"
+        storage_error = ClientError(
+            {"Error": {"Code": "AccessDenied", "Message": "Upload failed"}},
+            "PutObject",
+        )
+
+        with patch(
+            "django.core.files.storage.default_storage.save",
+            side_effect=storage_error,
+        ), self.assertLogs("apps.schools.admin", level="ERROR"):
+            form.clean()
+
+        self.assertIn("banner_upload", form.errors)
+        self.assertIn("media storage", str(form.errors["banner_upload"]))
 
 
 class SchoolAdminIdentityFieldsTests(SimpleTestCase):

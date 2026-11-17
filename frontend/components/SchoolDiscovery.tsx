@@ -28,7 +28,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { CSSProperties, FormEvent, ReactNode } from "react";
 import {
@@ -61,11 +61,13 @@ import SchoolSearchAutocomplete from "@/components/search/SchoolSearchAutocomple
 import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
+import CounsellingModal from "@/components/home/CounsellingModal";
 import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
 import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedPromoBanner from "@/components/home/FeaturedPromoBanner";
 import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
+import FeaturedSchoolCarousel from "@/components/home/FeaturedSchoolCarousel";
 import RecentlyViewedSchools from "@/components/home/RecentlyViewedSchools";
 import AnimatedCount from "@/components/home/AnimatedCount";
 import GuideBrowser from "@/components/guides/GuideBrowser";
@@ -79,7 +81,13 @@ import {
   normalizeLocationPreferences,
   type LocationPreferences,
 } from "@/lib/location-preferences";
-import { INDIA_REGIONS, indiaRegionById, indiaRegionBySlug, indiaRegionForState } from "@/lib/india-regions";
+import {
+  INDIA_REGIONS,
+  INDIA_REGION_PICKER_REQUEST_EVENT,
+  indiaRegionById,
+  indiaRegionBySlug,
+  indiaRegionForState,
+} from "@/lib/india-regions";
 import {
   exploreItems,
   faqItems,
@@ -685,6 +693,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [homeReviewSummaryError, setHomeReviewSummaryError] = useState<string | null>(null);
   const [homeReviewsLoading, setHomeReviewsLoading] = useState(true);
   const [typePicker, setTypePicker] = useState<SchoolTypePickerRequest | null>(null);
+  const [homeEnquiryOpen, setHomeEnquiryOpen] = useState(false);
+  const closeHomeEnquiry = useCallback(() => setHomeEnquiryOpen(false), []);
   const [homeSummary, setHomeSummary] = useState<{
     schools_listed: number;
     cities_covered: number;
@@ -718,10 +728,18 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   }, [isHomePage, pathname]);
   useEffect(() => {
     if (!isHomePage) return;
-    const onboardingSeenKey = "boardingeu:school-discovery-onboarding-seen";
-    if (window.sessionStorage.getItem(onboardingSeenKey)) return;
-    window.sessionStorage.setItem(onboardingSeenKey, "true");
-    setBotOnboardingOpen(true);
+    function openRegionPicker() {
+      document.getElementById("explore")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+      setRegionPickerOpen(true);
+    }
+    window.addEventListener(INDIA_REGION_PICKER_REQUEST_EVENT, openRegionPicker);
+    return () =>
+      window.removeEventListener(INDIA_REGION_PICKER_REQUEST_EVENT, openRegionPicker);
   }, [isHomePage]);
   useEffect(() => {
     if (!isHomePage) return;
@@ -2886,6 +2904,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     router.push(destination, { scroll: false });
   }
 
+  function openHomeRegionPicker() {
+    document.getElementById("explore")?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+      block: "start",
+    });
+    setRegionPickerOpen(true);
+  }
+
   function handleFinderSubmit(path: string) {
     trackSearchEvent("search_query_submitted", { query_length: 0 }, true);
     const destinationPath = new URL(path, window.location.origin).pathname;
@@ -3003,7 +3031,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </nav>
       )}
 
-      <section className="hero">
+      <section className="hero" id={isHomePage ? "explore" : undefined}>
         <div className="hero__copy">
           <div className="hero__kicker">
             <span className="hero__pulse" />
@@ -3042,7 +3070,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             locationError={locationError}
             homeSearch={homeSearchEnabled}
             mobileCategory={!isHomePage ? initialHomeCategory : null}
-            regionPromptEnabled={!requiresIndiaRegion}
+            regionPromptEnabled={!isHomePage && !requiresIndiaRegion}
             onChange={handleFinderChange}
             onSubmit={handleFinderSubmit}
           />
@@ -3128,9 +3156,19 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <span className="hero-art__dot" />
         </div>
 
-        <Link className="hero-scroll" href={isHomePage ? "/schools" : "#school-results"}>
-          <span /> {isHomePage ? "Explore schools" : "Scroll to schools"}
-        </Link>
+        {isHomePage ? (
+          <button
+            className="hero-scroll"
+            type="button"
+            onClick={openHomeRegionPicker}
+          >
+            <span /> Explore schools
+          </button>
+        ) : (
+          <Link className="hero-scroll" href="#school-results">
+            <span /> Scroll to schools
+          </Link>
+        )}
       </section>
 
       {isHomePage && !featuredLoading && featuredBannerSchools.length > 0 && (
@@ -3148,7 +3186,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 </h2>
               </div>
             </div>
-            <FeaturedSchoolCards schools={featuredCardSchools} />
+            <FeaturedSchoolCarousel
+              schools={featuredCardSchools}
+              label={`Featured schools${listingPlaceLabel ? ` in ${listingPlaceLabel}` : ""}`}
+            />
           </section>
         </>
       )}
@@ -3219,11 +3260,26 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <ol className="home-how-it-works__steps">
           {howItWorksSteps.map((step, index) => (
             <li key={step.title}>
-              <Link href={step.href}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <h3>{step.title}</h3>
-                <p>{step.text}</p>
-              </Link>
+              {step.title === "Discover" || step.title === "Enquire" ? (
+                <button
+                  type="button"
+                  onClick={
+                    step.title === "Discover"
+                      ? openHomeRegionPicker
+                      : () => setHomeEnquiryOpen(true)
+                  }
+                >
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </button>
+              ) : (
+                <Link href={step.href}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </Link>
+              )}
             </li>
           ))}
         </ol>
@@ -3734,7 +3790,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               {featuredError}
             </div>
           ) : featuredCardSchools.length > 0 ? (
-            <FeaturedSchoolCards schools={featuredCardSchools} />
+            <FeaturedSchoolCarousel
+              schools={featuredCardSchools}
+              label="Featured schools"
+              autoAdvance
+            />
           ) : (
             <p className="section-empty">
               Featured schools will appear here when the directory has published
@@ -4767,6 +4827,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         }}
       />
       <SchoolTypePickerModal request={typePicker} onClose={() => setTypePicker(null)} />
+      {isHomePage && homeEnquiryOpen && (
+        <CounsellingModal onClose={closeHomeEnquiry} />
+      )}
       {isHomePage && botOnboardingOpen && (
         <HomeBotOnboarding
           boards={boards}

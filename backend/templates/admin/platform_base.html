@@ -19,7 +19,8 @@
         {% if user.is_superuser or user.role == "SUPER_ADMIN" or user.role == "STAFF_ADMIN" %}
           <a class="{% if request.resolver_match.url_name == 'index' %}is-active{% endif %}" href="{% url 'admin:index' %}">Home</a>
           <p>Institution listing</p>
-          <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and not request.GET.verification_status__exact %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}">All schools</a>
+          <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and not request.GET.verification_status__exact and not request.GET.is_featured__exact %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}">All schools</a>
+          <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and request.GET.is_featured__exact == '1' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">Featured schools</a>
           <a class="{% if request.GET.verification_status__exact == 'VERIFIED' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Approved schools</a>
           <p>Approval</p>
           <a class="{% if request.resolver_match.url_name == 'schools_school_verification_queue' %}is-active{% endif %}" href="{% url 'admin:schools_school_verification_queue' %}">Pending school applications</a>

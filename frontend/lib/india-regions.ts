@@ -1,3 +1,5 @@
+export const INDIA_REGION_PICKER_REQUEST_EVENT = "boardingeu:request-india-region-picker";
+
 export const INDIA_REGIONS = [
   {
     id: "north",

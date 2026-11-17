@@ -9,6 +9,7 @@ import type {
   CityListItem,
   CountryListItem,
   LocationListItem,
+  StateListItem,
 } from "@/lib/api";
 import { toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 import { boardListingPath, placeListingPath, schoolDirectoryPath } from "@/lib/school-urls";
@@ -16,6 +17,7 @@ import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 
 type Props = {
   cities?: CityListItem[];
+  states?: StateListItem[];
   boards?: BoardListItem[];
   countries?: CountryListItem[];
   locations?: LocationListItem[];
@@ -71,6 +73,7 @@ function categoryHref(
 
 export default function SiteFooterSeo({
   cities = [],
+  states = [],
   boards = [],
   countries = [],
   dataError,
@@ -94,15 +97,20 @@ export default function SiteFooterSeo({
   // Group cities by state, sorted by total schools desc
   const stateGroups = useMemo<StateGroup[]>(() => {
     const map = new Map<string, StateGroup>();
+    const stateById = new Map(states.map((state) => [state.state_id, state]));
+    const countryById = new Map(countries.map((country) => [country.country_id, country]));
     for (const city of uniqueCities) {
       if ((city.schools_count ?? 0) <= 0) continue;
-      const countrySlug = city.country_slug ?? toSeoSlug(city.country_name);
-      const stateSlug = city.state_slug ?? toSeoSlug(city.state_name);
-      const key = `${countrySlug}/${stateSlug}`;
+      const state = stateById.get(city.state_id);
+      if (!state) continue;
+      const countrySlug =
+        countryById.get(state.country_id)?.slug ?? toSeoSlug(state.country_name);
+      const stateSlug = state.slug;
+      const key = `${countrySlug}/${state.state_id}`;
       const group = map.get(key) ?? {
         countrySlug,
         stateSlug,
-        name: city.state_name,
+        name: state.state_name,
         cities: [],
       };
       group.cities.push(city);
@@ -120,7 +128,7 @@ export default function SiteFooterSeo({
           (a, b) => (b.schools_count ?? 0) - (a.schools_count ?? 0) || a.city_name.localeCompare(b.city_name),
         ),
       }));
-  }, [uniqueCities]);
+  }, [countries, states, uniqueCities]);
 
   const popularCities = useMemo(
     () =>

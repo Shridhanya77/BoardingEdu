@@ -82,6 +82,7 @@ export default function ComparePage({
   const [selectionMessage, setSelectionMessage] = useState<string | null>(null);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
   const [activeGroup, setActiveGroup] = useState("overview");
+  const [horizontalCategoryTabs, setHorizontalCategoryTabs] = useState(false);
   const [differencesOnly, setDifferencesOnly] = useState(false);
   const searchInput = useRef<HTMLInputElement | null>(null);
   const [shortlistSchools, setShortlistSchools] = useState<SchoolListItem[]>([]);
@@ -89,6 +90,14 @@ export default function ComparePage({
   const [shortlistLoading, setShortlistLoading] = useState(shortlistOnly);
   const [shortlistError, setShortlistError] = useState<string | null>(null);
   const comparisonSchools = shortlistOnly ? shortlistComparedSchools : comparedSchools;
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 760px)");
+    const updateOrientation = () => setHorizontalCategoryTabs(mediaQuery.matches);
+    updateOrientation();
+    mediaQuery.addEventListener("change", updateOrientation);
+    return () => mediaQuery.removeEventListener("change", updateOrientation);
+  }, []);
+
   const [schoolDetails, setSchoolDetails] = useState<Record<string, {
     loading?: boolean;
     facilities?: SchoolDetail["facilities_detail"];
@@ -806,7 +815,12 @@ export default function ComparePage({
       </header>
 
       <div className="compare-categories-layout">
-        <nav className="compare-category-nav" aria-label="Comparison categories" role="tablist" aria-orientation="vertical">
+        <nav
+          className="compare-category-nav"
+          aria-label="Comparison categories"
+          role="tablist"
+          aria-orientation={horizontalCategoryTabs ? "horizontal" : "vertical"}
+        >
           {groups.map((group, index) => {
             const GroupIcon = group.icon;
             return (

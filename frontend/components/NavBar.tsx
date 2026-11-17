@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -14,6 +15,7 @@ import {
 import { useAuth, dashboardPathForRole } from "@/lib/auth";
 import type { UserRole } from "@/lib/api";
 import { schoolDirectoryPath } from "@/lib/school-urls";
+import { INDIA_REGION_PICKER_REQUEST_EVENT } from "@/lib/india-regions";
 import CounsellingModal from "@/components/home/CounsellingModal";
 import { Button } from "@/components/ui/Button";
 
@@ -118,6 +120,11 @@ export default function NavBar() {
   const showCounselling = !role || role === "PARENT";
   const dashboardHref = user ? dashboardPathForRole(user.role) : "/";
   const onHomePage = pathname === "/" || pathname === "";
+  function requestExploreRegion(event: ReactMouseEvent<HTMLAnchorElement>) {
+    if (!onHomePage) return;
+    event.preventDefault();
+    window.dispatchEvent(new Event(INDIA_REGION_PICKER_REQUEST_EVENT));
+  }
   useEffect(() => {
     if (!onHomePage) {
       setHasScrolled(false);
@@ -150,7 +157,12 @@ export default function NavBar() {
 
       <nav className="site-header__nav" aria-label="Primary">
         {links.map((item) => (
-          <Link className={`site-header__link${item.active ? " is-active" : ""}`} href={item.href} key={item.href}>
+          <Link
+            className={`site-header__link${item.active ? " is-active" : ""}`}
+            href={item.href}
+            key={item.href}
+            onClick={item.label === "Explore Schools" ? requestExploreRegion : undefined}
+          >
             {item.label}
           </Link>
         ))}
@@ -262,9 +274,17 @@ export default function NavBar() {
                 <button
                   className={`mobile-navigation__link mobile-navigation__explore-toggle${item.active ? " is-active" : ""}`}
                   type="button"
-                  aria-expanded={mobileExploreOpen}
-                  aria-controls="mobile-explore-links"
-                  onClick={() => setMobileExploreOpen((open) => !open)}
+                  aria-expanded={onHomePage ? undefined : mobileExploreOpen}
+                  aria-controls={onHomePage ? undefined : "mobile-explore-links"}
+                  aria-haspopup={onHomePage ? "dialog" : undefined}
+                  onClick={() => {
+                    if (onHomePage) {
+                      setMobileNavOpen(false);
+                      window.dispatchEvent(new Event(INDIA_REGION_PICKER_REQUEST_EVENT));
+                      return;
+                    }
+                    setMobileExploreOpen((open) => !open);
+                  }}
                 >
                   {item.label}
                   <ChevronDown size={16} aria-hidden />
