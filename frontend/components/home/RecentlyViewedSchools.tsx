@@ -179,7 +179,12 @@ export default function RecentlyViewedSchools() {
       </div>
       {error && <p className="recent-schools__error" role="alert">{error}</p>}
       {items.length > 0 ? (
-        <div className="recent-schools__grid">
+        <div
+          className="recent-schools__grid"
+          role="region"
+          aria-label="Recently viewed schools, scroll horizontally to see more"
+          tabIndex={0}
+        >
           {items.map((school) => {
             const href = schoolProfilePathFromSlugs({
               countrySlug: school.countrySlug,

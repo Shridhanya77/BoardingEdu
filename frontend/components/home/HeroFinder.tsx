@@ -247,13 +247,11 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
             : options.filter((type) => schoolTypeCategory(type.type_code, type.slug, type.type_name) === id).map((type) => type.school_type_id);
           const selected = activeCategory === id;
           const Icon = id === "day-school" ? GraduationCap : id === "day-boarding-school" ? BedDouble : House;
-          const description = id === "day-school"
-            ? "Students commute daily and return home after classes"
-            : id === "residential-school"
-              ? "Explore day boarding and full boarding schools."
-              : id === "day-boarding-school"
-                ? "Your child returns home each evening."
-                : "Your child stays at school.";
+          const description = id === "day-school" || id === "residential-school"
+            ? ""
+            : id === "day-boarding-school"
+              ? "Your child returns home each evening."
+              : "Your child stays at school.";
           return <label key={id} className={`school-type-choice${id === "day-boarding-school" ? " school-type-choice--day-boarding" : ""}${selected ? " is-selected" : ""}`}>
             <input
               type="radio"
@@ -268,7 +266,7 @@ export default function HeroFinder({ value, schoolTypes, locationMessage, locati
             <Icon className="school-type-choice__icon" size={24} aria-hidden="true" />
             <span className="school-type-choice__copy">
               <strong>{label}</strong>
-              <small>{description}</small>
+              {description && <small>{description}</small>}
             </span>
           </label>;
         })}

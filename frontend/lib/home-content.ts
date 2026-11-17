@@ -23,10 +23,10 @@ export const exploreItems = [
 ] as const;
 
 export const howItWorksSteps = [
-  { title: "Discover", text: "Open a city, board, or school type." },
-  { title: "Compare", text: "Line up fees, boards, and ratings." },
-  { title: "Enquire", text: "Contact the schools on your shortlist." },
-  { title: "Get guidance", text: "Ask for free admission counselling." },
+  { title: "Discover", text: "Open a city, board, or school type.", href: "/schools/" },
+  { title: "Compare", text: "Line up fees, boards, and ratings.", href: "/compare/" },
+  { title: "Enquire", text: "Contact the schools on your shortlist.", href: "/schools/" },
+  { title: "Get guidance", text: "Ask for free admission counselling.", href: "/counselling/" },
 ];
 
 export const whyUsCards = [

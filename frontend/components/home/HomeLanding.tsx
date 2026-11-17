@@ -129,11 +129,11 @@ export default function HomeLanding({
         </div>
         <div className="process-grid">
           {howItWorksSteps.map((step, index) => (
-            <article key={step.title}>
+            <Link href={step.href} key={step.title}>
               <span>0{index + 1}</span>
               <h3>{step.title}</h3>
               <p>{step.text}</p>
-            </article>
+            </Link>
           ))}
         </div>
       </section>

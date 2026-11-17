@@ -36,7 +36,6 @@ const CATEGORIES: Category[] = [
   { key: "day-boarding-school", label: "Day Boarding Schools", category: "day-boarding-school", accent: "#2e7d32" },
 ];
 
-const TOP_STATE_LIMIT = 8;
 const TOP_CITY_LIMIT = 8;
 
 type StateGroup = {
@@ -120,8 +119,7 @@ export default function SiteFooterSeo({
         cities: [...g.cities].sort(
           (a, b) => (b.schools_count ?? 0) - (a.schools_count ?? 0) || a.city_name.localeCompare(b.city_name),
         ),
-      }))
-      .slice(0, TOP_STATE_LIMIT);
+      }));
   }, [uniqueCities]);
 
   const popularCities = useMemo(

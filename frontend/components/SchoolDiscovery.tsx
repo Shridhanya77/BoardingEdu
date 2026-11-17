@@ -846,12 +846,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     () => new Set(featuredSchools.map((school) => school.school_id)),
     [featuredSchools],
   );
-  const promotedSchools = useMemo(
-    () => featuredSchools.filter((school) => school.promotion),
+  const featuredBannerSchools = useMemo(
+    () => featuredSchools.filter((school) => school.is_featured || school.promotion),
     [featuredSchools],
   );
   const featuredCardSchools = useMemo(
-    () => featuredSchools.filter((school) => !school.promotion),
+    () => featuredSchools.filter((school) => school.is_featured || school.promotion),
     [featuredSchools],
   );
   const displayTopBoardingSchools = useMemo(
@@ -2501,27 +2501,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         }
         if (featuredCandidates.length > 0) {
           setFeaturedSchools(
-            priorityFeaturedSelection(featuredCandidates, otherLocationIds, 4),
+            priorityFeaturedSelection(featuredCandidates, otherLocationIds, featuredCandidates.length),
           );
           return;
         }
 
-        const hasAreaFilter =
-          !isHomePage &&
-          (featuredNeedsRegion ||
-            Boolean(activeCountry || activeState || activeCity || activeLocation));
-        if (!hasAreaFilter) {
-          setFeaturedSchools([]);
-          return;
-        }
-
-        const localResponse = await schools.list({
-          ...featuredFilters,
-          is_featured: undefined,
-          status: true,
-        });
-        if (cancelled) return;
-        setFeaturedSchools(priorityFeaturedSelection(localResponse.results, new Set(), 4));
+        setFeaturedSchools([]);
       } catch (reason: unknown) {
         if (!cancelled) {
           setFeaturedError(
@@ -3148,8 +3133,24 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         </Link>
       </section>
 
-      {isHomePage && !featuredLoading && promotedSchools.length > 0 && (
-        <FeaturedPromoBanner schools={promotedSchools} />
+      {isHomePage && !featuredLoading && featuredBannerSchools.length > 0 && (
+        <FeaturedPromoBanner schools={featuredBannerSchools} />
+      )}
+      {!isHomePage && !featuredLoading && featuredBannerSchools.length > 0 && (
+        <>
+          <FeaturedPromoBanner schools={featuredBannerSchools} />
+          <section className="home-section home-section--featured listing-featured-schools" aria-labelledby="listing-featured-heading">
+            <div className="home-section__heading">
+              <div>
+                <div className="section-eyebrow">FEATURED SCHOOLS</div>
+                <h2 id="listing-featured-heading">
+                  Featured schools{listingPlaceLabel ? ` in ${listingPlaceLabel}` : ""}
+                </h2>
+              </div>
+            </div>
+            <FeaturedSchoolCards schools={featuredCardSchools} />
+          </section>
+        </>
       )}
 
       {isHomePage && (
@@ -3218,9 +3219,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         <ol className="home-how-it-works__steps">
           {howItWorksSteps.map((step, index) => (
             <li key={step.title}>
-              <span>{String(index + 1).padStart(2, "0")}</span>
-              <h3>{step.title}</h3>
-              <p>{step.text}</p>
+              <Link href={step.href}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </Link>
             </li>
           ))}
         </ol>
@@ -3708,7 +3711,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       {(featuredLoading ||
         Boolean(featuredError) ||
         featuredCardSchools.length > 0 ||
-        promotedSchools.length === 0) && (
+        featuredBannerSchools.length === 0) && (
         <section className="home-section home-section--featured" id="featured">
           <div className="home-section__heading">
             <div>

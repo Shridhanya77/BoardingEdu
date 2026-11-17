@@ -1040,6 +1040,27 @@ class FeaturedPromotionAdminForm(forms.ModelForm):
         model = FeaturedPromotion
         fields = "__all__"
 
+    optimized_banner: bytes | None = None
+
+    def clean_banner_upload(self):
+        upload = self.cleaned_data.get("banner_upload")
+        if not upload:
+            return upload
+
+        from .images import optimize_school_image
+
+        try:
+            upload.seek(0)
+            self.optimized_banner = optimize_school_image(
+                upload.read(),
+                add_watermark=True,
+            )
+        except ValidationError as error:
+            raise forms.ValidationError(error.messages) from error
+        finally:
+            upload.seek(0)
+        return upload
+
 
 @admin.register(FeaturedPromotion)
 class FeaturedPromotionAdmin(admin.ModelAdmin):
@@ -1143,18 +1164,15 @@ class FeaturedPromotionAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         upload = form.cleaned_data.get("banner_upload")
-        if upload:
+        if upload and form.optimized_banner is not None:
             from uuid import uuid4
 
             from django.core.files.base import ContentFile
             from django.core.files.storage import default_storage
 
-            from .images import optimize_school_image
-
-            optimized = optimize_school_image(upload.read(), add_watermark=True)
             stored_name = default_storage.save(
                 f"schools/promos/{uuid4().hex}.webp",
-                ContentFile(optimized),
+                ContentFile(form.optimized_banner),
             )
             obj.banner_url = default_storage.url(stored_name)
         super().save_model(request, obj, form, change)

@@ -6,6 +6,7 @@ from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 from django.apps import apps
 from django.contrib import admin
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
 from django.db import connection
 from django.http import QueryDict
@@ -24,6 +25,7 @@ from .management.commands.manage_school_photos import Command as ManageSchoolPho
 from config.admin_dashboard import _grade_catalog_rows, _grade_group
 from config.school_media import cover_image_url_for_school
 from .admin import (
+    FeaturedPromotionAdminForm,
     FeaturedPromotionAdmin,
     SchoolAdmin,
     SchoolFacilityAdmin,
@@ -616,6 +618,27 @@ class FeaturedPromotionAdminPermissionTests(SimpleTestCase):
         self.assertTrue(self.model_admin.has_add_permission(request))
         self.assertTrue(self.model_admin.has_change_permission(request))
         self.assertTrue(self.model_admin.has_delete_permission(request))
+
+
+class FeaturedPromotionAdminFormTests(SimpleTestCase):
+    def test_oversized_banner_is_reported_as_a_form_validation_error(self):
+        from django import forms
+
+        from .images import MAX_IMAGE_BYTES
+
+        form = FeaturedPromotionAdminForm()
+        form.cleaned_data = {
+            "banner_upload": SimpleUploadedFile(
+                "oversized.jpg",
+                b"x" * (MAX_IMAGE_BYTES + 1),
+                content_type="image/jpeg",
+            )
+        }
+
+        with self.assertRaises(forms.ValidationError) as raised:
+            form.clean_banner_upload()
+
+        self.assertIn("15 MB limit", str(raised.exception))
 
 
 class SchoolAdminIdentityFieldsTests(SimpleTestCase):

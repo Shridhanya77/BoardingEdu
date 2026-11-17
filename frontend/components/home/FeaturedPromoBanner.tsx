@@ -99,7 +99,9 @@ export default function FeaturedPromoBanner({
         </div>
 
         <div className="promo-banner__copy">
-          <p className="promo-banner__eyebrow">Promoted schools</p>
+          <p className="promo-banner__eyebrow">
+            {promotion ? "Promoted schools" : "Featured schools"}
+          </p>
           <h2>{heading}</h2>
           {location && (
             <p className="promo-banner__place">
