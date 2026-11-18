@@ -22856,9 +22856,10 @@ select:focus-visible {
 }
 
 .listing-top-picks-cards .featured-cards {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 250px));
   align-items: stretch;
-  gap: 16px;
+  justify-content: center;
+  gap: 14px;
 }
 
 .listing-top-picks-cards .featured-card {
@@ -22871,9 +22872,14 @@ select:focus-visible {
 }
 
 .listing-top-picks-cards .featured-card__cover {
-  height: 200px;
-  min-height: 200px;
+  height: 160px;
+  min-height: 160px;
   flex: 0 0 auto;
+}
+
+.listing-top-picks-cards .featured-card__logo {
+  width: 48px;
+  height: 48px;
 }
 
 .listing-top-picks-cards .featured-card__details {
@@ -22882,21 +22888,21 @@ select:focus-visible {
 }
 
 .listing-top-picks-cards .featured-card__details > h3 {
-  min-height: 2.5em;
-  margin: 14px 0 0;
-  padding: 0 16px;
+  min-height: 2.6em;
+  margin: 10px 0 0;
+  padding: 0 12px;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.3;
 }
 
 .listing-top-picks-cards .featured-card__types {
-  min-height: 24px;
-  margin-top: 10px;
-  padding: 0 16px;
+  min-height: 22px;
+  margin-top: 8px;
+  padding: 0 12px;
 }
 
 .listing-top-picks-cards .featured-card__place,
@@ -22919,17 +22925,17 @@ select:focus-visible {
 }
 
 .listing-top-picks-cards .featured-card__meta {
-  min-height: 2.9em;
+  min-height: 2.8em;
   color: #52657a;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .listing-top-picks-cards .featured-card__actions {
   margin-top: auto;
-  padding: 14px 16px 16px;
+  padding: 12px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .listing-top-picks-cards .featured-card:hover {
@@ -22940,13 +22946,15 @@ select:focus-visible {
 
 @media (max-width: 1100px) {
   .listing-top-picks-cards .featured-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 250px));
+    justify-content: center;
   }
 }
 
 @media (max-width: 560px) {
   .listing-top-picks-cards .featured-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 260px);
+    justify-content: center;
   }
 
   .recent-schools__grid {
@@ -26640,8 +26648,8 @@ select:focus-visible {
 }
 
 .discovery-page--listing .featured-school-carousel__viewport .featured-card {
-  flex: 0 0 270px;
-  width: 270px;
+  flex: 0 0 230px;
+  width: 230px;
 }
 
 .counselling__form > .country-phone-field,
@@ -27713,6 +27721,39 @@ select:focus-visible {
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
+.discovery-page--listing .listing-featured-schools .featured-card__cover {
+  height: 112px;
+  min-height: 112px;
+  padding: 10px 12px;
+}
+
+.discovery-page--listing .listing-featured-schools .featured-card__logo {
+  width: 48px;
+  height: 48px;
+}
+
+.discovery-page--listing .listing-featured-schools .featured-card__details > h3 {
+  margin: 10px 12px 6px;
+  font-size: 16px;
+}
+
+.discovery-page--listing .listing-featured-schools .featured-card__types,
+.discovery-page--listing .listing-featured-schools .featured-card__place,
+.discovery-page--listing .listing-featured-schools .featured-card__meta,
+.discovery-page--listing .listing-featured-schools .featured-card__rating {
+  margin-right: 12px;
+  margin-left: 12px;
+  font-size: 11px;
+}
+
+.discovery-page--listing .listing-featured-schools .featured-card__types {
+  padding: 0;
+}
+
+.discovery-page--listing .listing-featured-schools .featured-card__actions {
+  padding: 0 10px 10px;
+}
+
 .discovery-page--home #featured .featured-card--compact:hover,
 .discovery-page--home #featured .featured-card--compact:focus-within,
 .discovery-page--listing .listing-featured-schools .featured-card--compact:hover,
@@ -27839,10 +27880,14 @@ select:focus-visible {
 }
 
 @media (max-width: 760px) {
-  .discovery-page--home .featured-school-carousel__viewport .featured-card,
-  .discovery-page--listing .featured-school-carousel__viewport .featured-card {
+  .discovery-page--home .featured-school-carousel__viewport .featured-card {
     flex-basis: min(84vw, 320px);
     width: min(84vw, 320px);
+  }
+
+  .discovery-page--listing .featured-school-carousel__viewport .featured-card {
+    flex-basis: min(78vw, 250px);
+    width: min(78vw, 250px);
   }
 
   .discovery-page--listing .school-list--listing.school-list--grid {

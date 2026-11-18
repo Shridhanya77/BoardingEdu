@@ -51,7 +51,28 @@ class JazzminStaticReferenceTests(SimpleTestCase):
                     "{% get_static_prefix %}admin/js/sidebar-scroll.js",
                     source,
                 )
-                self.assertIn("sidebar-scroll.js?v=2", source)
+                self.assertIn("sidebar-scroll.js?v=3", source)
+
+    def test_sidebar_script_swaps_admin_content_without_replacing_sidebar(self):
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "static"
+            / "admin"
+            / "js"
+            / "sidebar-scroll.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('querySelector("#jazzy-navigation")', source)
+        self.assertIn('querySelector(".app-main")', source)
+        self.assertIn('querySelector(".be-side")', source)
+        self.assertIn('querySelector(".be-main")', source)
+        self.assertIn("currentShell.main.replaceWith", source)
+        self.assertIn("currentShell.navigation.innerHTML", source)
+        self.assertIn(
+            "currentShell.scrollContainer.scrollTop = sidebarScrollTop",
+            source,
+        )
+        self.assertIn('addEventListener("popstate"', source)
 
     def test_duplicate_admin_js_is_collected_from_jazzmin_only(self):
         locations = {name: [] for name in JAZZMIN_ADMIN_JS_OVERRIDES}
