@@ -824,6 +824,8 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         )
 
     def get_view_on_site_url(self, obj):
+        if obj is None or obj._state.adding:
+            return None
         return public_school_url(obj)
 
     def save_model(self, request, obj, form, change):

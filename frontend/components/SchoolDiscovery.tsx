@@ -3787,10 +3787,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               {featuredError}
             </div>
           ) : featuredCardSchools.length > 0 ? (
-            <FeaturedSchoolCarousel
-              schools={featuredCardSchools}
-              label="Featured schools"
-            />
+            <FeaturedSchoolCards schools={featuredCardSchools} />
           ) : (
             <p className="section-empty">
               Featured schools will appear here when the directory has published

@@ -42,6 +42,16 @@ class JazzminStaticReferenceTests(SimpleTestCase):
         self.assertNotIn('{% static "vendor/bootswatch" %}', source)
         self.assertIn("{% get_static_prefix %}vendor/bootswatch", source)
 
+    def test_admin_layouts_do_not_require_sidebar_script_manifest_entries(self):
+        for template_name in ("admin/base_site.html", "admin/platform_base.html"):
+            with self.subTest(template=template_name):
+                source = get_template(template_name).template.source
+                self.assertNotIn("{% static 'admin/js/sidebar-scroll.js' %}", source)
+                self.assertIn(
+                    "{% get_static_prefix %}admin/js/sidebar-scroll.js",
+                    source,
+                )
+
     def test_duplicate_admin_js_is_collected_from_jazzmin_only(self):
         locations = {name: [] for name in JAZZMIN_ADMIN_JS_OVERRIDES}
         for finder in finders.get_finders():

@@ -30,13 +30,16 @@
     if (!container) continue;
 
     const savedPosition = window.sessionStorage.getItem(key);
-    if (savedPosition) {
-      const [top, left] = savedPosition.split(",").map(Number);
-      if (Number.isFinite(top)) container.scrollTop = Math.max(0, top);
-      if (Number.isFinite(left)) container.scrollLeft = Math.max(0, left);
-    }
+    const [savedTop, savedLeft] = savedPosition?.split(",").map(Number) || [];
+    const hasSavedPosition =
+      Number.isFinite(savedTop) || Number.isFinite(savedLeft);
+    const restorePosition = () => {
+      if (Number.isFinite(savedTop)) container.scrollTop = Math.max(0, savedTop);
+      if (Number.isFinite(savedLeft)) container.scrollLeft = Math.max(0, savedLeft);
+    };
 
-    ensureActiveItemVisible(container);
+    if (hasSavedPosition) restorePosition();
+    else ensureActiveItemVisible(container);
 
     const savePosition = () => {
       window.sessionStorage.setItem(key, `${container.scrollTop},${container.scrollLeft}`);
@@ -51,7 +54,8 @@
     document.addEventListener("click", saveBeforeNavigation);
     window.addEventListener("pagehide", savePosition);
     requestAnimationFrame(() => {
-      ensureActiveItemVisible(container);
+      if (hasSavedPosition) restorePosition();
+      else ensureActiveItemVisible(container);
       savePosition();
     });
   }

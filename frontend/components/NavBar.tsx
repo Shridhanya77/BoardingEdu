@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth, dashboardPathForRole } from "@/lib/auth";
 import type { UserRole } from "@/lib/api";
+import { usePreservedSidebarScroll } from "@/lib/use-preserved-sidebar-scroll";
 import { schoolDirectoryPath } from "@/lib/school-urls";
 import { INDIA_REGION_PICKER_REQUEST_EVENT } from "@/lib/india-regions";
 import CounsellingModal from "@/components/home/CounsellingModal";
@@ -70,6 +71,7 @@ export default function NavBar() {
   const [counsellingOpen, setCounsellingOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mobileNavigationRef = useRef<HTMLElement | null>(null);
   const mobileMenuToggleRef = useRef<HTMLButtonElement>(null);
   const counsellingTriggerRef = useRef<HTMLButtonElement>(null);
   const closeCounselling = useCallback(() => {
@@ -115,6 +117,11 @@ export default function NavBar() {
     : "";
   const role = user?.role ?? null;
   const links = headerLinks(role, pathname);
+  usePreservedSidebarScroll(
+    mobileNavigationRef,
+    "boardingedu:mobile-primary-navigation",
+    `${pathname}:${mobileNavOpen}`,
+  );
   const mobileExploreOptions = [
     { label: "Day Schools", href: schoolDirectoryPath("day-school") },
     { label: "Boarding Schools", href: schoolDirectoryPath("residential-school") },
@@ -270,6 +277,7 @@ export default function NavBar() {
             className="mobile-navigation"
             id="mobile-primary-navigation"
             aria-label="Mobile primary"
+            ref={mobileNavigationRef}
           >
             {links.map((item) => item.label === "Explore Schools" ? (
               <div className="mobile-navigation__explore" key={item.href}>

@@ -555,6 +555,19 @@ class AdminRelatedModalTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers.get("X-Frame-Options"), "SAMEORIGIN")
 
+    def test_school_add_page_renders_for_super_admin(self):
+        user = User.objects.create_superuser(
+            username="school-add-admin",
+            email="school-add-admin@example.test",
+            password="secret-pass",
+            role=User.ROLE_SUPER_ADMIN,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:schools_school_add"))
+
+        self.assertEqual(response.status_code, 200)
+
 
 class SchoolImageAdminTests(SimpleTestCase):
     def test_school_images_are_entered_as_urls_without_upload_fields(self):
