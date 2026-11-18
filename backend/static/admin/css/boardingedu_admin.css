@@ -747,7 +747,8 @@ textarea:focus {
 }
 
 #jazzy-sidebar {
-  max-height: calc(100vh - 58px);
+  height: 100vh;
+  max-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
