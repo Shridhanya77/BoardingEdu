@@ -46,15 +46,6 @@ export default function FeaturedPromoBanner({
     setImageFailed(false);
   }, [index]);
 
-  useEffect(() => {
-    if (count < 2) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % count);
-    }, 8000);
-    return () => window.clearInterval(timer);
-  }, [count]);
-
   if (!school) return null;
 
   const promotion = school.promotion;
