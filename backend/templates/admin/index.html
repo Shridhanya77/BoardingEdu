@@ -22,26 +22,102 @@
 </section>
 {% endif %}
 
-{% if user.is_superuser or user.role == "SUPER_ADMIN" or user.role == "STAFF_ADMIN" %}
-<section class="be-directory">
-  <header>
-    <h2>Featured Schools <span>({{ s.featured_school_total }})</span></h2>
-    <a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">View all</a>
-  </header>
-  {% if s.featured_schools %}
-    <div class="be-review-links">
-      {% for school in s.featured_schools %}
-        <a href="{% url 'admin:schools_school_change' school.pk %}">
-          <strong>{{ school.school_name }}</strong>
-          <span>{% if school.city %}{{ school.city.city_name }}{% endif %}{% if school.city and school.state %}, {% endif %}{% if school.state %}{{ school.state.state_name }}{% endif %}</span>
-        </a>
+<section class="be-admin-analytics" aria-label="Platform statistics and graphs">
+  <article class="be-analytics-card be-analytics-card--trend">
+    <header class="be-analytics-card__header">
+      <div>
+        <span>ADMISSIONS</span>
+        <h2>New enquiry trend</h2>
+      </div>
+      <strong>Last 6 months</strong>
+    </header>
+    <div
+      class="be-enquiry-chart"
+      role="img"
+      aria-label="Monthly new admission enquiries: {% for month in s.months %}{{ month.label }} {{ month.value }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+    >
+      {% for month in s.months %}
+        <div class="be-enquiry-chart__month">
+          <strong>{{ month.value }}</strong>
+          <div class="be-enquiry-chart__track">
+            <span style="height: {{ month.pct }}%"></span>
+          </div>
+          <span class="be-enquiry-chart__label">{{ month.label }}</span>
+        </div>
       {% endfor %}
     </div>
-  {% else %}
-    <p class="be-empty">No schools are marked as featured.</p>
-  {% endif %}
+    <p class="be-analytics-card__note">New admission enquiries received per month.</p>
+  </article>
+
+  <article class="be-analytics-card be-analytics-card--distribution">
+    <section>
+      <header class="be-analytics-card__header">
+        <div>
+          <span>SCHOOL DIRECTORY</span>
+          <h2>Verification status</h2>
+        </div>
+        <strong>{{ s.school_total }} total</strong>
+      </header>
+      <div
+        class="be-segmented-chart"
+        role="img"
+        aria-label="{{ s.verification.verified }} verified, {{ s.verification.pending }} pending, {{ s.verification.unverified }} unverified schools"
+      >
+        <span class="be-segmented-chart__verified" style="width: {{ s.verification.verified_pct }}%"></span>
+        <span class="be-segmented-chart__pending" style="width: {{ s.verification.pending_pct }}%"></span>
+        <span class="be-segmented-chart__unverified" style="width: {{ s.verification.unverified_pct }}%"></span>
+      </div>
+      <ul class="be-chart-legend">
+        <li><span class="be-chart-legend__swatch be-chart-legend__swatch--verified"></span><span>Verified</span><strong>{{ s.verification.verified }}</strong></li>
+        <li><span class="be-chart-legend__swatch be-chart-legend__swatch--pending"></span><span>Pending</span><strong>{{ s.verification.pending }}</strong></li>
+        <li><span class="be-chart-legend__swatch be-chart-legend__swatch--unverified"></span><span>Unverified</span><strong>{{ s.verification.unverified }}</strong></li>
+      </ul>
+    </section>
+
+    <section>
+      <header class="be-analytics-card__header">
+        <div>
+          <span>PARENT FEEDBACK</span>
+          <h2>Review moderation</h2>
+        </div>
+        <strong>{{ s.total_reviews }} total</strong>
+      </header>
+      <div
+        class="be-segmented-chart"
+        role="img"
+        aria-label="{% for status in s.review_status %}{{ status.value }} {{ status.label|lower }} reviews{% if not forloop.last %}, {% endif %}{% endfor %}"
+      >
+        {% for status in s.review_status %}
+          <span class="be-segmented-chart__review be-segmented-chart__review--{{ status.label|lower }}" style="width: {{ status.pct }}%"></span>
+        {% endfor %}
+      </div>
+      <ul class="be-chart-legend">
+        {% for status in s.review_status %}
+          <li><span class="be-chart-legend__swatch be-chart-legend__swatch--review-{{ status.label|lower }}"></span><span>{{ status.label }}</span><strong>{{ status.value }}</strong></li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section>
+      <header class="be-analytics-card__header">
+        <div>
+          <span>PEOPLE</span>
+          <h2>Account mix</h2>
+        </div>
+      </header>
+      <div class="be-role-chart">
+        {% for role in s.roles %}
+          <div class="be-role-chart__row">
+            <div><span>{{ role.label }}</span><strong>{{ role.value }}</strong></div>
+            <div class="be-role-chart__track"><span style="width: {{ role.pct }}%"></span></div>
+          </div>
+        {% empty %}
+          <p class="be-empty">No user accounts yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </article>
 </section>
-{% endif %}
 
 <section class="be-directory">
   <header>

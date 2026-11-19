@@ -120,7 +120,6 @@ def build_stats():
     schools = School.objects.aggregate(
         total=Count("pk"),
         active=Count("pk", filter=Q(status=True)),
-        featured=Count("pk", filter=Q(is_featured=True)),
         verified=Count("pk", filter=Q(verification_status="VERIFIED")),
         pending_verification=Count("pk", filter=Q(verification_status="PENDING")),
         unverified=Count("pk", filter=Q(verification_status="UNVERIFIED")),
@@ -195,8 +194,13 @@ def build_stats():
     ]
 
     role_labels = dict(User.ROLE_CHOICES)
+    role_total = users["total"] or 1
     roles = [
-        {"label": role_labels.get(role, role), "value": count}
+        {
+            "label": role_labels.get(role, role),
+            "value": count,
+            "pct": round(count / role_total * 100),
+        }
         for role, count in sorted(role_counts.items(), key=lambda item: -item[1])
     ]
 
@@ -219,6 +223,8 @@ def build_stats():
     ]
 
     pending = schools["pending_verification"]
+    school_total = schools["total"] or 1
+    review_total = reviews["total"] or 1
     pending_school_changes = (
         SchoolProfileChange.objects.filter(
             status=SchoolProfileChange.STATUS_PENDING
@@ -265,8 +271,32 @@ def build_stats():
             "verified": schools["verified"],
             "pending": schools["pending_verification"],
             "unverified": schools["unverified"],
-            "total": schools["total"] or 1,
+            "total": school_total,
+            "verified_pct": round(schools["verified"] / school_total * 100),
+            "pending_pct": round(schools["pending_verification"] / school_total * 100),
+            "unverified_pct": round(schools["unverified"] / school_total * 100),
         },
+        "review_status": [
+            {
+                "label": "Published",
+                "value": reviews["published"],
+                "pct": round(reviews["published"] / review_total * 100),
+            },
+            {
+                "label": "Pending",
+                "value": reviews["pending"],
+                "pct": round(reviews["pending"] / review_total * 100),
+            },
+            {
+                "label": "Rejected",
+                "value": max(0, reviews["total"] - reviews["published"] - reviews["pending"]),
+                "pct": round(
+                    max(0, reviews["total"] - reviews["published"] - reviews["pending"])
+                    / review_total
+                    * 100
+                ),
+            },
+        ],
         "months": _enquiry_trend(now),
         "total_reviews": reviews["total"],
         "school_total": schools["total"],
@@ -277,12 +307,6 @@ def build_stats():
             School.objects.select_related("country", "state", "city")
             .prefetch_related("school_types")
             .order_by("-created_at")[:6]
-        ),
-        "featured_school_total": schools["featured"],
-        "featured_schools": list(
-            School.objects.filter(is_featured=True)
-            .select_related("country", "state", "city")
-            .order_by("school_name", "pk")[:8]
         ),
     }
 

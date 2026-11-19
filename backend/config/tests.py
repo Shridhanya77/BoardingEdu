@@ -35,6 +35,16 @@ class AdminDashboardTrendTests(SimpleTestCase):
         self.assertEqual(len(months), 6)
 
 
+class AdminDashboardTemplateTests(SimpleTestCase):
+    def test_admin_home_has_analytics_without_featured_school_listings(self):
+        source = get_template("admin/index.html").template.source
+
+        self.assertIn('class="be-enquiry-chart"', source)
+        self.assertIn('class="be-segmented-chart"', source)
+        self.assertIn('class="be-role-chart"', source)
+        self.assertNotIn("s.featured_schools", source)
+
+
 class JazzminStaticReferenceTests(SimpleTestCase):
     def test_admin_base_does_not_lookup_bootswatch_directory(self):
         source = get_template("admin/base.html").template.source
