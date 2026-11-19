@@ -5,6 +5,26 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SchoolListItem } from "@/lib/api";
 import FeaturedSchoolCards from "./FeaturedSchoolCards";
 
+export function FeaturedSchoolMarquee({
+  schools,
+  label = "Featured schools",
+}: {
+  schools: SchoolListItem[];
+  label?: string;
+}) {
+  if (!schools.length) return null;
+  return (
+    <div className="featured-marquee" role="region" aria-label={label} tabIndex={0}>
+      <div className="featured-marquee__track">
+        <FeaturedSchoolCards schools={schools} keyPrefix="a-" />
+        <div className="featured-marquee__copy" aria-hidden="true" inert>
+          <FeaturedSchoolCards schools={schools} keyPrefix="b-" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FeaturedSchoolCarousel({
   schools,
   label = "Featured schools",

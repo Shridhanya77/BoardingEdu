@@ -34,6 +34,7 @@ export default function FeaturedPromoBanner({
 }) {
   const [index, setIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
+  const [paused, setPaused] = useState(false);
   const count = schools.length;
   const school = schools[Math.min(index, Math.max(count - 1, 0))];
 
@@ -45,6 +46,15 @@ export default function FeaturedPromoBanner({
   useEffect(() => {
     setImageFailed(false);
   }, [index]);
+
+  useEffect(() => {
+    if (count < 2 || paused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % count);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [count, paused]);
 
   if (!school) return null;
 
@@ -67,7 +77,14 @@ export default function FeaturedPromoBanner({
   }
 
   return (
-    <section className="promo-banner" aria-label="Featured schools">
+    <section
+      className="promo-banner"
+      aria-label="Featured schools"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
       <div className="promo-banner__frame">
         <div className="promo-banner__visual">
           {image ? (

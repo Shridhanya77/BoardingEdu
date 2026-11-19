@@ -69,8 +69,7 @@ import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
 import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedPromoBanner from "@/components/home/FeaturedPromoBanner";
-import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
-import FeaturedSchoolCarousel from "@/components/home/FeaturedSchoolCarousel";
+import { FeaturedSchoolMarquee } from "@/components/home/FeaturedSchoolCarousel";
 import RecentlyViewedSchools from "@/components/home/RecentlyViewedSchools";
 import AnimatedCount from "@/components/home/AnimatedCount";
 import GuideBrowser from "@/components/guides/GuideBrowser";
@@ -102,6 +101,7 @@ import EmptyState, { type EmptyStateLink, type EmptyStateLinkGroup } from "@/com
 import SchoolShortlistButton from "@/components/SchoolShortlistButton";
 import { FeaturedSchoolsSkeleton, PanelRowsSkeleton } from "@/components/ui/ContentSkeleton";
 import { itemListJsonLd } from "@/lib/structured-data";
+import { readRecentSchoolIds } from "@/lib/recent-schools";
 
 // Leaflet is loaded only when the map view is opened, so the default
 // grid/list experience keeps its original bundle size.
@@ -264,6 +264,31 @@ function uniqueSchoolsById(schoolsToFilter: SchoolListItem[]) {
   });
 }
 
+function rankSchoolsByEngagement(
+  schoolsToRank: SchoolListItem[],
+  comparedSchools: SchoolListItem[],
+  recentlyViewedIds: string[],
+) {
+  const comparedIds = new Set(comparedSchools.map((school) => school.school_id));
+  const viewedOrder = new Map(recentlyViewedIds.map((schoolId, index) => [schoolId, index]));
+
+  return uniqueSchoolsById(schoolsToRank).sort((left, right) => {
+    const comparedDifference =
+      Number(comparedIds.has(right.school_id)) - Number(comparedIds.has(left.school_id));
+    if (comparedDifference) return comparedDifference;
+
+    const leftViewOrder = viewedOrder.get(left.school_id) ?? Number.MAX_SAFE_INTEGER;
+    const rightViewOrder = viewedOrder.get(right.school_id) ?? Number.MAX_SAFE_INTEGER;
+    if (leftViewOrder !== rightViewOrder) return leftViewOrder - rightViewOrder;
+
+    return (
+      right.review_count - left.review_count ||
+      (right.average_rating ?? 0) - (left.average_rating ?? 0) ||
+      left.school_name.localeCompare(right.school_name)
+    );
+  });
+}
+
 const orderingOptions: Record<
   string,
   NonNullable<SchoolFilters["ordering"]>
@@ -387,9 +412,9 @@ async function currentLocationPreferences(
 }
 
 function listingFeeLabel(value: string | null) {
-  if (value == null || value === "") return "Fee on request";
+  if (value == null || value === "") return null;
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return "Fee on request";
+  if (!Number.isFinite(amount) || amount <= 0) return null;
   if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L / yr`;
   return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)} / yr`;
 }
@@ -420,6 +445,7 @@ function SchoolCard({
   const location = [school.city_name, school.state_name]
     .filter(Boolean)
     .join(", ");
+  const fee = listingFeeLabel(school.annual_fee);
 
   const href = schoolHref(school);
   const coverImage = schoolCoverImageUrl(school);
@@ -441,31 +467,39 @@ function SchoolCard({
             Featured
           </span>
         )}
-        {coverImage && !coverImageFailed ? (
-          <Image
-            className="school-card__media-image"
-            src={coverImage}
-            alt={`${school.school_name} campus`}
-            fill
-            sizes="(max-width: 820px) 100vw, 420px"
-            unoptimized
-            onError={() => setCoverImageFailed(true)}
-          />
-        ) : (
-          <Image
-            className="school-card__media-image"
-            src="/school-cover-fallback.svg"
-            alt=""
-            fill
-            sizes="(max-width: 800px) 100vw, 50vw"
-          />
-        )}
+        <div className="school-card__media-photo">
+          {coverImage && !coverImageFailed ? (
+            <Image
+              className="school-card__media-image"
+              src={coverImage}
+              alt={`${school.school_name} campus`}
+              fill
+              sizes="(max-width: 820px) 100vw, 420px"
+              unoptimized
+              onError={() => setCoverImageFailed(true)}
+            />
+          ) : (
+            <Image
+              className="school-card__media-image"
+              src="/school-cover-fallback.svg"
+              alt=""
+              fill
+              sizes="(max-width: 800px) 100vw, 50vw"
+            />
+          )}
+        </div>
 
         {school.videos_count ? (
           <span className="school-card__video-count">
             {school.videos_count} video{school.videos_count === 1 ? "" : "s"}
           </span>
         ) : null}
+        <SchoolShortlistButton
+          className="school-card__save school-card__save--overlay"
+          schoolId={school.school_id}
+          schoolName={school.school_name}
+          label=""
+        />
       </div>
 
       <div className="school-card__body">
@@ -535,16 +569,18 @@ function SchoolCard({
           )}
         </div>
 
-        <p className="school-card__facts">
-          <span>{listingFeeLabel(school.annual_fee)}</span>
-          {school.average_rating != null && (
-            <span>
-              <Star size={13} aria-hidden />
-              {school.average_rating.toFixed(1)}
-              {school.review_count > 0 ? ` · ${school.review_count} reviews` : ""}
-            </span>
-          )}
-        </p>
+        {(fee || school.average_rating != null) && (
+          <p className="school-card__facts">
+            {fee && <span>{fee}</span>}
+            {school.average_rating != null && (
+              <span>
+                <Star size={13} aria-hidden />
+                {school.average_rating.toFixed(1)}
+                {school.review_count > 0 ? ` · ${school.review_count} reviews` : ""}
+              </span>
+            )}
+          </p>
+        )}
 
         <div className="school-card__footer">
           <div className="school-card__actions">
@@ -552,11 +588,6 @@ function SchoolCard({
               <MessageSquare size={15} aria-hidden />
               Enquire
             </Link>
-            <SchoolShortlistButton
-              className="school-card__save"
-              schoolId={school.school_id}
-              schoolName={school.school_name}
-            />
             <label className="school-compare">
               <input
                 type="checkbox"
@@ -877,6 +908,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [schoolView, setSchoolView] = useState<"grid" | "list" | "map">("grid");
   const [topBoardingSchools, setTopBoardingSchools] = useState<SchoolListItem[]>([]);
   const [topDaySchools, setTopDaySchools] = useState<SchoolListItem[]>([]);
+  const [recentlyViewedSchoolIds, setRecentlyViewedSchoolIds] = useState<string[]>([]);
   const [topBoardingSchoolsError, setTopBoardingSchoolsError] = useState<string | null>(null);
   const [topBoardingSchoolsLoading, setTopBoardingSchoolsLoading] = useState(true);
   const [topSchoolsCategory, setTopSchoolsCategory] = useState<HomeSchoolCategory>(
@@ -900,16 +932,16 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     [featuredSchools],
   );
   const displayTopBoardingSchools = useMemo(
-    () => uniqueSchoolsById(topBoardingSchools)
+    () => rankSchoolsByEngagement(topBoardingSchools, comparedSchools, recentlyViewedSchoolIds)
       .filter((school) => !featuredSchoolIds.has(school.school_id))
       .slice(0, 10),
-    [featuredSchoolIds, topBoardingSchools],
+    [comparedSchools, featuredSchoolIds, recentlyViewedSchoolIds, topBoardingSchools],
   );
   const displayTopDaySchools = useMemo(
-    () => uniqueSchoolsById(topDaySchools)
+    () => rankSchoolsByEngagement(topDaySchools, comparedSchools, recentlyViewedSchoolIds)
       .filter((school) => !featuredSchoolIds.has(school.school_id))
       .slice(0, 10),
-    [featuredSchoolIds, topDaySchools],
+    [comparedSchools, featuredSchoolIds, recentlyViewedSchoolIds, topDaySchools],
   );
   const topPickSchools = topSchoolsCategory === "residential-school"
     ? displayTopBoardingSchools
@@ -932,6 +964,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [geoState, setGeoState] = useState("");
   const [geoCity, setGeoCity] = useState("");
   const [geoLocation, setGeoLocation] = useState("");
+
+  useEffect(() => {
+    try {
+      setRecentlyViewedSchoolIds(readRecentSchoolIds());
+    } catch (reason) {
+      console.error("Could not load recently viewed schools for recommendations.", reason);
+    }
+  }, []);
   const activeCountryId = geoCountry || initialFilter?.country || "";
   const activeStateId = geoState || initialFilter?.state || "";
   const activeCityId = geoCity || initialFilter?.city || "";
@@ -1140,7 +1180,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
     const sharedFilters: SchoolFilters = {
       status: true,
-      ordering: "-average_rating",
+      ordering: "-review_count",
       page_size: 20,
       country: geoRegion ? undefined : activeCountry || undefined,
       state: activeState || undefined,
@@ -2438,158 +2478,31 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
   useEffect(() => {
     let cancelled = false;
-    const activeCountry = geoCountry || initialCountry;
-    const activeState = geoState || initialState;
-    const activeCity = geoCity || initialCity;
-    const activeLocation = geoLocation || initialLocation;
-    // Region-wide scope: either an explicit region page (geoRegion) or a place
-    // that maps to an India region. Keeps "Featured ... in North India" truly
-    // regional and prevents other regions leaking into the section.
-    const featuredRegionId = geoRegion || browsedRegion?.id || "";
-    const featuredNeedsRegion = Boolean(featuredRegionId);
-    const regionalStateIds = featuredNeedsRegion
-      ? [...new Set(cities
-          .filter((city) =>
-            city.country_id === regionCountryId &&
-            indiaRegionForState(city.state_name, city.state_slug)?.id === featuredRegionId,
-          )
-          .map((city) => city.state_id))]
-      : [];
-    const boardingOnly = isBoardingOnlySelection(schoolType, schoolTypes);
-    const featuredCategory = homeCategory ?? homeSchoolCategoryForIds(schoolType, schoolTypes);
-    if (requiresIndiaRegion) {
-      setFeaturedSchools([]);
-      setFeaturedLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (featuredNeedsRegion && citiesLoading) return () => {
-      cancelled = true;
-    };
-    if (featuredNeedsRegion && !regionalStateIds.length) {
-      setFeaturedSchools([]);
-      setFeaturedLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (isHomePage && schoolType.length > 0 && !schoolTypesLoaded) {
-      return () => {
-        cancelled = true;
-      };
-    }
     setFeaturedError(null);
 
-    const featuredFilters: SchoolFilters = {
+    schools.list({
       is_featured: true,
       ordering: "-average_rating",
-      page_size: isHomePage ? 10 : 100,
-      country: isHomePage || featuredNeedsRegion ? undefined : activeCountry || undefined,
-      state: isHomePage || featuredNeedsRegion ? undefined : activeState || undefined,
-      city: isHomePage || boardingOnly || featuredNeedsRegion ? undefined : activeCity || undefined,
-      location: isHomePage || boardingOnly || featuredNeedsRegion ? undefined : activeLocation || undefined,
-      location_group: featuredNeedsRegion
-        ? [`${regionCountryId}|${regionalStateIds.join(",")}`]
-        : undefined,
-      board: isHomePage ? undefined : board,
-      school_type: isHomePage
-        ? featuredCategory
-          ? homeSchoolTypeIds(schoolTypes, featuredCategory)
-          : schoolType
-        : schoolType,
-      home_category: featuredCategory
-        ? homeSchoolCategoryPath(featuredCategory)
-        : undefined,
-    };
-
-    async function loadFeaturedSchools() {
-      try {
-        const featuredResponse = await schools.list(featuredFilters);
+      page_size: 12,
+      status: true,
+    })
+      .then((response) => {
         if (cancelled) return;
-        let featuredCandidates = featuredResponse.results;
-        let otherLocationIds = new Set<string>();
-        if (
-          !isHomePage &&
-          !featuredNeedsRegion &&
-          (activeCountry || activeState || activeCity || activeLocation)
-        ) {
-          const globalResponse = await schools.list({
-            ...featuredFilters,
-            country: undefined,
-            state: undefined,
-            city: undefined,
-            location: undefined,
-            page_size: 100,
-          });
-          if (cancelled) return;
-          const candidateIds = new Set(featuredCandidates.map((school) => school.school_id));
-          const isOutsideListingArea = (school: SchoolListItem) => {
-            if (featuredFilters.location) return school.location_id !== featuredFilters.location;
-            if (featuredFilters.city) return school.city_id !== featuredFilters.city;
-            if (featuredFilters.state) return school.state_id !== featuredFilters.state;
-            if (featuredFilters.country) return school.country_id !== featuredFilters.country;
-            return true;
-          };
-          otherLocationIds = new Set(
-            globalResponse.results
-              .filter((school) => !candidateIds.has(school.school_id) && isOutsideListingArea(school))
-              .map((school) => school.school_id),
-          );
-          featuredCandidates = [
-            ...featuredCandidates,
-            ...globalResponse.results.filter((school) => otherLocationIds.has(school.school_id)),
-          ];
-        }
-        if (featuredCandidates.length > 0) {
-          setFeaturedSchools(
-            priorityFeaturedSelection(featuredCandidates, otherLocationIds, featuredCandidates.length),
-          );
-          return;
-        }
-
-        setFeaturedSchools([]);
-      } catch (reason: unknown) {
+        setFeaturedSchools(response.results.filter((school) => school.is_featured || school.promotion));
+      })
+      .catch((reason: unknown) => {
         if (!cancelled) {
-          setFeaturedError(
-            reason instanceof Error
-              ? reason.message
-              : "Could not load featured schools."
-          );
+          setFeaturedError(reason instanceof Error ? reason.message : "Could not load featured schools.");
         }
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setFeaturedLoading(false);
-      }
-    }
-
-    void loadFeaturedSchools();
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [
-    board,
-    activeCountryId,
-    regionCountryId,
-    browsedRegion?.id,
-    cities,
-    citiesLoading,
-    geoCity,
-    geoCountry,
-    geoLocation,
-    geoRegion,
-    geoState,
-    homeCategory,
-    initialCity,
-    initialCountry,
-    initialLocation,
-    initialState,
-    isHomePage,
-    requiresIndiaRegion,
-    schoolType,
-    schoolTypes,
-    schoolTypesLoaded,
-  ]);
+  }, []);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3219,7 +3132,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 </h2>
               </div>
             </div>
-            <FeaturedSchoolCarousel
+            <FeaturedSchoolMarquee
               schools={featuredCardSchools}
               label={`Featured schools${listingPlaceLabel ? ` in ${listingPlaceLabel}` : ""}`}
             />
@@ -3821,7 +3734,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               {featuredError}
             </div>
           ) : featuredCardSchools.length > 0 ? (
-            <FeaturedSchoolCards schools={featuredCardSchools} />
+            <FeaturedSchoolMarquee schools={featuredCardSchools} label="Featured schools" />
           ) : (
             <EmptyState
               className="be-empty--compact"
@@ -4598,10 +4511,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <section className="listing-top-picks-cards" aria-labelledby="listing-top-picks-cards-heading">
             <div className="listing-top-picks-cards__heading">
               <span className="section-eyebrow">TOP PICKS</span>
-              <h2 id="listing-top-picks-cards-heading">Explore top {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools</h2>
-              <p>Get a closer look at our top picks and compare school details.</p>
+              <h2 id="listing-top-picks-cards-heading">Popular {topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools</h2>
+              <p>Personalized with your comparisons and recent views, alongside reviews and ratings.</p>
             </div>
-            <FeaturedSchoolCards schools={topPickSchools.slice(0, 4)} />
+            <FeaturedSchoolMarquee
+              schools={topPickSchools}
+              label={`Popular ${topSchoolsCategory === "residential-school" ? "boarding" : "day"} schools`}
+            />
           </section>
         )}
 

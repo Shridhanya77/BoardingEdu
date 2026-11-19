@@ -27,9 +27,9 @@ function schoolEnquiryHref(school: SchoolListItem) {
 }
 
 function formatFee(value: string | null) {
-  if (value == null || value === "") return "Fee on request";
+  if (value == null || value === "") return null;
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return "Fee on request";
+  if (!Number.isFinite(amount) || amount <= 0) return null;
   if (amount >= 100000) {
     return `₹${(amount / 100000).toFixed(1)}L / yr`;
   }
@@ -46,15 +46,17 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
     <div className="featured-card__cover">
       {school.is_featured && <span className="featured-card__tag">Featured</span>}
       {photo && !photoFailed ? (
-        <Image
-          className="featured-card__photo"
-          src={photo}
-          alt={`${school.school_name} campus`}
-          fill
-          sizes="(max-width: 720px) 100vw, 280px"
-          unoptimized
-          onError={() => setPhotoFailed(true)}
-        />
+        <span className="featured-card__photo-frame">
+          <Image
+            className="featured-card__photo"
+            src={photo}
+            alt={`${school.school_name} campus`}
+            fill
+            sizes="(max-width: 720px) 100vw, 280px"
+            unoptimized
+            onError={() => setPhotoFailed(true)}
+          />
+        </span>
       ) : null}
       <div className="featured-card__logo">
         {school.school_logo_url && !logoFailed ? (
@@ -76,13 +78,16 @@ function FeaturedSchoolCover({ school }: { school: SchoolListItem }) {
 
 export default function FeaturedSchoolCards({
   schools,
+  keyPrefix = "",
 }: {
   schools: SchoolListItem[];
+  keyPrefix?: string;
 }) {
   return (
     <div className="featured-cards">
       {schools.map((school) => {
         const boards = boardsAffiliatedLabel(school.boards_detail) || "Board on request";
+        const fee = formatFee(school.annual_fee);
         const location = [school.city_name, school.state_name].filter(Boolean).join(", ");
         const types = Array.from(new Set(
           school.school_types_detail
@@ -91,7 +96,7 @@ export default function FeaturedSchoolCards({
         ));
 
         return (
-          <article className="featured-card featured-card--compact" key={school.school_id}>
+          <article className="featured-card featured-card--compact" key={`${keyPrefix}${school.school_id}`}>
             <Link className="featured-card__details" href={schoolHref(school)}>
               <FeaturedSchoolCover school={school} />
               <h3>{school.school_name}</h3>
@@ -104,7 +109,7 @@ export default function FeaturedSchoolCards({
                 <MapPin size={13} />
                 {location || "Location on request"}
               </p>
-              <p className="featured-card__meta">{boards} · {formatFee(school.annual_fee)}</p>
+              <p className="featured-card__meta">{[boards, fee].filter(Boolean).join(" · ")}</p>
               {school.verification_status?.toLowerCase() === "verified" && (
                 <span className="featured-card__rating">
                   <CheckCircle2 size={12} /> Verified

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CalendarDays, Compass, Info, Sparkles } from "lucide-react";
 
 const CLASS_BANDS = [
   { min: 3, max: 3, label: "Nursery" },
@@ -78,44 +79,95 @@ export default function ParentTools() {
         </div>
       </div>
       <div className="home-tools__grid">
-        <form className="home-tool" onSubmit={(event) => event.preventDefault()}>
-          <h3>Class eligibility</h3>
-          <p>Uses completed age on 31 March, the cutoff many Indian schools publish.</p>
-          <label>
-            Child&apos;s date of birth
-            <input type="date" value={dob} onChange={(event) => setDob(event.target.value)} />
+        <form className="home-tool home-tool--eligibility" onSubmit={(event) => event.preventDefault()}>
+          <div className="home-tool__intro">
+            <span className="home-tool__icon home-tool__icon--age" aria-hidden="true">
+              <CalendarDays size={21} />
+            </span>
+            <div>
+              <span className="home-tool__step">01 · AGE CHECK</span>
+              <h3>Class eligibility</h3>
+            </div>
+          </div>
+          <p className="home-tool__description">
+            Uses completed age on 31 March, the cutoff many Indian schools publish.
+          </p>
+          <label className="home-tool__field" htmlFor="parent-tools-dob">
+            <span>Child&apos;s date of birth</span>
+            <input id="parent-tools-dob"
+              aria-describedby="parent-tools-dob-hint"
+              type="date"
+              value={dob}
+              onChange={(event) => setDob(event.target.value)}
+            />
           </label>
-          {classGuide && <p className="home-tool__result" role="status">{classGuide}</p>}
+          <p className="home-tool__hint" id="parent-tools-dob-hint">
+            Use this as a guide; schools may set different age cutoffs.
+          </p>
+          {classGuide ? (
+            <p className="home-tool__result" role="status">
+              <Info size={18} aria-hidden="true" />
+              <span>{classGuide}</span>
+            </p>
+          ) : (
+            <div className="home-tool__prompt">
+              <Sparkles size={16} aria-hidden="true" />
+              <span>Your age-based starting point will appear here.</span>
+            </div>
+          )}
         </form>
-        <form className="home-tool" onSubmit={(event) => event.preventDefault()}>
-          <h3>Board chooser</h3>
-          <p>A short guide across CBSE, ICSE, IB, Cambridge, and state boards.</p>
-          <label>
-            What matters most?
-            <select value={board} onChange={(event) => setBoard(event.target.value as BoardChoice)}>
+        <form className="home-tool home-tool--board" onSubmit={(event) => event.preventDefault()}>
+          <div className="home-tool__intro">
+            <span className="home-tool__icon home-tool__icon--board" aria-hidden="true">
+              <Compass size={21} />
+            </span>
+            <div>
+              <span className="home-tool__step">02 · FIND YOUR FIT</span>
+              <h3>Board chooser</h3>
+            </div>
+          </div>
+          <p className="home-tool__description">
+            A short guide across CBSE, ICSE, IB, Cambridge, and state boards.
+          </p>
+          <label className="home-tool__field">
+            <span>What matters most?</span>
+            <select
+              value={board}
+              onChange={(event) => setBoard(event.target.value as BoardChoice)}
+            >
               <option value="">Choose one</option>
               <option value="national">National exams and schools in many cities</option>
               <option value="international">Study or transfer outside India</option>
               <option value="state">The state curriculum and regional language</option>
             </select>
           </label>
-          <label>
-            Fee comfort
+          <label className="home-tool__field">
+            <span>Fee comfort</span>
             <select value={budget} onChange={(event) => setBudget(event.target.value as BudgetChoice)}>
               <option value="">Choose one</option>
               <option value="standard">A typical private-school fee</option>
               <option value="higher">A higher fee is acceptable</option>
             </select>
           </label>
-          <label>
-            Classroom style
+          <label className="home-tool__field">
+            <span>Classroom style</span>
             <select value={style} onChange={(event) => setStyle(event.target.value as StyleChoice)}>
               <option value="">Choose one</option>
               <option value="structured">Structured syllabus and exams</option>
               <option value="inquiry">Projects and inquiry</option>
             </select>
           </label>
-          {suggestion && <p className="home-tool__result" role="status">{suggestion}</p>}
+          {suggestion ? (
+            <p className="home-tool__result" role="status">
+              <Info size={18} aria-hidden="true" />
+              <span>{suggestion}</span>
+            </p>
+          ) : (
+            <div className="home-tool__prompt">
+              <Sparkles size={16} aria-hidden="true" />
+              <span>Choose an option in each field to see a starting suggestion.</span>
+            </div>
+          )}
         </form>
       </div>
     </section>

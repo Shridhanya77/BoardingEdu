@@ -239,7 +239,7 @@ export default function NavBar() {
           </div>
         ) : (
           <>
-            <Button href="/login" variant="ghost" size="md">
+            <Button href="/login" variant="ghost" size="md" className="site-header__login">
               Log in
             </Button>
             <Button href="/signup" variant="primary" size="md">
