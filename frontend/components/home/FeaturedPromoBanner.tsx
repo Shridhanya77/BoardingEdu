@@ -4,7 +4,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { SchoolListItem } from "@/lib/api";
+import { schools as schoolApi, type SchoolListItem } from "@/lib/api";
 import { boardsAffiliatedLabel } from "@/lib/board-labels";
 import { publicSchoolImageUrl, schoolCoverImageUrl } from "@/lib/school-media";
 import { schoolProfilePathFromSlugs, schoolTypeLabel } from "@/lib/seo-slugs";
@@ -129,7 +129,15 @@ export default function FeaturedPromoBanner({
             </ul>
           )}
           <div className="promo-banner__actions">
-            <Link className="promo-banner__cta" href={schoolHref(school)}>
+            <Link
+              className="promo-banner__cta"
+              href={schoolHref(school)}
+              onClick={() => {
+                schoolApi.trackEngagement(school.school_id, "LISTING_CLICK").catch((reason: unknown) => {
+                  console.error("Could not record this school listing click.", reason);
+                });
+              }}
+            >
               Explore School <ArrowRight size={16} aria-hidden />
             </Link>
             {count > 1 && (

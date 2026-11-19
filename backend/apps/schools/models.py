@@ -1,9 +1,10 @@
 import uuid
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils.text import slugify
+from django.utils import timezone
 from apps.geography.models import Country, State, City, Location
 
 # ---------- MASTER DATA (matches your 3rd diagram GREEN section: MASTER DATA) ----------
@@ -708,3 +709,155 @@ class SchoolGrade(models.Model):
 
     def __str__(self):
         return f"{self.school.short_name or self.school.school_code} offers {self.grade.grade_name}"
+
+
+class SchoolEngagement(models.Model):
+    EVENT_SCHOOL_VIEW = "SCHOOL_VIEW"
+    EVENT_LISTING_CLICK = "LISTING_CLICK"
+    EVENT_COMPARE_ADD = "COMPARE_ADD"
+    EVENT_SHORTLIST_ADD = "SHORTLIST_ADD"
+    EVENT_ENQUIRY_SUBMIT = "ENQUIRY_SUBMIT"
+    EVENT_CHOICES = [
+        (EVENT_SCHOOL_VIEW, "School detail view"),
+        (EVENT_LISTING_CLICK, "Listing card click"),
+        (EVENT_COMPARE_ADD, "Added to comparison"),
+        (EVENT_SHORTLIST_ADD, "Added to shortlist"),
+        (EVENT_ENQUIRY_SUBMIT, "Admission enquiry"),
+    ]
+
+    event_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="engagement_events",
+        db_column="school_id",
+    )
+    event_type = models.CharField(max_length=24, choices=EVENT_CHOICES)
+    identity_hash = models.CharField(max_length=64)
+    session_hash = models.CharField(max_length=64, blank=True, null=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="school_engagement_events",
+        blank=True,
+        null=True,
+    )
+    dedupe_bucket = models.DateField(
+        help_text="UTC date; at most one event per visitor, school, and event type per day.",
+    )
+    occurred_at = models.DateTimeField(default=timezone.now)
+    suspicious = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "school_engagement_events"
+        ordering = ["-occurred_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "event_type", "identity_hash", "dedupe_bucket"],
+                name="sch_eng_event_dedupe_uniq",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["school", "event_type", "occurred_at"],
+                name="sch_eng_school_type_time_idx",
+            ),
+            models.Index(
+                fields=["event_type", "occurred_at"],
+                name="sch_eng_type_time_idx",
+            ),
+            models.Index(
+                fields=["identity_hash", "occurred_at"],
+                name="sch_eng_identity_time_idx",
+            ),
+            models.Index(
+                fields=["occurred_at"],
+                name="sch_eng_time_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.school.school_name} · {self.get_event_type_display()}"
+
+
+class SchoolEngagementWeight(models.Model):
+    event_type = models.CharField(
+        max_length=24,
+        choices=SchoolEngagement.EVENT_CHOICES,
+        unique=True,
+    )
+    weight = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        default=1,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Contribution to the weighted engagement score.",
+    )
+    enabled = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "school_engagement_weights"
+        ordering = ["event_type"]
+
+    def __str__(self):
+        return f"{self.get_event_type_display()} · {self.weight}"
+
+
+class SchoolPopularityConfig(models.Model):
+    config_id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    rolling_window_days = models.PositiveSmallIntegerField(
+        default=30,
+        validators=[MinValueValidator(1), MaxValueValidator(365)],
+        help_text="Only events within this rolling window contribute to rankings.",
+    )
+    half_life_days = models.PositiveSmallIntegerField(
+        default=14,
+        validators=[MinValueValidator(1), MaxValueValidator(365)],
+        help_text="Engagement score halves after this many days.",
+    )
+    quality_weight = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=1,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Maximum additional score from verified reviews (capped at 1).",
+    )
+    review_saturation_count = models.PositiveSmallIntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+    )
+
+    class Meta:
+        db_table = "school_popularity_config"
+        verbose_name = "School popularity settings"
+        verbose_name_plural = "School popularity settings"
+
+    def __str__(self):
+        return "School popularity settings"
+
+
+class SchoolPopularity(models.Model):
+    school = models.OneToOneField(
+        School,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="popularity",
+        db_column="school_id",
+    )
+    popularity_score = models.DecimalField(max_digits=14, decimal_places=4, default=0, db_index=True)
+    unique_school_views = models.PositiveIntegerField(default=0)
+    unique_listing_clicks = models.PositiveIntegerField(default=0)
+    unique_comparisons = models.PositiveIntegerField(default=0)
+    unique_shortlists = models.PositiveIntegerField(default=0)
+    unique_enquiries = models.PositiveIntegerField(default=0)
+    engagement_score = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    quality_score = models.DecimalField(max_digits=8, decimal_places=4, default=0)
+    window_start = models.DateTimeField()
+    calculated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "school_popularity"
+        ordering = ["-popularity_score", "-unique_school_views", "school__school_name"]
+
+    def __str__(self):
+        return f"{self.school.school_name} · {self.popularity_score}"

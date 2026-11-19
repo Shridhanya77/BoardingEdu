@@ -18,6 +18,8 @@ from apps.users.permissions import (
     IsOwnEnquiryOrHigher,
 )
 from apps.users.models import User
+from apps.schools.engagement import attach_visitor_cookie, record_school_engagement
+from apps.schools.models import SchoolEngagement
 
 from .models import Child, AdmissionEnquiry
 from .serializers import ChildSerializer, AdmissionEnquirySerializer, CounsellingRequestSerializer
@@ -281,11 +283,19 @@ class AdmissionEnquiryViewSet(viewsets.ModelViewSet):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         reused = getattr(serializer.instance, "_duplicate_of_existing", False)
-        return Response(
+        response = Response(
             serializer.data,
             status=status.HTTP_200_OK if reused else status.HTTP_201_CREATED,
             headers=headers,
         )
+        if not reused:
+            result = record_school_engagement(
+                serializer.instance.school,
+                SchoolEngagement.EVENT_ENQUIRY_SUBMIT,
+                request,
+            )
+            attach_visitor_cookie(response, result.visitor_cookie)
+        return response
 
 
 class CounsellingRequestCreateView(generics.CreateAPIView):

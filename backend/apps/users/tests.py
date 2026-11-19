@@ -827,3 +827,25 @@ class ParentRegistrationWithoutEmailVerificationTests(TestCase):
         self.assertEqual(blocked.status_code, 200, blocked.data)
         self.assertEqual(blocked.data.get("purpose"), "register")
         self.assertNotIn("access", blocked.data)
+
+
+class AdminLogoutRedirectTests(TestCase):
+    def test_logout_immediately_redirects_to_the_admin_login_page(self):
+        user = User.objects.create_superuser(
+            username="logout-admin",
+            email="logout-admin@boardingedu.test",
+            password="secret-pass",
+        )
+        client = APIClient()
+        client.force_login(user)
+
+        response = client.post(reverse("admin:boardingedu_logout"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("admin:login"))
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertNotIn("_auth_user_id", client.session)
+
+        login_page = client.get(response.url)
+        self.assertEqual(login_page.status_code, 200)
+        self.assertContains(login_page, "School administration")

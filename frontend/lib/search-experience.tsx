@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import type { SchoolListItem } from "@/lib/api";
+import { schools, type SchoolListItem } from "@/lib/api";
 
 const STORAGE_KEY = "boardingeu:school-comparison:v1";
 const MAX_COMPARED_SCHOOLS = 3;
@@ -93,14 +93,27 @@ export function SearchExperienceProvider({
     } else {
       setLimitReached(false);
       setComparedSchools((current) => [...current, school]);
+      schools.trackEngagement(school.school_id, "COMPARE_ADD").catch((reason: unknown) => {
+        console.error("Could not record this school comparison.", reason);
+      });
     }
   }, [comparedSchools]);
 
   const assignSchoolToSlot = useCallback((index: number, school: SchoolListItem) => {
+    if (index < 0 || index >= MAX_COMPARED_SCHOOLS || index > comparedSchools.length) {
+      return;
+    }
+    if (
+      comparedSchools.some(
+        (item, itemIndex) => item.school_id === school.school_id && itemIndex !== index,
+      )
+    ) {
+      return;
+    }
+    const alreadyCompared = comparedSchools.some(
+      (item) => item.school_id === school.school_id,
+    );
     setComparedSchools((current) => {
-      if (index < 0 || index > current.length || index >= MAX_COMPARED_SCHOOLS) {
-        return current;
-      }
       if (current.some((item, itemIndex) => item.school_id === school.school_id && itemIndex !== index)) {
         return current;
       }
@@ -109,7 +122,12 @@ export function SearchExperienceProvider({
       return next;
     });
     setLimitReached(false);
-  }, []);
+    if (!alreadyCompared) {
+      schools.trackEngagement(school.school_id, "COMPARE_ADD").catch((reason: unknown) => {
+        console.error("Could not record this school comparison.", reason);
+      });
+    }
+  }, [comparedSchools]);
 
   const removeSchool = useCallback((schoolId: string) => {
     setLimitReached(false);

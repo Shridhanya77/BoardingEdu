@@ -241,7 +241,7 @@ class SchoolApplicationRegistrationTests(TestCase):
             dashboard,
             reverse("admin:schools_school_verification_queue"),
         )
-        self.assertContains(dashboard, "Featured Schools")
+        self.assertNotContains(dashboard, "Featured Schools")
         self.assertContains(dashboard, school.school_name)
         self.assertContains(
             dashboard,

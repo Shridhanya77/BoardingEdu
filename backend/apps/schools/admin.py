@@ -38,6 +38,10 @@ from .models import (
     SchoolVerificationEvent,
     SchoolProfileChange,
     SchoolContentChange,
+    SchoolEngagement,
+    SchoolEngagementWeight,
+    SchoolPopularity,
+    SchoolPopularityConfig,
 )
 from .content_changes import (
     content_change_rows,
@@ -1015,6 +1019,96 @@ class SchoolGradeAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                 grade_group="EARLY",
             ))
         return redirect(_school_workspace_section_url("grades"))
+
+
+@admin.register(SchoolEngagement)
+class SchoolEngagementAdmin(admin.ModelAdmin):
+    list_display = ("school", "event_type", "occurred_at", "suspicious")
+    list_filter = ("event_type", "suspicious", "occurred_at")
+    date_hierarchy = "occurred_at"
+    search_fields = ("school__school_name", "school__school_code")
+    list_select_related = ("school",)
+    fields = (
+        "event_id",
+        "school",
+        "event_type",
+        "dedupe_bucket",
+        "occurred_at",
+        "suspicious",
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SchoolPopularity)
+class SchoolPopularityAdmin(admin.ModelAdmin):
+    list_display = (
+        "school",
+        "popularity_score",
+        "unique_school_views",
+        "unique_listing_clicks",
+        "unique_comparisons",
+        "unique_shortlists",
+        "unique_enquiries",
+        "calculated_at",
+    )
+    list_filter = ("calculated_at", "window_start")
+    date_hierarchy = "calculated_at"
+    search_fields = ("school__school_name", "school__school_code")
+    list_select_related = ("school",)
+    actions = ("recalculate_rankings",)
+    readonly_fields = tuple(field.name for field in SchoolPopularity._meta.fields)
+
+    @admin.action(description="Recalculate popularity rankings")
+    def recalculate_rankings(self, request, queryset):
+        from .tasks import refresh_school_popularity
+
+        refresh_school_popularity.delay()
+        self.message_user(
+            request,
+            "Popularity rankings have been queued for recalculation.",
+            messages.SUCCESS,
+        )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SchoolEngagementWeight)
+class SchoolEngagementWeightAdmin(admin.ModelAdmin):
+    list_display = ("event_type", "weight", "enabled")
+    list_editable = ("weight", "enabled")
+    ordering = ("event_type",)
+
+
+@admin.register(SchoolPopularityConfig)
+class SchoolPopularityConfigAdmin(admin.ModelAdmin):
+    list_display = (
+        "rolling_window_days",
+        "half_life_days",
+        "quality_weight",
+        "review_saturation_count",
+    )
+    fields = (
+        "rolling_window_days",
+        "half_life_days",
+        "quality_weight",
+        "review_saturation_count",
+    )
+
+    def has_add_permission(self, request):
+        return not SchoolPopularityConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 def _is_platform_promotion_admin(user, permission=None):

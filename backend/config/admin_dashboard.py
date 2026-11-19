@@ -9,17 +9,20 @@ import re
 import uuid
 
 from django.contrib import admin, messages
+from django.contrib.auth import logout as auth_logout
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
 from django.core.validators import URLValidator
+from django.http import HttpResponseNotAllowed
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.http import urlencode
 from django.utils import timezone
 from django.utils.text import slugify
+from django.views.decorators.csrf import csrf_protect
 
 from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
@@ -1587,8 +1590,23 @@ def install_admin_dashboard():
             context.update(extra_context)
         return render(request, "admin/records_index.html", context)
 
+    @csrf_protect
+    def logout_view(request):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        auth_logout(request)
+        response = redirect("admin:login")
+        response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response["Pragma"] = "no-cache"
+        return response
+
     def get_urls():
         return [
+            path(
+                "logout-now/",
+                logout_view,
+                name="boardingedu_logout",
+            ),
             path(
                 "school-workspace/select/<slug:section_slug>/",
                 admin.site.admin_view(school_workspace),

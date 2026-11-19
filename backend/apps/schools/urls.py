@@ -10,6 +10,7 @@ from .views import (
     SchoolGradeViewSet,
     SchoolFAQViewSet,
 )
+from .engagement_views import SchoolEngagementView
 
 app_name = 'schools'
 
@@ -24,5 +25,6 @@ router.register(r'school-grades',   SchoolGradeViewSet,   basename='schoolgrade'
 router.register(r'faqs', SchoolFAQViewSet, basename='schoolfaq')
 
 urlpatterns = [
+    path('engagement/', SchoolEngagementView.as_view(), name='school-engagement'),
     path('', include(router.urls)),
 ]

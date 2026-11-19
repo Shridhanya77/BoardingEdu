@@ -22,6 +22,10 @@
           <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and not request.GET.verification_status__exact and not request.GET.is_featured__exact %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}">All schools</a>
           <a class="{% if request.resolver_match.url_name == 'schools_school_changelist' and request.GET.is_featured__exact == '1' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">Featured schools</a>
           <a class="{% if request.GET.verification_status__exact == 'VERIFIED' %}is-active{% endif %}" href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Approved schools</a>
+          <p>Popularity analytics</p>
+          <a class="{% if request.resolver_match.url_name == 'schools_schoolpopularity_changelist' %}is-active{% endif %}" href="{% url 'admin:schools_schoolpopularity_changelist' %}">Popularity rankings</a>
+          <a class="{% if request.resolver_match.url_name == 'schools_schoolengagement_changelist' %}is-active{% endif %}" href="{% url 'admin:schools_schoolengagement_changelist' %}">Engagement events</a>
+          <a class="{% if request.resolver_match.url_name == 'schools_schoolengagementweight_changelist' %}is-active{% endif %}" href="{% url 'admin:schools_schoolengagementweight_changelist' %}">Scoring weights</a>
           <p>Approval</p>
           <a class="{% if request.resolver_match.url_name == 'schools_school_verification_queue' %}is-active{% endif %}" href="{% url 'admin:schools_school_verification_queue' %}">Pending school applications</a>
           <p>Admissions</p>
@@ -73,7 +77,7 @@
             <strong>{{ user.get_full_name|default:user.get_username }}</strong>
             <small>{{ user.get_role_display }}</small>
           </span>
-          <form method="post" action="{% url 'admin:logout' %}">
+          <form method="post" action="{% url 'admin:boardingedu_logout' %}">
             {% csrf_token %}
             <button type="submit">{% translate "Log out" %}</button>
           </form>

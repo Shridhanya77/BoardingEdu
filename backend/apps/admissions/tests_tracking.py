@@ -8,7 +8,7 @@ from django.test import TestCase
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.notifications.models import ParentNotification
-from apps.schools.models import School
+from apps.schools.models import School, SchoolEngagement
 from apps.users.models import ParentProfile, SchoolAdminProfile, User
 
 from .models import AdmissionEnquiry, Child
@@ -99,6 +99,13 @@ class ApplicationTrackingTests(TestCase):
         self.assertEqual(again.status_code, 200, again.data)
         self.assertEqual(created.data["enquiry_id"], again.data["enquiry_id"])
         self.assertEqual(AdmissionEnquiry.objects.filter(parent_profile=self.parent.parent_profile).count(), 1)
+        self.assertEqual(
+            SchoolEngagement.objects.filter(
+                school=self.school,
+                event_type=SchoolEngagement.EVENT_ENQUIRY_SUBMIT,
+            ).count(),
+            1,
+        )
 
         listing = self.parent_client.get("/api/admissions/applications/")
         self.assertEqual(listing.status_code, 200)

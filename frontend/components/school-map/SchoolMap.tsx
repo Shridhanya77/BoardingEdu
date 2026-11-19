@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type * as LeafletNS from "leaflet";
-import type { SchoolListItem } from "@/lib/api";
-import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
+import { schools as schoolApi, type SchoolListItem } from "@/lib/api";
+import { schoolProfilePathFromSlugs, schoolTypeCategory } from "@/lib/seo-slugs";
 import { publicSchoolImageUrl } from "@/lib/school-media";
 
 import "leaflet/dist/leaflet.css";
@@ -12,6 +13,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 const DEFAULT_CENTER: [number, number] = [21.146, 79.088];
 const DEFAULT_ZOOM = 5;
+type SchoolMapKind = "day" | "boarding" | "day-boarding" | "other";
 
 function escapeHtml(value: string): string {
   return value
@@ -21,13 +23,31 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function hasCoordinates(school: SchoolListItem): boolean {
-  return (
-    typeof school.lat === "number" &&
-    typeof school.lng === "number" &&
-    Number.isFinite(school.lat) &&
-    Number.isFinite(school.lng)
+function schoolMapKind(school: SchoolListItem): SchoolMapKind {
+  const categories = school.school_types_detail.map((type) =>
+    schoolTypeCategory(type.type_code, type.slug, type.type_name),
   );
+  const hasDay = categories.some((category) =>
+    category === "day-school" || category === "day-boarding-school",
+  );
+  const hasBoarding = school.boarding_required || categories.some((category) =>
+    category === "boarding-school" || category === "day-boarding-school",
+  );
+
+  if (hasDay && hasBoarding) return "day-boarding";
+  if (hasBoarding) return "boarding";
+  if (hasDay) return "day";
+  return "other";
+}
+
+function schoolCoordinates(school: SchoolListItem): [number, number] | null {
+  if (school.lat == null || school.lng == null) return null;
+  const lat = Number(school.lat);
+  const lng = Number(school.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return null;
+  }
+  return [lat, lng];
 }
 
 function schoolPath(school: SchoolListItem): string {
@@ -53,9 +73,15 @@ function popupHtml(school: SchoolListItem): string {
         <strong>${escapeHtml(school.school_name)}</strong>
         ${place ? `<span class="school-map-popup__place">${escapeHtml(place)}</span>` : ""}
         ${boards ? `<span class="school-map-popup__meta">${escapeHtml(boards)}</span>` : ""}
-        <a href="${escapeHtml(schoolPath(school))}">View school</a>
+        <a class="school-map-popup__link" href="${escapeHtml(schoolPath(school))}">View school</a>
       </div>
     </article>`;
+}
+
+function trackSchoolListingClick(schoolId: string) {
+  schoolApi.trackEngagement(schoolId, "LISTING_CLICK").catch((reason: unknown) => {
+    console.error("Could not record this school listing click.", reason);
+  });
 }
 
 export default function SchoolMap({ schools }: { schools: SchoolListItem[] }) {
@@ -66,7 +92,16 @@ export default function SchoolMap({ schools }: { schools: SchoolListItem[] }) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const located = schools.filter(hasCoordinates);
+  const located = schools.flatMap((school) => {
+    const coordinates = schoolCoordinates(school);
+    return coordinates ? [{ school, coordinates }] : [];
+  });
+  const groups: { key: SchoolMapKind; label: string; schools: SchoolListItem[] }[] = [
+    { key: "day" as const, label: "Day schools", schools: schools.filter((school) => schoolMapKind(school) === "day") },
+    { key: "boarding" as const, label: "Boarding schools", schools: schools.filter((school) => schoolMapKind(school) === "boarding") },
+    { key: "day-boarding" as const, label: "Day & boarding schools", schools: schools.filter((school) => schoolMapKind(school) === "day-boarding") },
+    { key: "other" as const, label: "Other schools", schools: schools.filter((school) => schoolMapKind(school) === "other") },
+  ].filter((group) => group.schools.length > 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,44 +165,95 @@ export default function SchoolMap({ schools }: { schools: SchoolListItem[] }) {
     if (located.length === 0) return;
 
     const bounds = L.latLngBounds([]);
-    const icon = L.divIcon({
-      className: "school-map-marker",
-      html: '<span class="school-map-marker__dot"></span>',
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
-      popupAnchor: [0, -10],
-    });
-
-    located.forEach((school) => {
-      const latlng: [number, number] = [school.lat as number, school.lng as number];
+    located.forEach(({ school, coordinates }) => {
+      const kind = schoolMapKind(school);
+      const icon = L.divIcon({
+        className: `school-map-marker school-map-marker--${kind}`,
+        html: '<span class="school-map-marker__pin"><span></span></span>',
+        iconSize: [26, 34],
+        iconAnchor: [13, 32],
+        popupAnchor: [0, -30],
+      });
+      const latlng = coordinates;
       bounds.extend(latlng);
       const marker = L.marker(latlng, { icon, title: school.school_name, keyboard: true });
       marker.bindPopup(popupHtml(school), { minWidth: 200, maxWidth: 260, closeButton: true });
+      marker.on("popupopen", () => {
+        const link = marker.getPopup()?.getElement()?.querySelector<HTMLAnchorElement>(
+          ".school-map-popup__link",
+        );
+        if (!link || link.dataset.engagementTracked) return;
+        link.dataset.engagementTracked = "true";
+        link.addEventListener("click", () => trackSchoolListingClick(school.school_id));
+      });
       cluster.addLayer(marker);
     });
 
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
   }, [schools, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (failed) {
-    return (
-      <div className="school-map" role="status">
-        <p className="school-map__note">The map could not be loaded. Please use the grid or list view instead.</p>
-      </div>
-    );
-  }
-
   const missing = schools.length - located.length;
 
   return (
     <div className="school-map">
-      <div ref={containerRef} className="school-map__canvas" aria-label="Map of matching schools" />
+      <div className="school-map__layout">
+        {failed ? (
+          <div className="school-map__unavailable" role="status">
+            The map could not be loaded. You can still browse the matching schools by type.
+          </div>
+        ) : (
+          <div ref={containerRef} className="school-map__canvas" aria-label="Map of matching schools" />
+        )}
+        <aside className="school-map__directory" aria-label="Matching schools by type">
+          <h2>Schools on this map</h2>
+          <div className="school-map__legend" aria-label="Map marker legend">
+            {groups.map((group) => (
+              <span key={group.key}>
+                <i className={`school-map__legend-marker school-map__legend-marker--${group.key}`} aria-hidden />
+                {group.label}
+              </span>
+            ))}
+          </div>
+          {groups.length > 0 ? groups.map((group) => (
+            <section className="school-map__group" key={group.key}>
+              <h3>
+                <i className={`school-map__legend-marker school-map__legend-marker--${group.key}`} aria-hidden />
+                {group.label} <span>({group.schools.length})</span>
+              </h3>
+              <ul>
+                {group.schools.map((school) => (
+                  <li key={school.school_id}>
+                    <Link
+                      href={schoolPath(school)}
+                      onClick={() => {
+                        trackSchoolListingClick(school.school_id);
+                      }}
+                    >
+                      <strong>{school.school_name}</strong>
+                      <span>
+                        {[school.location_name, school.city_name, school.state_name]
+                          .filter(Boolean)
+                          .join(", ") || "Location not listed"}
+                      </span>
+                      {schoolCoordinates(school) == null && (
+                        <small>Map location not provided</small>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )) : (
+            <p className="school-map__empty">No matching schools are available.</p>
+          )}
+        </aside>
+      </div>
       <p className="school-map__note" role="status">
         {located.length === 0
-          ? "None of the schools in these results have a map location yet."
-          : `Showing ${located.length} ${located.length === 1 ? "school" : "schools"} on the map.`}
+          ? "None of these schools have coordinates yet, so map markers cannot be shown."
+          : `Showing ${located.length} of ${schools.length} matching ${schools.length === 1 ? "school" : "schools"} on the map.`}
         {located.length > 0 && missing > 0
-          ? ` ${missing} ${missing === 1 ? "school has" : "schools have"} no location and are not shown.`
+          ? ` ${missing} ${missing === 1 ? "school is" : "schools are"} still listed but need a map location.`
           : ""}
       </p>
     </div>

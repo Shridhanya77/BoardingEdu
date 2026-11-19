@@ -30,6 +30,10 @@ export async function proxyToRender(request: NextRequest, upstreamPath: string):
   request.headers.forEach((value, key) => {
     if (!DROPPED_REQUEST_HEADERS.has(key.toLowerCase())) headers.set(key, value);
   });
+  // Replace untrusted inbound forwarding data with the platform-parsed client IP.
+  if (request.ip) {
+    headers.set("x-forwarded-for", request.ip);
+  }
 
   const method = request.method.toUpperCase();
   const upstream = await fetch(target, {

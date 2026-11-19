@@ -70,6 +70,22 @@ export function apiRequestUrl(path: string): URL {
 
 const defaultHeaders = { "Content-Type": "application/json" };
 const browserGetCache = new Map<string, { expiresAt: number; promise: Promise<unknown> }>();
+const ENGAGEMENT_SESSION_KEY = "boardingedu:engagement-session:v1";
+
+function engagementSessionHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    let sessionId = window.sessionStorage.getItem(ENGAGEMENT_SESSION_KEY);
+    if (!sessionId) {
+      sessionId = window.crypto.randomUUID();
+      window.sessionStorage.setItem(ENGAGEMENT_SESSION_KEY, sessionId);
+    }
+    return { "X-Engagement-Session": sessionId };
+  } catch (reason) {
+    console.error("Could not retain the school engagement session for this tab.", reason);
+    return {};
+  }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -353,7 +369,7 @@ export type SchoolListItem = {
   gender: string;                              // "Co-Ed" etc (display, NOT raw enum)
   verification_status: string;                 // "Verified" etc
   pincode: string | null; address: string | null;
-  lat: number | null; lng: number | null;
+  lat: number | string | null; lng: number | string | null;
   phone: string | null; email: string | null;
   website?: string;
   principal_name: string | null;
@@ -612,6 +628,30 @@ export type SchoolDetail = Omit<
 };
 
 export const schools = {
+  popular: (filters: SchoolFilters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item) => params.append(key, item));
+      } else if (value !== undefined && value !== "") {
+        params.set(key, String(value));
+      }
+    });
+    const query = params.toString();
+    return request<SchoolListItem[]>(
+      `/schools/schools/popular/${query ? `?${query}` : ""}`,
+    );
+  },
+  trackEngagement: (
+    schoolId: string,
+    eventType: "SCHOOL_VIEW" | "LISTING_CLICK" | "COMPARE_ADD",
+  ) =>
+    request<{ recorded: boolean }>("/schools/engagement/", {
+      method: "POST",
+      body: JSON.stringify({ school_id: schoolId, event_type: eventType }),
+      headers: engagementSessionHeaders(),
+      keepalive: true,
+    }),
   list: (filters: SchoolFilters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -1029,6 +1069,7 @@ export const admissions = {
     const init: RequestInit = {
       method: "POST",
       body: JSON.stringify(payload),
+      headers: engagementSessionHeaders(),
     };
     if (tokensProvider?.get()) {
       return authRequest<EnquiryListItem>("/admissions/enquiries/", init);
@@ -1858,6 +1899,7 @@ export const dashboards = {
     authRequest<{ saved: boolean; shortlist_id?: string }>("/dashboards/parent/shortlist/", {
       method: "POST",
       body: JSON.stringify({ school_id: schoolId }),
+      headers: engagementSessionHeaders(),
     }),
   removeShortlist: (schoolId: string) =>
     authRequest<{ saved: boolean }>("/dashboards/parent/shortlist/", {

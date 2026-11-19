@@ -461,6 +461,8 @@ REST_FRAMEWORK = {
         'enquiry': '10/hour',
         'registration_email': '10/hour',
         'blog_subscribe': '5/hour',
+        'school_engagement_visitor': '120/hour',
+        'school_engagement_ip': '600/hour',
     },
 }
 
@@ -554,6 +556,10 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # (`celery -A config beat`) alongside the worker; the same work can also be
 # triggered by cron via `manage.py send_saved_search_alerts`.
 CELERY_BEAT_SCHEDULE = {
+    "refresh-school-popularity": {
+        "task": "apps.schools.tasks.refresh_school_popularity",
+        "schedule": crontab(minute=0),
+    },
     "saved-search-alerts": {
         "task": "apps.notifications.tasks.deliver_saved_search_alerts",
         "schedule": crontab(hour="*/6"),

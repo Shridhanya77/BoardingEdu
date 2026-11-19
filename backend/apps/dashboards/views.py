@@ -16,7 +16,8 @@ from rest_framework.views import APIView
 
 from apps.admissions.models import AdmissionEnquiry, Child, CounsellingRequest
 from apps.reviews.models import Review
-from apps.schools.models import School
+from apps.schools.engagement import attach_visitor_cookie, record_school_engagement
+from apps.schools.models import School, SchoolEngagement
 from apps.schools.querysets import public_school_queryset
 from apps.users.models import ParentShortlist, SavedSearch, User
 from apps.users.permissions import IsStaffAdmin, IsVerifiedSchoolAdmin
@@ -392,10 +393,18 @@ class ParentShortlistView(APIView):
             parent_profile=profile,
             school=school,
         )
-        return Response(
+        response = Response(
             {"saved": True, "shortlist_id": str(item.shortlist_id)},
             status=201 if created else 200,
         )
+        if created:
+            result = record_school_engagement(
+                school,
+                SchoolEngagement.EVENT_SHORTLIST_ADD,
+                request,
+            )
+            attach_visitor_cookie(response, result.visitor_cookie)
+        return response
 
     def delete(self, request):
         profile = self._profile(request)

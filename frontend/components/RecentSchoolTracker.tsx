@@ -2,13 +2,17 @@
 
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { dashboards } from "@/lib/api";
+import { dashboards, schools } from "@/lib/api";
 import { readRecentSchoolIds, saveRecentSchoolIds } from "@/lib/recent-schools";
 
 export default function RecentSchoolTracker({ schoolId }: { schoolId: string }) {
   const { status, user } = useAuth();
 
   useEffect(() => {
+    schools.trackEngagement(schoolId, "SCHOOL_VIEW").catch((reason: unknown) => {
+      console.error("Could not record this school view.", reason);
+    });
+
     try {
       saveRecentSchoolIds([schoolId, ...readRecentSchoolIds()]);
     } catch (reason) {

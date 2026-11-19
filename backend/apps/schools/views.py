@@ -7,8 +7,9 @@ from rest_framework.response import Response
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.db.models import (
-    Avg, Count, F, FloatField, IntegerField, OuterRef, Prefetch,
+    Avg, Case, Count, F, FloatField, IntegerField, OuterRef, Prefetch,
     Q, Subquery, Sum, Value,
+    When,
 )
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
@@ -17,7 +18,19 @@ from apps.geography.models import City, Country, Location, State
 from apps.reviews.models import Review
 from config.pagination import SchoolDirectoryPagination
 from apps.users.permissions import IsPlatformAdmin, IsStaffAdmin, IsVerifiedSchoolAdmin
-from .models import Board, SchoolType, Grade, Facility, School, SchoolPhoto, SchoolVideo, SchoolFacility, SchoolGrade, SchoolFAQ
+from .models import (
+    Board,
+    SchoolType,
+    Grade,
+    Facility,
+    School,
+    SchoolPhoto,
+    SchoolVideo,
+    SchoolFacility,
+    SchoolGrade,
+    SchoolFAQ,
+    SchoolPopularity,
+)
 from .slug_utils import seo_slug
 from .services import SchoolVerificationError, set_school_verification_status
 from .profile_changes import submit_school_profile_changes
@@ -437,17 +450,19 @@ class SchoolViewSet(ReadWriteModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        user = self.request.user
+        user = getattr(getattr(self, "request", None), "user", None)
         is_platform_admin = bool(
-            user.is_authenticated
+            user is not None
+            and user.is_authenticated
             and (
                 user.is_superuser
                 or getattr(user, "role", None) in {"STAFF_ADMIN", "SUPER_ADMIN"}
             )
         )
-        if self.action in {"list", "retrieve", "by_slug"} and not is_platform_admin:
+        action = getattr(self, "action", None)
+        if action in {"list", "retrieve", "by_slug", "popular"} and not is_platform_admin:
             queryset = public_school_queryset(queryset)
-        if getattr(self, 'action', None) != 'list':
+        if action not in {"list", "popular"}:
             return queryset
 
         return (
@@ -672,10 +687,72 @@ class SchoolViewSet(ReadWriteModelViewSet):
         serializer = self.get_serializer(school)
         return Response(serializer.data)
 
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="popular",
+        permission_classes=[AllowAny],
+    )
+    def popular(self, request):
+        try:
+            limit = int(request.query_params.get("page_size", 20))
+        except (TypeError, ValueError):
+            return Response({"detail": "page_size must be an integer."}, status=400)
+        if not 1 <= limit <= 50:
+            return Response({"detail": "page_size must be between 1 and 50."}, status=400)
+
+        queryset = self.filter_queryset(self.get_queryset()).filter(status=True)
+        eligible_school_ids = queryset.values("school_id")
+        popularity = SchoolPopularity.objects.filter(
+            school_id__in=eligible_school_ids,
+        )
+        has_engagement = popularity.filter(engagement_score__gt=0).exists()
+
+        if not has_engagement:
+            verified_average = Subquery(
+                Review.objects.filter(
+                    school=OuterRef("pk"),
+                    status=Review.STATUS_PUBLISHED,
+                    is_verified=True,
+                )
+                .order_by()
+                .values("school")
+                .annotate(rating_avg=Avg("rating"))
+                .values("rating_avg")[:1],
+                output_field=FloatField(),
+            )
+            schools = queryset.annotate(
+                verified_average_rating=verified_average,
+            ).order_by(
+                F("verified_average_rating").desc(nulls_last=True),
+                "school_name",
+                "school_id",
+            )[:limit]
+            return Response(self.get_serializer(schools, many=True).data)
+
+        school_ids = list(
+            popularity.order_by(
+                "-popularity_score",
+                "school__school_name",
+                "school_id",
+            ).values_list("school_id", flat=True)[:limit]
+        )
+        ordering = Case(
+            *[
+                When(school_id=school_id, then=Value(position))
+                for position, school_id in enumerate(school_ids)
+            ],
+            output_field=IntegerField(),
+        )
+        schools = queryset.filter(school_id__in=school_ids).order_by(ordering)
+        return Response(self.get_serializer(schools, many=True).data)
+
     def get_serializer_class(self):
         # Use detail serializer for by-slug action (returns full nested profile)
         if self.action == 'by_slug':
             return self.serializer_class
+        if self.action == "popular":
+            return self.list_serializer_class
         return super().get_serializer_class()
 
 
