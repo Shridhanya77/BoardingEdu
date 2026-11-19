@@ -10,13 +10,13 @@ import {
   geography,
   schools,
   type CityListItem,
-  type CountryListItem,
   type GradeListItem,
   type SchoolTypeListItem,
   type StateListItem,
 } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
+import CounsellingLocationMultiSelect from "@/components/home/CounsellingLocationMultiSelect";
 import { gradeSelectOptions } from "@/lib/grade-labels";
 import { homeSchoolTypeIds, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
@@ -31,12 +31,12 @@ export default function CounsellingModal({
   const [phone, setPhone] = useState("");
   const [schoolCategory, setSchoolCategory] = useState<HomeSchoolCategory>("residential-school");
   const [countryId, setCountryId] = useState("");
-  const [stateId, setStateId] = useState("");
-  const [cityId, setCityId] = useState("");
+  const [stateIds, setStateIds] = useState<string[]>([]);
+  const [cityIds, setCityIds] = useState<string[]>([]);
   const [gradeId, setGradeId] = useState("");
-  const [countries, setCountries] = useState<CountryListItem[]>([]);
   const [states, setStates] = useState<StateListItem[]>([]);
   const [statesLoading, setStatesLoading] = useState(false);
+  const [statesError, setStatesError] = useState<string | null>(null);
   const [cities, setCities] = useState<CityListItem[]>([]);
   const [grades, setGrades] = useState<GradeListItem[]>([]);
   const [schoolTypes, setSchoolTypes] = useState<SchoolTypeListItem[]>([]);
@@ -66,7 +66,6 @@ export default function CounsellingModal({
       .then(([countryRows, cityRows, gradeRows, typeRows]) => {
         if (cancelled) return;
         const activeCountries = countryRows.filter((country) => country.status);
-        setCountries(activeCountries);
         const india = activeCountries.find((country) => toSeoSlug(country.slug || country.country_name) === "india");
         if (india) setCountryId(india.country_id);
         setCities(cityRows.filter((city) => city.status));
@@ -93,17 +92,22 @@ export default function CounsellingModal({
   useEffect(() => {
     if (!countryId) {
       setStates([]);
+      setStatesError(null);
       return;
     }
     let cancelled = false;
     setStatesLoading(true);
+    setStatesError(null);
     geography.statesOf(countryId)
       .then((page) => fetchAllPages(page))
       .then((rows) => {
         if (!cancelled) setStates(rows.filter((state) => state.status && state.country_id === countryId));
       })
-      .catch(() => {
-        if (!cancelled) setStates([]);
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setStates([]);
+          setStatesError(reason instanceof Error ? reason.message : "States could not be loaded.");
+        }
       })
       .finally(() => {
         if (!cancelled) setStatesLoading(false);
@@ -113,11 +117,19 @@ export default function CounsellingModal({
     };
   }, [countryId]);
 
-  const dayCities = useMemo(() => {
+  const countryCities = useMemo(() => {
     return cities
-      .filter((city) => !stateId || city.state_id === stateId)
+      .filter((city) => city.country_id === countryId)
       .sort((left, right) => left.city_name.localeCompare(right.city_name));
-  }, [cities, stateId]);
+  }, [cities, countryId]);
+  const selectedStates = useMemo(
+    () => states.filter((state) => stateIds.includes(state.state_id)),
+    [stateIds, states],
+  );
+  const selectedCities = useMemo(
+    () => countryCities.filter((city) => cityIds.includes(city.city_id)),
+    [cityIds, countryCities],
+  );
   const boarding = schoolCategory === "residential-school";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -134,14 +146,12 @@ export default function CounsellingModal({
       setError("Enter a valid email address.");
       return;
     }
-    const state = states.find((item) => item.state_id === stateId);
-    const city = cities.find((item) => item.city_id === cityId);
-    if (!state) {
-      setError("Choose a state for counselling.");
+    if (!selectedStates.length) {
+      setError("Choose at least one state for counselling.");
       return;
     }
-    if (!boarding && !city) {
-      setError("Choose a city for day school counselling.");
+    if (!boarding && !selectedCities.length) {
+      setError("Choose at least one city for day school counselling.");
       return;
     }
     if (!gradeId) {
@@ -155,10 +165,11 @@ export default function CounsellingModal({
         parent_name: name.trim(),
         email: email.trim(),
         phone: digits,
-        home_city: city?.city_name ?? state.state_name,
-        preferred_country: countryId || state.country_id,
-        preferred_state: state.state_id,
-        preferred_cities: city ? [city.city_id] : [],
+        home_city: selectedCities[0]?.city_name ?? selectedStates[0].state_name,
+        preferred_country: countryId || selectedStates[0].country_id,
+        preferred_state: selectedStates[0].state_id,
+        preferred_states: selectedStates.map((state) => state.state_id),
+        preferred_cities: selectedCities.map((city) => city.city_id),
         grades: [gradeId],
         school_types: homeSchoolTypeIds(schoolTypes, schoolCategory),
       });
@@ -166,8 +177,8 @@ export default function CounsellingModal({
       setName("");
       setEmail("");
       setPhone("");
-      setCityId("");
-      setStateId("");
+      setCityIds([]);
+      setStateIds([]);
       setGradeId("");
     } catch (reason: unknown) {
       setError(
@@ -232,56 +243,17 @@ export default function CounsellingModal({
                 <option value="day-school">Day School</option>
               </select>
             </label>
-            <label>
-              Country <span aria-hidden="true">*</span>
-              <select
-                value={countryId}
-                required
-                disabled={submitting}
-                onChange={(event) => {
-                  setCountryId(event.target.value);
-                  setStateId("");
-                  setCityId("");
-                }}
-              >
-                <option value="">Choose a country</option>
-                {countries.map((country) => (
-                  <option key={country.country_id} value={country.country_id}>{country.country_name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              State <span aria-hidden="true">*</span>
-              <select
-                value={stateId}
-                required
-                disabled={submitting || !countryId || statesLoading}
-                onChange={(event) => {
-                  setStateId(event.target.value);
-                  setCityId("");
-                }}
-              >
-                <option value="">{statesLoading ? "Loading states…" : "Choose a state"}</option>
-                {states.map((state) => (
-                  <option key={state.state_id} value={state.state_id}>{state.state_name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              City {!boarding && <span aria-hidden="true">*</span>}
-              {boarding && <span> (optional)</span>}
-              <select
-                value={cityId}
-                required={!boarding}
-                disabled={submitting || !stateId}
-                onChange={(event) => setCityId(event.target.value)}
-              >
-                <option value="">{stateId ? "Choose a city" : "Choose a state first"}</option>
-                {dayCities.map((city) => (
-                  <option key={city.city_id} value={city.city_id}>{city.city_name}</option>
-                ))}
-              </select>
-            </label>
+            <CounsellingLocationMultiSelect
+              states={states}
+              cities={countryCities}
+              selectedStateIds={stateIds}
+              selectedCityIds={cityIds}
+              onStatesChange={setStateIds}
+              onCitiesChange={setCityIds}
+              disabled={submitting || !countryId || statesLoading}
+              citiesRequired={!boarding}
+            />
+            {statesError && <p className="counselling-modal__error" role="alert">{statesError}</p>}
             <label>
               Preferred class <span aria-hidden="true">*</span>
               <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required disabled={submitting}>

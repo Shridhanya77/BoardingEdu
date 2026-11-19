@@ -56,7 +56,6 @@ import type {
   GuideSummary as ApiGuideSummary,
 } from "@/lib/api";
 import FeeRangeFilter from "@/components/search/FeeRangeFilter";
-import SearchCommandPalette from "@/components/search/SearchCommandPalette";
 import SchoolSearchAutocomplete from "@/components/search/SchoolSearchAutocomplete";
 import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
@@ -153,6 +152,7 @@ function listingGradeRangeLabel(gradesRange: string): string {
   return gradesRange.replace(/\bClass\s+(\d+)\b/gi, "Grade $1");
 }
 import { trackSearchEvent } from "@/lib/search-analytics";
+import { SEARCH_HISTORY_UPDATED_EVENT } from "@/lib/search-palette";
 import { SITE_EMAIL, SITE_PHONE, SITE_PHONE_DISPLAY } from "@/lib/site";
 import { guideList } from "@/lib/guides";
 import {
@@ -737,18 +737,24 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const [guidesError, setGuidesError] = useState<string | null>(null);
   const [homeFaqs, setHomeFaqs] = useState<SchoolFAQListItem[]>(staticHomeFaqs);
   const [homeFaqsError, setHomeFaqsError] = useState<string | null>(null);
-  const [activeFaqCategory, setActiveFaqCategory] =
-    useState<SchoolFAQListItem["category"]>("ADMISSIONS");
+  const [activeHomeFaqId, setActiveHomeFaqId] = useState<string | null>(null);
+  const [homeFaqVisibleCount, setHomeFaqVisibleCount] = useState(5);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
   const [trustDetailsOpen, setTrustDetailsOpen] = useState(false);
-  const [faqSearch, setFaqSearch] = useState("");
+  const howItWorksRef = useRef<HTMLOListElement>(null);
+  const pendingListingScroll = useRef<string | null>(null);
   useEffect(() => {
     if (window.sessionStorage.getItem(finderScrollStorageKey)) {
       window.sessionStorage.removeItem(finderScrollStorageKey);
     }
-    if (isHomePage) return;
-    window.requestAnimationFrame(() => {
+    pendingListingScroll.current = isHomePage ? null : pathname;
+  }, [isHomePage, pathname]);
+  useEffect(() => {
+    if (isHomePage || featuredLoading || !pendingListingScroll.current) return;
+    pendingListingScroll.current = null;
+    const frame = window.requestAnimationFrame(() => {
       const target =
-        document.querySelector(".home-section--states") ??
+        document.getElementById("listing-featured-schools") ??
         document.getElementById("school-results") ??
         document.getElementById("schools");
       target?.scrollIntoView({
@@ -756,7 +762,67 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         block: "start",
       });
     });
-  }, [isHomePage, pathname]);
+    return () => window.cancelAnimationFrame(frame);
+  }, [featuredLoading, isHomePage, pathname]);
+  useEffect(() => {
+    if (!isHomePage) return;
+    const list = howItWorksRef.current;
+    if (!list) return;
+    const mobileViewport = window.matchMedia("(max-width: 640px)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let pointerInside = false;
+    let focusInside = false;
+    let interactionUntil = 0;
+    const pauseAfterInteraction = () => {
+      interactionUntil = Date.now() + 5000;
+    };
+    const onPointerEnter = () => { pointerInside = true; };
+    const onPointerLeave = () => {
+      pointerInside = false;
+      pauseAfterInteraction();
+    };
+    const onFocusIn = () => { focusInside = true; };
+    const onFocusOut = (event: FocusEvent) => {
+      if (!(event.relatedTarget instanceof Node) || !list.contains(event.relatedTarget)) {
+        focusInside = false;
+        pauseAfterInteraction();
+      }
+    };
+    const interval = window.setInterval(() => {
+      if (!mobileViewport.matches || reducedMotion.matches || pointerInside || focusInside ||
+          Date.now() < interactionUntil) {
+        return;
+      }
+      const steps = Array.from(list.querySelectorAll("li"));
+      if (steps.length < 2) return;
+      const listLeft = list.getBoundingClientRect().left;
+      const next = steps.find((step) => step.getBoundingClientRect().left > listLeft + 8);
+      list.scrollTo({
+        left: next
+          ? list.scrollLeft + next.getBoundingClientRect().left - listLeft
+          : 0,
+        behavior: "smooth",
+      });
+    }, 3200);
+
+    list.addEventListener("pointerenter", onPointerEnter);
+    list.addEventListener("pointerleave", onPointerLeave);
+    list.addEventListener("pointerdown", pauseAfterInteraction);
+    list.addEventListener("touchstart", pauseAfterInteraction, { passive: true });
+    list.addEventListener("wheel", pauseAfterInteraction, { passive: true });
+    list.addEventListener("focusin", onFocusIn);
+    list.addEventListener("focusout", onFocusOut);
+    return () => {
+      window.clearInterval(interval);
+      list.removeEventListener("pointerenter", onPointerEnter);
+      list.removeEventListener("pointerleave", onPointerLeave);
+      list.removeEventListener("pointerdown", pauseAfterInteraction);
+      list.removeEventListener("touchstart", pauseAfterInteraction);
+      list.removeEventListener("wheel", pauseAfterInteraction);
+      list.removeEventListener("focusin", onFocusIn);
+      list.removeEventListener("focusout", onFocusOut);
+    };
+  }, [isHomePage]);
   useEffect(() => {
     if (!isHomePage) return;
     function openRegionPicker() {
@@ -859,6 +925,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     0,
     3_000_000,
   ]);
+  const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
+  const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<SchoolListItem[]>([]);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
@@ -905,6 +973,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
   const topPickSchools = topSchoolsCategory === "residential-school"
     ? displayTopBoardingSchools
     : displayTopDaySchools;
+  const listingPopularSchools = topPickSchools.slice(0, 3);
   const comparisonSchools = useMemo(() => {
     const seen = new Set<string>();
     const schools: SchoolListItem[] = [];
@@ -916,7 +985,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     }
     return schools;
   }, [comparedSchools, featuredSchools]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
   const [geoCountry, setGeoCountry] = useState("");
   const [geoRegion, setGeoRegion] = useState("");
@@ -1140,6 +1208,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         ? [`${regionCountryId}|${regionalStateIds.join(",")}`]
         : undefined,
       board: !isHomePage && topSchoolsBoardId ? [topSchoolsBoardId] : undefined,
+      search: !isHomePage ? search || undefined : undefined,
+      min_fee: !isHomePage ? feeMin : undefined,
+      max_fee: !isHomePage ? feeMax : undefined,
+      gender: !isHomePage ? gender : undefined,
     };
     Promise.all([
       boardingSchoolTypeIds.length
@@ -1186,6 +1258,10 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     initialFilter?.country,
     initialFilter?.state,
     isHomePage,
+    search,
+    feeMin,
+    feeMax,
+    gender,
     schoolTypesLoaded,
   ]);
   useEffect(() => {
@@ -1240,8 +1316,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     [],
   );
 
-  const feeMin = feeRange[0] === 0 ? undefined : feeRange[0];
-  const feeMax = feeRange[1] === 3_000_000 ? undefined : feeRange[1];
   const initialCountry = initialFilter?.country;
   const initialState = initialFilter?.state;
   const initialCity = initialFilter?.city;
@@ -1832,33 +1906,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       return true;
     });
   }, [schoolFaqs]);
-  const homeFaqCategories = useMemo(() => {
-    const order: SchoolFAQListItem["category"][] = [
-      "GENERAL",
-      "FINDING",
-      "ADMISSIONS",
-      "FEES",
-      "BOARDING",
-      "PARENT_ACCOUNTS",
-      "SCHOOL_PROFILES",
-      "PRIVACY",
-    ];
-    const existing = new Set(homeFaqs.map((item) => item.category));
-    return order.filter((category) => existing.has(category));
-  }, [homeFaqs]);
   const visibleHomeFaqs = useMemo(() => {
-    const query = faqSearch.trim().toLowerCase();
-    return homeFaqs.filter((item) =>
-      item.category === activeFaqCategory &&
-      (!query || `${item.question} ${item.answer}`.toLowerCase().includes(query)),
-    );
-  }, [activeFaqCategory, faqSearch, homeFaqs]);
-
-  useEffect(() => {
-    if (homeFaqCategories.length && !homeFaqCategories.includes(activeFaqCategory)) {
-      setActiveFaqCategory(homeFaqCategories[0]);
-    }
-  }, [activeFaqCategory, homeFaqCategories]);
+    return homeFaqs.slice(0, homeFaqVisibleCount);
+  }, [homeFaqs, homeFaqVisibleCount]);
 
   useEffect(() => {
     if (!queryRestored || !schoolTypesLoaded || pendingTypeSlug) return;
@@ -2458,6 +2508,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         "boardingeu:recent-searches",
         JSON.stringify(nextSearches)
       );
+      window.dispatchEvent(new Event(SEARCH_HISTORY_UPDATED_EVENT));
     } catch {
       setError("Recent searches could not be saved on this device.");
     }
@@ -2591,7 +2642,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       router.push(schoolDirectoryPath());
       return;
     }
-    document.getElementById("school-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (featuredLoading) {
+      pendingListingScroll.current = pathname;
+      return;
+    }
+    const target =
+      document.getElementById("listing-featured-schools") ??
+      document.getElementById("school-results");
+    target?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
   }
 
   function searchFor(query: string) {
@@ -3031,9 +3092,9 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <span /> Explore schools
           </button>
         ) : (
-          <Link className="hero-scroll" href="#school-results">
-            <span /> Scroll to schools
-          </Link>
+          <button className="hero-scroll" type="button" onClick={scrollToSchools}>
+            <span /> Explore schools
+          </button>
         )}
       </section>
 
@@ -3050,7 +3111,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       {!isHomePage && !featuredLoading && featuredBannerSchools.length > 0 && (
         <>
           <FeaturedPromoBanner schools={featuredBannerSchools} />
-          <section className="home-section home-section--featured listing-featured-schools" aria-labelledby="listing-featured-heading">
+          <section
+            className="home-section home-section--featured listing-featured-schools"
+            id="listing-featured-schools"
+            aria-labelledby="listing-featured-heading"
+          >
             <div className="home-section__heading">
               <div>
                 <div className="section-eyebrow">FEATURED SCHOOLS</div>
@@ -3130,7 +3195,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <h2 id="home-how-it-works-title">How BoardingEdu works</h2>
           </div>
         </div>
-        <ol className="home-how-it-works__steps">
+        <ol className="home-how-it-works__steps" ref={howItWorksRef}>
           {howItWorksSteps.map((step, index) => (
             <li key={step.title}>
               {step.title === "Discover" || step.title === "Enquire" ? (
@@ -3731,51 +3796,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           <div>
             <div className="section-eyebrow">FAQ</div>
             <h2>Common questions</h2>
-            <p>Browse answers by topic or search for a question.</p>
+            <p>The five most common questions, with more revealed as you explore.</p>
           </div>
         </div>
 
-        <div className="home-faq-layout">
-          <nav className="home-faq-categories" aria-label="FAQ categories">
-            {homeFaqCategories.map((category) => (
-              <button
-                type="button"
-                key={category}
-                className={activeFaqCategory === category ? "is-active" : ""}
-                aria-pressed={activeFaqCategory === category}
-                aria-current={activeFaqCategory === category ? "page" : undefined}
-                onClick={() => {
-                  setActiveFaqCategory(category);
-                  setActiveFaq(null);
-                }}
-              >
-                {({
-                  GENERAL: "General Information",
-                  FINDING: "Finding and Comparing Schools",
-                  ADMISSIONS: "School Admissions",
-                  FEES: "Fees and Payments",
-                  BOARDING: "Boarding and Hostel Facilities",
-                  PARENT_ACCOUNTS: "Parent Dashboard and Accounts",
-                  SCHOOL_PROFILES: "School Admin and School Profiles",
-                  PRIVACY: "Privacy, Security and Documents",
-                } satisfies Record<SchoolFAQListItem["category"], string>)[category]}
-              </button>
-            ))}
-          </nav>
+        <div className="home-faq-layout home-faq-layout--progressive">
           <div className="home-faq-content">
-            <label className="home-faq-search">
-              <Search size={16} aria-hidden />
-              <span className="sr-only">Search frequently asked questions</span>
-              <input
-                type="search"
-                value={faqSearch}
-                onChange={(event) => {
-                  setFaqSearch(event.target.value);
-                  setActiveFaq(null);
-                }}
-                placeholder="Search questions"
-              />
-            </label>
             {homeFaqsError && (
               <p className="home-faq-error" role="status">
                 Saved FAQ content is shown because the latest answers could not be loaded.
@@ -3783,8 +3809,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               </p>
             )}
             <div className="faq-list">
-              {visibleHomeFaqs.map((item, index) => {
-                const open = activeFaq === index;
+              {visibleHomeFaqs.map((item) => {
+                const open = activeHomeFaqId === item.faq_id;
                 const answerId = `home-faq-answer-${item.faq_id}`;
 
                 return (
@@ -3797,7 +3823,14 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                       className="faq-question"
                       aria-expanded={open}
                       aria-controls={answerId}
-                      onClick={() => setActiveFaq(open ? null : index)}
+                      onClick={() => {
+                        if (open) {
+                          setActiveHomeFaqId(null);
+                          return;
+                        }
+                        setActiveHomeFaqId(item.faq_id);
+                        setHomeFaqVisibleCount((count) => Math.min(homeFaqs.length, count + 2));
+                      }}
                     >
                       <span>{item.question}</span>
                       <span className="faq-toggle" aria-hidden>{open ? "−" : "+"}</span>
@@ -3810,7 +3843,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               })}
               {!visibleHomeFaqs.length && (
                 <p className="home-faq-empty" role="status">
-                  No published questions match this topic and search.
+                  No published questions are available right now.
                 </p>
               )}
             </div>
@@ -3899,56 +3932,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
 
       {!isHomePage && (
       <section className="discovery-content" id="schools">
-        {(isIndiaCountry || hasBroadBoardScope || hasBroadDirectoryScope) && !activeStateId && !activeCityId && (
-          <section className="home-section home-section--states" aria-labelledby="india-region-heading">
-            <div className="home-section__heading">
-              <div>
-                <div className="section-eyebrow">BROWSE INDIA BY REGION</div>
-                <h2 id="india-region-heading">Choose a region to explore schools</h2>
-                <p>
-                  {listingBoardName
-                    ? `Choose a region to narrow ${listingBoardName} school listings.`
-                    : "Start with a smaller area to browse schools more easily."}
-                </p>
-              </div>
-            </div>
-            {citiesLoading ? (
-              <p className="section-empty" role="status">Loading school regions…</p>
-            ) : citiesError ? (
-              <p className="section-error" role="alert">
-                School regions could not be loaded: {citiesError}{" "}
-                <button type="button" onClick={() => setCitiesRetry((count) => count + 1)}>Retry</button>
-              </p>
-            ) : indiaRegionCards.length ? (
-              <div className="city-grid" role="group" aria-label="Indian school regions">
-                {indiaRegionCards.map((region, index) => (
-                  <button
-                    className={`city-card city-card--${index + 1}${geoRegion === region.id ? " is-selected" : ""}`}
-                    key={region.id}
-                    type="button"
-                    style={{ background: placeBackdrop(region.id) }}
-                    onClick={() => selectIndiaRegion(region.id)}
-                    aria-pressed={geoRegion === region.id}
-                  >
-                    <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="city-card__name">{region.label}</span>
-                    <span className="city-card__state">{region.count} schools listed</span>
-                    <span className="city-card__action">
-                      Explore region <ArrowRight size={14} aria-hidden />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="section-empty">No Indian regions with published school listings are available right now.</p>
-            )}
-          </section>
-        )}
-        {requiresIndiaRegion && (
-          <p className="finder-message" role="status">
-            Choose an Indian region above to load its school listings.
-          </p>
-        )}
         {(activeCountryId || activeStateId || activeCityId) && (
           <section className="listing-place-spotlight" aria-label={`Explore schools in ${listingPlaceLabel}`}>
             <div className="listing-place-spotlight__heading">
@@ -3986,10 +3969,27 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
             <details className="listing-seo-copy">
               <summary>Read more about {listingSubject.toLowerCase()} in {listingPlaceLabel}</summary>
               <p>
-                {listingDescription} Use the directory filters to narrow schools by location, board,
-                school type, fee range, and gender. Review each school profile for its published
-                facilities, grade information, and contact options, and confirm current admissions
-                details directly with the school.
+                {listingPopularSchools.length ? (
+                  <>
+                    {listingDescription} Popular schools matching these filters include{" "}
+                    {listingPopularSchools.map((school, index) => (
+                      <span key={school.school_id}>
+                        {index > 0 && (index === listingPopularSchools.length - 1 ? " and " : ", ")}
+                        <Link href={schoolHref(school)}>{school.school_name}</Link>
+                      </span>
+                    ))}
+                    . Rankings reflect recent engagement and parent reviews. Use the directory filters
+                    to narrow schools by location, board, school type, fee range, and gender, and confirm
+                    current admissions details directly with each school.
+                  </>
+                ) : (
+                  <>
+                    {listingDescription} Use the directory filters to narrow schools by location, board,
+                    school type, fee range, and gender. Review each school profile for its published
+                    facilities, grade information, and contact options, and confirm current admissions
+                    details directly with the school.
+                  </>
+                )}
               </p>
             </details>
           </div>
@@ -4536,14 +4536,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       </section>
       )}
 
-      <SearchCommandPalette
-        boards={boards}
-        schoolTypes={schoolTypes}
-        recentSearches={recentSearches}
-        onSearch={searchFor}
-        onBoard={selectBoard}
-        onSchoolType={selectSchoolType}
-      />
       {allStatesOpen && (
         <div className="state-explorer" role="presentation">
           <button className="state-explorer__backdrop" type="button" aria-label="Close state explorer" onClick={() => setAllStatesOpen(false)} />

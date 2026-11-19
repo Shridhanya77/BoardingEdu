@@ -168,6 +168,29 @@ async function loadNearbySchools(
   return null;
 }
 
+async function loadPopularRecommendations(
+  school: SchoolDetail,
+  selectedBoard?: BoardListItem | null,
+): Promise<SchoolListItem[]> {
+  const schoolTypeIds = school.school_types_detail.map((type) => type.school_type_id);
+  const filters: SchoolFilters = {
+    city: school.city_detail.city_id,
+    page_size: 6,
+    ...(schoolTypeIds.length ? { school_type: schoolTypeIds } : {}),
+    ...(selectedBoard ? { board: selectedBoard.board_id } : {}),
+  };
+
+  try {
+    const rankedSchools = await schools.popular(filters);
+    return rankedSchools
+      .filter((item) => item.school_id !== school.school_id)
+      .slice(0, 4);
+  } catch (reason) {
+    console.error("Could not load popular school recommendations.", reason);
+    return [];
+  }
+}
+
 export default async function SchoolProfile({
   school,
   initialSection = "overview",
@@ -184,9 +207,10 @@ export default async function SchoolProfile({
   const selectedBoard = school.boards_detail.length === 1
     ? school.boards_detail[0]
     : school.boards_detail.find((board) => board.board_id === selectedBoardId) ?? null;
-  const [reviewData, nearbySchools] = await Promise.all([
+  const [reviewData, nearbySchools, recommendedSchools] = await Promise.all([
     loadReviewData(school.school_id),
     loadNearbySchools(school, selectedBoard),
+    loadPopularRecommendations(school, selectedBoard),
   ]);
   const nearbyFeaturedSchools = nearbySchools?.items
     .filter((item) => item.is_featured)
@@ -676,6 +700,60 @@ export default async function SchoolProfile({
                 <MessageSquare size={16} /> Send an enquiry
               </SchoolEnquiryButton>
             </div>
+            {recommendedSchools.length > 0 && (
+              <section className="school-detail-recommendations" aria-labelledby="school-detail-recommendations-heading">
+                <div className="school-detail-recommendations__heading">
+                  <span className="school-detail-recommendations__eyebrow">POPULAR IN {cityName}</span>
+                  <h2 id="school-detail-recommendations-heading">Families also explore</h2>
+                  <p>Popular schools, with verified family reviews where available.</p>
+                </div>
+                <div className="school-detail-recommendations__list">
+                  {recommendedSchools.map((item) => {
+                    const image = publicSchoolImageUrl(item.school_image_url || item.school_logo_url);
+                    const rating = Number(item.average_rating);
+                    const hasReviews = item.review_count > 0 && Number.isFinite(rating) && rating > 0;
+                    return (
+                      <Link
+                        className="school-detail-recommendation"
+                        href={listItemPath(item)}
+                        key={item.school_id}
+                      >
+                        <span className="school-detail-recommendation__media">
+                          {image ? (
+                            <Image
+                              src={image}
+                              alt=""
+                              fill
+                              sizes="72px"
+                            />
+                          ) : (
+                            <GraduationCap size={22} aria-hidden="true" />
+                          )}
+                        </span>
+                        <span className="school-detail-recommendation__body">
+                          <strong>{item.school_name}</strong>
+                          <span>{[item.city_name, item.state_name].filter(Boolean).join(", ")}</span>
+                          {hasReviews ? (
+                            <span className="school-detail-recommendation__rating">
+                              <Star size={13} aria-hidden="true" /> {rating.toFixed(1)} · {item.review_count} reviews
+                            </span>
+                          ) : (
+                            <span className="school-detail-recommendation__popular">Popular with families</span>
+                          )}
+                        </span>
+                        <ArrowRight size={16} aria-hidden="true" />
+                      </Link>
+                    );
+                  })}
+                </div>
+                <Link
+                  className="school-detail-recommendations__all"
+                  href={placeListingPath({ ...cityPlace, category: homeCategory })}
+                >
+                  Explore schools in {cityName} <ArrowRight size={14} aria-hidden="true" />
+                </Link>
+              </section>
+            )}
             <p className="school-detail__disclaimer">BoardingEdu shares directory information for discovery. Please verify fees, admission requirements, and facilities with the school.</p>
           </aside>
         </div>

@@ -239,7 +239,7 @@ class CounsellingRequestAdmin(admin.ModelAdmin):
     list_filter = ("status", "created_at")
     search_fields = ("reference", "parent_name", "email", "phone", "home_city", "message")
     autocomplete_fields = ("preferred_country", "preferred_state", "preferred_school")
-    filter_horizontal = ("preferred_cities", "grades", "school_types", "boards")
+    filter_horizontal = ("preferred_states", "preferred_cities", "grades", "school_types", "boards")
     readonly_fields = ("request_id", "reference", "created_at", "updated_at")
 
 

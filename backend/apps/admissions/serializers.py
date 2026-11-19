@@ -5,10 +5,19 @@ from apps.contact_validation import normalize_phone_number
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, School, SchoolType
-from apps.users.models import ParentProfile
+from apps.users.models import ParentProfile, SchoolAdminProfile, User
 
 from .models import Child, AdmissionEnquiry, CounsellingRequest
 from .utils import normalize_child_gender
+
+
+def _unique_emails(addresses):
+    unique = {}
+    for address in addresses:
+        normalized = (address or "").strip()
+        if normalized:
+            unique.setdefault(normalized.casefold(), normalized)
+    return list(unique.values())
 
 
 class ChildSerializer(serializers.ModelSerializer):
@@ -183,7 +192,7 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
                 missing.append('parent_phone')
             if missing:
                 raise serializers.ValidationError({
-                    field: 'This field is required for guest enquiries.'
+                    field: 'This field is required when no parent profile is linked.'
                     for field in missing
                 })
         return attrs
@@ -272,12 +281,34 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
                     enquiry.enquiry_code,
                 )
             )
-        if school_email:
-            from apps.notifications.services import send_school_enquiry_notification
+        school_admin_emails = SchoolAdminProfile.objects.filter(
+            school_id=enquiry.school_id,
+            user__is_active=True,
+        ).exclude(user__email="").values_list("user__email", flat=True)
+        school_recipients = _unique_emails([school_email, *school_admin_emails])
+        platform_admin_emails = User.objects.filter(
+            is_active=True,
+            role__in=(User.ROLE_STAFF_ADMIN, User.ROLE_SUPER_ADMIN),
+        ).exclude(email="").values_list("email", flat=True)
+        platform_recipients = _unique_emails(platform_admin_emails)
 
+        from apps.notifications.services import (
+            send_platform_enquiry_notification,
+            send_school_enquiry_notification,
+        )
+
+        for recipient in school_recipients:
             transaction.on_commit(
-                lambda: send_school_enquiry_notification(
-                    school_email,
+                lambda recipient=recipient: send_school_enquiry_notification(
+                    recipient,
+                    enquiry.school.school_name,
+                    enquiry.enquiry_code,
+                )
+            )
+        for recipient in platform_recipients:
+            transaction.on_commit(
+                lambda recipient=recipient: send_platform_enquiry_notification(
+                    recipient,
                     enquiry.school.school_name,
                     enquiry.enquiry_code,
                 )
@@ -304,6 +335,12 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
         queryset=State.objects.filter(status=True),
         required=False,
         allow_null=True,
+    )
+    preferred_states = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=State.objects.filter(status=True),
+        required=False,
+        allow_empty=True,
     )
     preferred_cities = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -344,6 +381,7 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
             "home_city",
             "preferred_country",
             "preferred_state",
+            "preferred_states",
             "preferred_cities",
             "grades",
             "school_types",
@@ -358,31 +396,46 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
     def validate_phone(self, value):
         return normalize_phone_number(value)
 
+    def create(self, validated_data):
+        if not validated_data.get("preferred_states") and validated_data.get("preferred_state"):
+            validated_data["preferred_states"] = [validated_data["preferred_state"]]
+        return super().create(validated_data)
+
     def validate(self, attrs):
         country = attrs.get("preferred_country")
         state = attrs.get("preferred_state")
+        selected_states = attrs.get("preferred_states", [])
+        if state and not selected_states:
+            selected_states = [state]
+        selected_state_ids = {item.pk for item in selected_states}
         cities = attrs.get("preferred_cities", [])
         has_school_preferences = bool(
             country
             or state
+            or selected_states
             or cities
             or attrs.get("grades")
             or attrs.get("school_types")
             or attrs.get("boards")
             or attrs.get("preferred_school")
         )
-        if has_school_preferences and not cities and not state:
+        if has_school_preferences and not cities and not selected_states:
             raise serializers.ValidationError({
-                "preferred_state": "Choose a state or at least one city."
+                "preferred_states": "Choose at least one state or city."
             })
-        if state and country and state.country_id != country.pk:
+        if state and attrs.get("preferred_states") and state.pk not in selected_state_ids:
             raise serializers.ValidationError({
-                "preferred_state": "The selected state does not belong to the selected country."
+                "preferred_state": "The preferred state must be included in the selected states."
             })
-        for city in cities:
-            if state and city.state_id != state.pk:
+        for selected_state in selected_states:
+            if country and selected_state.country_id != country.pk:
                 raise serializers.ValidationError({
-                    "preferred_cities": "Each selected city must belong to the selected state."
+                    "preferred_states": "Each selected state must belong to the selected country."
+                })
+        for city in cities:
+            if selected_state_ids and city.state_id not in selected_state_ids:
+                raise serializers.ValidationError({
+                    "preferred_cities": "Each selected city must belong to one of the selected states."
                 })
             if country and city.state.country_id != country.pk:
                 raise serializers.ValidationError({

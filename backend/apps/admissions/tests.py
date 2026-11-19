@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework.test import APIRequestFactory, APITestCase
 
 from apps.admissions.models import Child
@@ -10,6 +11,9 @@ from .models import CounsellingRequest
 
 
 class CounsellingRequestApiTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+
     @classmethod
     def setUpTestData(cls):
         cls.country = Country.objects.create(
@@ -23,11 +27,23 @@ class CounsellingRequestApiTests(APITestCase):
             state_name="Karnataka",
             slug="karnataka",
         )
+        cls.second_state = State.objects.create(
+            country=cls.country,
+            state_code="MH",
+            state_name="Maharashtra",
+            slug="maharashtra",
+        )
         cls.city = City.objects.create(
             state=cls.state,
             city_code="BLR",
             city_name="Bengaluru",
             slug="bengaluru",
+        )
+        cls.second_city = City.objects.create(
+            state=cls.second_state,
+            city_code="MUM",
+            city_name="Mumbai",
+            slug="mumbai",
         )
         cls.grade = Grade.objects.create(
             grade_code="G6",
@@ -68,10 +84,49 @@ class CounsellingRequestApiTests(APITestCase):
         request = CounsellingRequest.objects.get(reference=response.data["reference"])
         self.assertEqual(request.parent_name, "Ananya Kamath")
         self.assertEqual(request.phone, "919876543210")
+        self.assertEqual(list(request.preferred_states.all()), [self.state])
         self.assertEqual(list(request.preferred_cities.all()), [self.city])
         self.assertEqual(list(request.grades.all()), [self.grade])
         self.assertEqual(list(request.boards.all()), [self.board])
         self.assertEqual(list(request.school_types.all()), [self.school_type])
+
+    def test_public_submission_accepts_multiple_states_and_cities(self):
+        payload = self.get_payload()
+        payload["preferred_state"] = None
+        payload["preferred_states"] = [
+            str(self.state.pk),
+            str(self.second_state.pk),
+        ]
+        payload["preferred_cities"] = [
+            str(self.city.pk),
+            str(self.second_city.pk),
+        ]
+
+        response = self.client.post(
+            "/api/admissions/counselling-requests/",
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        request = CounsellingRequest.objects.get(reference=response.data["reference"])
+        self.assertSetEqual(set(request.preferred_states.all()), {self.state, self.second_state})
+        self.assertSetEqual(set(request.preferred_cities.all()), {self.city, self.second_city})
+
+    def test_selected_cities_must_belong_to_one_of_the_selected_states(self):
+        payload = self.get_payload()
+        payload["preferred_state"] = None
+        payload["preferred_states"] = [str(self.state.pk)]
+        payload["preferred_cities"] = [str(self.second_city.pk)]
+
+        response = self.client.post(
+            "/api/admissions/counselling-requests/",
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("preferred_cities", response.data)
 
     def test_callback_request_needs_only_a_name_and_phone_number(self):
         response = self.client.post(

@@ -10,12 +10,14 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  Search,
   ShieldCheck,
   Users,
 } from "lucide-react";
 import { apiErrorMessage, type UserRole } from "@/lib/api";
 import { dashboardPathForRole, useAuth } from "@/lib/auth";
 import { usePreservedSidebarScroll } from "@/lib/use-preserved-sidebar-scroll";
+import { requestSearchPalette } from "@/lib/search-palette";
 
 export type DashboardBreadcrumb = {
   label: string;
@@ -260,6 +262,15 @@ export function DashboardShell({
               <h1>{title}</h1>
               {subtitle && <p>{subtitle}</p>}
             </div>
+            {user.role === "PARENT" && (
+              <button
+                className="dash-header__search"
+                type="button"
+                onClick={requestSearchPalette}
+              >
+                <Search size={17} aria-hidden /> Search schools
+              </button>
+            )}
           </header>
           {breadcrumbs && breadcrumbs.length > 0 && (
             <nav className="dash-breadcrumbs" aria-label="Breadcrumb">

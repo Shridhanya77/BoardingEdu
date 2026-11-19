@@ -101,8 +101,8 @@ export default function SchoolEnquiryProvider({
   const value = useMemo(() => ({ open }), [open]);
 
   useEffect(() => {
-    setIsOpen(pathname === enquiryPath);
-  }, [enquiryPath, pathname]);
+    setIsOpen(pathname === enquiryPath || initialOpen);
+  }, [enquiryPath, initialOpen, pathname]);
 
   return (
     <SchoolEnquiryContext.Provider value={value}>
@@ -320,8 +320,8 @@ function SchoolEnquiryDialog({
           <CheckCircle2 size={26} aria-hidden />
           <h2>Enquiry sent</h2>
           <p>
-            Your reference is <strong>{result.code}</strong>. {school.short_name || school.school_name}{" "}
-            has your enquiry and will follow up using the contact details you shared.
+            Your enquiry has been shared with {school.short_name || school.school_name} and the BoardingEdu team.
+            We&apos;ll call you soon. Your reference is <strong>{result.code}</strong>.
           </p>
           <button
             className="primary-button"

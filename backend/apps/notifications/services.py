@@ -160,9 +160,24 @@ def send_school_enquiry_notification(recipient, school_name, enquiry_code):
         subject=f"New admission enquiry for {school_name}",
         notification_type="school_admission_enquiry",
         heading="A new admission enquiry was received",
-        body=f"A parent has submitted an admission enquiry for {school_name}. Reference: {enquiry_code}.",
+        body=f"A family has submitted an admission enquiry for {school_name}. Reference: {enquiry_code}.",
         action_label="Open BoardingEdu",
         action_url=settings.FRONTEND_URL,
+    )
+
+
+def send_platform_enquiry_notification(recipient, school_name, enquiry_code):
+    return queue_email(
+        recipient=recipient,
+        subject=f"New school enquiry requires review: {school_name}",
+        notification_type="platform_admission_enquiry",
+        heading="A new admission enquiry was received",
+        body=(
+            f"A family has submitted an enquiry for {school_name}. "
+            f"Reference: {enquiry_code}. Review the lead and coordinate follow-up."
+        ),
+        action_label="Review enquiries",
+        action_url=f"{settings.FRONTEND_URL}/dashboard/staff-admin/",
     )
 
 

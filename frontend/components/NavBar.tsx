@@ -16,6 +16,7 @@ import { useAuth, dashboardPathForRole } from "@/lib/auth";
 import type { UserRole } from "@/lib/api";
 import { usePreservedSidebarScroll } from "@/lib/use-preserved-sidebar-scroll";
 import { schoolDirectoryPath } from "@/lib/school-urls";
+import { requestSearchPalette } from "@/lib/search-palette";
 import { INDIA_REGION_PICKER_REQUEST_EVENT } from "@/lib/india-regions";
 import CounsellingModal from "@/components/home/CounsellingModal";
 import { Button } from "@/components/ui/Button";
@@ -186,6 +187,14 @@ export default function NavBar() {
       </nav>
 
       <div className="site-header__actions">
+        <button
+          className="site-header__search"
+          type="button"
+          onClick={requestSearchPalette}
+          aria-label="Search schools"
+        >
+          <Search size={16} aria-hidden /> Search schools
+        </button>
         {status === "loading" ? (
           <span className="header-action header-action--muted" aria-busy>Loading…</span>
         ) : user ? (

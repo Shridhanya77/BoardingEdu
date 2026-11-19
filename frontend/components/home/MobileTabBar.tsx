@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Headphones, Home, LayoutGrid, Search, UserRound } from "lucide-react";
 import CounsellingModal from "@/components/home/CounsellingModal";
 import { dashboardPathForRole, useAuth } from "@/lib/auth";
+import { requestSearchPalette } from "@/lib/search-palette";
 
 export default function MobileTabBar() {
   const pathname = usePathname() ?? "/";
-  const router = useRouter();
   const { user, status } = useAuth();
   const [counsellingOpen, setCounsellingOpen] = useState(false);
   const hidden = pathname.startsWith("/dashboard");
@@ -32,15 +32,7 @@ export default function MobileTabBar() {
   const homeActive = pathname === "/";
 
   function openSearch() {
-    if (pathname === "/") {
-      document.getElementById("hero-search")?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "center",
-      });
-      document.querySelector<HTMLInputElement>("#hero-search input")?.focus();
-      return;
-    }
-    router.push("/#hero-search");
+    requestSearchPalette();
   }
 
   return (
@@ -54,7 +46,7 @@ export default function MobileTabBar() {
           <LayoutGrid size={18} aria-hidden />
           Schools
         </Link>
-        <button type="button" onClick={openSearch}>
+        <button type="button" onClick={openSearch} aria-haspopup="dialog">
           <Search size={18} aria-hidden />
           Search
         </button>

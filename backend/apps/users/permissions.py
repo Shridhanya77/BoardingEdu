@@ -111,6 +111,7 @@ class IsParent(BasePermission):
             User.ROLE_SUPER_ADMIN,
         )
 
+
 # ======================================================================
 
 # OBJECT-LEVEL SCoping — "owns this record" checks

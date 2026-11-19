@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import call, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
@@ -69,10 +70,17 @@ class ApplicationTrackingTests(TestCase):
         ParentProfile.objects.create(user=self.other_parent)
         self.school_admin = User.objects.create_user(
             username="track-school",
+            email="school-admin@tracking.example",
             password="secret-pass",
             role=User.ROLE_SCHOOL_ADMIN,
         )
         SchoolAdminProfile.objects.create(user=self.school_admin, school=self.school)
+        User.objects.create_user(
+            username="track-platform-admin",
+            email="platform-admin@tracking.example",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+        )
         self.parent_client = APIClient()
         self.parent_client.force_authenticate(self.parent)
         self.other_client = APIClient()
@@ -124,6 +132,64 @@ class ApplicationTrackingTests(TestCase):
 
         hidden = self.other_client.get(f"/api/admissions/applications/{enquiry.enquiry_id}/")
         self.assertEqual(hidden.status_code, 404)
+
+    def test_guests_and_non_parent_accounts_can_create_admission_enquiries(self):
+        payload = {
+            "school": str(self.school.school_id),
+            "academic_year": str(self.year.academic_year_id),
+            "message": "Please consider our application.",
+            "child_name": "Asha",
+            "parent_full_name": "Guest Parent",
+            "parent_email": "guest@tracking.example",
+            "parent_phone": "919876543210",
+        }
+
+        guest_response = APIClient().post(
+            "/api/admissions/enquiries/",
+            payload,
+            format="json",
+        )
+        self.assertEqual(guest_response.status_code, 201, guest_response.data)
+        self.assertIsNone(guest_response.data["parent_profile_id"])
+
+        payload["school"] = str(self.other.school_id)
+        payload["parent_email"] = "school-admin-guest@tracking.example"
+        school_admin_response = self.school_client.post(
+            "/api/admissions/enquiries/",
+            payload,
+            format="json",
+        )
+        self.assertEqual(school_admin_response.status_code, 201, school_admin_response.data)
+        self.assertIsNone(school_admin_response.data["parent_profile_id"])
+
+    @patch("apps.notifications.services.send_platform_enquiry_notification")
+    @patch("apps.notifications.services.send_school_enquiry_notification")
+    @patch("apps.notifications.services.send_admission_enquiry_confirmation")
+    def test_parent_enquiries_notify_school_and_platform_admins(
+        self,
+        parent_confirmation,
+        school_notification,
+        platform_notification,
+    ):
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            response = self._submit()
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(len(callbacks), 4)
+        school_notification.assert_has_calls([
+            call("admissions@tracking.example", "Tracking School", response.data["enquiry_code"]),
+            call("school-admin@tracking.example", "Tracking School", response.data["enquiry_code"]),
+        ], any_order=True)
+        platform_notification.assert_called_once_with(
+            "platform-admin@tracking.example",
+            "Tracking School",
+            response.data["enquiry_code"],
+        )
+        parent_confirmation.assert_called_once_with(
+            "parent@tracking.example",
+            "Tracking School",
+            response.data["enquiry_code"],
+        )
 
     def test_school_status_update_is_visible_on_the_parent_timeline(self):
         created = self._submit()

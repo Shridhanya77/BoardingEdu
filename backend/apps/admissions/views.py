@@ -254,27 +254,16 @@ class AdmissionEnquiryViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated(), IsOwnEnquiryOrHigher()]
 
     def perform_create(self, serializer):
-        """
-        Associate an authenticated parent with their enquiry.
-        Guest enquiries remain possible if the serializer and model
-        permit a nullable parent_profile.
-        """
         user = self.request.user
-
         if (
             user
             and user.is_authenticated
-            and getattr(user, "role", None) == "PARENT"
+            and getattr(user, "role", None) == User.ROLE_PARENT
         ):
-            try:
-                parent_profile = user.parent_profile
-            except Exception:
-                parent_profile = None
-
+            parent_profile = getattr(user, "parent_profile", None)
             if parent_profile is not None:
                 serializer.save(parent_profile=parent_profile)
                 return
-
         serializer.save()
 
     def create(self, request, *args, **kwargs):

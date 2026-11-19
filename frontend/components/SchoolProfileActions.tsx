@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeftRight, Bookmark, Check, Share2 } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, Bookmark, Check, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiErrorMessage, dashboards, schoolDetailToListItem, type SchoolDetail } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -89,7 +90,6 @@ export default function SchoolProfileActions({ school }: { school: SchoolDetail 
     toggleSchool(schoolDetailToListItem(school));
     trackSearchEvent("school_compared", { selected: !compared });
     setMessage(compared ? "School removed from comparison." : "School added to comparison.");
-    if (!compared) router.push("/compare/");
   }
 
   async function shareProfile() {
@@ -137,6 +137,11 @@ export default function SchoolProfileActions({ school }: { school: SchoolDetail 
       <button className="detail-button" type="button" onClick={shareProfile}>
         <Share2 size={16} /> Share
       </button>
+      {compared && (
+        <Link className="detail-button school-detail__compare-link" href="/compare/">
+          <ArrowRight size={16} /> View comparison
+        </Link>
+      )}
       <span className="school-detail__action-status" role="status" aria-live="polite">
         {message}
       </span>

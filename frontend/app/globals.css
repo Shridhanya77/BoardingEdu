@@ -30027,3 +30027,733 @@ select:focus-visible {
     transition: none;
   }
 }
+
+.home-faq-layout--progressive {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.counselling-location-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.counselling-location-picker__group {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dce4f1;
+  border-radius: 12px;
+}
+
+.counselling-location-picker__group legend {
+  padding: 0 5px;
+  color: #23364e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.counselling-location-picker__search {
+  display: block !important;
+}
+
+.counselling-location-picker__search input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  color: #23364e;
+  background: #fff;
+  border: 1px solid #dce4f1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.counselling-location-picker__actions {
+  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.counselling-location-picker__actions button {
+  padding: 5px 9px;
+  color: #2142ad;
+  background: #eef3ff;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.counselling-location-picker__actions button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.counselling-location-picker__options {
+  max-height: 150px;
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 7px 10px;
+  overflow: auto;
+}
+
+.counselling-location-picker__options label {
+  min-width: 0;
+  display: flex !important;
+  align-items: flex-start;
+  gap: 7px !important;
+  color: #34465e !important;
+  font-size: 12px !important;
+  font-weight: 550 !important;
+  cursor: pointer;
+}
+
+.counselling-location-picker__options input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
+  margin: 1px 0 0;
+  flex: 0 0 auto;
+  accent-color: #2142ad;
+}
+
+.counselling-location-picker__options p,
+.counselling-location-picker__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #6a788d;
+  font-size: 12px;
+}
+
+.counselling-location-picker__summary {
+  margin-top: 8px;
+  display: block;
+  color: #6a788d;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .discovery-page--home .trust-strip__trust {
+    display: none;
+  }
+
+  .promo-banner {
+    width: calc(100% - 28px);
+    margin: 18px auto 6px;
+  }
+
+  .promo-banner__frame {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .promo-banner__visual {
+    min-height: 128px;
+  }
+
+  .promo-banner__label {
+    top: 10px;
+    left: 10px;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .promo-banner__copy {
+    gap: 7px;
+    padding: 14px;
+  }
+
+  .promo-banner__copy h2 {
+    font-size: clamp(20px, 6vw, 26px);
+  }
+
+  .promo-banner__description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .promo-banner__highlights {
+    gap: 6px;
+    margin-top: 0;
+  }
+
+  .promo-banner__highlights li {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .promo-banner__actions {
+    gap: 10px;
+    margin-top: 0;
+  }
+
+  .promo-banner__cta {
+    min-height: 40px;
+    padding: 9px 13px;
+  }
+
+  .discovery-page--home .home-section--states .city-card,
+  .discovery-page--home .home-section--cities .city-card {
+    flex-basis: min(58vw, 220px);
+    min-height: 118px;
+  }
+
+  .discovery-page--home .home-section--boards .board-card {
+    width: min(54vw, 190px);
+    min-width: min(54vw, 190px);
+    min-height: 148px;
+  }
+
+  .discovery-page--home .home-section--boards .board-card__mark {
+    min-height: 44px;
+    margin: 10px 10px 0;
+    padding: 8px 10px;
+  }
+
+  .home-how-it-works {
+    width: calc(100% - 28px);
+    margin: 28px auto;
+  }
+
+  .home-how-it-works__steps {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 2px 12px;
+    scroll-padding-inline: 2px;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .home-how-it-works__steps li {
+    min-height: 168px;
+    flex: 0 0 min(82vw, 320px);
+    scroll-snap-align: start;
+  }
+
+  .home-how-it-works__steps a,
+  .home-how-it-works__steps button {
+    padding: 18px;
+  }
+
+  .discovery-page--home .home-reviews {
+    width: calc(100% - 28px);
+    margin: 20px auto;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .discovery-page--home .home-reviews .review-summary-panel {
+    padding: 12px;
+  }
+
+  .discovery-page--home .home-review-card {
+    min-height: 0;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-how-it-works__steps {
+    scroll-behavior: auto;
+    scroll-snap-type: x proximity;
+  }
+}
+
+.site-header__search {
+  min-height: 40px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #17324f;
+  background: #f4f8fb;
+  border: 1px solid #d6e1ea;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.site-header__search:hover,
+.site-header__search:focus-visible {
+  background: #e8f2f8;
+  border-color: #9db8cb;
+  transform: translateY(-1px);
+}
+
+.site-header--hero .site-header__search {
+  color: #fff;
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 28%);
+}
+
+.site-header--hero.site-header--scrolled .site-header__search {
+  color: #17324f;
+  background: #f4f8fb;
+  border-color: #d6e1ea;
+}
+
+.command-palette__status {
+  margin: 10px 20px 16px;
+  color: #5c6e80;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dash-main:has(.pd-nav) .dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.dash-header__search {
+  min-height: 44px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  color: #fff;
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.dash-header__search:hover,
+.dash-header__search:focus-visible {
+  background: rgb(255 255 255 / 22%);
+  transform: translateY(-1px);
+}
+
+.school-detail-recommendations {
+  margin-top: 16px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 100% 0, rgb(48 132 159 / 12%), transparent 42%),
+    linear-gradient(160deg, #f8fbfd, #fff);
+  border: 1px solid #dce8ef;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgb(15 35 58 / 7%);
+}
+
+.school-detail-recommendations__heading {
+  margin-bottom: 14px;
+}
+
+.school-detail-recommendations__eyebrow {
+  color: #147461;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.school-detail-recommendations__heading h2 {
+  margin: 5px 0;
+  color: #17324f;
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.school-detail-recommendations__heading p {
+  margin: 0;
+  color: #617488;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.school-detail-recommendations__list {
+  display: grid;
+  gap: 9px;
+}
+
+.school-detail-recommendation {
+  min-width: 0;
+  padding: 9px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #e1eaf0;
+  border-radius: 13px;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.school-detail-recommendation:hover,
+.school-detail-recommendation:focus-visible {
+  color: inherit;
+  border-color: #8db9c9;
+  box-shadow: 0 9px 22px rgb(15 74 99 / 12%);
+  transform: translateY(-2px);
+}
+
+.school-detail-recommendation__media {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  color: #147461;
+  background: #eaf4f1;
+  border-radius: 10px;
+}
+
+.school-detail-recommendation__media img {
+  object-fit: cover;
+}
+
+.school-detail-recommendation__body {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.school-detail-recommendation__body strong {
+  overflow: hidden;
+  color: #17324f;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-detail-recommendation__body > span:not(.school-detail-recommendation__rating) {
+  overflow: hidden;
+  color: #63768a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-detail-recommendation__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #805d10;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.school-detail-recommendation > svg {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #16806b;
+}
+
+.school-detail-recommendations__all {
+  margin-top: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #0b5f8a;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.school-detail-recommendations__all:hover {
+  text-decoration: underline;
+}
+
+.school-detail__extra-actions .school-detail__compare-link {
+  grid-column: 1 / -1;
+  justify-content: center;
+  color: #0b5f8a;
+  background: #eef7fb;
+  border-color: #c6dce7;
+  text-decoration: none;
+}
+
+.school-detail__extra-actions .school-detail__compare-link:hover {
+  color: #084b6d;
+  background: #e0f0f7;
+}
+
+.read-more__dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-width: none;
+  max-height: min(82dvh, 760px);
+  margin: auto;
+  padding: 22px;
+  overflow: auto;
+  color: #20364c;
+  background: #fff;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgb(3 14 26 / 30%);
+}
+
+.read-more__dialog::backdrop {
+  background: rgb(6 18 31 / 58%);
+  backdrop-filter: blur(7px);
+}
+
+.read-more__dialog-header {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.read-more__dialog-header h2 {
+  margin: 0;
+  color: #17324f;
+  font-size: 21px;
+}
+
+.read-more__dialog-header button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: #36536b;
+  background: #f1f5f8;
+  border: 1px solid #dce5ec;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.read-more__dialog > p {
+  margin: 0;
+  color: #53687d;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card {
+  border: 1px solid #e1e8ef;
+  border-radius: 20px;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card:hover,
+.discovery-page--listing .school-list--grid.school-list--listing > .school-card:focus-within {
+  border-color: #a7c7d6;
+  box-shadow: 0 18px 38px rgb(15 74 99 / 15%);
+  transform: translateY(-4px);
+}
+
+.discovery-page--listing .school-list--list.school-list--listing > .school-card {
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.discovery-page--listing .school-list--list.school-list--listing > .school-card:hover,
+.discovery-page--listing .school-list--list.school-list--listing > .school-card:focus-within {
+  border-color: #a7c7d6;
+  box-shadow: 0 14px 30px rgb(15 74 99 / 13%);
+  transform: translateY(-2px);
+}
+
+.blogs-card {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.blogs-card:hover,
+.blogs-card:focus-within {
+  border-color: #a8c5d5;
+  box-shadow: 0 16px 34px rgb(15 35 58 / 13%);
+  transform: translateY(-3px);
+}
+
+.blogs-card__image {
+  transition: transform 240ms ease;
+}
+
+.blogs-card:hover .blogs-card__image,
+.blogs-card:focus-within .blogs-card__image {
+  transform: scale(1.035);
+}
+
+.blogs-categories a {
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.blogs-categories a:hover,
+.blogs-categories a:focus-visible {
+  border-color: #90b4c6;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 900px) {
+  .mobile-navigation {
+    background:
+      radial-gradient(ellipse at 100% 0, rgb(40 104 144 / 35%), transparent 48%),
+      linear-gradient(155deg, #10243a 0%, #0c3551 62%, #0b5f76 100%);
+    border-bottom-color: rgb(255 255 255 / 12%);
+    box-shadow: 0 20px 44px rgb(5 18 31 / 32%);
+  }
+
+  .mobile-navigation a,
+  .mobile-navigation .mobile-navigation__link,
+  .mobile-navigation .mobile-navigation__counselling {
+    color: #f2f7fb;
+    background: transparent;
+    border-color: transparent;
+    transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  }
+
+  .mobile-navigation a:hover,
+  .mobile-navigation a:focus-visible,
+  .mobile-navigation .mobile-navigation__link:hover,
+  .mobile-navigation .mobile-navigation__link:focus-visible,
+  .mobile-navigation .mobile-navigation__counselling:hover,
+  .mobile-navigation .mobile-navigation__counselling:focus-visible {
+    color: #fff;
+    background: rgb(255 255 255 / 13%);
+    border-color: rgb(255 255 255 / 16%);
+    transform: translateX(3px);
+  }
+
+  .mobile-navigation .is-active {
+    color: #fff;
+    background: rgb(255 255 255 / 12%);
+  }
+
+  .mobile-navigation__explore-links {
+    border-left-color: rgb(255 255 255 / 24%);
+  }
+
+  .mobile-navigation .mobile-navigation__type-link {
+    color: #dbeaf3;
+    background: rgb(255 255 255 / 6%);
+  }
+
+  .mobile-navigation__logout {
+    color: #ffe4df;
+    background: rgb(255 255 255 / 8%);
+  }
+}
+
+@media (max-width: 700px) {
+  .dash-main:has(.pd-nav) .dash-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dash-header__search {
+    min-height: 40px;
+  }
+
+  .school-detail-recommendations {
+    margin-inline: -2px;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  .school-detail-recommendations__list {
+    display: flex;
+    gap: 10px;
+    margin-inline: -16px;
+    padding: 0 16px 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .school-detail-recommendation {
+    flex: 0 0 min(82vw, 320px);
+    scroll-snap-align: start;
+  }
+
+  .school-nearby__grid {
+    display: flex;
+    margin-right: -20px;
+    margin-left: -20px;
+    padding: 0 20px 7px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .school-nearby-card {
+    flex: 0 0 min(84vw, 360px);
+    scroll-snap-align: start;
+  }
+
+  .school-profile-related > div {
+    display: flex;
+    gap: 9px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .school-profile-related > div > a {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .blogs-categories {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .blogs-categories > a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .blogs-grid,
+  .blogs-featured {
+    grid-auto-columns: min(84vw, 360px);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 4px 2px 12px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .blogs-grid > .blogs-card,
+  .blogs-featured > .blogs-card {
+    grid-column: auto;
+    scroll-snap-align: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header__search,
+  .dash-header__search,
+  .school-detail-recommendation,
+  .blogs-card,
+  .blogs-card__image,
+  .blogs-categories a {
+    transition: none;
+  }
+
+  .site-header__search:hover,
+  .dash-header__search:hover,
+  .school-detail-recommendation:hover,
+  .blogs-card:hover,
+  .blogs-categories a:hover {
+    transform: none;
+  }
+}

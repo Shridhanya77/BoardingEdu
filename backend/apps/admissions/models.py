@@ -89,7 +89,7 @@ class Child(models.Model):
 
 class AdmissionEnquiry(models.Model):
     """
-    CRM: Parent / guest enquiry about admissions to a specific school.
+    CRM: Admission enquiry about a specific school. Legacy unlinked records are retained.
     """
 
     SOURCE_CHOICES = [
@@ -312,6 +312,9 @@ class CounsellingRequest(models.Model):
     )
     preferred_state = models.ForeignKey(
         State, on_delete=models.SET_NULL, null=True, blank=True, related_name="counselling_requests"
+    )
+    preferred_states = models.ManyToManyField(
+        State, blank=True, related_name="counselling_requests_by_preferred_states"
     )
     preferred_cities = models.ManyToManyField(City, related_name="counselling_requests")
     grades = models.ManyToManyField(Grade, related_name="counselling_requests")

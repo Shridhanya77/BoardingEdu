@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Search, X } from "lucide-react";
 import type { BoardListItem, SchoolTypeListItem } from "@/lib/api";
 import { schoolTypeLabel } from "@/lib/seo-slugs";
+import { SEARCH_PALETTE_OPEN_EVENT } from "@/lib/search-palette";
 import { trackSearchEvent } from "@/lib/search-analytics";
 
 type SearchCommandPaletteProps = {
   boards: BoardListItem[];
   schoolTypes: SchoolTypeListItem[];
   recentSearches: string[];
+  optionsError?: string | null;
   onSearch: (query: string) => void;
   onBoard: (board: BoardListItem) => void;
   onSchoolType: (type: SchoolTypeListItem) => void;
@@ -19,6 +21,7 @@ export default function SearchCommandPalette({
   boards,
   schoolTypes,
   recentSearches,
+  optionsError,
   onSearch,
   onBoard,
   onSchoolType,
@@ -28,20 +31,31 @@ export default function SearchCommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const openRef = useRef(false);
 
   useEffect(() => {
+    function openPalette() {
+      if (openRef.current) return;
+      openRef.current = true;
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
+      setOpen(true);
+      trackSearchEvent("search_opened", { variant: "command_palette" });
+    }
+
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        previousFocusRef.current = document.activeElement as HTMLElement | null;
-        setOpen(true);
-        trackSearchEvent("search_opened", { variant: "command_palette" });
+        openPalette();
       }
-      if (event.key === "Escape") close();
+      if (event.key === "Escape" && openRef.current) close();
     }
 
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    window.addEventListener(SEARCH_PALETTE_OPEN_EVENT, openPalette);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener(SEARCH_PALETTE_OPEN_EVENT, openPalette);
+    };
   }, []);
 
   useEffect(() => {
@@ -49,6 +63,7 @@ export default function SearchCommandPalette({
   }, [open]);
 
   function close() {
+    openRef.current = false;
     setOpen(false);
     requestAnimationFrame(() => previousFocusRef.current?.focus());
   }
@@ -146,6 +161,10 @@ export default function SearchCommandPalette({
               </button>
             ))}
           </div>
+        )}
+
+        {optionsError && (
+          <p className="command-palette__status" role="status">{optionsError}</p>
         )}
 
         {normalizedQuery && matchingBoards.length + matchingTypes.length > 0 && (

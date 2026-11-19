@@ -8,6 +8,7 @@ import { SearchExperienceProvider } from "@/lib/search-experience";
 import SearchAnalyticsConsent from "@/components/SearchAnalyticsConsent";
 import PublicSiteFooter from "@/components/home/PublicSiteFooter";
 import MobileTabBar from "@/components/home/MobileTabBar";
+import GlobalSearchPalette from "@/components/search/GlobalSearchPalette";
 import { ToastProvider } from "@/components/ui/Toast";
 import { homeSeoKeywords } from "@/lib/home-content";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
@@ -92,6 +93,7 @@ export default function RootLayout({
               <JsonLd data={organizationJsonLd()} />
               <JsonLd data={websiteJsonLd()} />
               <NavBar />
+              <GlobalSearchPalette />
               {children}
               <SearchAnalyticsConsent />
               <PublicSiteFooter />

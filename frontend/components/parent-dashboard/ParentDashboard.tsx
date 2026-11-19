@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Bell, Bookmark, Check, FileText, GraduationCap, Inbox, MessageSquare, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import {
   DashboardPanel,
@@ -159,6 +159,7 @@ export default function ParentDashboard() {
   const requested = pathname.split("/").filter(Boolean)[2];
   const section: SectionId = SECTIONS.find(([id]) => id === requested)?.[0] ?? "dashboard";
   const { data, loading, error, reload } = useDashboardData(dashboards.parent);
+  const sectionNavRef = useRef<HTMLElement>(null);
   const [applications, setApplications] = useState<ParentApplication[] | null>(null);
   const [profile, setProfile] = useState<ParentProfileData | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -182,6 +183,23 @@ export default function ParentDashboard() {
     }
   }, [section, data]);
 
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 900px)").matches) return;
+    const nav = sectionNavRef.current;
+    const active = nav?.querySelector<HTMLButtonElement>(".is-active");
+    if (!nav || !active) return;
+    const navBounds = nav.getBoundingClientRect();
+    const activeBounds = active.getBoundingClientRect();
+    const offset =
+      activeBounds.left -
+      navBounds.left -
+      (nav.clientWidth - activeBounds.width) / 2;
+    nav.scrollBy({
+      left: offset,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [section]);
+
   function openSection(next: SectionId) {
     router.push(next === "dashboard" ? "/dashboard/parent/" : `/dashboard/parent/${next}/`);
   }
@@ -200,7 +218,7 @@ export default function ParentDashboard() {
           : [{ label: SECTIONS.find(([id]) => id === section)?.[1] ?? "Dashboard" }]),
       ]}
     >
-      <nav className="pd-nav" aria-label="Parent dashboard">
+      <nav className="pd-nav" aria-label="Parent dashboard" ref={sectionNavRef}>
         {SECTIONS.map(([id, label]) => (
           <button
             key={id}

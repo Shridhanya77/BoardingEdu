@@ -824,6 +824,7 @@ export type CounsellingRequestInput = {
   home_city?: string;
   preferred_country?: string;
   preferred_state?: string;
+  preferred_states?: string[];
   preferred_cities: string[];
   grades: string[];
   school_types?: string[];
