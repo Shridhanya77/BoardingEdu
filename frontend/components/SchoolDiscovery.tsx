@@ -685,21 +685,6 @@ function boardSearchPath(board: BoardListItem, category?: HomeSchoolCategory | n
   return `${url.pathname}${url.search}`;
 }
 
-function priorityFeaturedSelection(
-  schools: SchoolListItem[],
-  requiredSchoolIds: ReadonlySet<string> = new Set(),
-  count = 4,
-) {
-  const ordered = uniqueSchoolsById(schools);
-  const selected = ordered.slice(0, Math.min(ordered.length, count));
-  const required = ordered.find((school) => requiredSchoolIds.has(school.school_id));
-  if (required && !selected.some((school) => school.school_id === required.school_id)) {
-    selected[selected.length - 1] = required;
-  }
-  const selectedIds = new Set(selected.map((school) => school.school_id));
-  return ordered.filter((school) => selectedIds.has(school.school_id));
-}
-
 function HomeSectionTypeSelector({
   value,
   onChange,
@@ -1379,34 +1364,6 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
     (stillOnInitialPlace || (!geoCountry && !geoState && !geoCity) ? initialFilter?.placeName : "") ||
     "India";
   const listingTypeLabel = listingCategoryLabel ? `${listingCategoryLabel}s` : "Schools";
-  // The India region (North/South/East/West/Central) of the place being
-  // browsed, derived from real city records so the featured section can stay
-  // regional ("Featured Boarding Schools in North India") instead of being
-  // scoped to a single state or city.
-  const browsedRegion = useMemo(() => {
-    if (geoRegion) return indiaRegionById(geoRegion) ?? undefined;
-    const city = cities.find((item) =>
-      activeCityId
-        ? item.city_id === activeCityId
-        : activeStateId
-          ? item.state_id === activeStateId
-          : activeCountryId
-            ? item.country_id === activeCountryId
-            : false,
-    );
-    const stateSlug = city?.state_slug ?? initialFilter?.place?.stateSlug ?? "";
-    const stateName = city?.state_name ?? initialFilter?.placeName ?? "";
-    if (!stateSlug && !stateName) return undefined;
-    return indiaRegionForState(stateName, stateSlug);
-  }, [
-    activeCityId,
-    activeCountryId,
-    activeStateId,
-    cities,
-    geoRegion,
-    initialFilter?.place?.stateSlug,
-    initialFilter?.placeName,
-  ]);
   const listingSubject = listingBoardName ? `${listingBoardName} ${listingTypeLabel}` : listingTypeLabel;
   const listingHeading = `${listingSubject} in ${listingPlaceLabel}`;
   // Day boarding belongs to both families, so the chosen type is always named

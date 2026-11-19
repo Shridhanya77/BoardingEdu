@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { schoolSectionPath, schoolSectionSeo, schoolSections, type SchoolSectionId } from "@/lib/school-sections";
 
 function setHeadMeta(selector: string, attribute: "name" | "property", key: string, content: string) {
@@ -29,7 +29,7 @@ export default function SchoolProfileNavigation({
   const [activeSection, setActiveSection] = useState<SchoolSectionId>(initialSection);
   const clickedSection = useRef<SchoolSectionId | null>(null);
 
-  function applySectionHead(section: SchoolSectionId) {
+  const applySectionHead = useCallback((section: SchoolSectionId) => {
     const { title, description } = schoolSectionSeo({
       schoolName,
       city,
@@ -42,11 +42,11 @@ export default function SchoolProfileNavigation({
     setHeadMeta('meta[property="og:description"]', "property", "og:description", description);
     setHeadMeta('meta[name="twitter:title"]', "name", "twitter:title", title);
     setHeadMeta('meta[name="twitter:description"]', "name", "twitter:description", description);
-  }
+  }, [city, overviewDescription, schoolName]);
 
   useEffect(() => {
     applySectionHead(activeSection);
-  }, [activeSection, city, overviewDescription, schoolName]);
+  }, [activeSection, applySectionHead]);
 
   useEffect(() => {
     const targets = schoolSections

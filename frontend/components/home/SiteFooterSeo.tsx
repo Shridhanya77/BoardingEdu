@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronDown, Phone, Mail, MapPin } from "lucide-react";
 import CallbackRequestModal from "@/components/contact/CallbackRequestModal";
@@ -269,12 +270,13 @@ export default function SiteFooterSeo({
       <div className="footer-brand-strip">
         <div className="footer-brand-strip__inner">
           <div className="footer-brand">
-            <img
+            <Image
               src="/BoardingEdu_LOGO.jpeg"
               alt="BoardingEdu"
               className="footer-brand__logo"
               width={120}
               height={40}
+              style={{ width: "120px", height: "auto" }}
             />
             <p className="footer-brand__tagline">
               Connecting Parents & Schools Across India
