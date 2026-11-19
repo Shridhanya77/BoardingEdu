@@ -152,32 +152,38 @@ export default function CounsellingSection() {
 
       <form className="counselling__form" onSubmit={onSubmit}>
         <h3>Request a call</h3>
+        <p>Share a few details and our counsellor will call you back. Fields marked * are required.</p>
 
         <label>
-          Your Name
+          <span>Your name <span aria-hidden="true">*</span></span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. Ananya Kamath"
+            placeholder="Parent's full name"
             autoComplete="name"
+            enterKeyHint="next"
             required
+            disabled={submitting}
           />
         </label>
         <label>
-          Email Address
+          <span>Email address <span aria-hidden="true">*</span></span>
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@example.com"
             autoComplete="email"
+            inputMode="email"
+            enterKeyHint="next"
             maxLength={254}
             required
+            disabled={submitting}
           />
         </label>
         <CountryPhoneInput
           id="counselling-phone"
-          label="WhatsApp Number"
+          label="WhatsApp number *"
           value={phone}
           onChange={setPhone}
           disabled={submitting}
@@ -192,14 +198,14 @@ export default function CounsellingSection() {
           disabled={submitting || !countryId}
         />
         <label>
-          Class applying for
+          <span>Class applying for <span aria-hidden="true">*</span></span>
           <select
             value={gradeId}
             required
             disabled={submitting || !grades.length}
             onChange={(event) => setGradeId(event.target.value)}
           >
-            <option value="">{grades.length ? "Choose a class" : "Loading classes…"}</option>
+            <option value="">{optionsError ? "Classes unavailable" : grades.length ? "Choose a class" : "Loading classes…"}</option>
             {gradeSelectOptions(grades).map((grade) => (
               <option key={grade.grade_id} value={grade.grade_id}>{grade.grade_name}</option>
             ))}

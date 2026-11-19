@@ -6,6 +6,7 @@ import CounsellingLink from "@/components/home/CounsellingLink";
 import { getGuide, guides, guidesIndexDescription, relatedGuides } from "@/lib/guides";
 import {
   fetchAllPages,
+  GUIDE_CONTENT_REVALIDATE_SECONDS,
   guideContent,
   type GuideArticle,
   type GuideSummary as ApiGuideSummary,
@@ -17,13 +18,17 @@ import "../guides.css";
 
 type GuidePageProps = { params: { slug: string } };
 
+const guideApiOptions = { next: { revalidate: GUIDE_CONTENT_REVALIDATE_SECONDS } };
+
+export const revalidate = GUIDE_CONTENT_REVALIDATE_SECONDS;
+
 export function generateStaticParams() {
   return guides.map((guide) => ({ slug: guide.slug }));
 }
 
 async function loadGuide(slug: string): Promise<GuideArticle | null> {
   try {
-    return await guideContent.bySlug(slug);
+    return await guideContent.bySlug(slug, guideApiOptions);
   } catch (reason) {
     const savedGuide = getGuide(slug);
     if (!savedGuide) {
@@ -70,7 +75,8 @@ export default async function GuidePage({ params }: GuidePageProps) {
 
   let related: ApiGuideSummary[] = relatedGuides(guide.slug);
   try {
-    const publishedGuides = await fetchAllPages(await guideContent.list());
+    const firstPage = await guideContent.list(guideApiOptions);
+    const publishedGuides = await fetchAllPages(firstPage, 1000, guideApiOptions);
     related = publishedGuides
       .filter((item) => item.slug !== guide.slug && item.category === guide.category)
       .slice(0, 3);

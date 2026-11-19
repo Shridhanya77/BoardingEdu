@@ -2,10 +2,19 @@ import type { Metadata } from "next";
 import JsonLd from "@/components/JsonLd";
 import GuideBrowser from "@/components/guides/GuideBrowser";
 import { guideList, guidesIndexDescription } from "@/lib/guides";
-import { apiErrorMessage, fetchAllPages, guideContent } from "@/lib/api";
+import {
+  apiErrorMessage,
+  fetchAllPages,
+  GUIDE_CONTENT_REVALIDATE_SECONDS,
+  guideContent,
+} from "@/lib/api";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbJsonLd } from "@/lib/structured-data";
 import "./guides.css";
+
+const guideApiOptions = { next: { revalidate: GUIDE_CONTENT_REVALIDATE_SECONDS } };
+
+export const revalidate = GUIDE_CONTENT_REVALIDATE_SECONDS;
 
 export const metadata: Metadata = pageMetadata({
   title: "School Admission Guides | BoardingEdu",
@@ -23,7 +32,8 @@ export default async function GuidesIndexPage() {
   let guides = guideList();
   let guideLoadError: string | null = null;
   try {
-    guides = await fetchAllPages(await guideContent.list());
+    const firstPage = await guideContent.list(guideApiOptions);
+    guides = await fetchAllPages(firstPage, 1000, guideApiOptions);
   } catch (reason) {
     console.error("Could not load guides from the content API.", reason);
     guideLoadError = apiErrorMessage(reason);

@@ -30757,3 +30757,127 @@ select:focus-visible {
     transform: none;
   }
 }
+
+/* Counselling forms: one field per row, real text boxes, and checkbox rows
+   that stay tappable on a phone. Later rules above were stretching every
+   input, including checkboxes, to a full text-field size. */
+.counselling.home-section .counselling__form,
+.counselling-modal form,
+.counselling-modal--quick form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.counselling.home-section .counselling__form > *,
+.counselling-modal form > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.counselling__form input:not([type="checkbox"]):not([type="radio"]),
+.counselling__form select,
+.counselling__form textarea,
+.counselling-modal form input:not([type="checkbox"]):not([type="radio"]),
+.counselling-modal form select,
+.counselling-modal form textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.counselling__form .country-phone-field__controls,
+.counselling-modal .country-phone-field__controls {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.counselling__form .country-phone-field__controls select,
+.counselling-modal .country-phone-field__controls select {
+  width: 100%;
+  min-width: 0;
+  padding-right: 8px;
+  padding-left: 10px;
+}
+
+.counselling__form input[type="checkbox"],
+.counselling-modal input[type="checkbox"] {
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 20px;
+  accent-color: #e8650f;
+}
+
+.counselling-location-picker__options label {
+  min-height: 40px;
+  align-items: center;
+}
+
+.counselling-modal,
+.counselling-modal--quick {
+  width: min(100%, 520px);
+  max-height: min(920px, calc(100dvh - 24px));
+  overflow: auto;
+}
+
+.counselling-modal h2,
+.counselling-modal--quick h2 {
+  padding-right: 42px;
+}
+
+@media (max-width: 720px) {
+  .counselling.home-section {
+    width: min(100% - 20px, 1300px);
+    border-radius: 16px;
+  }
+
+  .counselling__intro,
+  .counselling__form {
+    padding: 22px 16px;
+  }
+
+  .counselling__intro h2 {
+    font-size: 30px;
+  }
+
+  .counselling-location-picker__group {
+    padding: 12px 10px;
+  }
+
+  .counselling-location-picker__options {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: 240px;
+  }
+
+  .counselling-location-picker__options label {
+    min-height: 44px;
+    font-size: 15px !important;
+  }
+
+  .counselling-location-picker__actions button {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .counselling-modal__backdrop {
+    padding: 0;
+    align-items: end;
+  }
+
+  .counselling-modal,
+  .counselling-modal--quick {
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 18px 18px 0 0;
+    padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
+  }
+}

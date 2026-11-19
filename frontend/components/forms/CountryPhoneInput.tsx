@@ -76,7 +76,9 @@ export default function CountryPhoneInput({
           disabled={disabled}
           inputMode="numeric"
           autoComplete="tel-national"
-          placeholder="10-digit phone number"
+          enterKeyHint="next"
+          placeholder="10-digit number"
+          title="Enter 10 digits without the country code"
           pattern="[0-9]{10}"
           minLength={10}
           maxLength={10}

@@ -224,16 +224,16 @@ export default function CounsellingModal({
         ) : (
           <form onSubmit={submit}>
             <label>
-              Parent name <span aria-hidden="true">*</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required disabled={submitting} />
+              <span>Parent name <span aria-hidden="true">*</span></span>
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Parent's full name" autoComplete="name" enterKeyHint="next" required disabled={submitting} />
             </label>
             <CountryPhoneInput id="counselling-modal-phone" label="Phone number *" value={phone} onChange={setPhone} disabled={submitting} />
             <label>
-              Email <span aria-hidden="true">*</span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required disabled={submitting} />
+              <span>Email <span aria-hidden="true">*</span></span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" inputMode="email" enterKeyHint="next" maxLength={254} required disabled={submitting} />
             </label>
             <label>
-              School type <span aria-hidden="true">*</span>
+              <span>School type <span aria-hidden="true">*</span></span>
               <select
                 value={schoolCategory}
                 disabled={submitting}
@@ -255,7 +255,7 @@ export default function CounsellingModal({
             />
             {statesError && <p className="counselling-modal__error" role="alert">{statesError}</p>}
             <label>
-              Preferred class <span aria-hidden="true">*</span>
+              <span>Class applying for <span aria-hidden="true">*</span></span>
               <select value={gradeId} onChange={(event) => setGradeId(event.target.value)} required disabled={submitting}>
                 <option value="">Choose a class</option>
                 {gradeSelectOptions(grades).map((grade) => (

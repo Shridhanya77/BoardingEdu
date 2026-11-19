@@ -70,6 +70,7 @@ export default function CounsellingLocationMultiSelect({
     <div className="counselling-location-picker">
       <fieldset className="counselling-location-picker__group" disabled={disabled}>
         <legend>Preferred states <span aria-hidden="true">*</span></legend>
+        <p className="counselling-location-picker__hint">Select every state you want the counsellor to consider.</p>
         <label className="counselling-location-picker__search">
           <span className="sr-only">Search states</span>
           <input
@@ -105,7 +106,8 @@ export default function CounsellingLocationMultiSelect({
               <span>{state.state_name}</span>
             </label>
           ))}
-          {!matchingStates.length && <p role="status">No states match your search.</p>}
+          {!states.length && <p role="status">State list is still loading.</p>}
+          {states.length > 0 && !matchingStates.length && <p role="status">No states match your search.</p>}
         </div>
         <span className="counselling-location-picker__summary" aria-live="polite">
           {selectedStateIds.length} state{selectedStateIds.length === 1 ? "" : "s"} selected

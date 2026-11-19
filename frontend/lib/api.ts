@@ -141,11 +141,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   const operation = (async () => {
-    const res = await fetch(url, {
+    const fetchInit: RequestInit = {
       ...init,
       headers: { ...defaultHeaders, ...init.headers },
-      cache: "no-store",
-    });
+    };
+    if (init.cache === undefined && init.next?.revalidate === undefined) {
+      fetchInit.cache = "no-store";
+    }
+    const res = await fetch(url, fetchInit);
     if (!res.ok) {
       const parsed = await parseBody(res);
       const detail = typeof parsed === "string"
@@ -550,7 +553,11 @@ export type SchoolVideoListItem = {
   sort_order: number;
 };
 
-export async function fetchAllPages<T>(firstPage: PaginatedResponse<T>, maxPages = 1000): Promise<T[]> {
+export async function fetchAllPages<T>(
+  firstPage: PaginatedResponse<T>,
+  maxPages = 1000,
+  init: RequestInit = {},
+): Promise<T[]> {
   const items = [...firstPage.results];
   let next = firstPage.next;
   let pages = 1;
@@ -560,7 +567,7 @@ export async function fetchAllPages<T>(firstPage: PaginatedResponse<T>, maxPages
       throw new Error("The API returned a repeated pagination URL.");
     }
     visited.add(next);
-    const page = await request<PaginatedResponse<T>>(next);
+    const page = await request<PaginatedResponse<T>>(next, init);
     items.push(...page.results);
     next = page.next;
     pages += 1;
@@ -979,11 +986,14 @@ export type ParentRecentSchool = {
   school_types_detail: SchoolTypeListItem[];
 };
 
+export const GUIDE_CONTENT_REVALIDATE_SECONDS = 60 * 60;
+
 export const guideContent = {
-  list: () => request<PaginatedResponse<GuideSummary>>("/guides/articles/"),
-  bySlug: (slug: string) =>
-    request<GuideArticle>(`/guides/articles/${encodeURIComponent(slug)}/`),
-  categories: () => request<PaginatedResponse<{ slug: string; name: string }>>("/guides/categories/"),
+  list: (init?: RequestInit) => request<PaginatedResponse<GuideSummary>>("/guides/articles/", init),
+  bySlug: (slug: string, init?: RequestInit) =>
+    request<GuideArticle>(`/guides/articles/${encodeURIComponent(slug)}/`, init),
+  categories: (init?: RequestInit) =>
+    request<PaginatedResponse<{ slug: string; name: string }>>("/guides/categories/", init),
 };
 
 export type BlogCategoryItem = {
