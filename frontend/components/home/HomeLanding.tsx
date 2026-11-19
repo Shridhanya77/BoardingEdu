@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, LoaderCircle } from "lucide-react";
+import { ArrowRight, School } from "lucide-react";
 import type { BoardListItem, SchoolListItem, SchoolTypeListItem } from "@/lib/api";
 import {
   exploreItems,
@@ -14,6 +14,8 @@ import FeaturedSchoolCards from "@/components/home/FeaturedSchoolCards";
 import CounsellingSection from "@/components/home/CounsellingSection";
 import CounsellingLink from "@/components/home/CounsellingLink";
 import { useMemo, useState } from "react";
+import { FeaturedSchoolsSkeleton } from "@/components/ui/ContentSkeleton";
+import EmptyState from "@/components/ui/EmptyState";
 
 type Props = {
   boards: BoardListItem[];
@@ -162,10 +164,7 @@ export default function HomeLanding({
           </Link>
         </div>
         {featuredLoading ? (
-          <div className="featured-state" role="status">
-            <LoaderCircle className="spin" size={20} />
-            Loading schools…
-          </div>
+          <FeaturedSchoolsSkeleton />
         ) : featuredError ? (
           <div className="featured-state featured-state--error" role="alert">
             {featuredError}
@@ -173,9 +172,12 @@ export default function HomeLanding({
         ) : featuredSchools.length > 0 ? (
           <FeaturedSchoolCards schools={featuredSchools} />
         ) : (
-          <p className="section-empty">
-            Featured schools will appear here when the directory has published listings.
-          </p>
+          <EmptyState
+            className="be-empty--compact"
+            icon={School}
+            title="Featured schools will appear here"
+            description="Published listings from the directory show up in this row."
+          />
         )}
       </section>
 
@@ -240,11 +242,11 @@ export default function HomeLanding({
             </p>
           </div>
           <div className="school-cta__actions">
-            <Link href="/signup" className="primary-button">
+            <Link href="/signup/school/" className="primary-button">
               List Your School
             </Link>
-            <Link href="/schools" className="secondary-button">
-              Learn More
+            <Link href="/contact/" className="secondary-button">
+              Talk to us
             </Link>
           </div>
         </div>

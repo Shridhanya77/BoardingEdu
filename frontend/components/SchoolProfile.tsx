@@ -46,6 +46,7 @@ import SchoolFeesAndGrades from "./SchoolFeesAndGrades";
 import SchoolFacilitiesInteractive from "./SchoolFacilitiesInteractive";
 import SchoolEnquiryProvider from "./SchoolEnquiryDialog";
 import SchoolProfileActions, { SchoolEnquiryButton } from "./SchoolProfileActions";
+import SchoolShortlistButton from "./SchoolShortlistButton";
 import SchoolReviews from "./SchoolReviews";
 import SchoolTravelPanel from "./SchoolTravelPanel";
 import ReadMore from "./ReadMore";
@@ -777,6 +778,12 @@ export default async function SchoolProfile({
             <Phone size={17} aria-hidden /> Call
           </a>
         ) : null}
+        <SchoolShortlistButton
+          className="school-sticky-cta__save"
+          schoolId={school.school_id}
+          schoolName={school.school_name}
+          label="Save"
+        />
         <SchoolEnquiryButton className="school-sticky-cta__enquire">
           <MessageSquare size={17} aria-hidden /> Enquire now
         </SchoolEnquiryButton>

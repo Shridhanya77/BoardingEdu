@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FileText } from "lucide-react";
 import { DashboardShell, DashboardState } from "@/components/dashboard/DashboardShell";
+import { PanelRowsSkeleton } from "@/components/ui/ContentSkeleton";
+import EmptyState from "@/components/ui/EmptyState";
 import { AdmissionProgress, applicationStatusClass } from "@/components/parent-dashboard/ParentDashboard";
 import { apiErrorMessage, parentApplications, type ParentApplication } from "@/lib/api";
 
@@ -53,7 +55,7 @@ export default function ParentApplicationPage() {
       ]}
     >
       <p><Link className="dash-link" href="/dashboard/parent/applications/">Back to my applications</Link></p>
-      <DashboardState loading={loading} error={error} onRetry={load} />
+      <DashboardState loading={loading && !application} error={error} onRetry={load} skeleton={<PanelRowsSkeleton rows={4} label="Loading this application" />} />
       {application && (
         <div className="pd-detail">
           <section>
@@ -114,7 +116,12 @@ export default function ParentApplicationPage() {
                 ))}
               </ul>
             ) : (
-              <p className="dash-empty">No documents uploaded for this application yet.</p>
+              <EmptyState
+                className="be-empty--compact"
+                icon={FileText}
+                title="No documents uploaded yet"
+                description="Use the form below when you are ready to share a file with this school."
+              />
             )}
             <form
               className="pd-form"

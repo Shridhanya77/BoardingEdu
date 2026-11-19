@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/auth";
 import { SearchExperienceProvider } from "@/lib/search-experience";
 import SearchAnalyticsConsent from "@/components/SearchAnalyticsConsent";
 import PublicSiteFooter from "@/components/home/PublicSiteFooter";
+import MobileTabBar from "@/components/home/MobileTabBar";
 import { ToastProvider } from "@/components/ui/Toast";
 import { homeSeoKeywords } from "@/lib/home-content";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
@@ -94,6 +95,7 @@ export default function RootLayout({
               {children}
               <SearchAnalyticsConsent />
               <PublicSiteFooter />
+              <MobileTabBar />
             </ToastProvider>
           </SearchExperienceProvider>
         </AuthProvider>

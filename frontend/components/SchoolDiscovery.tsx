@@ -62,6 +62,9 @@ import CompareBar from "@/components/search/CompareBar";
 import HeroFinder, { type HeroFinderValue } from "@/components/home/HeroFinder";
 import CounsellingSection from "@/components/home/CounsellingSection";
 import CounsellingModal from "@/components/home/CounsellingModal";
+import HomeCategoryCards from "@/components/home/HomeCategoryCards";
+import HomeCounsellingPrompt from "@/components/home/HomeCounsellingPrompt";
+import ParentTools from "@/components/home/ParentTools";
 import ReviewSummaryPanel from "@/components/ReviewSummaryPanel";
 import PublicReviewCard from "@/components/PublicReviewCard";
 import ReviewsCollection from "@/components/ReviewsCollection";
@@ -96,6 +99,8 @@ import {
 import { useSearchExperience } from "@/lib/search-experience";
 import JsonLd from "@/components/JsonLd";
 import EmptyState, { type EmptyStateLink, type EmptyStateLinkGroup } from "@/components/ui/EmptyState";
+import SchoolShortlistButton from "@/components/SchoolShortlistButton";
+import { FeaturedSchoolsSkeleton, PanelRowsSkeleton } from "@/components/ui/ContentSkeleton";
 import { itemListJsonLd } from "@/lib/structured-data";
 
 // Leaflet is loaded only when the map view is opened, so the default
@@ -381,6 +386,14 @@ async function currentLocationPreferences(
   return createLocationPreferences(validatedCountries);
 }
 
+function listingFeeLabel(value: string | null) {
+  if (value == null || value === "") return "Fee on request";
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return "Fee on request";
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L / yr`;
+  return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)} / yr`;
+}
+
 function SchoolCard({
   school,
   selectedBoards = [],
@@ -522,12 +535,28 @@ function SchoolCard({
           )}
         </div>
 
+        <p className="school-card__facts">
+          <span>{listingFeeLabel(school.annual_fee)}</span>
+          {school.average_rating != null && (
+            <span>
+              <Star size={13} aria-hidden />
+              {school.average_rating.toFixed(1)}
+              {school.review_count > 0 ? ` · ${school.review_count} reviews` : ""}
+            </span>
+          )}
+        </p>
+
         <div className="school-card__footer">
           <div className="school-card__actions">
             <Link className="school-card__enquire" href={schoolEnquiryPath(school)}>
               <MessageSquare size={15} aria-hidden />
               Enquire
             </Link>
+            <SchoolShortlistButton
+              className="school-card__save"
+              schoolId={school.school_id}
+              schoolName={school.school_name}
+            />
             <label className="school-compare">
               <input
                 type="checkbox"
@@ -588,9 +617,7 @@ function TopBoardingSchools({
         </h2>
       </div>
       {loading ? (
-        <p className="top-boarding-schools__status" role="status">
-          Loading schools…
-        </p>
+        <PanelRowsSkeleton rows={4} label="Loading schools" />
       ) : error ? (
         <p className="top-boarding-schools__status" role="status">
           {error}
@@ -3050,6 +3077,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </p>
 
           {isHomePage && (
+            <div id="hero-search">
             <SchoolSearchAutocomplete
               variant="hero"
               placeholder="Search a school, city, state, or board"
@@ -3058,6 +3086,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
                 void navigateHomeSearch(value);
               }}
             />
+            </div>
           )}
 
           <HeroFinder
@@ -3167,6 +3196,13 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </Link>
         )}
       </section>
+
+      {isHomePage && (
+        <>
+          <HomeCounsellingPrompt onBook={() => setHomeEnquiryOpen(true)} />
+          <HomeCategoryCards />
+        </>
+      )}
 
       {isHomePage && !featuredLoading && featuredBannerSchools.length > 0 && (
         <FeaturedPromoBanner schools={featuredBannerSchools} />
@@ -3643,7 +3679,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
               >
                 <span className="city-card__number">{String(index + 1).padStart(2, "0")}</span>
                 <span className="city-card__name">{city.city_name}</span>
-                <span className="city-card__state">{city.state_name} · {city.schools_count ?? 0} schools</span>
+                <span className="city-card__state">{city.state_name}</span>
+                <span className="city-card__count">{city.schools_count ?? 0} schools</span>
                 <span className="city-card__action">
                   Explore schools <ArrowRight size={14} />
                 </span>
@@ -3778,10 +3815,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           {featuredLoading ? (
-            <div className="featured-state" role="status">
-              <LoaderCircle className="spin" size={20} />
-              Loading schools…
-            </div>
+            <FeaturedSchoolsSkeleton />
           ) : featuredError ? (
             <div className="featured-state featured-state--error" role="alert">
               {featuredError}
@@ -3789,10 +3823,12 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           ) : featuredCardSchools.length > 0 ? (
             <FeaturedSchoolCards schools={featuredCardSchools} />
           ) : (
-            <p className="section-empty">
-              Featured schools will appear here when the directory has published
-              listings.
-            </p>
+            <EmptyState
+              className="be-empty--compact"
+              icon={Building2}
+              title="Featured schools will appear here"
+              description="Published listings from the directory show up in this row."
+            />
           )}
         </section>
       )}
@@ -3838,15 +3874,17 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           </div>
 
           <div className="school-cta__actions">
-            <Link href="/signup" className="primary-button">
+            <Link href="/signup/school/" className="primary-button">
               List Your School
             </Link>
-            <Link href="/schools" className="secondary-button">
-              Learn More
+            <Link href="/contact/" className="secondary-button">
+              Talk to us
             </Link>
           </div>
         </div>
       </section>
+
+      {isHomePage && <ParentTools />}
 
       <section className="home-section home-section--faq" id="faq">
         <div className="home-section__heading home-section__heading--centered">

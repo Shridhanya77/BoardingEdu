@@ -23,6 +23,8 @@ import {
   type SchoolDetail,
   type SchoolListItem,
 } from "@/lib/api";
+import { FeaturedSchoolsSkeleton, PanelRowsSkeleton } from "@/components/ui/ContentSkeleton";
+import EmptyState from "@/components/ui/EmptyState";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 import { useSearchExperience } from "@/lib/search-experience";
 import { schoolTypeLabel } from "@/lib/seo-slugs";
@@ -255,7 +257,11 @@ export default function ComparePage({
   }, [query]);
 
   if (!hydrated) {
-    return <main className="compare-page" aria-busy="true">Loading comparison…</main>;
+    return (
+      <main className="compare-page" aria-busy="true">
+        <FeaturedSchoolsSkeleton />
+      </main>
+    );
   }
 
   const groups: {
@@ -687,10 +693,15 @@ export default function ComparePage({
           <div className="compare-slot-picker__search">
             <div className="compare-school-picker" aria-label="Choose a school from your shortlist">
               <strong>Schools in your parent shortlist</strong>
-              {shortlistLoading && <p role="status">Loading your shortlisted schools…</p>}
+              {shortlistLoading && <PanelRowsSkeleton rows={3} label="Loading your shortlisted schools" />}
               {shortlistError && <p role="alert">{shortlistError}</p>}
               {!shortlistLoading && !shortlistSchools.length && !shortlistError && (
-                <p role="status">You have no shortlisted schools to compare yet.</p>
+                <EmptyState
+                  className="be-empty--compact"
+                  icon={Search}
+                  title="No shortlisted schools yet"
+                  description="Save schools from a profile, then come back here to compare them."
+                />
               )}
               {shortlistSchools.length > 0 && (
                 <ul className="compare-school-picker__results">
@@ -756,9 +767,14 @@ export default function ComparePage({
                 />
               </label>
               {searchError && <p role="alert">{searchError}</p>}
-              {searchLoading && <p role="status">Searching schools…</p>}
+              {searchLoading && <PanelRowsSkeleton rows={3} label="Searching schools" />}
               {!searchLoading && query.trim().length >= 2 && !searchError && searchResults.length === 0 && (
-                <p role="status">No matching schools found.</p>
+                <EmptyState
+                  className="be-empty--compact"
+                  icon={Search}
+                  title="No matching schools"
+                  description="Try a shorter school name or a city."
+                />
               )}
               {searchResults.length > 0 && (
                 <ul className="compare-school-picker__results">

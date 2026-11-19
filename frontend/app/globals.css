@@ -287,6 +287,9 @@
   animation: be-shimmer 1.4s ease-in-out infinite;
 }
 @keyframes be-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .be-skeleton { animation: none; }
+}
 
 /* ----- Empty state ----- */
 .be-empty {
@@ -380,6 +383,10 @@
   text-underline-offset: 3px;
 }
 .be-empty__links--list a:hover { background: none; color: #145444; }
+.be-empty--compact { padding: 18px 8px 8px; gap: 8px; }
+.be-empty--compact .be-empty__icon { width: 28px; height: 28px; }
+.be-empty--compact .be-empty__title { font-size: var(--text-md); }
+.be-empty--compact .be-empty__desc { max-width: 460px; }
 
 /* ----- Toast ----- */
 .be-toast-container {
@@ -28671,5 +28678,395 @@ select:focus-visible {
 
   .discovery-page--listing .school-list--grid.school-list--listing .school-card__media {
     aspect-ratio: 2.1 / 1;
+  }
+}
+
+.featured-card--skeleton { pointer-events: none; }
+.featured-card--skeleton:hover { transform: none; box-shadow: 0 8px 22px rgb(25 42 72 / 8%); }
+.featured-card--skeleton__body {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px 18px;
+}
+
+.pd-skel,
+.pd-skel-list,
+.pd-skel-form { display: grid; gap: 12px; }
+.pd-skel-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.pd-skel-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.pd-skel-row > div { display: grid; gap: 8px; }
+.pd-skel-form > div { display: grid; gap: 6px; }
+.pd-skel-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.pd-journey {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(135deg, #f7fbfe, #fff);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.pd-journey__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pd-journey__head h2 {
+  margin: 2px 0 4px;
+  color: var(--ink);
+  font-size: 20px;
+}
+.pd-journey__head p { margin: 0; color: var(--muted); font-size: 13px; max-width: 560px; }
+.pd-journey__eyebrow {
+  margin: 0;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.pd-journey__steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pd-journey__steps a {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px 8px;
+  height: 100%;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.pd-journey__steps a:hover { border-color: #b7d0e4; }
+.pd-journey__steps strong { color: var(--ink); font-size: 14px; }
+.pd-journey__steps small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.pd-journey__mark {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.pd-journey__steps .is-done .pd-journey__mark { background: #e7f6ee; color: #1d7a45; }
+.pd-journey__steps .is-next a { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+@media (max-width: 900px) {
+  .pd-journey__steps { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .pd-journey__head { flex-direction: column; }
+  .pd-journey__steps { grid-template-columns: 1fr; }
+}
+
+.school-card__actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.school-card__actions > a.school-card__enquire,
+.school-card__actions > a.school-card__view,
+.school-card__actions > .school-card__save,
+.school-card__actions > .school-compare,
+.discovery-page--listing .school-card__actions > a.school-card__enquire,
+.discovery-page--listing .school-card__actions > a.school-card__view,
+.discovery-page--home .school-card__actions > a.school-card__enquire,
+.discovery-page--home .school-card__actions > a.school-card__view {
+  min-height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  flex: 1 1 96px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.school-card__actions > a.school-card__enquire,
+.discovery-page--listing .school-card__actions > a.school-card__enquire,
+.discovery-page--home .school-card__actions > a.school-card__enquire {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.school-card__actions > a.school-card__enquire:hover,
+.discovery-page--listing .school-card__actions > a.school-card__enquire:hover {
+  background: var(--primary-strong);
+}
+
+.school-card__actions > .school-card__save,
+.school-card__actions > .school-compare {
+  flex: 0 0 auto;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.school-card__actions > .school-card__save[aria-pressed="true"] {
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-color: #b7d0e4;
+}
+
+.sa-complete {
+  display: grid;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.sa-complete__track {
+  height: 8px;
+  overflow: hidden;
+  background: #e6eef5;
+  border-radius: 999px;
+}
+
+.sa-complete__track span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: inherit;
+}
+
+.home-counsel-card,
+.home-categories {
+  width: min(1160px, calc(100% - 32px));
+  margin: 16px auto 0;
+}
+
+.home-counsel-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: #fff;
+  border: 1px dashed #b7d4ea;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(11 36 64 / 6%);
+}
+
+.home-counsel-card__badge {
+  justify-self: start;
+  padding: 4px 10px;
+  color: #fff;
+  background: var(--primary);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.home-counsel-card h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.home-counsel-card p {
+  margin: 0;
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.home-counsel-card button {
+  justify-self: start;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  background: var(--primary);
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home-categories__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.home-categories__grid a {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  color: var(--ink);
+  text-decoration: none;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.home-categories__grid a:hover { border-color: #b7d0e4; }
+.home-categories__grid strong { font-size: 18px; }
+.home-categories__grid span { color: var(--primary); font-size: 13px; font-weight: 700; }
+
+.city-card__count {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.school-card__facts {
+  margin: 8px 18px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.school-card__facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-tools__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.home-tool {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.home-tool h3 { margin: 0; color: var(--ink); font-size: 18px; }
+.home-tool p { margin: 0; color: var(--muted); font-size: 13px; }
+.home-tool label { display: grid; gap: 4px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.home-tool input,
+.home-tool select {
+  min-height: 40px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 500;
+}
+
+.home-tool__result {
+  padding: 10px 12px;
+  color: var(--ink);
+  background: var(--primary-soft);
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.mobile-tabbar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  body:has(.mobile-tabbar) { padding-bottom: 74px; }
+
+  .mobile-tabbar {
+    position: fixed;
+    z-index: 45;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    background: rgb(255 255 255 / 97%);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgb(18 36 58 / 8%);
+  }
+
+  .mobile-tabbar a,
+  .mobile-tabbar button {
+    min-height: 52px;
+    padding: 4px 2px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    color: #64748b;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .mobile-tabbar .is-active { color: var(--primary); }
+
+  body:has(.mobile-tabbar) .school-sticky-cta { bottom: 68px; }
+  body:has(.mobile-tabbar) .compare-bar { bottom: 78px; }
+
+  .home-categories__grid,
+  .home-tools__grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .school-sticky-cta__save {
+    min-height: 46px;
+    padding: 0 14px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border: 1px solid #d5e6f2;
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 700;
   }
 }

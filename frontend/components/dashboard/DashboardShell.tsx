@@ -120,12 +120,15 @@ export function DashboardState({
   loading,
   error,
   onRetry,
+  skeleton,
 }: {
   loading: boolean;
   error: string | null;
   onRetry?: () => void;
+  skeleton?: ReactNode;
 }) {
   if (loading) {
+    if (skeleton) return skeleton;
     return (
       <p className="dash-state" role="status">
         <Loader2 size={18} className="spin" aria-hidden /> Loading your dashboard…

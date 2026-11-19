@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, Bookmark, Check, FileText, GraduationCap, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowRight, Bell, Bookmark, Check, FileText, GraduationCap, Inbox, MessageSquare, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import {
   DashboardPanel,
   DashboardShell,
@@ -13,6 +13,10 @@ import {
 } from "@/components/dashboard/DashboardShell";
 import ParentSchoolFinder from "@/components/parent-dashboard/ParentSchoolFinder";
 import { SavedSearches } from "@/components/parent-dashboard/SavedSearches";
+import ParentJourney from "@/components/parent-dashboard/ParentJourney";
+import { PanelRowsSkeleton, ParentOverviewSkeleton, ProfileFormSkeleton } from "@/components/ui/ContentSkeleton";
+import Button from "@/components/ui/Button";
+import EmptyState from "@/components/ui/EmptyState";
 import {
   apiErrorMessage,
   dashboards,
@@ -212,10 +216,16 @@ export default function ParentDashboard() {
           </button>
         ))}
       </nav>
-      <DashboardState loading={loading} error={error} onRetry={reload} />
+      <DashboardState
+        loading={loading && !data}
+        error={error}
+        onRetry={reload}
+        skeleton={<ParentOverviewSkeleton />}
+      />
       {localError && <p className="dash-state dash-state--error" role="alert">{localError}</p>}
       {data && section === "dashboard" && (
         <>
+          <ParentJourney data={data} />
           <div className="dash-stats">
             <StatCard label="Total applications" value={data.stats.applications_total} accent="blue" />
             <StatCard label="Under review" value={data.stats.applications_under_review} />
@@ -237,7 +247,12 @@ export default function ParentDashboard() {
           </DashboardPanel>
           <DashboardPanel title="Latest updates" subtitle="Status changes from schools appear here.">
             {data.notifications.length === 0 ? (
-              <p className="dash-empty">No updates yet. New school responses will show up here.</p>
+              <EmptyState
+                className="be-empty--compact"
+                icon={Bell}
+                title="No updates yet"
+                description="New school responses will show up here."
+              />
             ) : (
               <ul className="pd-list">
                 {data.notifications.map((note) => (
@@ -316,10 +331,13 @@ function RecentSchoolsPanel({
 }) {
   if (!schools.length) {
     return (
-      <div className="pd-recent-empty">
-        <p>Schools you view will appear here.</p>
-        <Link href="/schools">Explore schools</Link>
-      </div>
+      <EmptyState
+        className="be-empty--compact"
+        icon={Search}
+        title="No schools viewed yet"
+        description="Schools you open will appear here so you can pick up the search later."
+        action={<Button href="/schools" size="sm">Explore schools</Button>}
+      />
     );
   }
   return (
@@ -408,12 +426,23 @@ function ApplicationList({
           ))}
         </div>
       )}
-      {!applications && <p className="dash-empty">Loading your applications…</p>}
+      {!applications && <PanelRowsSkeleton rows={3} label="Loading your applications" />}
       {applications && rows.length === 0 && allRows.length === 0 && (
-        <p className="dash-empty">You have not applied to a school yet.</p>
+        <EmptyState
+          className="be-empty--compact"
+          icon={FileText}
+          title="No applications yet"
+          description="Send an enquiry from a school profile to start tracking admission here."
+          action={<Button href="/dashboard/parent/finder/" size="sm">Find schools</Button>}
+        />
       )}
       {applications && rows.length === 0 && allRows.length > 0 && (
-        <p className="dash-empty">No applications match this filter.</p>
+        <EmptyState
+          className="be-empty--compact"
+          icon={Inbox}
+          title="Nothing in this filter"
+          description="Choose another status, or view all applications."
+        />
       )}
       <ul className="pd-apps">
         {rows.map((application) => (
@@ -439,7 +468,7 @@ function ApplicationList({
         ))}
       </ul>
       {!applications && fallback.length > 0 && (
-        <p className="dash-empty">Your application list is being loaded.</p>
+        <p className="pd-skel-note">Your application list is being loaded.</p>
       )}
     </DashboardPanel>
   );
@@ -528,7 +557,7 @@ function StudentManager() {
       {error && <p className="dash-state dash-state--error" role="alert">{error}</p>}
       {notice && <p className="pd-notice" role="status">{notice}</p>}
       {loading ? (
-        <p className="dash-empty">Loading child profiles…</p>
+        <PanelRowsSkeleton rows={2} label="Loading child profiles" />
       ) : children && children.length > 0 ? (
         <ul className="pd-children">
           {children.map((child) => (
@@ -551,7 +580,12 @@ function StudentManager() {
           ))}
         </ul>
       ) : (
-        <p className="dash-empty">No child profiles yet. Add a child to keep application details together.</p>
+        <EmptyState
+          className="be-empty--compact"
+          icon={GraduationCap}
+          title="No child profiles yet"
+          description="Add a child below so enquiries and applications stay together."
+        />
       )}
 
       <form className="pd-form pd-child-form" key={editing?.child_id ?? "new-child"} onSubmit={saveChild}>
@@ -613,14 +647,13 @@ function Shortlist({
       )}
     >
       {visibleShortlist.length === 0 ? (
-        <div className="pd-shortlist-empty">
-          <span aria-hidden><Bookmark size={20} /></span>
-          <div>
-            <strong>Your shortlist is ready to grow</strong>
-            <p>Save schools you like, then compare your favourites here.</p>
-          </div>
-          <Link href="/dashboard/parent/finder/">Explore schools <ArrowRight size={15} aria-hidden /></Link>
-        </div>
+        <EmptyState
+          className="be-empty--compact"
+          icon={Bookmark}
+          title="Your shortlist is ready to grow"
+          description="Save schools you like, then compare your favourites here."
+          action={<Button href="/dashboard/parent/finder/" size="sm">Explore schools</Button>}
+        />
       ) : (
       <ul className="dash-cards pd-shortlist">
         {visibleShortlist.map((item) => (
@@ -676,13 +709,18 @@ function DocumentSummary({ applications }: { applications: ParentApplication[] |
   return (
     <DashboardPanel title="Documents" subtitle="Track school requests and review the files you have uploaded.">
       {!applications ? (
-        <p className="dash-empty">Loading your document status…</p>
+        <PanelRowsSkeleton rows={3} label="Loading your document status" />
       ) : (
         <>
           <section className="pd-document-requests">
             <h3>School requests</h3>
             {requests.length === 0 ? (
-              <p className="dash-empty">No schools are currently requesting additional documents.</p>
+              <EmptyState
+                className="be-empty--compact"
+                icon={FileText}
+                title="No document requests"
+                description="When a school asks for more documents, the request will appear here."
+              />
             ) : (
               <ul className="pd-list">
                 {requests.map((application) => (
@@ -698,7 +736,21 @@ function DocumentSummary({ applications }: { applications: ParentApplication[] |
           <section className="pd-uploaded-documents">
             <h3>Uploaded documents</h3>
             {documents.length === 0 ? (
-              <p className="dash-empty">No documents uploaded yet.</p>
+              <EmptyState
+                className="be-empty--compact"
+                icon={FileText}
+                title="No documents uploaded yet"
+                description="Open an application when you are ready to share a birth certificate, report card, or photo."
+                action={
+                  applications.length > 0 ? (
+                    <Button href={`/dashboard/parent/applications/${applications[0].enquiry_id}/`} size="sm" variant="secondary">
+                      Open an application
+                    </Button>
+                  ) : (
+                    <Button href="/dashboard/parent/finder/" size="sm">Find schools</Button>
+                  )
+                }
+              />
             ) : (
               <ul className="pd-list">
                 {documents.map((document) => (
@@ -727,8 +779,24 @@ function MessageSummary({ applications }: { applications: ParentApplication[] | 
   );
   return (
     <DashboardPanel title="Messages" subtitle="Replies stay with the application they belong to.">
-      {messages.length === 0 ? (
-        <p className="dash-empty">No messages yet.</p>
+      {!applications ? (
+        <PanelRowsSkeleton rows={3} label="Loading messages" />
+      ) : messages.length === 0 ? (
+        <EmptyState
+          className="be-empty--compact"
+          icon={MessageSquare}
+          title="No messages yet"
+          description="Replies from schools stay with the application they belong to."
+          action={
+            applications.length > 0 ? (
+              <Button href={`/dashboard/parent/applications/${applications[0].enquiry_id}/`} size="sm" variant="secondary">
+                Open an application
+              </Button>
+            ) : (
+              <Button href="/dashboard/parent/finder/" size="sm">Find schools</Button>
+            )
+          }
+        />
       ) : (
         <ul className="pd-list">
           {messages.map((message) => (
@@ -781,7 +849,12 @@ function NotificationList({
         {busy === "all" ? "Marking as read…" : unreadCount ? `Mark all as read (${unreadCount})` : "All caught up"}
       </button>
       {notes.length === 0 ? (
-        <p className="dash-empty">You’re all caught up. New school updates will appear here.</p>
+        <EmptyState
+          className="be-empty--compact"
+          icon={Bell}
+          title="You’re all caught up"
+          description="New school updates will appear here."
+        />
       ) : (
         <ul className="pd-list">
           {notes.map((note) => (
@@ -813,7 +886,7 @@ function ProfileForm({
   onSaved: (profile: ParentProfileData) => void;
 }) {
   const [message, setMessage] = useState<string | null>(null);
-  if (!profile) return <p className="dash-empty">Loading your profile…</p>;
+  if (!profile) return <ProfileFormSkeleton />;
   return (
     <DashboardPanel title="My profile">
       <form

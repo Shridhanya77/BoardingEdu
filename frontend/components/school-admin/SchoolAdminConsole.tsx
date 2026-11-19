@@ -36,6 +36,7 @@ import {
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { useDashboardData } from "@/components/dashboard/DashboardShell";
 import { usePreservedSidebarScroll } from "@/lib/use-preserved-sidebar-scroll";
+import { useToast } from "@/components/ui/Toast";
 import { schoolProfilePathFromSlugs, toSeoSlug } from "@/lib/seo-slugs";
 import { gradeSelectOptions, gradeSelectionIds } from "@/lib/grade-labels";
 import {
@@ -153,6 +154,7 @@ export default function SchoolAdminConsole() {
   const [notice, setNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
   const sidebarNavRef = useRef<HTMLElement | null>(null);
 
   usePreservedSidebarScroll(
@@ -198,9 +200,12 @@ export default function SchoolAdminConsole() {
     try {
       await action();
       setNotice(success);
+      toast(success, "success");
       reload();
     } catch (reason) {
-      setFormError(apiErrorMessage(reason));
+      const message = apiErrorMessage(reason);
+      setFormError(message);
+      toast(message, "danger");
     } finally {
       setBusy(false);
     }
@@ -301,7 +306,19 @@ export default function SchoolAdminConsole() {
                     ? "Awaiting approval"
                     : "Needs correction"}
               </span>
-              <strong>{school.profile_completeness}% complete</strong>
+              <div className="sa-complete">
+                <div
+                  className="sa-complete__track"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.max(0, Math.min(100, school.profile_completeness))}
+                  aria-label="Profile completeness"
+                >
+                  <span style={{ width: `${Math.max(0, Math.min(100, school.profile_completeness))}%` }} />
+                </div>
+                <strong>{school.profile_completeness}% complete</strong>
+              </div>
               {school.verification_status === "VERIFIED" && (
                 <Link href={publicHref}>View public profile</Link>
               )}

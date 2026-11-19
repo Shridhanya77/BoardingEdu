@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { Building2, ExternalLink, MapPin, Search, Star } from "lucide-react";
 import { DashboardPanel } from "@/components/dashboard/DashboardShell";
+import { PanelRowsSkeleton } from "@/components/ui/ContentSkeleton";
+import EmptyState from "@/components/ui/EmptyState";
 import { apiErrorMessage, schools, type SchoolListItem } from "@/lib/api";
 import { schoolProfilePathFromSlugs } from "@/lib/seo-slugs";
 
@@ -70,8 +72,16 @@ export default function ParentSchoolFinder() {
 
       {error && <p className="dash-state dash-state--error" role="alert">{error}</p>}
 
+      {loading && <PanelRowsSkeleton rows={4} label="Searching schools" />}
+
       {searched && results.length === 0 && !loading && (
-        <p className="dash-empty">No schools matched that search. Try another school name or location.</p>
+        <EmptyState
+          className="be-empty--compact"
+          icon={Search}
+          title="No schools matched that search"
+          description="Try a school name, a city, or a shorter phrase."
+          hints={["Use a city such as Bengaluru or Pune.", "Search the school’s short name if the full name is long."]}
+        />
       )}
 
       {results.length > 0 && (

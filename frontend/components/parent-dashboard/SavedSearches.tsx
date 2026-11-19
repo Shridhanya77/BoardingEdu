@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Bell, BellOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { DashboardPanel } from "@/components/dashboard/DashboardShell";
+import { PanelRowsSkeleton } from "@/components/ui/ContentSkeleton";
+import Button from "@/components/ui/Button";
+import EmptyState from "@/components/ui/EmptyState";
 import {
   apiErrorMessage,
   geography,
@@ -182,16 +184,15 @@ export function SavedSearches({ onError }: { onError: (message: string | null) =
         }
       >
         {items === null ? (
-          <p className="dash-empty">Loading your saved searches…</p>
+          <PanelRowsSkeleton rows={2} label="Loading your saved searches" />
         ) : items.length === 0 ? (
-          <div className="pd-shortlist-empty">
-            <span aria-hidden><Search size={20} /></span>
-            <div>
-              <strong>No saved searches yet</strong>
-              <p>Save your filters to get alerted about new matching schools.</p>
-            </div>
-            <Link href="/dashboard/parent/finder/">Find schools</Link>
-          </div>
+          <EmptyState
+            className="be-empty--compact"
+            icon={Search}
+            title="No saved searches yet"
+            description="Save your filters to get an email when a new matching school is added."
+            action={<Button href="/dashboard/parent/finder/" size="sm">Find schools</Button>}
+          />
         ) : (
           <ul className="pd-list pd-saved-search-list">
             {items.map((item) => (
@@ -572,7 +573,7 @@ function NotificationPreferencesPanel({ onError }: { onError: (message: string |
   if (!preference) {
     return (
       <DashboardPanel title="Email preferences">
-        <p className="dash-empty">Loading your email preferences…</p>
+        <PanelRowsSkeleton rows={2} label="Loading your email preferences" />
       </DashboardPanel>
     );
   }
