@@ -47,6 +47,14 @@ class User(AbstractUser):
         verbose_name = 'User'
         verbose_name_plural = 'Users'
 
+    def save(self, *args, **kwargs):
+        if self.role == self.ROLE_STAFF_ADMIN and not self.is_staff:
+            self.is_staff = True
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"is_staff"}
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.get_role_display()}: {self.username}"
 

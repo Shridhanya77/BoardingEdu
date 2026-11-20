@@ -49,13 +49,13 @@ The frontend stores and refreshes tokens through its configured tokens provider.
 | Own shortlists/saved searches | — | CRUD own | — | Limited by endpoint | Limited by endpoint |
 | Own enquiries/applications | — | Own | — | All | All |
 | Own-school enquiries | — | — | Own school | All | All |
-| Own-school profile changes | — | — | Propose/manage approved fields | Approve/reject | Approve/reject |
+| Own-school profile changes | — | — | Propose/manage approved fields | View operational records | Approve/reject |
 | School facilities/grades/photos/fees | — | — | Own verified school | Direct/all in Django Admin | Direct/all |
 | Public catalogue master data | — | — | Read | CRUD through Django/API according to view | CRUD |
-| Reviews | Read published | Create, own manage | Own-school scope where exposed | Moderate | Moderate |
+| Reviews | Read published | Create, own manage | Own-school scope where exposed | View only | Approve/reject |
 | Verification and promotions | — | — | — | Manage | Manage |
 | User account and role management | — | — | — | API restrictions apply | Full |
-| Django Admin | — | — | Only if Django staff and scoped | Django permissions | Superuser: all |
+| Django Admin | — | — | Only if Django staff and scoped | Managed operational group; no user/role admin, delete, or review moderation | Superuser: all |
 
 ## Permission classes
 

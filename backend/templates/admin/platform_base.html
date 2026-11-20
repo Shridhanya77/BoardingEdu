@@ -31,10 +31,12 @@
           <p>Admissions</p>
           <a class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Admission leads</a>
           <a class="{% if request.resolver_match.url_name == 'reviews_review_changelist' %}is-active{% endif %}" href="{% url 'admin:reviews_review_changelist' %}">Reviews</a>
-          <p>People</p>
-          <a class="{% if request.resolver_match.url_name == 'users_user_changelist' and not request.GET.role__exact %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}">All users</a>
-          <a class="{% if request.GET.role__exact == 'SCHOOL_ADMIN' %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}?role__exact=SCHOOL_ADMIN">School administrators</a>
-          <a class="{% if request.resolver_match.url_name == 'records_index' %}is-active{% endif %}" href="{% url 'admin:records_index' %}">All records</a>
+          {% if user.is_superuser or user.role == "SUPER_ADMIN" %}
+            <p>People</p>
+            <a class="{% if request.resolver_match.url_name == 'users_user_changelist' and not request.GET.role__exact %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}">All users</a>
+            <a class="{% if request.GET.role__exact == 'SCHOOL_ADMIN' %}is-active{% endif %}" href="{% url 'admin:users_user_changelist' %}?role__exact=SCHOOL_ADMIN">School administrators</a>
+            <a class="{% if request.resolver_match.url_name == 'records_index' %}is-active{% endif %}" href="{% url 'admin:records_index' %}">All records</a>
+          {% endif %}
         {% else %}
           <a
             class="{% if request.resolver_match.url_name == 'school_workspace' %}is-active{% endif %}"

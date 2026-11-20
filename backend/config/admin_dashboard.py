@@ -1608,6 +1608,11 @@ def install_admin_dashboard():
     def get_urls():
         return [
             path(
+                "logout/",
+                logout_view,
+                name="logout",
+            ),
+            path(
                 "logout-now/",
                 logout_view,
                 name="boardingedu_logout",

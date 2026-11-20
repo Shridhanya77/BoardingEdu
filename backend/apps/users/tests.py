@@ -785,8 +785,8 @@ class StaffAdminBackendLoginTests(TestCase):
             email="staff@boardingedu.test",
             password="secret-pass",
             role=User.ROLE_STAFF_ADMIN,
-            is_staff=False,
         )
+        User.objects.filter(pk=user.pk).update(is_staff=False)
         client = APIClient()
 
         response = client.post(
@@ -807,8 +807,9 @@ class StaffAdminBackendLoginTests(TestCase):
             username="new-staff-admin",
             password="secret-pass",
             role=User.ROLE_STAFF_ADMIN,
-            is_staff=False,
         )
+        User.objects.filter(pk=user.pk).update(is_staff=False)
+        user.refresh_from_db()
         request = RequestFactory().post("/admin/users/user/")
         request.user = User.objects.create_superuser(
             username="user-admin-super",
@@ -823,6 +824,69 @@ class StaffAdminBackendLoginTests(TestCase):
         )
         user.refresh_from_db()
         self.assertTrue(user.is_staff)
+
+    def test_staff_admin_gets_operational_model_permissions_only(self):
+        from apps.blogs.admin import _can_manage_blogs
+        from django.test import RequestFactory
+
+        user = User.objects.create_user(
+            username="staff-admin-permissions",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+        )
+        request = RequestFactory().get("/admin/blogs/blogpost/")
+        request.user = user
+        client = APIClient()
+        client.force_login(user)
+
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.groups.filter(name="BoardingEdu Staff Admin").exists())
+        self.assertTrue(user.has_perm("schools.change_school"))
+        self.assertTrue(user.has_perm("admissions.change_admissionenquiry"))
+        self.assertTrue(user.has_perm("fees.change_feestructure"))
+        self.assertTrue(user.has_perm("blogs.change_blogpost"))
+        self.assertTrue(_can_manage_blogs(request))
+        self.assertTrue(user.has_perm("reviews.view_review"))
+        self.assertFalse(user.has_perm("reviews.change_review"))
+        self.assertFalse(user.has_perm("schools.delete_school"))
+        self.assertFalse(user.has_perm("users.view_user"))
+
+        home = client.get(reverse("admin:index"))
+        self.assertEqual(home.status_code, 200)
+        self.assertNotContains(home, reverse("admin:users_user_changelist"))
+
+        for route_name in (
+            "admin:schools_school_changelist",
+            "admin:admissions_admissionenquiry_changelist",
+            "admin:admissions_counsellingrequest_changelist",
+            "admin:fees_feestructure_changelist",
+            "admin:reviews_review_changelist",
+            "admin:guides_guidearticle_changelist",
+        ):
+            with self.subTest(route=route_name):
+                self.assertEqual(client.get(reverse(route_name)).status_code, 200)
+
+        self.assertEqual(
+            client.get(reverse("admin:users_user_changelist")).status_code,
+            403,
+        )
+
+    def test_migration_sync_repairs_existing_staff_admin_account(self):
+        from .staff_admin_access import sync_staff_admin_access
+
+        user = User.objects.create_user(
+            username="existing-staff-admin",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+        )
+        User.objects.filter(pk=user.pk).update(is_staff=False)
+        user.groups.clear()
+
+        sync_staff_admin_access(sender=None)
+
+        user.refresh_from_db()
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.groups.filter(name="BoardingEdu Staff Admin").exists())
 
 
 class ParentRegistrationWithoutEmailVerificationTests(TestCase):
@@ -896,3 +960,38 @@ class AdminLogoutRedirectTests(TestCase):
         login_page = client.get(response.url)
         self.assertEqual(login_page.status_code, 200)
         self.assertContains(login_page, "School administration")
+
+    def test_standard_admin_logout_immediately_redirects_to_login(self):
+        user = User.objects.create_superuser(
+            username="standard-logout-admin",
+            email="standard-logout-admin@boardingedu.test",
+            password="secret-pass",
+        )
+        client = APIClient()
+        client.force_login(user)
+
+        response = client.post(reverse("admin:logout"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("admin:login"))
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertNotIn("_auth_user_id", client.session)
+
+        login_page = client.get(response.url)
+        self.assertEqual(login_page.status_code, 200)
+        self.assertContains(login_page, "School administration")
+
+    def test_standard_admin_logout_rejects_get_requests(self):
+        user = User.objects.create_superuser(
+            username="get-logout-admin",
+            email="get-logout-admin@boardingedu.test",
+            password="secret-pass",
+        )
+        client = APIClient()
+        client.force_login(user)
+
+        response = client.get(reverse("admin:logout"))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response["Allow"], "POST")
+        self.assertIn("_auth_user_id", client.session)
