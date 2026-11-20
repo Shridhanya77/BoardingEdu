@@ -361,6 +361,18 @@ a.be-card:hover {
   background: linear-gradient(180deg, var(--be-accent), var(--link-fg));
 }
 
+body.be-school-admin .be-chart__bar--approved {
+  background: #18864b;
+}
+
+body.be-school-admin .be-chart__bar--pending {
+  background: #d99710;
+}
+
+body.be-school-admin .be-chart__bar--rejected {
+  background: #c43d4b;
+}
+
 .be-chart__value {
   font-size: 11px;
   font-weight: 600;
@@ -1949,8 +1961,7 @@ body.be-login-page {
   }
 
   .be-inst,
-  .be-home-stats,
-  .be-login {
+  .be-home-stats {
     grid-template-columns: 1fr;
   }
 
@@ -2798,5 +2809,375 @@ body.be-school-admin :focus-visible {
   .be-segmented-chart > span {
     animation: none;
     transition: none;
+  }
+}
+
+/* ---------------- Professional admin polish ---------------- */
+html,
+body {
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body.be-panel-app {
+  background: #f3f6fa;
+  color: #172b3d;
+}
+
+.be-shell {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.be-side {
+  background: linear-gradient(180deg, #10243a 0%, #142f49 100%);
+  border-right: 1px solid rgb(255 255 255 / 8%);
+}
+
+.be-side__brand {
+  min-height: 58px;
+  padding: 0 8px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+}
+
+.be-side__brand img {
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+}
+
+.be-side nav {
+  padding-top: 8px;
+}
+
+.be-side nav a {
+  padding: 10px 12px;
+  border-left: 3px solid transparent;
+  color: #d9e5ef;
+  font-weight: 550;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.be-side nav a.is-active {
+  border-left-color: #f28a45;
+  background: rgb(255 255 255 / 11%);
+  color: #fff;
+}
+
+.be-side nav a:hover {
+  border-left-color: #f28a45;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+}
+
+.be-main {
+  background: #f3f6fa;
+}
+
+.be-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 66px;
+  padding: 12px clamp(16px, 2vw, 28px);
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 4px 16px rgb(16 36 58 / 5%);
+}
+
+.be-top h1 {
+  font-size: clamp(18px, 1.6vw, 22px);
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+.be-top__user > span {
+  padding: 7px 12px;
+  border: 1px solid #e7edf3;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.be-top__user strong {
+  color: #17324b;
+  font-size: 13px;
+}
+
+.be-top__user small {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.be-top__user button,
+.be-btn,
+.be-search button,
+.be-login__form button {
+  background: linear-gradient(135deg, #ed741d, #d95c0b);
+  box-shadow: 0 4px 10px rgb(217 92 11 / 15%);
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.be-top__user button:hover,
+.be-btn:hover,
+.be-search button:hover,
+.be-login__form button:hover {
+  box-shadow: 0 7px 16px rgb(217 92 11 / 22%);
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+}
+
+.be-main main {
+  padding: clamp(16px, 2vw, 28px);
+}
+
+.be-directory {
+  margin-bottom: 18px;
+  padding: clamp(16px, 2vw, 22px);
+  border: 1px solid #e2e9f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgb(16 36 58 / 5%);
+}
+
+.be-directory header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.be-directory header h2 {
+  color: #17324b;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.be-home-stats a,
+.be-analytics-card,
+.be-inst {
+  border-color: #e2e9f0;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgb(16 36 58 / 5%);
+}
+
+.be-inst {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.be-inst:hover {
+  border-color: #c5d5e3;
+  box-shadow: 0 10px 24px rgb(16 36 58 / 9%);
+  transform: translateY(-1px);
+}
+
+.be-card,
+.be-panel {
+  border-radius: 16px;
+}
+
+.be-panel h3 {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.be-login-page {
+  min-height: 100vh;
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background:
+    radial-gradient(circle at 8% 12%, rgb(232 101 15 / 9%), transparent 26%),
+    #f3f6fa;
+}
+
+.be-login {
+  min-height: 100vh;
+}
+
+.be-login__intro {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #10243a 0%, #17456b 62%, #206486 100%);
+}
+
+.be-login__intro::after {
+  position: absolute;
+  right: -120px;
+  bottom: -180px;
+  width: 420px;
+  height: 420px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 42px rgb(255 255 255 / 3%), 0 0 0 84px rgb(255 255 255 / 2%);
+  content: "";
+  pointer-events: none;
+}
+
+.be-login__intro img {
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.be-login__intro h1 {
+  max-width: 13ch;
+  font-size: clamp(28px, 3.2vw, 42px);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.08;
+}
+
+.be-login__form {
+  justify-content: center;
+  padding: clamp(28px, 5vw, 64px);
+  background: #fff;
+}
+
+.be-login__form h2 {
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+.be-login__form > p {
+  margin: 8px 0 18px;
+  line-height: 1.5;
+}
+
+.be-login__form label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.be-login__form input {
+  min-height: 46px;
+  border-color: #d9e2eb;
+  border-radius: 10px;
+  background: #fbfcfe;
+  color: #172b3d;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.be-login__form input:focus {
+  border-color: #387da6;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgb(23 69 107 / 12%);
+  outline: 0;
+}
+
+.be-login__form button {
+  min-height: 46px;
+  border-radius: 10px;
+}
+
+.main-sidebar {
+  background: linear-gradient(180deg, #10243a, #142f49);
+}
+
+.main-sidebar .nav-sidebar .nav-link.active {
+  background: #e8650f;
+  box-shadow: 0 5px 14px rgb(0 0 0 / 16%);
+}
+
+.main-sidebar .nav-sidebar .nav-link.active,
+.main-sidebar .nav-sidebar .nav-link.active p {
+  color: #fff;
+}
+
+.main-header.navbar {
+  border-bottom: 1px solid #e7edf3;
+  background: #fff;
+}
+
+.content-wrapper {
+  background: #f3f6fa;
+}
+
+.content-wrapper .card {
+  border-color: #e2e9f0;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgb(16 36 58 / 5%);
+}
+
+body.be-school-admin .main-sidebar {
+  background: linear-gradient(180deg, #10243a, #142f49);
+}
+
+body.be-school-admin .be-welcome {
+  box-shadow: 0 14px 32px rgb(16 36 58 / 16%);
+}
+
+body.be-school-admin .be-card,
+body.be-school-admin .be-panel {
+  border-color: #e2e9f0;
+  box-shadow: 0 6px 20px rgb(16 36 58 / 5%);
+}
+
+body.be-school-admin .be-panel {
+  background: var(--body-bg);
+}
+
+body.be-school-admin .be-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--hairline-color);
+  border-radius: 12px;
+}
+
+@media (max-width: 980px) {
+  .be-login {
+    grid-template-columns: minmax(0, .9fr) minmax(300px, 1fr);
+  }
+
+  .be-login__intro {
+    padding: clamp(24px, 5vw, 40px);
+  }
+
+  .be-login__form {
+    padding: clamp(24px, 5vw, 40px);
+  }
+}
+
+@media (max-width: 640px) {
+  .be-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .be-side {
+    padding: 12px;
+  }
+
+  .be-side__brand {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  .be-top {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .be-top__user {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .be-top__user > span {
+    flex: 1;
+  }
+
+  .be-login {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .be-login__intro {
+    min-height: 220px;
+    padding: 28px 22px;
+  }
+
+  .be-login__intro img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .be-login__intro p {
+    margin-top: 12px;
+  }
+
+  .be-login__intro h1 {
+    max-width: none;
+    font-size: 28px;
+  }
+
+  .be-login__form {
+    padding: 28px 22px 36px;
   }
 }

@@ -1200,6 +1200,19 @@ def school_workspace(request, school_slug=None, section_slug=None, subsection_sl
         row["status"]: row["total"]
         for row in leads.values("status").annotate(total=Count("pk"))
     }
+    max_lead_status_total = max(status_totals.values(), default=0)
+    lead_statuses = [
+        {
+            "label": label,
+            "total": status_totals.get(code, 0),
+            "chart_height": (
+                round(status_totals.get(code, 0) * 100 / max_lead_status_total)
+                if max_lead_status_total
+                else 0
+            ),
+        }
+        for code, label in AdmissionEnquiry.STATUS_CHOICES
+    ]
     from apps.subscriptions.access import viewer_can_see_contacts
 
     recent = []
@@ -1299,9 +1312,29 @@ def school_workspace(request, school_slug=None, section_slug=None, subsection_sl
     review_queryset = Review.objects.filter(school=school).select_related("user")
     review_stats = review_queryset.aggregate(
         total=Count("pk"),
-        published=Count("pk", filter=Q(status=Review.STATUS_PUBLISHED)),
+        approved=Count("pk", filter=Q(status=Review.STATUS_APPROVED)),
         pending=Count("pk", filter=Q(status=Review.STATUS_PENDING)),
+        rejected=Count("pk", filter=Q(status=Review.STATUS_REJECTED)),
     )
+    review_status_counts = {
+        Review.STATUS_APPROVED: review_stats["approved"],
+        Review.STATUS_PENDING: review_stats["pending"],
+        Review.STATUS_REJECTED: review_stats["rejected"],
+    }
+    max_review_status_total = max(review_status_counts.values(), default=0)
+    review_statuses = [
+        {
+            "code": code.lower(),
+            "label": label,
+            "total": review_status_counts[code],
+            "chart_height": (
+                round(review_status_counts[code] * 100 / max_review_status_total)
+                if max_review_status_total
+                else 0
+            ),
+        }
+        for code, label in Review.STATUS_CHOICES
+    ]
     reviews = list(review_queryset.order_by("-created_at")[:50])
     completion = build_profile_completion(school)
     school_url = reverse("admin:schools_school_change", args=[school.pk])
@@ -1366,10 +1399,7 @@ def school_workspace(request, school_slug=None, section_slug=None, subsection_sl
         "lead_total": counts["total"],
         "lead_new": counts["new"],
         "lead_open": counts["open"],
-        "lead_statuses": [
-            {"label": label, "total": status_totals.get(code, 0)}
-            for code, label in AdmissionEnquiry.STATUS_CHOICES
-        ],
+        "lead_statuses": lead_statuses,
         "recent_leads": recent,
         "photo_count": len(photos),
         "grade_count": sum(1 for row in school.school_grades.all() if row.is_active),
@@ -1436,6 +1466,7 @@ def school_workspace(request, school_slug=None, section_slug=None, subsection_sl
         ],
         "reviews": reviews,
         "review_stats": review_stats,
+        "review_statuses": review_statuses,
     }
     return render(request, "admin/school_workspace.html", context)
 

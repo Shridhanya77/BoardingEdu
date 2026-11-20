@@ -297,6 +297,12 @@ class SchoolAdminBackendLoginTests(TestCase):
             body="A detailed school review.",
             status=Review.STATUS_PENDING,
         )
+        Review.objects.create(
+            school=other,
+            author_name="Other school reviewer",
+            rating=5,
+            status=Review.STATUS_APPROVED,
+        )
 
         home = client.get("/admin/")
         self.assertEqual(home.status_code, 302)
@@ -317,6 +323,12 @@ class SchoolAdminBackendLoginTests(TestCase):
         self.assertContains(workspace, "Your school")
         self.assertContains(workspace, "Facilities")
         self.assertContains(workspace, "Subscription plans")
+        self.assertContains(workspace, "Enquiries by status")
+        self.assertContains(workspace, 'aria-label="New: 1"')
+        self.assertContains(workspace, "Review moderation status")
+        self.assertContains(workspace, 'aria-label="Approved: 0"')
+        self.assertContains(workspace, 'aria-label="Pending Moderation: 1"')
+        self.assertNotContains(workspace, "Other school reviewer")
         self.assertNotContains(workspace, "Countries")
         self.assertContains(workspace, f"/school-workspace/{own.slug}/facilities/academic/")
         self.assertContains(workspace, f"/school-workspace/{own.slug}/grades/early/")

@@ -88,12 +88,29 @@
 
   <div class="be-panels">
     <section class="be-panel">
-      <h3>{% translate "Lead status" %}</h3>
-      <ul class="be-chips">
+      <h3>{% translate "Enquiries by status" %}</h3>
+      <div class="be-chart" role="group" aria-label="{% translate 'Admission enquiry counts by status' %}">
         {% for row in lead_statuses %}
-        <li><span>{{ row.label }}</span><strong>{{ row.total }}</strong></li>
+        <div class="be-chart__col" role="img" aria-label="{{ row.label }}: {{ row.total }}">
+          <strong class="be-chart__value">{{ row.total }}</strong>
+          <span class="be-chart__bar" style="height: {{ row.chart_height }}%"></span>
+          <span class="be-chart__label">{{ row.label }}</span>
+        </div>
         {% endfor %}
-      </ul>
+      </div>
+    </section>
+
+    <section class="be-panel">
+      <h3>{% translate "Review moderation status" %}</h3>
+      <div class="be-chart" role="group" aria-label="{% translate 'Review counts by moderation status' %}">
+        {% for row in review_statuses %}
+        <div class="be-chart__col" role="img" aria-label="{{ row.label }}: {{ row.total }}">
+          <strong class="be-chart__value">{{ row.total }}</strong>
+          <span class="be-chart__bar be-chart__bar--{{ row.code }}" style="height: {{ row.chart_height }}%"></span>
+          <span class="be-chart__label">{{ row.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
     </section>
 
     <section class="be-panel">
@@ -455,10 +472,11 @@
     <h3>{% translate "Reviews" %}</h3>
     <ul class="be-chips">
       <li><span>{% translate "Total" %}</span><strong>{{ review_stats.total }}</strong></li>
-      <li><span>{% translate "Published" %}</span><strong>{{ review_stats.published }}</strong></li>
+      <li><span>{% translate "Approved" %}</span><strong>{{ review_stats.approved }}</strong></li>
       <li><span>{% translate "Pending" %}</span><strong>{{ review_stats.pending }}</strong></li>
+      <li><span>{% translate "Rejected" %}</span><strong>{{ review_stats.rejected }}</strong></li>
     </ul>
-    <p class="be-panel--review" role="note">{% translate "Reviews are view-only here. BoardingEdu staff manage review moderation and publishing." %}</p>
+    <p class="be-panel--review" role="note">{% translate "Reviews are view-only here. Only a Super Admin can approve or reject them." %}</p>
     {% if reviews %}
     <div class="be-review-list">
       {% for review in reviews %}
