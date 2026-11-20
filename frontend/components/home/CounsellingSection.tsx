@@ -16,8 +16,10 @@ import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validat
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import CounsellingLocationMultiSelect from "@/components/home/CounsellingLocationMultiSelect";
 import { gradeSelectOptions } from "@/lib/grade-labels";
+import { useToast } from "@/components/ui/Toast";
 
 export default function CounsellingSection() {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -123,6 +125,7 @@ export default function CounsellingSection() {
         message: "",
       });
       setSuccess(result.reference);
+      toast(`Your counselling request has been submitted successfully. Reference: ${result.reference}.`, "success");
       setName("");
       setEmail("");
       setPhone("");

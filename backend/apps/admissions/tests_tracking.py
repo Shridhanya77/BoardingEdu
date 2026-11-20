@@ -2,13 +2,15 @@ from datetime import date
 from unittest.mock import call, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from django.test import TestCase
 
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
-from apps.notifications.models import ParentNotification
+from apps.notifications.models import AdminPanelNotification, ParentNotification
 from apps.schools.models import School, SchoolEngagement
 from apps.users.models import ParentProfile, SchoolAdminProfile, User
 
@@ -17,9 +19,9 @@ from .models import AdmissionEnquiry, Child
 
 class ApplicationTrackingTests(TestCase):
     def setUp(self):
-        country = Country.objects.create(country_code="IN", country_name="India", slug="india-track")
-        state = State.objects.create(country=country, state_code="KA", state_name="Karnataka", slug="karnataka-track")
-        city = City.objects.create(state=state, city_code="BLR", city_name="Bengaluru", slug="bengaluru-track")
+        self.country = Country.objects.create(country_code="IN", country_name="India", slug="india-track")
+        self.state = State.objects.create(country=self.country, state_code="KA", state_name="Karnataka", slug="karnataka-track")
+        self.city = City.objects.create(state=self.state, city_code="BLR", city_name="Bengaluru", slug="bengaluru-track")
         self.year = AcademicYear.objects.create(
             year_code="2026-27-track",
             year_name="2026-27",
@@ -32,9 +34,9 @@ class ApplicationTrackingTests(TestCase):
             school_code="TRACK1",
             school_name="Tracking School",
             slug="tracking-school",
-            country=country,
-            state=state,
-            city=city,
+            country=self.country,
+            state=self.state,
+            city=self.city,
             address="Bengaluru",
             phone="0800000000",
             email="admissions@tracking.example",
@@ -45,9 +47,9 @@ class ApplicationTrackingTests(TestCase):
             school_code="TRACK2",
             school_name="Other Tracking School",
             slug="other-tracking-school",
-            country=country,
-            state=state,
-            city=city,
+            country=self.country,
+            state=self.state,
+            city=self.city,
             address="Bengaluru",
             verification_status="VERIFIED",
         )
@@ -75,7 +77,14 @@ class ApplicationTrackingTests(TestCase):
             role=User.ROLE_SCHOOL_ADMIN,
         )
         SchoolAdminProfile.objects.create(user=self.school_admin, school=self.school)
-        User.objects.create_user(
+        self.other_school_admin = User.objects.create_user(
+            username="other-track-school",
+            email="other-school-admin@tracking.example",
+            password="secret-pass",
+            role=User.ROLE_SCHOOL_ADMIN,
+        )
+        SchoolAdminProfile.objects.create(user=self.other_school_admin, school=self.other)
+        self.platform_admin = User.objects.create_user(
             username="track-platform-admin",
             email="platform-admin@tracking.example",
             password="secret-pass",
@@ -175,7 +184,7 @@ class ApplicationTrackingTests(TestCase):
             response = self._submit()
 
         self.assertEqual(response.status_code, 201, response.data)
-        self.assertEqual(len(callbacks), 4)
+        self.assertEqual(len(callbacks), 5)
         school_notification.assert_has_calls([
             call("admissions@tracking.example", "Tracking School", response.data["enquiry_code"]),
             call("school-admin@tracking.example", "Tracking School", response.data["enquiry_code"]),
@@ -185,11 +194,135 @@ class ApplicationTrackingTests(TestCase):
             "Tracking School",
             response.data["enquiry_code"],
         )
+        panel_notifications = AdminPanelNotification.objects.all()
+        self.assertSetEqual(
+            set(panel_notifications.values_list("recipient_id", flat=True)),
+            {self.school_admin.pk, self.platform_admin.pk},
+        )
+        self.assertFalse(panel_notifications.filter(recipient=self.other_school_admin).exists())
         parent_confirmation.assert_called_once_with(
             "parent@tracking.example",
             "Tracking School",
             response.data["enquiry_code"],
         )
+
+    def test_counselling_notifications_are_limited_to_platform_and_selected_school(self):
+        payload = {
+            "parent_name": "Guest Parent",
+            "email": "guest@tracking.example",
+            "phone": "+91 98765 43210",
+            "preferred_country": str(self.country.pk),
+            "preferred_state": str(self.state.pk),
+            "preferred_cities": [str(self.city.pk)],
+            "preferred_school": str(self.school.pk),
+        }
+        with self.captureOnCommitCallbacks(execute=True):
+            response = APIClient().post(
+                "/api/admissions/counselling-requests/",
+                payload,
+                format="json",
+            )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(
+            AdminPanelNotification.objects.filter(
+                recipient=self.school_admin,
+                title="New counselling request",
+            ).exists()
+        )
+        self.assertTrue(
+            AdminPanelNotification.objects.filter(
+                recipient=self.platform_admin,
+                title="New counselling request",
+            ).exists()
+        )
+        self.assertFalse(
+            AdminPanelNotification.objects.filter(
+                recipient=self.other_school_admin,
+                title="New counselling request",
+            ).exists()
+        )
+
+        payload.pop("preferred_school")
+        with self.captureOnCommitCallbacks(execute=True):
+            response = APIClient().post(
+                "/api/admissions/counselling-requests/",
+                payload,
+                format="json",
+            )
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(
+            AdminPanelNotification.objects.filter(
+                recipient=self.school_admin,
+                title="New counselling request",
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            AdminPanelNotification.objects.filter(
+                recipient=self.platform_admin,
+                title="New counselling request",
+            ).count(),
+            2,
+        )
+
+    def test_panel_notification_endpoint_only_returns_the_signed_in_admins_rows(self):
+        school_notice = AdminPanelNotification.objects.create(
+            recipient=self.school_admin,
+            school=self.school,
+            title="New admission enquiry",
+            body="Tracking School received a new enquiry.",
+        )
+        AdminPanelNotification.objects.create(
+            recipient=self.school_admin,
+            school=self.other,
+            title="New admission enquiry",
+            body="A different school received an enquiry.",
+        )
+        AdminPanelNotification.objects.create(
+            recipient=self.other_school_admin,
+            school=self.other,
+            title="New admission enquiry",
+            body="Another school received a new enquiry.",
+        )
+        AdminPanelNotification.objects.create(
+            recipient=self.platform_admin,
+            title="New admission enquiry",
+            body="A new enquiry was submitted.",
+        )
+
+        school_client = Client()
+        school_client.force_login(self.school_admin)
+        response = school_client.get(
+            reverse("admin:panel_notifications"),
+            {"after": 0},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item["id"] for item in response.json()["results"]],
+            [school_notice.pk],
+        )
+
+        platform_client = Client()
+        platform_client.force_login(self.platform_admin)
+        response = platform_client.get(
+            reverse("admin:panel_notifications"),
+            {"after": 0},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            len(response.json()["results"]),
+            1,
+        )
+        self.assertContains(
+            platform_client.get(reverse("admin:index")),
+            "panel-notifications",
+        )
+        school_page = school_client.get(
+            reverse("admin:school_workspace"),
+            follow=True,
+        )
+        self.assertEqual(school_page.status_code, 200)
+        self.assertContains(school_page, "panel-notifications")
 
     def test_school_status_update_is_visible_on_the_parent_timeline(self):
         created = self._submit()

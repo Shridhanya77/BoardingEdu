@@ -13126,6 +13126,48 @@ select:focus-visible {
   border-radius: 9px;
 }
 
+.counselling-modal__confirmation {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px 8px 8px;
+  text-align: center;
+}
+
+.counselling-modal__confirmation > svg {
+  color: #18864b;
+}
+
+.counselling-modal__confirmation h3 {
+  margin: 0;
+  color: #12243a;
+  font-size: 22px;
+}
+
+.counselling-modal__confirmation p {
+  margin: 0;
+  color: #617286;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.counselling-modal__confirmation .counselling-modal__success {
+  width: 100%;
+}
+
+.counselling-modal__confirmation button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f28a28, #df5f0a);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
 .counselling-modal :focus-visible, .counselling-modal__close:focus-visible {
   outline: 3px solid #e2ad34;
   outline-offset: 3px;

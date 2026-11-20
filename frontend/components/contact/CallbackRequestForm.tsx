@@ -5,8 +5,10 @@ import { LoaderCircle, PhoneCall } from "lucide-react";
 import { admissions, apiErrorMessage } from "@/lib/api";
 import { normalizePhoneNumber } from "@/lib/contact-validation";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
+import { useToast } from "@/components/ui/Toast";
 
 export default function CallbackRequestForm({ titleId }: { titleId: string }) {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export default function CallbackRequestForm({ titleId }: { titleId: string }) {
         message: "Callback requested from the website.",
       });
       setReference(result.reference);
+      toast(`Your callback request has been submitted successfully. Reference: ${result.reference}.`, "success");
       setName("");
       setPhone("");
     } catch (reason: unknown) {

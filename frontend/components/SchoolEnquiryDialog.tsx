@@ -318,9 +318,10 @@ function SchoolEnquiryDialog({
       {result ? (
         <div className="enquiry-dialog__success" role="status">
           <CheckCircle2 size={26} aria-hidden />
-          <h2>Enquiry sent</h2>
+          <h2>Application submitted</h2>
           <p>
-            Your enquiry has been shared with {school.short_name || school.school_name} and the BoardingEdu team.
+            Your application has been submitted successfully and shared with{" "}
+            {school.short_name || school.school_name} and the BoardingEdu team.
             We&apos;ll call you soon. Your reference is <strong>{result.code}</strong>.
           </p>
           <button

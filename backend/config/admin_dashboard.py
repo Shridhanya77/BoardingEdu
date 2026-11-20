@@ -13,16 +13,17 @@ from django.contrib.auth import logout as auth_logout
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Max, Q
 from django.db.models.functions import TruncMonth
 from django.core.validators import URLValidator
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.http import urlencode
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_GET
 
 from apps.users.school_admin_scope import (
     BoardingEduAdminAuthenticationForm,
@@ -108,6 +109,60 @@ def _enquiry_trend(now):
     for month in months:
         month["pct"] = max(4, round(month["value"] / peak * 100))
     return months
+
+
+@require_GET
+def panel_notifications(request):
+    user = request.user
+    role = getattr(user, "role", None)
+    is_platform_admin = user.is_superuser or role in {"STAFF_ADMIN", "SUPER_ADMIN"}
+    is_assigned_school_admin = (
+        role == "SCHOOL_ADMIN" and assigned_school_id(user) is not None
+    )
+    if not (is_platform_admin or is_assigned_school_admin):
+        return JsonResponse(
+            {"detail": "You do not have permission to view notifications."},
+            status=403,
+        )
+
+    from apps.notifications.models import AdminPanelNotification
+
+    notifications = AdminPanelNotification.objects.filter(recipient=user)
+    if is_assigned_school_admin:
+        notifications = notifications.filter(school_id=assigned_school_id(user))
+    latest_id = notifications.aggregate(latest_id=Max("pk"))["latest_id"] or 0
+    if "after" not in request.GET:
+        return JsonResponse({"cursor": latest_id, "results": []})
+
+    try:
+        after = int(request.GET["after"])
+    except (TypeError, ValueError):
+        return JsonResponse(
+            {"detail": "The notification cursor must be an integer."},
+            status=400,
+        )
+    if after < 0:
+        return JsonResponse(
+            {"detail": "The notification cursor must be non-negative."},
+            status=400,
+        )
+
+    results = list(notifications.filter(pk__gt=after).order_by("pk")[:20])
+    cursor = results[-1].pk if results else latest_id
+    return JsonResponse(
+        {
+            "cursor": cursor,
+            "results": [
+                {
+                    "id": notification.pk,
+                    "title": notification.title,
+                    "body": notification.body,
+                    "url": notification.url,
+                }
+                for notification in results
+            ],
+        }
+    )
 
 
 def build_stats():
@@ -1638,6 +1693,11 @@ def install_admin_dashboard():
 
     def get_urls():
         return [
+            path(
+                "panel-notifications/",
+                admin.site.admin_view(panel_notifications),
+                name="panel_notifications",
+            ),
             path(
                 "logout/",
                 logout_view,

@@ -7,6 +7,12 @@
   <title>{% block title %}{{ title }} | BoardingEdu{% endblock %}</title>
   <link rel="icon" href="{% static 'admin/img/boardingedu-logo.jpeg' %}" type="image/jpeg">
   <link rel="stylesheet" href="{% static 'admin/css/boardingedu_admin.css' %}">
+  <script
+    src="{% static 'admin/js/panel-notifications.js' %}"
+    data-endpoint="{% url 'admin:panel_notifications' %}"
+    data-user-id="{{ user.pk }}"
+    defer
+  ></script>
 </head>
 <body class="be-panel-app">
   <div class="be-shell">

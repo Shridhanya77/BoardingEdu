@@ -9,6 +9,16 @@
 {{ block.super }}
 <link rel="icon" href="{% static 'admin/img/boardingedu-logo.jpeg' %}" type="image/jpeg">
 <script src="{% get_static_prefix %}admin/js/sidebar-scroll.js?v=3" defer></script>
+{% if user.is_authenticated %}
+{% if user.is_staff or user.is_superuser or user.role == "SCHOOL_ADMIN" or user.role == "SUPER_ADMIN" %}
+<script
+  src="{% static 'admin/js/panel-notifications.js' %}"
+  data-endpoint="{% url 'admin:panel_notifications' %}"
+  data-user-id="{{ user.pk }}"
+  defer
+></script>
+{% endif %}
+{% endif %}
 {% endblock %}
 
 {% block extrastyle %}{{ block.super }}

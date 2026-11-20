@@ -6,6 +6,7 @@ import { admissions, ApiError, type SchoolDetail } from "@/lib/api";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
 import { gradeSelectOptions } from "@/lib/grade-labels";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
+import { useToast } from "@/components/ui/Toast";
 
 function callbackErrorMessage(reason: unknown) {
   if (reason instanceof ApiError) {
@@ -33,6 +34,7 @@ function callbackErrorMessage(reason: unknown) {
 }
 
 export default function SchoolCallbackForm({ school }: { school: SchoolDetail }) {
+  const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -75,6 +77,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
         message: `Callback requested about ${school.school_name}.`,
       });
       setReference(result.reference);
+      toast(`Your callback request has been submitted successfully. Reference: ${result.reference}.`, "success");
       setName("");
       setEmail("");
       setPhone("");

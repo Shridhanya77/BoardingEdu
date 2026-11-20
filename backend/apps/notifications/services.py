@@ -1,14 +1,86 @@
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 from django.template.loader import render_to_string
+from django.urls import reverse
 from kombu.exceptions import OperationalError
 from redis.exceptions import RedisError
 
 from .email_provider import EmailDeliveryError, get_email_provider
-from .models import EmailDelivery
+from .models import AdminPanelNotification, EmailDelivery
 
 logger = logging.getLogger(__name__)
+
+
+def _create_admin_panel_notifications(*, title, body, url, school_id=None, school_url=""):
+    from apps.users.models import User
+
+    platform_admins = User.objects.filter(is_active=True).filter(
+        Q(is_superuser=True)
+        | Q(role__in=(User.ROLE_STAFF_ADMIN, User.ROLE_SUPER_ADMIN))
+    )
+    recipients = {user.pk: user for user in platform_admins}
+    if school_id is not None:
+        school_admins = User.objects.filter(
+            is_active=True,
+            role=User.ROLE_SCHOOL_ADMIN,
+            school_admin_profile__school_id=school_id,
+        )
+        recipients.update({user.pk: user for user in school_admins})
+
+    notices = []
+    for user in recipients.values():
+        is_platform_admin = user.is_superuser or user.role in {
+            User.ROLE_STAFF_ADMIN,
+            User.ROLE_SUPER_ADMIN,
+        }
+        notices.append(
+            AdminPanelNotification(
+                recipient=user,
+                school_id=(
+                    school_id
+                    if user.role == User.ROLE_SCHOOL_ADMIN and not is_platform_admin
+                    else None
+                ),
+                title=title,
+                body=body,
+                url=url if is_platform_admin else school_url,
+            )
+        )
+    return AdminPanelNotification.objects.bulk_create(notices)
+
+
+def notify_admin_panel_of_enquiry(enquiry):
+    detail_url = reverse(
+        "admin:admissions_admissionenquiry_change",
+        args=[enquiry.pk],
+    )
+    return _create_admin_panel_notifications(
+        school_id=enquiry.school_id,
+        title="New admission enquiry",
+        body=f"{enquiry.school.school_name} received enquiry {enquiry.enquiry_code}.",
+        url=detail_url,
+        school_url=detail_url,
+    )
+
+
+def notify_admin_panel_of_counselling_request(counselling_request):
+    school = counselling_request.preferred_school
+    school_name = school.school_name if school else ""
+    body = "A new counselling request was submitted."
+    if school_name:
+        body = f"A new counselling request was submitted for {school_name}."
+
+    return _create_admin_panel_notifications(
+        school_id=counselling_request.preferred_school_id,
+        title="New counselling request",
+        body=f"{body} Reference: {counselling_request.reference}.",
+        url=reverse(
+            "admin:admissions_counsellingrequest_change",
+            args=[counselling_request.pk],
+        ),
+    )
 
 
 def _render_and_send(delivery, *, heading, body, action_label="", action_url="", unsubscribe_url=""):

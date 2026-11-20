@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { LoaderCircle, X } from "lucide-react";
+import { CheckCircle2, LoaderCircle, X } from "lucide-react";
 import {
   admissions,
   ApiError,
@@ -221,6 +221,14 @@ export default function CounsellingModal({
           </div>
         ) : optionsError ? (
           <p className="counselling-modal__error" role="alert">{optionsError}</p>
+        ) : reference ? (
+          <section className="counselling-modal__confirmation" role="status" aria-labelledby="counselling-confirmation-title">
+            <CheckCircle2 size={32} aria-hidden />
+            <h3 id="counselling-confirmation-title">Application submitted</h3>
+            <p>Your counselling request has been submitted successfully. Our team will contact you soon.</p>
+            <p className="counselling-modal__success">Reference: <strong>{reference}</strong></p>
+            <button type="button" onClick={onClose}>Done</button>
+          </section>
         ) : (
           <form onSubmit={submit}>
             <label>
@@ -264,11 +272,6 @@ export default function CounsellingModal({
               </select>
             </label>
             {error && <p className="counselling-modal__error" role="alert">{error}</p>}
-            {reference && (
-              <p className="counselling-modal__success" role="status">
-                Request received. Your reference is <strong>{reference}</strong>.
-              </p>
-            )}
             <button type="submit" disabled={submitting}>
               {submitting ? "Sending request…" : "Get counselling"}
             </button>

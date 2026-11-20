@@ -293,10 +293,12 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
         platform_recipients = _unique_emails(platform_admin_emails)
 
         from apps.notifications.services import (
+            notify_admin_panel_of_enquiry,
             send_platform_enquiry_notification,
             send_school_enquiry_notification,
         )
 
+        transaction.on_commit(lambda: notify_admin_panel_of_enquiry(enquiry))
         for recipient in school_recipients:
             transaction.on_commit(
                 lambda recipient=recipient: send_school_enquiry_notification(
@@ -399,7 +401,13 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         if not validated_data.get("preferred_states") and validated_data.get("preferred_state"):
             validated_data["preferred_states"] = [validated_data["preferred_state"]]
-        return super().create(validated_data)
+        counselling_request = super().create(validated_data)
+        from apps.notifications.services import notify_admin_panel_of_counselling_request
+
+        transaction.on_commit(
+            lambda: notify_admin_panel_of_counselling_request(counselling_request)
+        )
+        return counselling_request
 
     def validate(self, attrs):
         country = attrs.get("preferred_country")

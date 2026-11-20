@@ -3181,3 +3181,94 @@ body.be-school-admin .be-table-wrap {
     padding: 28px 22px 36px;
   }
 }
+
+.be-admin-notifications {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: grid;
+  width: min(380px, calc(100vw - 32px));
+  gap: 10px;
+  pointer-events: none;
+}
+
+.be-admin-notification {
+  position: relative;
+  padding: 14px 42px 14px 16px;
+  border: 1px solid #dfe7ef;
+  border-left: 4px solid #e8650f;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(16 36 58 / 18%);
+  color: #172b3d;
+  pointer-events: auto;
+  animation: be-admin-notification-in 180ms ease-out;
+}
+
+.be-admin-notification__title {
+  display: block;
+  padding-right: 10px;
+  color: #17324b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.be-admin-notification__body {
+  margin: 5px 0 0;
+  color: #526579;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.be-admin-notification__link {
+  display: inline-block;
+  margin-top: 9px;
+  color: #a9460b;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.be-admin-notification__link:hover {
+  text-decoration: underline;
+}
+
+.be-admin-notification__close {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #66788a;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.be-admin-notification__close:hover {
+  background: #f0f3f6;
+  color: #17324b;
+}
+
+@keyframes be-admin-notification-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .be-admin-notification {
+    animation: none;
+  }
+}

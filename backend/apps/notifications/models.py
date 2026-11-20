@@ -65,6 +65,38 @@ class ParentNotification(models.Model):
         return self.title
 
 
+class AdminPanelNotification(models.Model):
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="admin_panel_notifications",
+    )
+    school = models.ForeignKey(
+        "schools.School",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="admin_panel_notifications",
+    )
+    title = models.CharField(max_length=160)
+    body = models.TextField(blank=True)
+    url = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "admin_panel_notifications"
+        ordering = ["id"]
+        indexes = [
+            models.Index(
+                fields=["recipient", "school", "id"],
+                name="admin_notif_user_school_pk_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
 class NotificationPreference(models.Model):
     """Per-user email consent, including a token for one-click unsubscribe.
 
