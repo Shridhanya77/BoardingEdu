@@ -108,7 +108,7 @@ The school admin cannot reassign `assigned_to`. That field is limited to `STAFF_
 
 ## Reviews
 
-The Reviews section lists this school’s reviews from the dashboard payload (id, author, rating, title, a truncated body, status, verified flag, created time). Changing `PENDING` to `PUBLISHED` or `REJECTED` is done in Django Admin (`ReviewAdmin`), not by the school admin API.
+The Reviews section lists only this school’s reviews from the dashboard payload (id, author, rating, title, a truncated body, status, verified flag, and created time). It is strictly read-only. School Admin cannot approve, reject, edit, or delete reviews in the frontend, API, or Django Admin. Only a Super Admin can moderate a pending review.
 
 ## Subscriptions
 

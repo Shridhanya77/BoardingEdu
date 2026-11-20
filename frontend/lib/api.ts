@@ -1123,7 +1123,7 @@ export const parentChildren = {
 };
 
 // ---------- Reviews & Ratings ----------
-export type ReviewStatus = "PENDING" | "PUBLISHED" | "REJECTED";
+export type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export type ReviewListItem = {
   review_id: string;
@@ -1151,6 +1151,8 @@ export type ReviewListItem = {
   body: string;
   status: ReviewStatus;
   is_verified: boolean;
+  moderated_by: number | null;
+  moderated_at: string | null;
   created_at: string;
 };
 
@@ -1210,6 +1212,16 @@ export const reviews = {
     return request<PaginatedResponse<ReviewListItem>>(`/reviews/?${params.toString()}`);
   },
   page: (url: string) => request<PaginatedResponse<ReviewListItem>>(url),
+  /** Pending queue for authorised platform reviewers. */
+  moderationQueue: () =>
+    authRequest<PaginatedResponse<ReviewListItem>>(
+      "/reviews/?status=PENDING&ordering=-created_at",
+    ),
+  /** Change only the moderation decision; review content is never sent. */
+  moderate: (reviewId: string, decision: "approve" | "reject") =>
+    authRequest<ReviewListItem>(`/reviews/${reviewId}/${decision}/`, {
+      method: "POST",
+    }),
   /** Aggregate rating for a school (public). */
   summary: (schoolId: string) =>
     request<SchoolRatingSummary>(
@@ -1471,7 +1483,7 @@ export type SchoolReviewRecord = {
   rating: number;
   title: string;
   body: string;
-  status: "PENDING" | "PUBLISHED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED";
   is_verified: boolean;
   created_at: string;
 };

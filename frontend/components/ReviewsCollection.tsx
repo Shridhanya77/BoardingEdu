@@ -70,13 +70,13 @@ export default function ReviewsCollection({
     ]).then(([reviewsResult, summaryResult]) => {
       if (cancelled) return;
       if (reviewsResult.status === "fulfilled") {
-        setList(reviewsResult.value.results.filter((review) => review.status === "PUBLISHED"));
+        setList(reviewsResult.value.results.filter((review) => review.status === "APPROVED"));
         setNext(reviewsResult.value.next);
       } else {
         setError(
           reviewsResult.reason instanceof Error
             ? reviewsResult.reason.message
-            : "Published reviews could not be loaded.",
+            : "Approved reviews could not be loaded.",
         );
       }
       if (summaryResult.status === "fulfilled") {
@@ -106,7 +106,7 @@ export default function ReviewsCollection({
       setList((current) => [
         ...current,
         ...page.results.filter(
-          (review) => review.status === "PUBLISHED" && !existing.has(review.review_id),
+        (review) => review.status === "APPROVED" && !existing.has(review.review_id),
         ),
       ]);
       setNext(page.next);
@@ -161,7 +161,7 @@ export default function ReviewsCollection({
       {summaryError && <p className="reviews-collection__notice" role="status">{summaryError}</p>}
       {loading ? (
         <p className="reviews-collection__status" role="status">
-          <LoaderCircle className="spin" size={18} /> Loading published reviews…
+        <LoaderCircle className="spin" size={18} /> Loading approved reviews…
         </p>
       ) : error && list.length === 0 ? (
         <div className="reviews-collection__status reviews-collection__status--error" role="alert">
@@ -174,7 +174,7 @@ export default function ReviewsCollection({
         </div>
       ) : (
         <p className="reviews-collection__status">
-          <Star size={17} /> No published reviews match this selection yet.
+          <Star size={17} /> No approved reviews match this selection yet.
         </p>
       )}
       {error && list.length > 0 && (
@@ -189,7 +189,7 @@ export default function ReviewsCollection({
         </div>
       )}
       {!next && list.length > 0 && (
-        <p className="reviews-collection__end">You’re viewing all published reviews for this selection.</p>
+        <p className="reviews-collection__end">        You’re viewing all approved reviews for this selection.</p>
       )}
     </>
   );

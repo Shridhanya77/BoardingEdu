@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck, Loader2, ShieldX } from "lucide-react";
-import { dashboards, setSchoolVerification } from "@/lib/api";
+import { dashboards, reviews as reviewApi, setSchoolVerification, type ReviewListItem } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import {
   DashboardPanel,
   DashboardShell,
@@ -14,8 +15,39 @@ import {
 
 export default function AdminDashboardPage() {
   const { data, loading, error, reload } = useDashboardData(dashboards.admin);
+  const { user } = useAuth();
   const [busySchool, setBusySchool] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingReviews, setPendingReviews] = useState<ReviewListItem[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [busyReview, setBusyReview] = useState<string | null>(null);
+
+  async function loadPendingReviews() {
+    setReviewError(null);
+    try {
+      const page = await reviewApi.moderationQueue();
+      setPendingReviews(page.results);
+    } catch (reason) {
+      setReviewError(reason instanceof Error ? reason.message : "Reviews could not be loaded.");
+    }
+  }
+
+  useEffect(() => {
+    if (user?.role === "SUPER_ADMIN") void loadPendingReviews();
+  }, [user?.role]);
+
+  async function decideReview(reviewId: string, decision: "approve" | "reject") {
+    setBusyReview(reviewId);
+    setReviewError(null);
+    try {
+      await reviewApi.moderate(reviewId, decision);
+      setPendingReviews((current) => current.filter((review) => review.review_id !== reviewId));
+    } catch (reason) {
+      setReviewError(reason instanceof Error ? reason.message : "The review decision failed.");
+    } finally {
+      setBusyReview(null);
+    }
+  }
 
   async function decide(schoolId: string, schoolName: string, approve: boolean) {
     setBusySchool(schoolId);
@@ -113,6 +145,60 @@ export default function AdminDashboardPage() {
             <span className="dash-pill">Unverified <strong>{data.data_quality.unverified}</strong></span>
           </div>
         </DashboardPanel>
+
+        {user?.role === "SUPER_ADMIN" && (
+          <DashboardPanel
+            title="Pending school reviews"
+            subtitle="Review content is immutable. Accept or reject only the moderation status."
+          >
+            {reviewError && <p className="dash-state dash-state--error" role="alert">{reviewError}</p>}
+            <div className="dash-table-wrap">
+              <table className="dash-table">
+                <thead>
+                  <tr><th>School</th><th>Reviewer</th><th>Rating</th><th>Review</th><th>Decision</th></tr>
+                </thead>
+                <tbody>
+                  {pendingReviews.length === 0 && (
+                    <EmptyTableRow colSpan={5} message="No pending reviews." />
+                  )}
+                  {pendingReviews.map((review) => (
+                    <tr key={review.review_id}>
+                      <td>{review.school_name}</td>
+                      <td>{review.author_name}</td>
+                      <td>{review.rating} / 5</td>
+                      <td>
+                        {review.title && <strong>{review.title}<br /></strong>}
+                        {review.body || "—"}
+                      </td>
+                      <td className="dash-table__actions">
+                        <button
+                          className="dash-action dash-action--approve"
+                          type="button"
+                          disabled={busyReview === review.review_id}
+                          onClick={() => void decideReview(review.review_id, "approve")}
+                        >
+                          {busyReview === review.review_id
+                            ? <Loader2 size={14} className="spin" aria-hidden />
+                            : <BadgeCheck size={14} aria-hidden />}
+                          Accept
+                        </button>
+                        <button
+                          className="dash-action dash-action--reject"
+                          type="button"
+                          disabled={busyReview === review.review_id}
+                          onClick={() => void decideReview(review.review_id, "reject")}
+                        >
+                          <ShieldX size={14} aria-hidden />
+                          Reject
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DashboardPanel>
+        )}
 
         <DashboardPanel title="Recently updated schools" subtitle="Latest profile activity across the platform.">
           <div className="dash-table-wrap">

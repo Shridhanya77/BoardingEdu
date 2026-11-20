@@ -58,6 +58,8 @@ class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "body",
             "status",
             "is_verified",
+            "moderated_by",
+            "moderated_at",
             "created_at",
         ]
         read_only_fields = [
@@ -65,6 +67,8 @@ class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "user",
             "status",
             "is_verified",
+            "moderated_by",
+            "moderated_at",
             "created_at",
         ]
 
@@ -93,6 +97,13 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
             "body",
         ]
         read_only_fields = ["review_id"]
+
+    def create(self, validated_data):
+        validated_data["status"] = Review.STATUS_PENDING
+        validated_data["is_verified"] = False
+        validated_data["moderated_by"] = None
+        validated_data["moderated_at"] = None
+        return super().create(validated_data)
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -124,7 +135,7 @@ class SchoolRatingSummarySerializer(serializers.Serializer):
 
 
 class PublicRatingSummarySerializer(serializers.Serializer):
-    """Read-only aggregate rating across all published school reviews."""
+    """Read-only aggregate rating across all approved school reviews."""
 
     average_rating = serializers.FloatField(allow_null=True)
     review_count = serializers.IntegerField()

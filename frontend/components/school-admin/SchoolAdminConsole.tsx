@@ -1426,7 +1426,7 @@ function ReviewsEditor({ data }: { data: SchoolDashboardData }) {
         <header><h2>Review activity</h2><span className="sa-pill">Read only</span></header>
         <p>Use this section to view feedback and track moderation. Only BoardingEdu staff can approve or reject reviews.</p>
         <div className="sa-review-summary">
-          <div><span>Published</span><strong>{data.stats.reviews_published}</strong></div>
+          <div><span>Approved</span><strong>{data.stats.reviews_published}</strong></div>
           <div><span>Awaiting moderation</span><strong>{data.stats.reviews_pending}</strong></div>
           <div><span>Average rating</span><strong>{data.stats.average_rating === null ? "—" : `${data.stats.average_rating.toFixed(1)} / 5`}</strong></div>
         </div>
@@ -1442,7 +1442,7 @@ function ReviewsEditor({ data }: { data: SchoolDashboardData }) {
           />
           <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter reviews by status">
             <option value="ALL">All statuses</option>
-            <option value="PUBLISHED">Published</option>
+            <option value="APPROVED">Approved</option>
             <option value="PENDING">Awaiting moderation</option>
             <option value="REJECTED">Not published</option>
           </select>
@@ -1461,7 +1461,7 @@ function ReviewsEditor({ data }: { data: SchoolDashboardData }) {
                   <div className="sa-review-list__meta">
                     <span className="sa-pill">{review.rating} / 5</span>
                     <span className={`sa-pill sa-pill--${review.status.toLowerCase()}`}>
-                      {review.status === "PENDING" ? "Awaiting moderation" : review.status === "PUBLISHED" ? "Published" : "Not published"}
+                      {review.status === "PENDING" ? "Awaiting moderation" : review.status === "APPROVED" ? "Approved" : "Not published"}
                     </span>
                     {review.is_verified && <span className="sa-pill sa-pill--verified">Verified parent</span>}
                   </div>

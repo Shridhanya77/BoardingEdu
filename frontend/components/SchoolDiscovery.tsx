@@ -1056,7 +1056,7 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
       if (cancelled) return;
       if (reviewResult.status === "fulfilled") {
         const publishedReviews = reviewResult.value.results.filter(
-          (review) => review.status === "PUBLISHED",
+          (review) => review.status === "APPROVED",
         );
         for (let index = publishedReviews.length - 1; index > 0; index -= 1) {
           const swapIndex = Math.floor(Math.random() * (index + 1));

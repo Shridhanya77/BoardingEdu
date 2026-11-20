@@ -8,7 +8,7 @@ from django.db.models import Avg, Count, Q
 
 class ReviewQuerySet(models.QuerySet):
     def published(self):
-        return self.filter(status=Review.STATUS_PUBLISHED)
+        return self.filter(status=Review.STATUS_APPROVED)
 
     def for_school(self, school):
         return self.filter(school=school)
@@ -24,11 +24,12 @@ class Review(models.Model):
     """A parent's rating + written review for a specific school."""
 
     STATUS_PENDING = "PENDING"
-    STATUS_PUBLISHED = "PUBLISHED"
+    STATUS_APPROVED = "APPROVED"
+    STATUS_PUBLISHED = STATUS_APPROVED
     STATUS_REJECTED = "REJECTED"
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending Moderation"),
-        (STATUS_PUBLISHED, "Published"),
+        (STATUS_APPROVED, "Approved"),
         (STATUS_REJECTED, "Rejected"),
     ]
 
@@ -97,6 +98,15 @@ class Review(models.Model):
         default=False,
         help_text="Marks reviews from verified parents/admission enquiries.",
     )
+    moderated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="moderated_reviews",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    moderated_at = models.DateTimeField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -114,7 +114,7 @@ Staff paste logo, cover, photo, and video URLs, or rely on the R2 proxy path `/m
 
 ## Reviews
 
-`ReviewAdmin` is the moderation screen. Status `PENDING` is hidden on the website. `PUBLISHED` is public. `REJECTED` is kept and hidden. `is_verified` should be set when the review should affect the popularity quality score. Unverified published reviews still display, but `recalculate_school_popularity` only averages reviews that are both published and `is_verified=True`.
+`ReviewAdmin` is the moderation screen. Review content is read-only. Only a Super Admin can approve or reject pending reviews; each action records `moderated_by` and `moderated_at`. Status `PENDING` is hidden on the website. `APPROVED` is public. `REJECTED` is kept and hidden. `is_verified` is read-only from this screen and influences the popularity quality score only when true.
 
 ## Enquiries and leads
 

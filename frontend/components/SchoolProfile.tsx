@@ -339,7 +339,7 @@ export default async function SchoolProfile({
         }
       : null;
   const jsonLdReviews = (reviewData.reviews ?? [])
-    .filter((review) => review.status === "PUBLISHED" && review.rating > 0)
+    .filter((review) => review.status === "APPROVED" && review.rating > 0)
     .map((review) => ({
       author: review.author_name,
       rating: review.rating,

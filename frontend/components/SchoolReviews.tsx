@@ -130,7 +130,7 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
                     </span>
                     <span className="review-card__author">
                       <strong>{review.author_name}</strong>
-                      <small>{formatDate(review.created_at)} · {review.status === "PUBLISHED" ? "Published review" : "Awaiting moderation"}</small>
+                      <small>{formatDate(review.created_at)} · {review.status === "APPROVED" ? "Approved review" : review.status === "PENDING" ? "Awaiting moderation" : "Not published"}</small>
                     </span>
                     {review.is_verified && <span className="review-card__verified"><CheckCircle2 size={13} /> Verified</span>}
                   </div>

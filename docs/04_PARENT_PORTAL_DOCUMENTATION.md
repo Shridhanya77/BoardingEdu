@@ -109,9 +109,9 @@ When a shortlisted school opens admissions, `ShortlistAdmissionNotice` stops the
 
 ## Reviews
 
-`ReviewViewSet` at `/api/reviews/`. A parent may have one review per school (`uq_review_school_user`). New reviews default to `PENDING` and stay off the public profile until staff set `PUBLISHED`. Optional sub-ratings: academics, facilities, safety, communication. `is_verified` is a staff flag used by the popularity quality score. It is not set automatically by the parent form in a way that bypasses moderation.
+`ReviewViewSet` at `/api/reviews/`. A parent may submit one review per school (`uq_review_school_user`). New reviews are always `PENDING`. Parents can read their own moderation status but cannot edit or delete submitted reviews. Only a Super Admin can approve or reject a pending review; approval sets `APPROVED` and rejection sets `REJECTED`. Both decisions record moderator and timestamp. Optional sub-ratings: academics, facilities, safety, communication.
 
-The public reviews page and the profile Reviews section show `status=PUBLISHED` only.
+Only `APPROVED` reviews appear publicly. Pending and rejected reviews are hidden from anonymous users.
 
 ## Profile and settings
 

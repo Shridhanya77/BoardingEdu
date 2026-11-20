@@ -1,13 +1,15 @@
 from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 
+from django.utils import timezone
+
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import (
     AllowAny,
     BasePermission,
     IsAuthenticated,
-    SAFE_METHODS,
 )
 from rest_framework.response import Response
 
@@ -69,32 +71,35 @@ class ReviewFilter(django_filters.FilterSet):
         ]
 
 
-class IsReviewOwnerOrHigher(BasePermission):
-    """Only the review author (or an admin role) may edit/delete a review."""
+class IsParentReviewer(BasePermission):
+    message = "Only parent accounts can submit school reviews."
 
-    message = "You can only modify your own review."
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == User.ROLE_PARENT
+        )
 
-    def has_object_permission(self, request, view, obj):
-        if request.method in SAFE_METHODS:
-            return True
-        user = getattr(request, "user", None)
-        if user is None or not user.is_authenticated:
-            return False
-        if getattr(user, "role", None) in (
-            User.ROLE_SUPER_ADMIN,
-            User.ROLE_STAFF_ADMIN,
-        ):
-            return True
-        return obj.user_id == user.pk
+
+class IsSuperAdminReviewer(BasePermission):
+    message = "Only a Super Admin can moderate school reviews."
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.role == User.ROLE_SUPER_ADMIN
+        )
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
     """
     School reviews & ratings.
 
-    - Public read access to published reviews.
-    - Authenticated parents (and all roles) can submit one review per school.
-    - Owners / admins can edit or remove a review.
+    - Public read access to approved reviews.
+    - Parents can submit one pending review per school.
+    - Super Admins can only change moderation state, never submitted content.
     """
 
     serializer_class = ReviewDetailSerializer
@@ -131,12 +136,12 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 None,
             )
             if school_id is None:
-                return qs.published()
-            return qs.filter(Q(status=Review.STATUS_PUBLISHED) | Q(school_id=school_id))
+                return qs.none()
+            return qs.filter(school_id=school_id)
 
         if role == User.ROLE_PARENT:
             return qs.filter(
-                Q(status=Review.STATUS_PUBLISHED) | Q(user_id=user.pk)
+                Q(status=Review.STATUS_APPROVED) | Q(user_id=user.pk)
             )
 
         return qs.published()
@@ -152,8 +157,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve", "summary", "public_summary"):
             return [AllowAny()]
         if self.action == "create":
-            return [IsAuthenticated()]
-        return [IsAuthenticated(), IsReviewOwnerOrHigher()]
+            return [IsAuthenticated(), IsParentReviewer()]
+        if self.action in ("approve", "reject"):
+            return [IsAuthenticated(), IsSuperAdminReviewer()]
+        return [IsAuthenticated()]
 
     def get_throttles(self):
         # ScopedRateThrottle only applies a limit when a scope is set.
@@ -166,6 +173,56 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if not author_name:
             author_name = user.get_full_name() or user.username
         serializer.save(user=user, author_name=author_name)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        output = ReviewDetailSerializer(
+            serializer.instance,
+            context=self.get_serializer_context(),
+        )
+        return Response(
+            output.data,
+            status=status.HTTP_201_CREATED,
+            headers=self.get_success_headers(output.data),
+        )
+
+    def update(self, request, *args, **kwargs):
+        raise PermissionDenied("Submitted review content cannot be edited.")
+
+    def destroy(self, request, *args, **kwargs):
+        raise PermissionDenied("Submitted reviews cannot be deleted.")
+
+    def _moderate(self, request, approved):
+        review = self.get_object()
+        decided_at = timezone.now()
+        updated = Review.objects.filter(
+            pk=review.pk,
+            status=Review.STATUS_PENDING,
+        ).update(
+            status=(
+                Review.STATUS_APPROVED if approved else Review.STATUS_REJECTED
+            ),
+            moderated_by=request.user,
+            moderated_at=decided_at,
+            updated_at=decided_at,
+        )
+        if not updated:
+            return Response(
+                {"detail": "Only pending reviews can be moderated."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        review.refresh_from_db()
+        return Response(self.get_serializer(review).data)
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, review_id=None):
+        return self._moderate(request, approved=True)
+
+    @action(detail=True, methods=["post"], url_path="reject")
+    def reject(self, request, review_id=None):
+        return self._moderate(request, approved=False)
 
     @action(
         detail=False,
@@ -187,9 +244,24 @@ class ReviewViewSet(viewsets.ModelViewSet):
             )
 
         school = get_object_or_404(School, pk=school_id)
+        user = request.user
+        if (
+            user.is_authenticated
+            and getattr(user, "role", None) == User.ROLE_SCHOOL_ADMIN
+        ):
+            assigned_school_id = getattr(
+                getattr(user, "school_admin_profile", None),
+                "school_id",
+                None,
+            )
+            if assigned_school_id != school.pk:
+                return Response(
+                    {"detail": "You can only view reviews for your assigned school."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         published = Review.objects.filter(
             school=school,
-            status=Review.STATUS_PUBLISHED,
+            status=Review.STATUS_APPROVED,
         )
         aggregate = published.aggregate(review_count=Count("review_id"))
         # average is computed in Python to avoid None handling differences
