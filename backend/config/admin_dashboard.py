@@ -1554,6 +1554,11 @@ def install_admin_dashboard():
     def has_permission(request):
         if request.user.is_superuser:
             return original_has_permission(request)
+        if (
+            getattr(request.user, "role", None) == "STAFF_ADMIN"
+            and request.user.is_active
+        ):
+            return True
         if getattr(request.user, "role", None) == "SCHOOL_ADMIN":
             return school_admin_is_approved(request.user)
         if original_has_permission(request):

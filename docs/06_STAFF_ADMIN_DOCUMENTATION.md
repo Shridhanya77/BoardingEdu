@@ -8,7 +8,7 @@ This role is not a copy of Super Admin, and it is not a copy of School Admin.
 
 `POST /api/auth/jwt/token/` returns access and refresh tokens directly. Staff are not in `OTP_ROLES`, so login does not send an email code. Refresh, verify, and blacklist work the same as for other roles.
 
-Django Admin is a second login, using Django’s session form at `/admin/login/`. A staff user can use Django Admin only when `is_staff` is true and the model permissions allow the screen. Creating a `STAFF_ADMIN` row does not by itself grant every Django permission. Those permissions are assigned on the user in Django Admin.
+Django Admin is a second login, using Django’s session form at `/admin/login/`. An active `STAFF_ADMIN` role is accepted by the login form and Django Admin site even when an existing account has `is_staff=False`. Saving a `STAFF_ADMIN` account in Django Admin sets `is_staff=True` automatically. Model permissions still determine which standard admin screens the user can open; the role does not grant every model permission.
 
 The Next.js pages only check the role:
 
@@ -45,7 +45,8 @@ The page also shows this month’s enquiry, review, and counselling counts, and 
 | Read and update enquiries | Yes. `IsOwnEnquiryOrHigher` lets staff pass object checks. They can set `assigned_to` because that field is limited to staff users |
 | Read children linked to enquiries, and all children where the view allows higher roles | Yes |
 | Read all parent profiles | Object permission `IsOwnParentProfile` returns true for staff |
-| Moderate reviews | Django Admin `ReviewAdmin`. API writes follow the review viewset, which allows higher roles |
+| View reviews | Django Admin `ReviewAdmin`, read-only |
+| Moderate reviews | No. Only `SUPER_ADMIN` may approve or reject reviews |
 | Counselling requests | Django Admin. There is no staff counselling screen in Next.js |
 | Blogs and guides | Django Admin, if the user has those model permissions (`BlogAdminMixin` checks staff capability) |
 | Featured promotions | Django Admin if `_is_platform_promotion_admin` passes |
@@ -62,7 +63,7 @@ The page also shows this month’s enquiry, review, and counselling counts, and 
 
 - Sign in as a school and edit that school through `/api/schools/schools/mine/`. That action checks `role == SCHOOL_ADMIN`.
 - Use the parent dashboard’s shortlist as their own family account unless they also have a parent profile, which a staff user does not get automatically.
-- Bypass a missing Django permission inside `/admin/` merely because their role string is `STAFF_ADMIN`.
+- Open standard Django Admin model screens without the required model permission. The role grants login, not every model permission.
 - Change popularity formula code. They can change weights and the rolling window in Django Admin if they have access to `SchoolEngagementWeight` and `SchoolPopularityConfig`.
 - See secrets. Django Admin does not display environment secrets.
 
@@ -92,6 +93,6 @@ The staff page and the platform admin page are the reports. There is no CSV expo
 
 ## Practical boundary versus Super Admin
 
-Use Staff Admin for operations: verification, enquiry handling, review moderation, counselling follow-up, and content edits they have been permitted to make in Django Admin.
+Use Staff Admin for operations: verification, enquiry handling, read-only review visibility, counselling follow-up, and content edits they have been permitted to make in Django Admin.
 
 Reserve Super Admin for creating staff users, granting Django permissions, and any action that should not be shared with every operator. The API’s `IsStaffAdmin` currently lets staff call the same dashboard and verification endpoints as super admins. That overlap is documented again in the permissions paper.

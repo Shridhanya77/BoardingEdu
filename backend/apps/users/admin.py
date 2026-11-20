@@ -21,6 +21,11 @@ class UserAdmin(BaseUserAdmin):
         "last_login",
     )
 
+    def save_model(self, request, obj, form, change):
+        if obj.role == User.ROLE_STAFF_ADMIN:
+            obj.is_staff = True
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(ParentProfile)
 class ParentProfileAdmin(admin.ModelAdmin):

@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.contrib import admin
 from django.test import RequestFactory
 from rest_framework.test import APIClient
@@ -431,6 +431,60 @@ class ReviewApiTests(TestCase):
         self.assertIn("body", model_admin.readonly_fields)
         self.assertIn("rating", model_admin.readonly_fields)
         self.assertIn("status", model_admin.readonly_fields)
+
+    def test_super_admin_can_moderate_from_review_detail_page(self):
+        from django.urls import reverse
+
+        review = Review.objects.create(
+            school=self.school,
+            user=self.parent,
+            rating=5,
+            title="Pending review",
+            body="Original content",
+            status=Review.STATUS_PENDING,
+        )
+        super_admin = User.objects.create_user(
+            username="review-detail-super-admin",
+            password="testpass123",
+            role=User.ROLE_SUPER_ADMIN,
+            is_staff=True,
+        )
+        client = Client()
+        client.force_login(super_admin)
+
+        detail_url = reverse("admin:reviews_review_change", args=[review.pk])
+        detail = client.get(detail_url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Accept review")
+        self.assertContains(detail, "Reject review")
+        self.assertContains(detail, "Original content")
+
+        accepted = client.post(
+            reverse("admin:reviews_review_approve", args=[review.pk])
+        )
+        self.assertEqual(accepted.status_code, 302)
+        review.refresh_from_db()
+        self.assertEqual(review.status, Review.STATUS_APPROVED)
+        self.assertEqual(review.moderated_by, super_admin)
+        self.assertIsNotNone(review.moderated_at)
+        self.assertEqual(review.body, "Original content")
+
+        rejected_review = Review.objects.create(
+            school=self.boarding_school,
+            user=self.other_parent,
+            rating=1,
+            body="Keep this text unchanged.",
+            status=Review.STATUS_PENDING,
+        )
+        rejected = client.post(
+            reverse("admin:reviews_review_reject", args=[rejected_review.pk])
+        )
+        self.assertEqual(rejected.status_code, 302)
+        rejected_review.refresh_from_db()
+        self.assertEqual(rejected_review.status, Review.STATUS_REJECTED)
+        self.assertEqual(rejected_review.moderated_by, super_admin)
+        self.assertIsNotNone(rejected_review.moderated_at)
+        self.assertEqual(rejected_review.body, "Keep this text unchanged.")
 
     def test_summary_aggregates_published_reviews(self):
         Review.objects.create(

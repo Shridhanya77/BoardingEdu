@@ -778,6 +778,53 @@ class PlatformAdminPanelTests(TestCase):
         self.assertContains(schools, "View profile")
 
 
+class StaffAdminBackendLoginTests(TestCase):
+    def test_staff_admin_can_enter_django_admin_without_is_staff_preconfigured(self):
+        user = User.objects.create_user(
+            username="backend-staff-admin",
+            email="staff@boardingedu.test",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+            is_staff=False,
+        )
+        client = APIClient()
+
+        response = client.post(
+            "/admin/login/",
+            {"username": user.username, "password": "secret-pass", "next": "/admin/"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/admin/")
+        self.assertEqual(client.get("/admin/").status_code, 200)
+
+    def test_user_admin_save_marks_staff_admin_as_django_staff(self):
+        from django.contrib import admin
+        from django.test import RequestFactory
+
+        from .admin import UserAdmin as BoardingEduUserAdmin
+
+        user = User.objects.create_user(
+            username="new-staff-admin",
+            password="secret-pass",
+            role=User.ROLE_STAFF_ADMIN,
+            is_staff=False,
+        )
+        request = RequestFactory().post("/admin/users/user/")
+        request.user = User.objects.create_superuser(
+            username="user-admin-super",
+            password="secret-pass",
+        )
+
+        BoardingEduUserAdmin(User, admin.site).save_model(
+            request,
+            user,
+            form=None,
+            change=True,
+        )
+        user.refresh_from_db()
+        self.assertTrue(user.is_staff)
+
+
 class ParentRegistrationWithoutEmailVerificationTests(TestCase):
     def test_registration_requires_otp_before_tokens(self):
         from unittest.mock import patch

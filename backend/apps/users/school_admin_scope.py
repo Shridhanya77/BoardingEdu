@@ -79,7 +79,12 @@ class BoardingEduAdminAuthenticationForm(AdminAuthenticationForm):
                 _("Your school application is awaiting admin approval."),
                 code="school_pending_approval",
             )
-        if user.is_staff or user.is_superuser or assigned_school_id(user) is not None:
+        if (
+            user.role == User.ROLE_STAFF_ADMIN
+            or user.is_staff
+            or user.is_superuser
+            or assigned_school_id(user) is not None
+        ):
             return
         raise forms.ValidationError(
             self.error_messages["invalid_login"],
