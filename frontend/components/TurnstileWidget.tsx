@@ -11,8 +11,10 @@ declare global {
           sitekey: string;
           callback: (token: string) => void;
           "expired-callback"?: () => void;
-          "error-callback"?: () => void;
+          "error-callback"?: (errorCode?: string) => void;
           theme?: "light" | "dark" | "auto";
+          retry?: "auto" | "never";
+          "refresh-expired"?: "auto" | "manual" | "never";
         },
       ) => string;
       remove?: (widgetId: string) => void;
@@ -51,9 +53,20 @@ export default function TurnstileWidget({
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey!,
         theme: "light",
+        retry: "auto",
+        "refresh-expired": "auto",
         callback: (token) => onTokenRef.current(token),
         "expired-callback": () => onTokenRef.current(""),
-        "error-callback": () => onTokenRef.current(""),
+        "error-callback": (errorCode) => {
+          // 110200 = domain not authorized, 110100/110110 = invalid sitekey.
+          if (errorCode) {
+            console.warn(
+              `[Turnstile] verification failed with error ${errorCode}. ` +
+                "If this is 110200, add the current hostname to the widget's Hostname Management in the Cloudflare dashboard.",
+            );
+          }
+          onTokenRef.current("");
+        },
       });
       setReady(true);
     }
