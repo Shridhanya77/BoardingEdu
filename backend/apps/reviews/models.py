@@ -107,6 +107,16 @@ class Review(models.Model):
         editable=False,
     )
     moderated_at = models.DateTimeField(null=True, blank=True, editable=False)
+    school_response = models.TextField(blank=True)
+    school_response_at = models.DateTimeField(null=True, blank=True)
+    school_response_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="school_review_responses",
+        null=True,
+        blank=True,
+        editable=False,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

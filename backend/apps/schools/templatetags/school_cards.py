@@ -27,6 +27,12 @@ def school_card(school):
         "badge": badge,
         "tone": tone,
         "initial": (school.school_name or "S")[:1].upper(),
-        "profile_url": public_school_url(school),
+        "profile_url": (
+            public_school_url(school)
+            if getattr(school, "status", True)
+            and school.verification_status == "VERIFIED"
+            and getattr(school, "published_at", True)
+            else ""
+        ),
         "edit_url": reverse("admin:schools_school_change", args=[school.pk]),
     }

@@ -60,6 +60,12 @@ export default function PublicReviewCard({ review }: { review: ReviewListItem })
       </div>
       {review.title && <h3>{review.title}</h3>}
       {review.body && <p>{review.body}</p>}
+      {review.school_response?.trim() && (
+        <div className="home-review-card__response">
+          <strong>School response</strong>
+          <p>{review.school_response}</p>
+        </div>
+      )}
       <Link className="home-review-card__school" href={schoolHref(review)}>
         <span className="home-review-card__school-image">
           {review.school_image_url || review.school_logo_url ? (

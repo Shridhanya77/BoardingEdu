@@ -500,6 +500,24 @@
           <span>{{ review.rating }}/5</span>
           <time datetime="{{ review.created_at|date:'c' }}">{{ review.created_at|date:"M j, Y" }}</time>
         </div>
+        {% if review.school_response %}
+        <div class="be-review-card__response">
+          <strong>{% translate "School response" %}</strong>
+          <p>{{ review.school_response }}</p>
+        </div>
+        {% endif %}
+        <form class="be-review-reply" method="post" action="{{ workspace_section_url }}">
+          {% csrf_token %}
+          <input type="hidden" name="school_id" value="{{ school.pk }}">
+          <input type="hidden" name="review_id" value="{{ review.review_id }}">
+          <label>
+            {% translate "Reply to this review" %}
+            <textarea name="school_response" maxlength="2000" rows="3" placeholder="{% translate 'Write a helpful public response…' %}">{{ review.school_response }}</textarea>
+          </label>
+          <button type="submit" name="review_reply" value="save" class="be-btn">
+            {% if review.school_response %}{% translate "Update reply" %}{% else %}{% translate "Publish reply" %}{% endif %}
+          </button>
+        </form>
       </article>
       {% endfor %}
     </div>

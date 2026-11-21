@@ -140,6 +140,12 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
                   </div>
                   {review.title && <h3 className="review-card__title">{review.title}</h3>}
                   {review.body && <p className="review-card__body">{review.body}</p>}
+                  {review.school_response?.trim() && (
+                    <div className="review-card__response">
+                      <strong>School response</strong>
+                      <p>{review.school_response}</p>
+                    </div>
+                  )}
                   {review.status === "PENDING" && <p className="review-card__pending">Awaiting moderation</p>}
                 </li>
               ))}

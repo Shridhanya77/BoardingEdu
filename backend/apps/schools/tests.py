@@ -113,6 +113,20 @@ class SchoolCardPublicUrlTests(SimpleTestCase):
         )
         self.assertNotIn("?", profile_url)
 
+    def test_school_card_hides_profile_url_before_publication(self):
+        for status in ("PENDING", "UNVERIFIED"):
+            school = SimpleNamespace(
+                pk="school-id",
+                verification_status=status,
+                status=False,
+                published_at=None,
+                school_types=SimpleNamespace(all=lambda: []),
+                school_image_url="",
+                school_logo_url="",
+                school_name="Sample Academy",
+            )
+            self.assertEqual(school_card(school)["profile_url"], "")
+
 
 class ImportedSchoolSlugTests(SimpleTestCase):
     def test_duplicate_school_name_uses_numeric_slug_suffix_not_school_code(self):
@@ -246,11 +260,11 @@ class SchoolApplicationRegistrationTests(TestCase):
         self.assertNotContains(dashboard, "Featured Schools")
         self.assertContains(
             dashboard,
-            f'{reverse("admin:index")}?section=featured',
+            f'{reverse("admin:schools_school_changelist")}?is_featured__exact=1',
         )
         self.assertContains(
             dashboard,
-            f'href="{reverse("admin:index")}?section=featured">Featured schools</a>',
+            f'href="{reverse("admin:schools_school_changelist")}?is_featured__exact=1"><span>Featured schools</span>',
         )
         pending_section = admin_client.get(
             reverse("admin:index"),
@@ -258,7 +272,6 @@ class SchoolApplicationRegistrationTests(TestCase):
         )
         self.assertContains(pending_section, "Pending school applications")
         self.assertContains(pending_section, school.school_name)
-        self.assertContains(pending_section, "View school")
         self.assertContains(pending_section, "Save decision")
         queue = admin_client.get(
             reverse("admin:schools_school_verification_queue")

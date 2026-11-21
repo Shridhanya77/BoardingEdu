@@ -60,6 +60,8 @@ class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "is_verified",
             "moderated_by",
             "moderated_at",
+            "school_response",
+            "school_response_at",
             "created_at",
         ]
         read_only_fields = [
@@ -69,6 +71,8 @@ class ReviewListSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             "is_verified",
             "moderated_by",
             "moderated_at",
+            "school_response",
+            "school_response_at",
             "created_at",
         ]
 

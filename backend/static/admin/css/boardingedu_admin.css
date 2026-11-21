@@ -2068,6 +2068,17 @@ body.be-school-admin .main-header .user-panel small {
   opacity: 1;
 }
 
+body.be-school-admin .main-sidebar .brand-text,
+body.be-school-admin .main-sidebar .nav-sidebar .nav-link,
+body.be-school-admin .main-sidebar .nav-sidebar .nav-link p,
+body.be-school-admin .main-sidebar .nav-header,
+body.be-school-admin .main-sidebar .user-panel,
+body.be-school-admin .main-sidebar .user-panel * {
+  color: #f4f7fb !important;
+  text-shadow: none;
+  opacity: 1;
+}
+
 body.be-school-admin #content {
   padding: 22px;
 }
@@ -2558,6 +2569,50 @@ body.be-school-admin .be-review-card p {
 body.be-school-admin .be-review-card__meta {
   color: var(--body-quiet-color);
   font-size: 12px;
+}
+
+body.be-school-admin .be-review-card__response {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid #0b5f8a;
+  border-radius: 8px;
+  background: #edf7fb;
+  color: #17324b;
+}
+
+body.be-school-admin .be-review-reply {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline-color);
+}
+
+body.be-school-admin .be-review-reply label {
+  display: grid;
+  gap: 6px;
+  color: var(--body-quiet-color);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+body.be-school-admin .be-review-reply textarea {
+  width: 100%;
+  min-height: 74px;
+  resize: vertical;
+  border: 1px solid var(--hairline-color);
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: #fff;
+  color: #17324b;
+  font: inherit;
+}
+
+body.be-school-admin .be-review-reply .be-btn {
+  min-height: 40px;
+  white-space: nowrap;
 }
 
 @media (max-width: 700px) {

@@ -26,9 +26,9 @@
           <a class="{% if request.resolver_match.url_name == 'index' %}is-active{% endif %}" href="{% url 'admin:index' %}">Home</a>
           <details class="be-side__group" open>
             <summary>Schools</summary>
-            <a href="{% url 'admin:index' %}?section=schools">All schools</a>
-            <a href="{% url 'admin:index' %}?section=approved">Approved schools</a>
-            <a href="{% url 'admin:index' %}?section=featured">Featured schools</a>
+            <a href="{% url 'admin:schools_school_changelist' %}">All schools</a>
+            <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Approved schools</a>
+            <a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">Featured schools</a>
             <a href="{% url 'admin:index' %}?section=popularity">Top &amp; popularity rankings</a>
             <a href="{% url 'admin:index' %}?section=pending">Pending applications</a>
           </details>
@@ -57,20 +57,17 @@
             {% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}aria-current="page"{% endif %}
           >Leads</a>
           <a
-            class="{% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'facilities' %}is-active{% endif %}"
-            href="{% url 'admin:school_workspace_select' section_slug='facilities' %}"
-            {% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'facilities' %}aria-current="page"{% endif %}
+            href="{% url 'admin:school_workspace' %}?section=facilities"
           >Facilities</a>
           <a
-            class="{% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'grades' %}is-active{% endif %}"
-            href="{% url 'admin:school_workspace_select' section_slug='grades' %}"
-            {% if request.resolver_match.url_name == 'school_workspace_select' and request.resolver_match.kwargs.section_slug == 'grades' %}aria-current="page"{% endif %}
+            href="{% url 'admin:school_workspace' %}?section=grades"
           >Grades</a>
           <a
-            class="{% if request.resolver_match.url_name == 'fees_feestructure_changelist' %}is-active{% endif %}"
-            href="{% url 'admin:fees_feestructure_changelist' %}"
-            {% if request.resolver_match.url_name == 'fees_feestructure_changelist' %}aria-current="page"{% endif %}
+            href="{% url 'admin:school_workspace' %}?section=fees"
           >Fees</a>
+          <a href="{% url 'admin:school_workspace' %}?section=photographs">Photographs</a>
+          <a href="{% url 'admin:school_workspace' %}?section=documents">Brochure &amp; documents</a>
+          <a href="{% url 'admin:school_workspace' %}?section=reviews">Reviews</a>
         {% endif %}
       </nav>
     </aside>

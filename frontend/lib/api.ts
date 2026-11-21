@@ -1155,6 +1155,8 @@ export type ReviewListItem = {
   is_verified: boolean;
   moderated_by: number | null;
   moderated_at: string | null;
+  school_response?: string;
+  school_response_at?: string | null;
   created_at: string;
 };
 

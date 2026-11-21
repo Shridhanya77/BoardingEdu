@@ -1539,6 +1539,31 @@ def school_workspace(request, school_slug=None, section_slug=None, subsection_sl
             )
         )
     if request.method == "POST":
+        if request.POST.get("review_reply"):
+            review_id = request.POST.get("review_id")
+            response_text = (request.POST.get("school_response") or "").strip()
+            review = Review.objects.filter(
+                pk=review_id,
+                school_id=school_id,
+            ).first()
+            if review is None:
+                messages.error(request, "Review not found.")
+            elif len(response_text) > 2000:
+                messages.error(request, "The reply must be 2,000 characters or fewer.")
+            elif not response_text:
+                messages.error(request, "Write a reply before saving.")
+            else:
+                review.school_response = response_text
+                review.school_response_at = timezone.now()
+                review.school_response_by = request.user
+                review.save(update_fields=[
+                    "school_response",
+                    "school_response_at",
+                    "school_response_by",
+                    "updated_at",
+                ])
+                messages.success(request, "School reply saved.")
+            return redirect(request.get_full_path())
         if request.POST.get("fee_action"):
             return _apply_fee_action(request, school)
         if request.POST.get("resource_action"):
@@ -1955,6 +1980,17 @@ def install_admin_dashboard():
     def index(request, extra_context=None):
         if assigned_school_id(request.user) is not None:
             return redirect("admin:school_workspace")
+        section = request.GET.get("section")
+        if section == "schools":
+            return redirect(reverse("admin:schools_school_changelist"))
+        if section == "approved":
+            return redirect(
+                f'{reverse("admin:schools_school_changelist")}?verification_status__exact=VERIFIED'
+            )
+        if section == "featured":
+            return redirect(
+                f'{reverse("admin:schools_school_changelist")}?is_featured__exact=1'
+            )
         stats = build_stats()
         stats["section"] = request.GET.get("section", "overview")
         if not (

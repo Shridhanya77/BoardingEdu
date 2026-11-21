@@ -7,22 +7,7 @@
 {% with s=boardingedu_stats %}
 {% if s.section != "overview" %}
 <section class="be-directory be-home-section" aria-label="Admin home section">
-  {% if s.section == "schools" %}
-  <header><h2>All schools</h2><a href="{% url 'admin:schools_school_changelist' %}">Open full school records</a></header>
-  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-  {% for school in s.section_schools %}<tr><td><strong>{{ school.school_name }}</strong><small>{{ school.school_code }}</small></td><td>{{ school.city_name }}, {{ school.state_name }}</td><td>{{ school.verification_status }}</td><td>{% if school.public_url %}<a class="be-table-view" href="{{ school.public_url }}" target="_blank" rel="noopener">View school</a>{% endif %}<a class="be-table-edit" href="{% url 'admin:schools_school_change' school.object.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="4">No schools found.</td></tr>{% endfor %}
-  </tbody></table></div>
-  {% elif s.section == "approved" %}
-  <header><h2>Approved schools</h2><a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Open full list</a></header>
-  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Location</th><th>Published</th><th>Actions</th></tr></thead><tbody>
-  {% for school in s.approved_schools %}<tr><td><strong>{{ school.school_name }}</strong><small>{{ school.school_code }}</small></td><td>{{ school.city_name }}, {{ school.state_name }}</td><td>{{ school.published_at|default:"Not published" }}</td><td><a class="be-table-view" href="{{ school.public_url }}" target="_blank" rel="noopener">View school</a><a class="be-table-edit" href="{% url 'admin:schools_school_change' school.object.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="4">No approved schools found.</td></tr>{% endfor %}
-  </tbody></table></div>
-  {% elif s.section == "featured" %}
-  <header><h2>Featured schools</h2><a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">Open full list</a></header>
-  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Location</th><th>Verification</th><th>Actions</th></tr></thead><tbody>
-  {% for school in s.featured_schools_list %}<tr><td><strong>{{ school.school_name }}</strong><small>{{ school.school_code }}</small></td><td>{{ school.city_name }}, {{ school.state_name }}</td><td>{{ school.verification_status }}</td><td>{% if school.public_url %}<a class="be-table-view" href="{{ school.public_url }}" target="_blank" rel="noopener">View school</a>{% endif %}<a class="be-table-edit" href="{% url 'admin:schools_school_change' school.object.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="4">No featured schools found.</td></tr>{% endfor %}
-  </tbody></table></div>
-  {% elif s.section == "popularity" %}
+  {% if s.section == "popularity" %}
   <header><h2>School popularity rankings</h2><a href="{% url 'admin:schools_schoolpopularity_changelist' %}">Open popularity records</a></header>
   <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>Rank</th><th>School</th><th>Popularity score</th><th>Views</th><th>Enquiries</th><th>Actions</th></tr></thead><tbody>
   {% for row in s.popular_schools %}<tr><td>{{ forloop.counter }}</td><td><strong>{{ row.school.school_name }}</strong></td><td>{{ row.popularity_score }}</td><td>{{ row.unique_school_views }}</td><td>{{ row.unique_enquiries }}</td><td><a class="be-table-edit" href="{% url 'admin:schools_schoolpopularity_change' row.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="6">Popularity rankings are not calculated yet.</td></tr>{% endfor %}
@@ -45,7 +30,6 @@
         </select>
         <textarea name="note" maxlength="1000" rows="2" placeholder="Review note"></textarea>
         <button type="submit" name="action" value="approve" class="be-table-approve">Save decision</button>
-        <a class="be-table-view" href="{% url 'admin:schools_school_change' school.object.pk %}">View school</a>
         <a class="be-table-edit" href="{% url 'admin:schools_school_change' school.object.pk %}">Edit</a>
       </form>
     </td>
@@ -76,10 +60,10 @@
 </section>
 {% else %}
 <section class="be-home-stats">
-  <a href="{% url 'admin:index' %}?section=schools"><span>Schools</span><strong>{{ s.school_total }}</strong></a>
-  <a href="{% url 'admin:index' %}?section=approved"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
+  <a href="{% url 'admin:schools_school_changelist' %}"><span>Schools</span><strong>{{ s.school_total }}</strong></a>
+  <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
   <a href="{% url 'admin:index' %}?section=pending"><span>Pending applications</span><strong>{{ s.verification.pending }}</strong></a>
-  <a href="{% url 'admin:index' %}?section=featured"><span>Featured schools</span><strong>{{ s.featured_schools }}</strong></a>
+  <a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1"><span>Featured schools</span><strong>{{ s.featured_schools }}</strong></a>
   <a href="{% url 'admin:index' %}?section=popularity"><span>Popularity rankings</span><strong>{{ s.popularity_rows }}</strong></a>
   <a href="{% url 'admin:index' %}?section=reviews"><span>Reviews</span><strong>{{ s.total_reviews }}</strong></a>
 </section>
@@ -95,6 +79,32 @@
 {% endif %}
 
 <section class="be-admin-analytics" aria-label="Platform statistics and graphs">
+  <article class="be-analytics-card be-analytics-card--trend">
+    <header class="be-analytics-card__header">
+      <div>
+        <span>ADMISSIONS</span>
+        <h2>New enquiry trend</h2>
+      </div>
+      <strong>Last 6 months</strong>
+    </header>
+    <div
+      class="be-enquiry-chart"
+      role="img"
+      aria-label="Monthly new admission enquiries: {% for month in s.months %}{{ month.label }} {{ month.value }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+    >
+      {% for month in s.months %}
+        <div class="be-enquiry-chart__month">
+          <strong>{{ month.value }}</strong>
+          <div class="be-enquiry-chart__track">
+            <span style="height: {{ month.pct }}%"></span>
+          </div>
+          <span class="be-enquiry-chart__label">{{ month.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="be-analytics-card__note">New admission enquiries received per month.</p>
+  </article>
+
   <article class="be-analytics-card be-analytics-card--distribution">
     <section>
       <header class="be-analytics-card__header">
