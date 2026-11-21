@@ -16,6 +16,7 @@ import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validat
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import CounsellingLocationMultiSelect from "@/components/home/CounsellingLocationMultiSelect";
 import { gradeSelectOptions } from "@/lib/grade-labels";
+import TurnstileWidget from "@/components/TurnstileWidget";
 import { useToast } from "@/components/ui/Toast";
 
 export default function CounsellingSection() {
@@ -34,6 +35,7 @@ export default function CounsellingSection() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +125,7 @@ export default function CounsellingSection() {
         boards: [],
         school_types: [],
         message: "",
+        cf_turnstile_token: turnstileToken,
       });
       setSuccess(result.reference);
       toast(`Your counselling request has been submitted successfully. Reference: ${result.reference}.`, "success");
@@ -220,6 +223,7 @@ export default function CounsellingSection() {
             Request confirmed. Your counselling reference is <strong>{success}</strong>.
           </p>
         )}
+        <TurnstileWidget onToken={setTurnstileToken} />
         <button type="submit" disabled={submitting}>
           {submitting ? "Sending…" : "Get Free Counselling →"}
         </button>

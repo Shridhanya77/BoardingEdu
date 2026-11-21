@@ -31,6 +31,7 @@ import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validat
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import { useAuth } from "@/lib/auth";
 import { schoolEnquiryPath, schoolListPath } from "@/lib/school-urls";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 type EnquiryContextValue = { open: () => void };
 
@@ -135,6 +136,7 @@ function SchoolEnquiryDialog({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ code: string; status: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -280,6 +282,7 @@ function SchoolEnquiryDialog({
         message:
           (form.message || "") +
           `\n\n[Preferred contact method: ${form.preferred_contact}]`,
+        cf_turnstile_token: turnstileToken,
       };
       const created = await admissions.createEnquiry(payload);
       setResult({ code: created.enquiry_code, status: created.status });
@@ -597,6 +600,9 @@ function SchoolEnquiryDialog({
               </div>
             )}
 
+            {step === STEPS.length - 1 && (
+              <TurnstileWidget onToken={setTurnstileToken} />
+            )}
             <div className="enquiry-dialog__actions">
               {step > 0 && (
                 <button

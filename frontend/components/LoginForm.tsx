@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ArrowLeft, LogIn, UserRound, Lock } from "lucide-react";
 import { ApiError, apiErrorMessage } from "@/lib/api";
 import { dashboardPathForRole, useAuth } from "@/lib/auth";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +31,7 @@ export default function LoginForm() {
     }
     setSubmitting(true);
     try {
-      const me = await login(username.trim(), password);
+      const me = await login(username.trim(), password, turnstileToken);
       if ("otp_required" in me) {
         const email = me.email || (username.includes("@") ? username.trim() : "");
         router.push(`/verify-otp/?purpose=${me.purpose}&email=${encodeURIComponent(email)}`);
@@ -137,6 +139,8 @@ export default function LoginForm() {
                 />
               </span>
             </label>
+
+            <TurnstileWidget onToken={setTurnstileToken} />
 
             <label className="field">
               <span className="field__label">Password</span>

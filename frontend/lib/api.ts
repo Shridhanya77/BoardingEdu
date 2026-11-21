@@ -251,10 +251,10 @@ export type LoginChallenge =
   | { otp_required: true; purpose: "login" | "register"; email?: string };
 
 export const auth = {
-  obtain: (username: string, password: string) =>
+  obtain: (username: string, password: string, cfTurnstileToken = "") =>
     request<LoginChallenge>("/auth/jwt/token/", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, cf_turnstile_token: cfTurnstileToken }),
     }),
   verifyOtp: (payload: { email: string; otp: string; purpose: "register" | "login" | "password_reset"; password?: string }) =>
     request<{ access?: string; refresh?: string; detail?: string; application_pending?: boolean }>("/auth/otp/verify/", {
@@ -312,6 +312,7 @@ export type RegisterInput = {
   address?: string;
   occupation?: string;
   preferred_contact_method?: "EMAIL" | "PHONE" | "WHATSAPP";
+  cf_turnstile_token?: string;
 };
 export const users = {
   /** Public Parent registration (role is locked to PARENT on the server). */
@@ -806,6 +807,7 @@ export type NewEnquiryInput = {
   parent_email?: string;
   parent_phone?: string;
   parent_full_name?: string;
+  cf_turnstile_token?: string;
 };
 
 export type EnquiryListItem = {
@@ -840,6 +842,7 @@ export type CounsellingRequestInput = {
   boards?: string[];
   preferred_school?: string;
   message?: string;
+  cf_turnstile_token?: string;
 };
 
 export type CounsellingRequestResult = {
@@ -1065,10 +1068,10 @@ export const blogs = {
     authRequest<BlogArticle>(`/blogs/preview/${encodeURIComponent(slug)}/`),
   categories: () =>
     request<PaginatedResponse<BlogCategoryItem>>(`/blog-categories/${blogQuery({ page_size: 50 })}`),
-  subscribe: (email: string, consent: boolean) =>
+  subscribe: (email: string, consent: boolean, cfTurnstileToken = "") =>
     request<BlogSubscriptionResult>("/blogs/subscribe/", {
       method: "POST",
-      body: JSON.stringify({ email, consent }),
+      body: JSON.stringify({ email, consent, cf_turnstile_token: cfTurnstileToken }),
     }),
 };
 
@@ -1188,6 +1191,7 @@ export type ReviewInput = {
   title?: string;
   body?: string;
   author_name?: string;
+  cf_turnstile_token?: string;
 };
 
 export type ReviewFilters = {
@@ -1326,6 +1330,7 @@ export type SchoolRegistrationInput = {
   phone: string;
   password: string;
   password_confirm: string;
+  cf_turnstile_token?: string;
 };
 
 export type SchoolRegistrationResult = { detail: string };

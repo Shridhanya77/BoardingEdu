@@ -15,6 +15,7 @@ import {
 import { ApiError, apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 function fieldErrors(err: unknown, field: string): string[] | null {
   if (!(err instanceof ApiError)) return null;
@@ -46,6 +47,7 @@ export default function SignupForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [apiErr, setApiErr] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const busy = submitting || status === "loading";
 
@@ -85,7 +87,7 @@ export default function SignupForm() {
     }
     setSubmitting(true);
     try {
-      await register({ ...form, email: form.email.trim(), phone: normalizedPhone });
+      await register({ ...form, email: form.email.trim(), phone: normalizedPhone, cf_turnstile_token: turnstileToken });
       router.push(`/verify-otp/?purpose=register&email=${encodeURIComponent(form.email.trim())}`);
     } catch (err) {
       if (err instanceof ApiError) setApiErr(err);
@@ -347,6 +349,8 @@ export default function SignupForm() {
               </select>
             </label>
           </div>
+
+          <TurnstileWidget onToken={setTurnstileToken} />
 
           <button
             type="submit"

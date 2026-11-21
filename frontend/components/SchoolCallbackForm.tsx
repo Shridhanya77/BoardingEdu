@@ -7,6 +7,7 @@ import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validat
 import { gradeSelectOptions } from "@/lib/grade-labels";
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import { useToast } from "@/components/ui/Toast";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 function callbackErrorMessage(reason: unknown) {
   if (reason instanceof ApiError) {
@@ -42,6 +43,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
   const [error, setError] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const grades = school.grades_offered_detail;
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -75,6 +77,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
         grades: [gradeId],
         preferred_school: school.school_id,
         message: `Callback requested about ${school.school_name}.`,
+        cf_turnstile_token: turnstileToken,
       });
       setReference(result.reference);
       toast(`Your callback request has been submitted successfully. Reference: ${result.reference}.`, "success");
@@ -124,6 +127,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
               Your request was received. Reference: <strong>{reference}</strong>
             </p>
           )}
+          <TurnstileWidget onToken={setTurnstileToken} />
           <button type="submit" disabled={submitting}>
             {submitting ? <><LoaderCircle className="spin" size={17} /> Sending…</> : "Request a Callback"}
           </button>

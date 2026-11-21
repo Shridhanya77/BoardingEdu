@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from config.school_media import SchoolMediaUrlMixin
+from apps.turnstile import verify_turnstile
 
 from .models import Review
 
@@ -111,6 +112,8 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get("request")
+        if request is not None:
+            verify_turnstile(request)
         user = getattr(request, "user", None)
         school = attrs.get("school")
         if user and user.is_authenticated and school:

@@ -8,6 +8,7 @@ from rest_framework_simplejwt.serializers import (
 )
 from rest_framework_simplejwt.settings import api_settings
 from django.contrib.auth import get_user_model
+from apps.turnstile import verify_turnstile
 
 from apps.contact_validation import normalize_phone_number
 from .models import (
@@ -22,6 +23,9 @@ UserModel = get_user_model()
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
+        request = self.context.get("request")
+        if request is not None:
+            verify_turnstile(request)
         identifier = attrs.get("username", "")
         if "@" in identifier:
             usernames = list(
@@ -371,6 +375,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return normalize_phone_number(value)
 
     def validate(self, data):
+        request = self.context.get("request")
+        if request is not None:
+            verify_turnstile(request)
         if data["password"] != data["password_confirm"]:
             raise serializers.ValidationError({
                 "password_confirm": "Passwords do not match."

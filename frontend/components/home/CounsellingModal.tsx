@@ -18,6 +18,7 @@ import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validat
 import CountryPhoneInput from "@/components/forms/CountryPhoneInput";
 import CounsellingLocationMultiSelect from "@/components/home/CounsellingLocationMultiSelect";
 import { gradeSelectOptions } from "@/lib/grade-labels";
+import TurnstileWidget from "@/components/TurnstileWidget";
 import { homeSchoolTypeIds, toSeoSlug, type HomeSchoolCategory } from "@/lib/seo-slugs";
 
 export default function CounsellingModal({
@@ -45,6 +46,7 @@ export default function CounsellingModal({
   const [error, setError] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -172,6 +174,7 @@ export default function CounsellingModal({
         preferred_cities: selectedCities.map((city) => city.city_id),
         grades: [gradeId],
         school_types: homeSchoolTypeIds(schoolTypes, schoolCategory),
+        cf_turnstile_token: turnstileToken,
       });
       setReference(result.reference);
       setName("");
@@ -271,6 +274,7 @@ export default function CounsellingModal({
                 ))}
               </select>
             </label>
+            <TurnstileWidget onToken={setTurnstileToken} />
             {error && <p className="counselling-modal__error" role="alert">{error}</p>}
             <button type="submit" disabled={submitting}>
               {submitting ? "Sending request…" : "Get counselling"}

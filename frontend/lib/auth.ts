@@ -124,7 +124,7 @@ type AuthContextValue =
   & AuthState
   & {
     /** Log in via username + password. Stores tokens, loads /me user. */
-    login: (username: string, password: string) => Promise<UserDetail | { otp_required: true; purpose: "login" | "register"; email?: string }>;
+    login: (username: string, password: string, cfTurnstileToken?: string) => Promise<UserDetail | { otp_required: true; purpose: "login" | "register"; email?: string }>;
     /** Register a Parent user; the account can sign in immediately. */
     register: (payload: RegisterInput) => Promise<void>;
     /**
@@ -170,10 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const login = useCallback<AuthContextValue["login"]>(async (username, password) => {
+  const login = useCallback<AuthContextValue["login"]>(async (username, password, cfTurnstileToken = "") => {
     dispatch({ type: "SET_LOADING" });
     try {
-      const tokens = await auth.obtain(username, password);
+      const tokens = await auth.obtain(username, password, cfTurnstileToken);
       if ("otp_required" in tokens) {
         dispatch({ type: "SET_GUEST" });
         return tokens;

@@ -26,6 +26,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { isValidEmailAddress, normalizePhoneNumber } from "@/lib/contact-validation";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 type FormState = {
   school_name: string;
@@ -84,6 +85,7 @@ export default function SchoolSignupForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [apiErr, setApiErr] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -198,6 +200,7 @@ export default function SchoolSignupForm() {
         phone: normalizedPhone,
         password: form.password,
         password_confirm: form.password_confirm,
+        cf_turnstile_token: turnstileToken,
       });
       router.push(`/verify-otp/?purpose=register&email=${encodeURIComponent(form.email.trim())}`);
     } catch (err) {
@@ -528,6 +531,8 @@ export default function SchoolSignupForm() {
               ))}
             </label>
           </div>
+
+          <TurnstileWidget onToken={setTurnstileToken} />
 
           <button type="submit" className="primary-button" disabled={submitting}>
             <ShieldCheck size={16} />

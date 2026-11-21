@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.contact_validation import normalize_phone_number
+from apps.turnstile import verify_turnstile
 from apps.geography.models import City
 from apps.geography.serializers import (
     CountryListSerializer,
@@ -1060,6 +1061,9 @@ class SchoolRegistrationSerializer(serializers.Serializer):
             raise serializers.ValidationError('Choose a valid city.')
 
     def validate(self, data):
+        request = self.context.get("request")
+        if request is not None:
+            verify_turnstile(request)
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError(
                 {'password_confirm': 'Passwords do not match.'}

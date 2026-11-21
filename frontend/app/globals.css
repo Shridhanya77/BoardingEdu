@@ -30924,3 +30924,17 @@ select:focus-visible {
     padding: 20px 16px calc(18px + env(safe-area-inset-bottom));
   }
 }
+
+.turnstile-widget {
+  width: 100%;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.turnstile-widget > span {
+  color: #64748b;
+  font-size: 12px;
+}

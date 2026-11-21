@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { ApiError, blogs } from "@/lib/api";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -11,6 +12,7 @@ export default function BlogNewsletter() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,7 +29,7 @@ export default function BlogNewsletter() {
     }
     setPending(true);
     try {
-      const result = await blogs.subscribe(normalized, true);
+      const result = await blogs.subscribe(normalized, true, turnstileToken);
       setMessage(
         result.already_subscribed
           ? "This email is already subscribed to BoardingEdu updates."
@@ -76,6 +78,7 @@ export default function BlogNewsletter() {
           />
           <span>I agree to receive education updates from BoardingEdu. I can unsubscribe later.</span>
         </label>
+        <TurnstileWidget onToken={setTurnstileToken} />
         <button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Subscribe"}
         </button>

@@ -62,10 +62,12 @@
 <section class="be-home-stats">
   <a href="{% url 'admin:schools_school_changelist' %}"><span>Schools</span><strong>{{ s.school_total }}</strong></a>
   <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
-  <a href="{% url 'admin:index' %}?section=pending"><span>Pending applications</span><strong>{{ s.verification.pending }}</strong></a>
+  <a href="{% url 'admin:index' %}?section=pending"><span>Pending school applications</span><strong>{{ s.verification.pending }}</strong></a>
   <a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1"><span>Featured schools</span><strong>{{ s.featured_schools }}</strong></a>
   <a href="{% url 'admin:index' %}?section=popularity"><span>Popularity rankings</span><strong>{{ s.popularity_rows }}</strong></a>
   <a href="{% url 'admin:index' %}?section=reviews"><span>Reviews</span><strong>{{ s.total_reviews }}</strong></a>
+  <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}"><span>Admission leads</span><strong>{{ s.enquiry_new }}</strong></a>
+  <a href="{% url 'admin:admissions_counsellingrequest_changelist' %}"><span>Counselling requests</span><strong>{{ s.new_counselling }}</strong></a>
 </section>
 
 {% if s.verification.pending %}
@@ -73,6 +75,7 @@
   <header>
     <h2>New school applications need review</h2>
     <a href="{% url 'admin:index' %}?section=pending">Review applications</a>
+    <a href="{% url 'admin:schools_school_verification_queue' %}">Open verification queue</a>
   </header>
   <p>{{ s.verification.pending }} school application{{ s.verification.pending|pluralize }} {{ s.verification.pending|yesno:"is,are" }} waiting for approval.</p>
 </section>

@@ -81,7 +81,27 @@
     </aside>
     <div class="be-main">
       <header class="be-top">
-        <h1>{% block page_heading %}{{ title }}{% endblock %}</h1>
+        <h1>
+          {% if request.resolver_match.url_name == "admissions_admissionenquiry_changelist" %}
+            Admission leads
+          {% elif request.resolver_match.url_name == "admissions_counsellingrequest_changelist" %}
+            Counselling requests
+          {% elif request.resolver_match.url_name == "reviews_review_changelist" %}
+            Reviews
+          {% elif request.resolver_match.url_name == "schools_schoolpopularity_changelist" %}
+            Top &amp; popularity rankings
+          {% elif request.resolver_match.url_name == "schools_schoolengagementchangelist" %}
+            Engagement events
+          {% elif request.resolver_match.url_name == "schools_schoolengagementweight_changelist" %}
+            Scoring weights
+          {% elif request.resolver_match.url_name == "users_user_changelist" %}
+            {% if request.GET.role__exact == "SCHOOL_ADMIN" %}School administrators{% else %}All users{% endif %}
+          {% elif request.resolver_match.url_name == "records_index" %}
+            All records
+          {% else %}
+            {% block page_heading %}{{ title }}{% endblock %}
+          {% endif %}
+        </h1>
         <div class="be-top__user">
           <span>
             <strong>{{ user.get_full_name|default:user.get_username }}</strong>

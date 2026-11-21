@@ -1,0 +1,79 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        element: HTMLElement,
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+          theme?: "light" | "dark" | "auto";
+        },
+      ) => string;
+      remove?: (widgetId: string) => void;
+      reset?: (widgetId: string) => void;
+    };
+  }
+}
+
+export default function TurnstileWidget({
+  onToken,
+}: {
+  onToken: (token: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | undefined>(undefined);
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!siteKey) {
+      setReady(false);
+      return;
+    }
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-boardingu-turnstile="true"]',
+    );
+    function renderWidget() {
+      if (!containerRef.current || !window.turnstile) return;
+      if (widgetIdRef.current && window.turnstile.remove) {
+        window.turnstile.remove(widgetIdRef.current);
+      }
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: siteKey!,
+        theme: "light",
+        callback: (token) => onTokenRef.current(token),
+        "expired-callback": () => onTokenRef.current(""),
+        "error-callback": () => onTokenRef.current(""),
+      });
+      setReady(true);
+    }
+    if (existing) {
+      if (window.turnstile) renderWidget();
+      else existing.addEventListener("load", renderWidget, { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.defer = true;
+    script.dataset.boardinguTurnstile = "true";
+    script.addEventListener("load", renderWidget, { once: true });
+    document.head.appendChild(script);
+  }, [siteKey]);
+
+  if (!siteKey) return null;
+  return (
+    <div className="turnstile-widget" aria-label="Cloudflare security verification">
+      <div ref={containerRef} />
+      {!ready && <span>Loading verification…</span>}
+    </div>
+  );
+}

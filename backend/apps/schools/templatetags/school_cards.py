@@ -31,7 +31,6 @@ def school_card(school):
             public_school_url(school)
             if getattr(school, "status", True)
             and school.verification_status == "VERIFIED"
-            and getattr(school, "published_at", True)
             else ""
         ),
         "edit_url": reverse("admin:schools_school_change", args=[school.pk]),

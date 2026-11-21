@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.permissions import IsPlatformAdmin
+from apps.turnstile import verify_turnstile
 from config.pagination import SchoolDirectoryPagination
 
 from .models import BlogCategory, BlogPost, BlogSubscriber
@@ -109,6 +110,7 @@ class BlogSubscribeView(APIView):
     throttle_scope = "blog_subscribe"
 
     def post(self, request):
+        verify_turnstile(request)
         serializer = BlogSubscribeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]

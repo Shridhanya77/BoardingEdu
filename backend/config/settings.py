@@ -16,6 +16,8 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is missing.")
 
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+TURNSTILE_SITE_KEY = os.getenv("TURNSTILE_SITE_KEY", "").strip()
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
 
 
 # ----------------------------------------------------------------------------

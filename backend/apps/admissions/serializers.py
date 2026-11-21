@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 
 from apps.contact_validation import normalize_phone_number
+from apps.turnstile import verify_turnstile
 from apps.fees.models import AcademicYear
 from apps.geography.models import City, Country, State
 from apps.schools.models import Board, Grade, School, SchoolType
@@ -163,6 +164,8 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get('request')
+        if request is not None:
+            verify_turnstile(request)
         user = getattr(request, 'user', None) if request else None
         is_parent = bool(
             user and user.is_authenticated and getattr(user, 'role', None) == 'PARENT'
@@ -408,6 +411,9 @@ class CounsellingRequestSerializer(serializers.ModelSerializer):
         return counselling_request
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        if request is not None:
+            verify_turnstile(request)
         country = attrs.get("preferred_country")
         state = attrs.get("preferred_state")
         selected_states = attrs.get("preferred_states", [])

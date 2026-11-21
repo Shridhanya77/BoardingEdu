@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, Send, Star } from "lucide-react";
 import { reviews, ApiError, type ReviewListItem, type SchoolRatingSummary } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import ReviewSummaryPanel from "./ReviewSummaryPanel";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 type Props = {
   schoolId: string;
@@ -53,6 +54,7 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
@@ -82,6 +84,7 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
         ...categoryRatings,
         title,
         body,
+        cf_turnstile_token: turnstileToken,
       });
       setList((prev) => [created, ...prev]);
       setSubmitted(true);
@@ -246,6 +249,7 @@ export default function SchoolReviews({ schoolId, schoolName, initialReviews, in
                 placeholder="Share your experience with the admissions process, campus, and academics."
               />
             </label>
+            <TurnstileWidget onToken={setTurnstileToken} />
             <button type="submit" className="primary-button" disabled={submitting}>
               {submitting ? (
                 <><Loader2 size={16} className="spin" /> Submitting…</>
