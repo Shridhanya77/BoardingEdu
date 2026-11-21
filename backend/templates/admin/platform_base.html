@@ -34,6 +34,9 @@
           </details>
           <p>Moderation</p>
           <a href="{% url 'admin:index' %}?section=reviews">Reviews</a>
+          <p>Admissions</p>
+          <a class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Admission leads</a>
+          <a class="{% if request.resolver_match.url_name == 'admissions_counsellingrequest_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_counsellingrequest_changelist' %}">Counselling requests</a>
           {% if user.is_superuser or user.role == "SUPER_ADMIN" %}
             <p>People</p>
             <a href="{% url 'admin:index' %}?section=users">All users</a>
@@ -46,6 +49,11 @@
             href="{% url 'admin:school_workspace' %}"
             {% if request.resolver_match.url_name == 'school_workspace' %}aria-current="page"{% endif %}
           >Home</a>
+          <a
+            class="{% if request.resolver_match.url_name == 'records_index' %}is-active{% endif %}"
+            href="{% url 'admin:records_index' %}"
+            {% if request.resolver_match.url_name == 'records_index' %}aria-current="page"{% endif %}
+          >All records</a>
           <a
             class="{% if request.resolver_match.url_name == 'schools_school_changelist' %}is-active{% endif %}"
             href="{% url 'admin:schools_school_changelist' %}"

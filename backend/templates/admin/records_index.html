@@ -4,6 +4,28 @@
 {% block page_heading %}{% translate "All records" %}{% endblock %}
 
 {% block content %}
+{% if school %}
+<section class="be-directory be-record-index">
+  <header>
+    <div>
+      <h2>{{ school.school_name }}</h2>
+      <p>{{ school.school_code }} · {{ school.city.city_name }}, {{ school.state.state_name }}</p>
+    </div>
+  </header>
+  <div class="be-record-index__grid">
+    <a href="{{ school_profile_url }}"><span>School profile</span><strong>View &amp; edit</strong></a>
+    <a href="{{ leads_url }}"><span>Admission leads</span><strong>Open lead records</strong></a>
+    <a href="{{ facilities_url }}"><span>Facilities</span><strong>{{ record_counts.facilities }} records</strong></a>
+    <a href="{{ grades_url }}"><span>Grades</span><strong>{{ record_counts.grades }} records</strong></a>
+    <a href="{{ fees_url }}"><span>Fees &amp; admissions</span><strong>{{ record_counts.fees }} schedules</strong></a>
+    <a href="{{ photos_url }}"><span>Photographs</span><strong>{{ record_counts.photos }} records</strong></a>
+    <a href="{{ documents_url }}"><span>Documents</span><strong>{{ record_counts.documents }} records</strong></a>
+    <a href="{{ reviews_url }}"><span>Reviews</span><strong>View &amp; reply</strong></a>
+    <a href="{{ subscription_url }}"><span>Subscription</span><strong>View plan</strong></a>
+  </div>
+</section>
+{% else %}
 <p class="be-empty">{% translate "Fees, geography, boards, and the rest of the records. The home page and school list stay on the control panel." %}</p>
 {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+{% endif %}
 {% endblock %}

@@ -51,6 +51,15 @@ class AdminDashboardTemplateTests(SimpleTestCase):
         self.assertIn("s.section_users", source)
 
 
+class SchoolAllRecordsTemplateTests(SimpleTestCase):
+    def test_records_template_has_school_scoped_cards(self):
+        source = get_template("admin/records_index.html").template.source
+        self.assertIn("School profile", source)
+        self.assertIn("Admission leads", source)
+        self.assertIn("Fees &amp; admissions", source)
+        self.assertIn("be-record-index__grid", source)
+
+
 class JazzminStaticReferenceTests(SimpleTestCase):
     def test_admin_base_does_not_lookup_bootswatch_directory(self):
         source = get_template("admin/base.html").template.source

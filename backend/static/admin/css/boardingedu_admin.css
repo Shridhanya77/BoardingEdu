@@ -3637,6 +3637,69 @@ body.be-school-admin .be-table-wrap {
   padding: 7px 9px;
 }
 
+.be-record-index header {
+  align-items: flex-start;
+}
+
+.be-record-index header p {
+  margin: 5px 0 0;
+  color: #718196;
+  font-size: 13px;
+}
+
+.be-record-index__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.be-record-index__grid a {
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid #dfe7ef;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fff, #f7fafc);
+  color: #17324b;
+  text-decoration: none;
+  box-shadow: 0 5px 16px rgb(16 36 58 / 5%);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.be-record-index__grid a:hover {
+  border-color: #1478a4;
+  box-shadow: 0 10px 24px rgb(16 36 58 / 11%);
+  transform: translateY(-2px);
+}
+
+.be-record-index__grid span {
+  color: #64788c;
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.be-record-index__grid strong {
+  color: #0b5f8a;
+  font-size: 15px;
+}
+
+@media (max-width: 980px) {
+  .be-record-index__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .be-record-index__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .be-home-priority {
   margin-top: 16px;
 }

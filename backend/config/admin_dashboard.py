@@ -2008,8 +2008,53 @@ def install_admin_dashboard():
         return original_index(request, extra_context=context)
 
     def records_index(request, extra_context=None):
-        if assigned_school_id(request.user) is not None:
-            return redirect("admin:school_workspace")
+        school_id = assigned_school_id(request.user)
+        if school_id is not None:
+            from apps.schools.models import School
+
+            school = (
+                School.objects.select_related("country", "state", "city")
+                .prefetch_related(
+                    "school_types",
+                    "boards",
+                    "school_grades",
+                    "school_facilities",
+                    "fee_structures",
+                    "photos",
+                    "admission_resources",
+                )
+                .filter(pk=school_id)
+                .first()
+            )
+            if school is None:
+                messages.error(request, "No school is assigned to this account.")
+                return redirect("admin:school_workspace")
+
+            context = {
+                **admin.site.each_context(request),
+                "title": "All records",
+                "school": school,
+                "school_profile_url": reverse("admin:schools_school_change", args=[school.pk]),
+                "facilities_url": _school_workspace_section_url("facilities", school, campus="ACADEMIC"),
+                "grades_url": _school_workspace_section_url("grades", school, grade_group="EARLY"),
+                "fees_url": _school_workspace_section_url("fees", school),
+                "photos_url": _school_workspace_section_url("photographs", school),
+                "documents_url": _school_workspace_section_url("documents", school),
+                "reviews_url": _school_workspace_section_url("reviews", school),
+                "leads_url": reverse("admin:admissions_admissionenquiry_changelist"),
+                "subscription_url": _school_subscription_section_url(school, "plan"),
+                "record_counts": {
+                    "grades": school.school_grades.count(),
+                    "facilities": school.school_facilities.count(),
+                    "fees": school.fee_structures.count(),
+                    "photos": school.photos.count(),
+                    "documents": school.admission_resources.count(),
+                },
+            }
+            if extra_context:
+                context.update(extra_context)
+            return render(request, "admin/records_index.html", context)
+
         context = {
             **admin.site.each_context(request),
             "title": "All records",
