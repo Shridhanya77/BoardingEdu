@@ -103,7 +103,7 @@ class SchoolAdminProfile(models.Model):
         db_table = 'school_admin_profiles'
 
     def __str__(self):
-        return f"School Admin: {self.user.username} → {self.school.school_code}"
+        return f"{self.user.username} — {self.school.school_name}"
 
 class ParentShortlist(models.Model):
     """Schools a parent has saved while comparing options."""

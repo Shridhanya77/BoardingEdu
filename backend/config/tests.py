@@ -36,14 +36,15 @@ class AdminDashboardTrendTests(SimpleTestCase):
 
 
 class AdminDashboardTemplateTests(SimpleTestCase):
-    def test_admin_home_has_analytics_and_priority_lead_desk(self):
+    def test_admin_home_has_school_analytics_and_no_lead_desks(self):
         source = get_template("admin/index.html").template.source
 
-        self.assertIn('class="be-enquiry-chart"', source)
         self.assertIn('class="be-segmented-chart"', source)
         self.assertIn('class="be-role-chart"', source)
-        self.assertIn("Counselling lead desk", source)
-        self.assertIn("Admission enquiry desk", source)
+        self.assertNotIn("Counselling lead desk", source)
+        self.assertNotIn("Admission enquiry desk", source)
+        self.assertIn("s.pending_schools", source)
+        self.assertIn("review_action", source)
         self.assertIn("s.featured_schools", source)
         self.assertIn("s.section_schools", source)
         self.assertIn("s.popular_schools", source)

@@ -30,20 +30,10 @@
             <a href="{% url 'admin:index' %}?section=approved">Approved schools</a>
             <a href="{% url 'admin:index' %}?section=featured">Featured schools</a>
             <a href="{% url 'admin:index' %}?section=popularity">Top &amp; popularity rankings</a>
-            <a href="{% url 'admin:schools_school_verification_queue' %}">Pending applications</a>
+            <a href="{% url 'admin:index' %}?section=pending">Pending applications</a>
           </details>
-          <details class="be-side__group" open>
-            <summary>Engagement</summary>
-            <a href="{% url 'admin:index' %}?section=reviews">Reviews</a>
-            <a href="{% url 'admin:index' %}?section=admission-leads">Admission enquiry desk</a>
-            <a href="{% url 'admin:index' %}?section=counselling">Counselling lead desk</a>
-          </details>
-          <p>Approval</p>
-          <a class="{% if request.resolver_match.url_name == 'schools_school_verification_queue' %}is-active{% endif %}" href="{% url 'admin:schools_school_verification_queue' %}">Pending school applications</a>
-          <p>Admissions</p>
-          <a class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Admission leads</a>
-          <a class="{% if request.resolver_match.url_name == 'admissions_counsellingrequest_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_counsellingrequest_changelist' %}">Counselling requests</a>
-          <a class="{% if request.resolver_match.url_name == 'reviews_review_changelist' %}is-active{% endif %}" href="{% url 'admin:reviews_review_changelist' %}">Reviews</a>
+          <p>Moderation</p>
+          <a href="{% url 'admin:index' %}?section=reviews">Reviews</a>
           {% if user.is_superuser or user.role == "SUPER_ADMIN" %}
             <p>People</p>
             <a href="{% url 'admin:index' %}?section=users">All users</a>

@@ -166,6 +166,81 @@ def panel_notifications(request):
 
 
 @csrf_protect
+def school_action(request):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    role = getattr(request.user, "role", None)
+    if not (request.user.is_superuser or role in {"STAFF_ADMIN", "SUPER_ADMIN"}):
+        return JsonResponse({"detail": "You do not have permission to review schools."}, status=403)
+
+    school_id = request.POST.get("school_id")
+    action = request.POST.get("action")
+    status = request.POST.get("status")
+    note = request.POST.get("note", "").strip()
+    if not school_id or action not in {"approve", "reject"}:
+        return JsonResponse({"detail": "Choose a valid school action."}, status=400)
+
+    new_status = "VERIFIED" if action == "approve" else "UNVERIFIED"
+    if status in {"VERIFIED", "UNVERIFIED", "PENDING"}:
+        new_status = status
+    if not note:
+        note = "Verified by administrator." if new_status == "VERIFIED" else "Unverified by administrator."
+
+    from apps.schools.models import School
+    from apps.schools.services import SchoolVerificationError, set_school_verification_status
+
+    if not School.objects.filter(pk=school_id).exists():
+        return JsonResponse({"detail": "School not found."}, status=404)
+    try:
+        set_school_verification_status(
+            school_id=school_id,
+            actor=request.user,
+            new_status=new_status,
+            note=note,
+        )
+    except SchoolVerificationError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "School verification status updated.")
+    return redirect(request.META.get("HTTP_REFERER") or reverse("admin:index"))
+
+
+@csrf_protect
+def review_action(request):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    role = getattr(request.user, "role", None)
+    if not (request.user.is_superuser or role in {"STAFF_ADMIN", "SUPER_ADMIN"}):
+        return JsonResponse({"detail": "You do not have permission to moderate reviews."}, status=403)
+
+    review_id = request.POST.get("review_id")
+    action = request.POST.get("action")
+    if not review_id or action not in {"approve", "reject"}:
+        return JsonResponse({"detail": "Choose a valid review action."}, status=400)
+
+    from apps.reviews.models import Review
+
+    review = Review.objects.filter(pk=review_id).first()
+    if review is None:
+        return JsonResponse({"detail": "Review not found."}, status=404)
+    if review.status != Review.STATUS_PENDING:
+        messages.warning(request, "Only pending reviews can be moderated.")
+        return redirect(request.META.get("HTTP_REFERER") or reverse("admin:index"))
+
+    review.status = (
+        Review.STATUS_APPROVED if action == "approve" else Review.STATUS_REJECTED
+    )
+    review.moderated_by = request.user
+    review.moderated_at = timezone.now()
+    review.save(update_fields=["status", "moderated_by", "moderated_at", "updated_at"])
+    messages.success(
+        request,
+        "Review approved and published." if action == "approve" else "Review rejected.",
+    )
+    return redirect(request.META.get("HTTP_REFERER") or reverse("admin:index"))
+
+
+@csrf_protect
 def lead_action(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -522,21 +597,60 @@ def build_stats():
             .prefetch_related("school_types")
             .order_by("-created_at")[:6]
         ),
-        "section_schools": list(
-            School.objects.select_related("country", "state", "city")
+        "section_schools": [
+            {
+                "object": school,
+                "school_name": school.school_name,
+                "school_code": school.school_code,
+                "city_name": school.city.city_name,
+                "state_name": school.state.state_name,
+                "verification_status": school.verification_status,
+                "public_url": public_school_url(school) if school.status and school.verification_status == "VERIFIED" else "",
+            }
+            for school in School.objects.select_related("country", "state", "city")
             .prefetch_related("school_types")
             .order_by("-created_at")[:50]
-        ),
-        "approved_schools": list(
-            School.objects.filter(verification_status="VERIFIED")
+        ],
+        "approved_schools": [
+            {
+                "object": school,
+                "school_name": school.school_name,
+                "school_code": school.school_code,
+                "city_name": school.city.city_name,
+                "state_name": school.state.state_name,
+                "published_at": school.published_at,
+                "public_url": public_school_url(school),
+            }
+            for school in School.objects.filter(verification_status="VERIFIED")
             .select_related("country", "state", "city")
             .order_by("-published_at", "-created_at")[:50]
-        ),
-        "featured_schools_list": list(
-            School.objects.filter(is_featured=True)
+        ],
+        "pending_schools": [
+            {
+                "object": school,
+                "school_name": school.school_name,
+                "school_code": school.school_code,
+                "city_name": school.city.city_name,
+                "state_name": school.state.state_name,
+            }
+            for school in School.objects.filter(verification_status="PENDING")
+            .select_related("country", "state", "city")
+            .order_by("-created_at")[:50]
+        ],
+        "featured_schools_list": [
+            {
+                "object": school,
+                "school_name": school.school_name,
+                "school_code": school.school_code,
+                "city_name": school.city.city_name,
+                "state_name": school.state.state_name,
+                "verification_status": school.verification_status,
+                "public_url": public_school_url(school) if school.status and school.verification_status == "VERIFIED" else "",
+            }
+            for school in School.objects.filter(is_featured=True)
             .select_related("country", "state", "city")
             .order_by("-published_at", "-created_at")[:50]
-        ),
+        ],
         "popular_schools": list(
             SchoolPopularity.objects.select_related(
                 "school",
@@ -1890,6 +2004,16 @@ def install_admin_dashboard():
                 "lead-action/",
                 admin.site.admin_view(lead_action),
                 name="lead_action",
+            ),
+            path(
+                "school-action/",
+                admin.site.admin_view(school_action),
+                name="school_action",
+            ),
+            path(
+                "review-action/",
+                admin.site.admin_view(review_action),
+                name="review_action",
             ),
             path(
                 "logout/",

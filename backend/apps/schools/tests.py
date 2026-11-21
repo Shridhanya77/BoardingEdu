@@ -241,18 +241,25 @@ class SchoolApplicationRegistrationTests(TestCase):
         self.assertContains(dashboard, "New school applications need review")
         self.assertContains(
             dashboard,
-            reverse("admin:schools_school_verification_queue"),
+            f'{reverse("admin:index")}?section=pending',
         )
         self.assertNotContains(dashboard, "Featured Schools")
-        self.assertContains(dashboard, school.school_name)
         self.assertContains(
             dashboard,
-            f"{reverse('admin:schools_school_changelist')}?is_featured__exact=1",
+            f'{reverse("admin:index")}?section=featured',
         )
         self.assertContains(
             dashboard,
-            f'href="{reverse("admin:schools_school_changelist")}?is_featured__exact=1">Featured schools</a>',
+            f'href="{reverse("admin:index")}?section=featured">Featured schools</a>',
         )
+        pending_section = admin_client.get(
+            reverse("admin:index"),
+            {"section": "pending"},
+        )
+        self.assertContains(pending_section, "Pending school applications")
+        self.assertContains(pending_section, school.school_name)
+        self.assertContains(pending_section, "View school")
+        self.assertContains(pending_section, "Save decision")
         queue = admin_client.get(
             reverse("admin:schools_school_verification_queue")
         )

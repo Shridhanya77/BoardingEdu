@@ -42,6 +42,15 @@
       <a href="{{ reviews_url }}"><strong>{% translate "Reviews" %}</strong><span>{{ review_stats.total }} {% translate "reviews" %}</span></a>
     </div>
   </section>
+  <nav class="be-school-workspace-nav" aria-label="{% translate 'School admin sections' %}">
+    <a class="{% if active_section == 'overview' %}is-active{% endif %}" href="{% url 'admin:school_workspace' %}">{% translate "Overview" %}</a>
+    <a class="{% if active_section == 'grades' %}is-active{% endif %}" href="{{ grades_url }}">{% translate "Grades" %}</a>
+    <a class="{% if active_section == 'facilities' %}is-active{% endif %}" href="{{ facilities_url }}">{% translate "Facilities" %}</a>
+    <a class="{% if active_section == 'fees' %}is-active{% endif %}" href="{{ fees_url }}">{% translate "Fees" %}</a>
+    <a class="{% if active_section == 'photographs' %}is-active{% endif %}" href="{{ photos_url }}">{% translate "Photos" %}</a>
+    <a class="{% if active_section == 'documents' %}is-active{% endif %}" href="{{ documents_url }}">{% translate "Documents" %}</a>
+    <a class="{% if active_section == 'reviews' %}is-active{% endif %}" href="{{ reviews_url }}">{% translate "Reviews" %}</a>
+  </nav>
 
   {% if pending_profile_change %}
   <div class="be-panel be-panel--review" role="status">
