@@ -186,8 +186,6 @@ class AdmissionEnquirySerializer(serializers.ModelSerializer):
             missing = []
             if not parent_name:
                 missing.append('parent_full_name')
-            if not parent_email:
-                missing.append('parent_email')
             if not parent_phone:
                 missing.append('parent_phone')
             if missing:

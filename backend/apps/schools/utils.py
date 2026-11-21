@@ -36,3 +36,19 @@ def unique_school_slug(base: str, school_id: UUID | None = None, max_attempts: i
         if not qs.filter(slug=candidate).exists():
             return candidate
     raise RuntimeError(f"Could not generate unique school slug for '{base}' after {max_attempts} attempts.")
+
+
+def next_school_code() -> str:
+    """Return the next sequential school code in the SCH0001 format."""
+    from .models import School
+
+    codes = School.objects.filter(school_code__regex=r'^SCH\d+$').values_list(
+        'school_code',
+        flat=True,
+    )
+    highest = 0
+    for code in codes:
+        match = re.fullmatch(r'SCH(\d+)', code or '')
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return f"SCH{highest + 1:04d}"

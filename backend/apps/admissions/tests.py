@@ -224,6 +224,16 @@ class CounsellingRequestApiTests(APITestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("parent_email", serializer.errors)
 
+    def test_guest_enquiry_allows_missing_email(self):
+        serializer = AdmissionEnquirySerializer(
+            data={
+                "parent_full_name": "Parent Name",
+                "parent_phone": "+91 (98765) 43210",
+            },
+            partial=True,
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
 
 class AdmissionEnquiryChildOwnershipTests(APITestCase):
     @classmethod

@@ -90,7 +90,7 @@ export default function CounsellingSection() {
       setError("Enter your country code followed by exactly 10 phone number digits.");
       return;
     }
-    if (!isValidEmailAddress(email)) {
+    if (email.trim() && !isValidEmailAddress(email)) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -170,7 +170,7 @@ export default function CounsellingSection() {
           />
         </label>
         <label>
-          <span>Email address <span aria-hidden="true">*</span></span>
+          <span>Email address</span>
           <input
             type="email"
             value={email}
@@ -180,7 +180,6 @@ export default function CounsellingSection() {
             inputMode="email"
             enterKeyHint="next"
             maxLength={254}
-            required
             disabled={submitting}
           />
         </label>

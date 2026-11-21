@@ -232,11 +232,11 @@ function SchoolEnquiryDialog({
       }
     }
     if (step === 1) {
-      if (!form.parent_full_name.trim() || !form.parent_email.trim() || !form.parent_phone.trim()) {
-        setError("Please add your name, email and phone number so the school can reach you.");
+      if (!form.parent_full_name.trim() || !form.parent_phone.trim()) {
+        setError("Please add your name and phone number so the school can reach you.");
         return;
       }
-      if (!isValidEmailAddress(form.parent_email)) {
+      if (form.parent_email.trim() && !isValidEmailAddress(form.parent_email)) {
         setError("Enter a valid email address.");
         return;
       }
@@ -258,7 +258,7 @@ function SchoolEnquiryDialog({
     event.preventDefault();
     setError(null);
     const phoneDigits = normalizePhoneNumber(form.parent_phone);
-    if (!isValidEmailAddress(form.parent_email) || !phoneDigits) {
+    if ((form.parent_email.trim() && !isValidEmailAddress(form.parent_email)) || !phoneDigits) {
       setError("Please check that your email and phone number are valid.");
       return;
     }
@@ -511,7 +511,7 @@ function SchoolEnquiryDialog({
 
                 <label className="field">
                   <span className="field__label">
-                    Email <em>*</em>
+                    Email
                   </span>
                   <span className="field__wrap">
                     <input
@@ -522,7 +522,6 @@ function SchoolEnquiryDialog({
                       autoComplete="email"
                       maxLength={254}
                       placeholder="you@example.com"
-                      required
                     />
                   </span>
                 </label>

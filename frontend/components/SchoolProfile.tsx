@@ -51,6 +51,7 @@ import SchoolReviews from "./SchoolReviews";
 import SchoolTravelPanel from "./SchoolTravelPanel";
 import ReadMore from "./ReadMore";
 import type { SchoolSectionId } from "@/lib/school-sections";
+import { SITE_PHONE } from "@/lib/site";
 
 async function loadReviewData(schoolId: string): Promise<{
   reviews: ReviewListItem[];
@@ -419,11 +420,9 @@ export default async function SchoolProfile({
               </div>
             </div>
             <div className="school-detail__actions">
-              {school.phone && (
-                <a className="detail-button detail-button--primary" href={`tel:${school.phone}`} aria-label={`Call ${school.school_name}`}>
-                  <Phone size={16} /> Call
-                </a>
-              )}
+              <a className="detail-button detail-button--primary" href={`tel:${SITE_PHONE}`} aria-label={`Call BoardingEdu about ${school.school_name}`}>
+                <Phone size={16} /> Call
+              </a>
               <SchoolEnquiryButton className="detail-button">
                 <MessageSquare size={16} /> Send an Enquiry
               </SchoolEnquiryButton>
@@ -847,15 +846,13 @@ export default async function SchoolProfile({
       </div>
 
       <div className="school-sticky-cta" role="group" aria-label="School contact actions">
-        {school.phone ? (
-          <a
-            className="school-sticky-cta__call"
-            href={`tel:${school.phone}`}
-            aria-label={`Call ${school.school_name}`}
-          >
-            <Phone size={17} aria-hidden /> Call
-          </a>
-        ) : null}
+        <a
+          className="school-sticky-cta__call"
+          href={`tel:${SITE_PHONE}`}
+          aria-label={`Call BoardingEdu about ${school.school_name}`}
+        >
+          <Phone size={17} aria-hidden /> Call
+        </a>
         <SchoolShortlistButton
           className="school-sticky-cta__save"
           schoolId={school.school_id}

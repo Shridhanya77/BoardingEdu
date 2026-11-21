@@ -11609,7 +11609,7 @@ select:focus-visible {
 @media (max-width: 900px) {
   .school-sticky-cta {
     position: fixed;
-    z-index: 40;
+    z-index: 100;
     right: 0;
     bottom: 0;
     left: 0;
@@ -11621,6 +11621,7 @@ select:focus-visible {
     border-top: 1px solid var(--line);
     box-shadow: 0 -6px 24px rgb(18 36 58 / 10%);
     backdrop-filter: blur(10px);
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
   }
 
   .school-sticky-cta__call,

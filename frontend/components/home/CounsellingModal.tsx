@@ -142,7 +142,7 @@ export default function CounsellingModal({
       setError("Enter your country code followed by exactly 10 phone number digits.");
       return;
     }
-    if (!isValidEmailAddress(email)) {
+    if (email.trim() && !isValidEmailAddress(email)) {
       setError("Enter a valid email address.");
       return;
     }
@@ -237,8 +237,8 @@ export default function CounsellingModal({
             </label>
             <CountryPhoneInput id="counselling-modal-phone" label="Phone number *" value={phone} onChange={setPhone} disabled={submitting} />
             <label>
-              <span>Email <span aria-hidden="true">*</span></span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" inputMode="email" enterKeyHint="next" maxLength={254} required disabled={submitting} />
+              <span>Email</span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" inputMode="email" enterKeyHint="next" maxLength={254} disabled={submitting} />
             </label>
             <label>
               <span>School type <span aria-hidden="true">*</span></span>

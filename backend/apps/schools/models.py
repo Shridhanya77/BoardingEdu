@@ -149,6 +149,8 @@ class School(models.Model):
     school_logo_url = models.URLField(max_length=500, blank=True)
     school_image_url = models.URLField(max_length=500, blank=True)
     slug = models.SlugField(max_length=300, unique=True, null=False)
+    seo_title = models.CharField(max_length=300, blank=True)
+    seo_description = models.TextField(max_length=10000, blank=True)
 
     # YOUR 4-LEVEL GEOGRAPHY FK CHAIN (matches ER diagram arrows)
     country = models.ForeignKey(Country, on_delete=models.RESTRICT, related_name='schools', db_column='country_id', null=False)
@@ -213,8 +215,11 @@ class School(models.Model):
 
     def save(self, *args, **kwargs):
         from .slug_utils import seo_slug
-        from .utils import unique_school_slug
+        from .utils import next_school_code, unique_school_slug
         import re
+
+        if not self.school_code:
+            self.school_code = next_school_code()
 
         normalized = seo_slug(self.slug) if self.slug else ""
         uuid_like = bool(re.fullmatch(

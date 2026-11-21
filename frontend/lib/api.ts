@@ -378,6 +378,8 @@ export type SchoolListItem = {
   principal_name: string | null;
   tagline?: string;
   about?: string;
+  seo_title?: string;
+  seo_description?: string;
   admission_open?: boolean;
   seo_keywords?: string[];
   established_year: number | null;

@@ -344,9 +344,11 @@ function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Me
     section,
     overviewDescription: description,
   });
+  const customTitle = school.seo_title?.trim();
+  const customDescription = school.seo_description?.trim();
   return pageMetadata({
-    title: sectionCopy.title,
-    description: sectionCopy.description,
+    title: section ? sectionCopy.title : (customTitle || sectionCopy.title),
+    description: section ? sectionCopy.description : (customDescription || sectionCopy.description),
     path: schoolSectionPath(schoolProfilePath(school), section),
     image: publicSchoolImageUrl(school.school_image_url),
     keywords: [

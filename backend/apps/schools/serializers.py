@@ -611,6 +611,8 @@ class SchoolDetailSerializer(SchoolMediaUrlMixin, serializers.ModelSerializer):
             'principal_name',
             'tagline',
             'about',
+            'seo_title',
+            'seo_description',
             'admission_open',
             'boarding_required',
             'is_featured',

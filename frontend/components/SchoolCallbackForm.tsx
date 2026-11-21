@@ -53,7 +53,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
       setError("Enter your country code followed by exactly 10 phone number digits.");
       return;
     }
-    if (!isValidEmailAddress(email)) {
+    if (email.trim() && !isValidEmailAddress(email)) {
       setError("Enter a valid email address.");
       return;
     }
@@ -106,7 +106,7 @@ export default function SchoolCallbackForm({ school }: { school: SchoolDetail })
           </label>
           <label>
             Email address
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required />
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} />
           </label>
           <CountryPhoneInput id="school-callback-phone" label="Phone number" value={phone} onChange={setPhone} />
           <label>

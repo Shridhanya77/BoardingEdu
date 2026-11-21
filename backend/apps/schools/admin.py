@@ -43,6 +43,32 @@ from .models import (
     SchoolPopularity,
     SchoolPopularityConfig,
 )
+
+from .utils import next_school_code
+
+
+class SchoolAdminForm(forms.ModelForm):
+    school_code = forms.CharField(
+        required=False,
+        label="School code",
+        help_text="Generated automatically when the school is added.",
+    )
+
+    class Meta:
+        model = School
+        fields = "__all__"
+
+    def clean_school_code(self):
+        return (self.cleaned_data.get("school_code") or "").strip()
+
+    def save(self, commit=True):
+        school = super().save(commit=False)
+        if not school.school_code:
+            school.school_code = next_school_code()
+        if commit:
+            school.save()
+            self.save_m2m()
+        return school
 from .content_changes import (
     content_change_rows,
     review_school_content_change,
@@ -355,6 +381,7 @@ class ProfileGapFilter(admin.SimpleListFilter):
 
 @admin.register(School)
 class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    form = SchoolAdminForm
     school_filter = "pk"
     school_admin_can_add = False
     school_admin_can_delete = False
@@ -518,6 +545,19 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
                     "Keep the public profile factual and current. Core school details "
                     "and related facilities, grades, fees, documents, and photographs "
                     "remain unchanged publicly until a Super Admin approves them."
+                ),
+            },
+        ),
+        (
+            "SEO",
+            {
+                "fields": (
+                    "seo_title",
+                    "seo_description",
+                ),
+                "description": (
+                    "Optional search title and description. The title allows up to 300 characters "
+                    "and the description allows up to 10,000 characters."
                 ),
             },
         ),
@@ -759,7 +799,7 @@ class SchoolAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         fields = list(super().get_readonly_fields(request, obj))
         if obj is not None:
-            for name in ("school_code", "slug"):
+            for name in ("school_code",):
                 if name not in fields:
                     fields.append(name)
         if manages_own_school(request.user):

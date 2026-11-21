@@ -690,7 +690,7 @@ class FeaturedPromotionAdminFormTests(SimpleTestCase):
 
 
 class SchoolAdminIdentityFieldsTests(SimpleTestCase):
-    def test_school_code_and_slug_are_read_only_only_after_creation(self):
+    def test_school_code_is_read_only_after_creation_but_slug_is_editable(self):
         model_admin = SchoolAdmin(School, admin.site)
         request = SimpleNamespace(
             user=SimpleNamespace(
@@ -704,10 +704,7 @@ class SchoolAdminIdentityFieldsTests(SimpleTestCase):
             "school_code",
             model_admin.get_readonly_fields(request, existing_school),
         )
-        self.assertIn(
-            "slug",
-            model_admin.get_readonly_fields(request, existing_school),
-        )
+        self.assertNotIn("slug", model_admin.get_readonly_fields(request, existing_school))
         self.assertNotIn("school_code", model_admin.get_readonly_fields(request))
         self.assertNotIn("slug", model_admin.get_readonly_fields(request))
         self.assertEqual(model_admin.get_prepopulated_fields(request, existing_school), {})
