@@ -43,9 +43,23 @@ class BlogCategory(models.Model):
 
 class BlogPostQuerySet(models.QuerySet):
     def published(self):
+        """Posts visible to the public.
+
+        A post is public when it is ``published`` with a non-future
+        ``published_at``, OR when it is still ``draft`` but its scheduled
+        ``published_at`` has already passed (the Celery beat task
+        ``publish_scheduled_posts`` will flip such drafts to ``published``;
+        this clause is a safety net so they appear even if beat is not
+        running).
+        """
+        now = timezone.now()
         return self.filter(
-            status=BlogPost.STATUS_PUBLISHED,
-            published_at__lte=timezone.now(),
+            (
+                models.Q(status=BlogPost.STATUS_PUBLISHED)
+                | models.Q(status=BlogPost.STATUS_DRAFT, published_at__isnull=False, published_at__lte=now)
+            ),
+            published_at__isnull=False,
+            published_at__lte=now,
             category__is_active=True,
         )
 
@@ -92,7 +106,11 @@ class BlogPost(models.Model):
     published_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Leave blank to publish immediately. A future date hides the article until then.",
+        help_text=(
+            "Leave blank to publish immediately. Set a future date while the "
+            "article is Draft to schedule it — it becomes visible automatically "
+            "at that time (IST) even before the status flips to Published."
+        ),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -112,10 +130,16 @@ class BlogPost(models.Model):
 
     @property
     def is_public(self):
-        return (
-            self.status == self.STATUS_PUBLISHED
+        now = timezone.now()
+        is_due_draft = (
+            self.status == self.STATUS_DRAFT
             and self.published_at is not None
-            and self.published_at <= timezone.now()
+            and self.published_at <= now
+        )
+        return (
+            (self.status == self.STATUS_PUBLISHED or is_due_draft)
+            and self.published_at is not None
+            and self.published_at <= now
             and self.category_id is not None
             and getattr(self.category, "is_active", False)
         )

@@ -246,7 +246,10 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+# Indian Standard Time. All datetimes are still stored as UTC in the database
+# (USE_TZ=True); this only controls display/interpretation in forms, templates,
+# Celery beat schedules and Django admin so operators work in IST.
+TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
@@ -565,6 +568,10 @@ CELERY_BEAT_SCHEDULE = {
     "saved-search-alerts": {
         "task": "apps.notifications.tasks.deliver_saved_search_alerts",
         "schedule": crontab(hour="*/6"),
+    },
+    "publish-scheduled-posts": {
+        "task": "apps.blogs.tasks.publish_scheduled_posts",
+        "schedule": crontab(minute="*"),
     },
 }
 
