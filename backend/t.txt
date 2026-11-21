@@ -1,0 +1,9 @@
+﻿Found 9 test(s).
+python.exe : Using existing test database for alias 'default'...
+At line:15 char:4242
++ ... t@trae.ai'; & .\venv\Scripts\python.exe -u manage.py test apps.blogs  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Using existing ...as 'default'...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+

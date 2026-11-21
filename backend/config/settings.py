@@ -175,6 +175,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Flips due draft blog posts to Published on incoming requests (throttled
+    # to once per minute). Works even when Celery beat is not running.
+    'config.middleware.PublishScheduledPostsMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
