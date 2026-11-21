@@ -70,6 +70,7 @@ import ReviewsCollection from "@/components/ReviewsCollection";
 import FeaturedPromoBanner from "@/components/home/FeaturedPromoBanner";
 import { FeaturedSchoolMarquee } from "@/components/home/FeaturedSchoolCarousel";
 import RecentlyViewedSchools from "@/components/home/RecentlyViewedSchools";
+import SectionRail from "@/components/home/SectionRail";
 import AnimatedCount from "@/components/home/AnimatedCount";
 import GuideBrowser from "@/components/guides/GuideBrowser";
 import FeaturedGuide from "@/components/guides/FeaturedGuide";
@@ -3182,7 +3183,11 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
         )}
       </section>
 
-      <section className="home-section home-how-it-works" aria-labelledby="home-how-it-works-title">
+      <section
+        className="home-section home-how-it-works"
+        id="how-it-works"
+        aria-labelledby="home-how-it-works-title"
+      >
         <div className="home-section__heading home-section__heading--centered">
           <div>
             <span className="section-eyebrow">A CLEARER SCHOOL SEARCH</span>
@@ -3920,6 +3925,8 @@ export default function SchoolDiscovery({ initialFilter, relatedSearches, breadc
           />
         )}
       </section>
+
+      <SectionRail />
 
         </>
       )}

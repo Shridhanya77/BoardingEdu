@@ -32,12 +32,14 @@ export default function TurnstileWidget({
   onTokenRef.current = onToken;
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (!siteKey) {
       setReady(false);
       return;
     }
+    setLoadError(false);
     const existing = document.querySelector<HTMLScriptElement>(
       'script[data-boardingu-turnstile="true"]',
     );
@@ -66,6 +68,11 @@ export default function TurnstileWidget({
     script.defer = true;
     script.dataset.boardinguTurnstile = "true";
     script.addEventListener("load", renderWidget, { once: true });
+    script.addEventListener("error", () => {
+      setLoadError(true);
+      setReady(false);
+      onTokenRef.current("");
+    }, { once: true });
     document.head.appendChild(script);
   }, [siteKey]);
 
@@ -73,7 +80,8 @@ export default function TurnstileWidget({
   return (
     <div className="turnstile-widget" aria-label="Cloudflare security verification">
       <div ref={containerRef} />
-      {!ready && <span>Loading verification…</span>}
+      {!ready && !loadError && <span>Loading verification…</span>}
+      {loadError && <span role="alert">Security verification could not load. Please refresh and try again.</span>}
     </div>
   );
 }
