@@ -522,6 +522,37 @@ def build_stats():
             .prefetch_related("school_types")
             .order_by("-created_at")[:6]
         ),
+        "section_schools": list(
+            School.objects.select_related("country", "state", "city")
+            .prefetch_related("school_types")
+            .order_by("-created_at")[:50]
+        ),
+        "approved_schools": list(
+            School.objects.filter(verification_status="VERIFIED")
+            .select_related("country", "state", "city")
+            .order_by("-published_at", "-created_at")[:50]
+        ),
+        "featured_schools_list": list(
+            School.objects.filter(is_featured=True)
+            .select_related("country", "state", "city")
+            .order_by("-published_at", "-created_at")[:50]
+        ),
+        "popular_schools": list(
+            SchoolPopularity.objects.select_related(
+                "school",
+                "school__country",
+                "school__state",
+                "school__city",
+            )
+            .order_by("-popularity_score", "-unique_school_views", "school__school_name")[:50]
+        ),
+        "section_reviews": list(
+            Review.objects.select_related("school", "user")
+            .order_by("-created_at")[:50]
+        ),
+        "section_users": list(
+            User.objects.order_by("-date_joined")[:50]
+        ),
     }
 
 
@@ -1811,6 +1842,7 @@ def install_admin_dashboard():
         if assigned_school_id(request.user) is not None:
             return redirect("admin:school_workspace")
         stats = build_stats()
+        stats["section"] = request.GET.get("section", "overview")
         if not (
             request.user.is_superuser
             or getattr(request.user, "role", None) == "SUPER_ADMIN"

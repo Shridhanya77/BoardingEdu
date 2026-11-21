@@ -5,6 +5,51 @@
 
 {% block content %}
 {% with s=boardingedu_stats %}
+{% if s.section != "overview" %}
+<section class="be-directory be-home-section" aria-label="Admin home section">
+  {% if s.section == "schools" %}
+  <header><h2>All schools</h2><a href="{% url 'admin:schools_school_changelist' %}">Open full school records</a></header>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  {% for school in s.section_schools %}<tr><td><strong>{{ school.school_name }}</strong><small>{{ school.school_code }}</small></td><td>{{ school.city.city_name }}, {{ school.state.state_name }}</td><td>{{ school.verification_status }}</td><td><a class="be-table-edit" href="{% url 'admin:schools_school_change' school.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="4">No schools found.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% elif s.section == "approved" %}
+  <header><h2>Approved schools</h2><a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED">Open full list</a></header>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Location</th><th>Published</th><th>Actions</th></tr></thead><tbody>
+  {% for school in s.approved_schools %}<tr><td><strong>{{ school.school_name }}</strong><small>{{ school.school_code }}</small></td><td>{{ school.city.city_name }}, {{ school.state.state_name }}</td><td>{{ school.published_at|default:"Not published" }}</td><td><a class="be-table-edit" href="{% url 'admin:schools_school_change' school.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="4">No approved schools found.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% elif s.section == "featured" %}
+  <header><h2>Featured schools</h2><a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1">Open full list</a></header>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Location</th><th>Verification</th><th>Actions</th></tr></thead><tbody>
+  {% for school in s.featured_schools_list %}<tr><td><strong>{{ school.school_name }}</strong><small>{{ school.school_code }}</small></td><td>{{ school.city.city_name }}, {{ school.state.state_name }}</td><td>{{ school.verification_status }}</td><td><a class="be-table-edit" href="{% url 'admin:schools_school_change' school.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="4">No featured schools found.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% elif s.section == "popularity" %}
+  <header><h2>School popularity rankings</h2><a href="{% url 'admin:schools_schoolpopularity_changelist' %}">Open popularity records</a></header>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>Rank</th><th>School</th><th>Popularity score</th><th>Views</th><th>Enquiries</th><th>Actions</th></tr></thead><tbody>
+  {% for row in s.popular_schools %}<tr><td>{{ forloop.counter }}</td><td><strong>{{ row.school.school_name }}</strong></td><td>{{ row.popularity_score }}</td><td>{{ row.unique_school_views }}</td><td>{{ row.unique_enquiries }}</td><td><a class="be-table-edit" href="{% url 'admin:schools_schoolpopularity_change' row.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="6">Popularity rankings are not calculated yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% elif s.section == "reviews" %}
+  <header><h2>Reviews</h2><a href="{% url 'admin:reviews_review_changelist' %}">Open review moderation</a></header>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>School</th><th>Rating</th><th>Author</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  {% for review in s.section_reviews %}<tr><td>{{ review.school.school_name }}</td><td>{{ review.rating }}/5</td><td>{{ review.author_name|default:"Parent" }}</td><td>{{ review.status }}</td><td><a class="be-table-edit" href="{% url 'admin:reviews_review_change' review.pk %}">Edit / moderate</a></td></tr>{% empty %}<tr><td colspan="5">No reviews found.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% elif s.section == "admission-leads" %}
+  <details class="be-home-details" open><summary>Admission enquiry desk</summary>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>Lead</th><th>School</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  {% for lead in s.recent_enquiries %}<tr><td><strong>{{ lead.guest_full_name|default:"Parent account" }}</strong><small>{{ lead.enquiry_code }}</small></td><td>{{ lead.school__school_name }}</td><td><span>{{ lead.guest_phone|default:"No phone" }}</span><small>{{ lead.guest_email|default:"No email" }}</small></td><td>{{ lead.status }}</td><td><a class="be-table-edit" href="{% url 'admin:admissions_admissionenquiry_change' lead.enquiry_id %}">Edit</a></td></tr>{% empty %}<tr><td colspan="5">No admission enquiries found.</td></tr>{% endfor %}
+  </tbody></table></div></details>
+  {% elif s.section == "counselling" %}
+  <details class="be-home-details" open><summary>Counselling lead desk</summary>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>Parent</th><th>Contact</th><th>Category</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  {% for lead in s.recent_counselling %}<tr><td><strong>{{ lead.parent_name }}</strong><small>{{ lead.reference|slice:'-12:' }}</small></td><td>{{ lead.phone }}<small>{{ lead.email }}</small></td><td>{{ lead.category }}</td><td>{{ lead.location }}</td><td>{{ lead.status_label }}</td><td><a class="be-table-edit" href="{% url 'admin:admissions_counsellingrequest_change' lead.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="6">No counselling requests found.</td></tr>{% endfor %}
+  </tbody></table></div></details>
+  {% elif s.section == "users" %}
+  <header><h2>Users</h2><a href="{% url 'admin:users_user_changelist' %}">Open full user records</a></header>
+  <div class="be-home-table-wrap"><table class="be-home-table"><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  {% for app_user in s.section_users %}<tr><td><strong>{{ app_user.get_full_name|default:"No name" }}</strong><small>{{ app_user.email|default:"No email" }}</small></td><td>{{ app_user.username }}</td><td>{{ app_user.get_role_display }}</td><td>{% if app_user.is_active %}Active{% else %}Inactive{% endif %}</td><td><a class="be-table-edit" href="{% url 'admin:users_user_change' app_user.pk %}">Edit</a></td></tr>{% empty %}<tr><td colspan="5">No users found.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% endif %}
+</section>
+{% else %}
 <section class="be-home-stats">
   <a href="{% url 'admin:schools_school_changelist' %}"><span>Schools</span><strong>{{ s.school_total }}</strong></a>
   <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
@@ -13,9 +58,9 @@
   <a href="{% url 'admin:admissions_counsellingrequest_changelist' %}"><span>New counselling</span><strong>{{ s.new_counselling }}</strong></a>
 </section>
 
-<section class="be-directory be-lead-desk" aria-labelledby="enquiry-desk-heading">
+<details class="be-directory be-lead-desk" open>
+  <summary id="enquiry-desk-heading">Admission enquiry desk</summary>
   <header>
-    <h2 id="enquiry-desk-heading">Admission enquiry desk</h2>
     <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}">View all leads</a>
   </header>
   <div class="be-lead-desk__table-wrap">
@@ -55,11 +100,11 @@
       </tbody>
     </table>
   </div>
-</section>
+</details>
 
-<section class="be-directory be-lead-desk" aria-labelledby="counselling-desk-heading">
+<details class="be-directory be-lead-desk" open>
+  <summary id="counselling-desk-heading">Counselling lead desk</summary>
   <header>
-    <h2 id="counselling-desk-heading">Counselling lead desk</h2>
     <a href="{% url 'admin:admissions_counsellingrequest_changelist' %}">View all counselling requests</a>
   </header>
   <div class="be-lead-desk__table-wrap">
@@ -100,7 +145,7 @@
       </tbody>
     </table>
   </div>
-</section>
+</details>
 
 <section class="be-directory be-home-priority" aria-labelledby="priority-heading">
   <header>
@@ -243,5 +288,6 @@
     <p class="be-empty">{% translate "No schools yet." %}</p>
   {% endfor %}
 </section>
+  {% endif %}
 {% endwith %}
 {% endblock %}

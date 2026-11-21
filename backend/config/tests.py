@@ -45,6 +45,9 @@ class AdminDashboardTemplateTests(SimpleTestCase):
         self.assertIn("Counselling lead desk", source)
         self.assertIn("Admission enquiry desk", source)
         self.assertIn("s.featured_schools", source)
+        self.assertIn("s.section_schools", source)
+        self.assertIn("s.popular_schools", source)
+        self.assertIn("s.section_users", source)
 
 
 class JazzminStaticReferenceTests(SimpleTestCase):
