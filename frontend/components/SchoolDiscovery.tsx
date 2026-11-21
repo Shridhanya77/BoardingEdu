@@ -449,12 +449,6 @@ function SchoolCard({
       />
 
       <div className="school-card__media">
-        {school.is_featured && (
-          <span className="school-card__featured">
-            <Star size={12} fill="currentColor" aria-hidden />
-            Featured
-          </span>
-        )}
         <div className="school-card__media-photo">
           {coverImage && !coverImageFailed ? (
             <Image

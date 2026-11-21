@@ -10,6 +10,30 @@
 <p class="be-steps__note">{% translate "Move through the sections, then use Save. Nothing is written until you save." %}</p>
 {% endblock %}
 
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .tabular.inline-related {
+    overflow-x: auto;
+  }
+  .tabular.inline-related table {
+    min-width: 760px;
+  }
+  .tabular.inline-related input,
+  .tabular.inline-related select,
+  .tabular.inline-related textarea {
+    min-height: 38px;
+    font-size: 14px;
+  }
+  .tabular.inline-related textarea {
+    min-width: 220px;
+  }
+  .tabular.inline-related th {
+    white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
 {% block extrajs %}
 {{ block.super }}
 <script>

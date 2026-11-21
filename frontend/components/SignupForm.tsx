@@ -186,6 +186,13 @@ export default function SignupForm() {
                   placeholder="+91 98765 43210"
                   value={form.phone}
                   onChange={(e) => setField("phone", e.target.value)}
+                  onBlur={() => {
+                    if (form.phone.trim() && !normalizePhoneNumber(form.phone)) {
+                      setFormError("Enter your country code followed by exactly 10 phone number digits.");
+                    }
+                  }}
+                  inputMode="tel"
+                  pattern="\+[0-9][0-9\s().-]*"
                   disabled={busy}
                   required
                 />

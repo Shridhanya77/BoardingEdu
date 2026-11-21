@@ -1,11 +1,14 @@
 import uuid
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils.text import slugify
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError as RestValidationError
 from apps.geography.models import Country, State, City, Location
+from apps.contact_validation import normalize_phone_number
 
 # ---------- MASTER DATA (matches your 3rd diagram GREEN section: MASTER DATA) ----------
 class Board(models.Model):
@@ -212,6 +215,17 @@ class School(models.Model):
             models.Index(fields=['country', 'state', 'city', 'status']),
             models.Index(fields=['city', 'location', 'status', 'verification_status']),
         ]
+
+    def clean(self):
+        super().clean()
+        phone = (self.phone or "").strip()
+        if phone:
+            try:
+                normalize_phone_number(phone)
+            except RestValidationError:
+                raise ValidationError({
+                    "phone": "Enter a country code followed by exactly 10 phone number digits.",
+                })
 
     def save(self, *args, **kwargs):
         from .slug_utils import seo_slug
@@ -708,6 +722,17 @@ class SchoolGrade(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['school', 'grade'], name='uq_school_grade'),
         ]
+
+    def clean(self):
+        super().clean()
+        if (
+            self.entry_age_min is not None
+            and self.entry_age_max is not None
+            and self.entry_age_min > self.entry_age_max
+        ):
+            raise ValidationError({
+                "entry_age_max": "Maximum admission age must be greater than or equal to minimum admission age.",
+            })
         indexes = [
             models.Index(fields=['school', 'grade', 'is_active']),
         ]

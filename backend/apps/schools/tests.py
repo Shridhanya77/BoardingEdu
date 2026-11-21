@@ -8,6 +8,7 @@ from botocore.exceptions import ClientError
 from django.apps import apps
 from django.contrib import admin
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.forms.utils import ErrorDict
 from django.core.management.base import CommandError
 from django.db import connection
@@ -30,6 +31,7 @@ from .admin import (
     FeaturedPromotionAdminForm,
     FeaturedPromotionAdmin,
     SchoolAdmin,
+    SchoolAdminForm,
     SchoolFacilityAdmin,
     SchoolGradeAdmin,
     SchoolGradeInline,
@@ -709,6 +711,17 @@ class SchoolAdminIdentityFieldsTests(SimpleTestCase):
         self.assertNotIn("slug", model_admin.get_readonly_fields(request))
         self.assertEqual(model_admin.get_prepopulated_fields(request, existing_school), {})
         self.assertIn("slug", model_admin.get_prepopulated_fields(request))
+
+    def test_school_admin_phone_validation_accepts_country_code_and_ten_digits(self):
+        form = SchoolAdminForm()
+        form.cleaned_data = {"phone": "+91 98765 43210"}
+        self.assertEqual(form.clean_phone(), "+91 9876543210")
+
+    def test_school_admin_phone_validation_rejects_phone_without_country_code(self):
+        form = SchoolAdminForm()
+        form.cleaned_data = {"phone": "9876543210"}
+        with self.assertRaises(DjangoValidationError):
+            form.clean_phone()
 
 
 class SchoolPhotoCommandImageTests(SimpleTestCase):

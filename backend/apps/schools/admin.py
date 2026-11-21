@@ -1,6 +1,7 @@
 import logging
 
 from botocore.exceptions import BotoCoreError, ClientError
+from rest_framework.exceptions import ValidationError as RestValidationError
 from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import ObjectDoesNotExist, SuspiciousFileOperation, ValidationError
@@ -22,6 +23,7 @@ from apps.users.school_admin_scope import (
     manages_own_school,
 )
 from config.school_media import rewrite_school_media_url
+from apps.contact_validation import normalize_phone_number
 from .services import SchoolVerificationError, set_school_verification_status
 from .models import (
     Board,
@@ -60,6 +62,35 @@ class SchoolAdminForm(forms.ModelForm):
 
     def clean_school_code(self):
         return (self.cleaned_data.get("school_code") or "").strip()
+
+    def clean_phone(self):
+        value = (self.cleaned_data.get("phone") or "").strip()
+        if not value:
+            return ""
+        try:
+            normalized = normalize_phone_number(value)
+        except RestValidationError as error:
+            raise forms.ValidationError(error.detail)
+        from apps.contact_validation import PHONE_COUNTRY_DIAL_CODES
+        dial_code = next(
+            (
+                code
+                for code in sorted(PHONE_COUNTRY_DIAL_CODES, key=len, reverse=True)
+                if normalized.startswith(code)
+            ),
+            "",
+        )
+        return "+" + dial_code + " " + normalized[len(dial_code):]
+
+    def clean_slug(self):
+        value = (self.cleaned_data.get("slug") or "").strip()
+        if value:
+            return value
+        name = (self.cleaned_data.get("school_name") or "").strip()
+        if not name:
+            raise forms.ValidationError("Enter a school name to generate the URL slug.")
+        from .utils import unique_school_slug
+        return unique_school_slug(name)
 
     def save(self, commit=True):
         school = super().save(commit=False)
@@ -302,6 +333,12 @@ class SchoolFacilityInline(SchoolContentApprovalInlineMixin, admin.TabularInline
     model = SchoolFacility
     extra = 1
     autocomplete_fields = ("facility",)
+    fields = (
+        "facility",
+        "available",
+        "quantity_or_capacity",
+        "description",
+    )
     verbose_name = "Facility"
     verbose_name_plural = "Facilities"
 

@@ -10,6 +10,108 @@
   <a href="{% url 'admin:schools_school_changelist' %}?verification_status__exact=VERIFIED"><span>Approved</span><strong>{{ s.verification.verified }}</strong></a>
   <a href="{% url 'admin:schools_school_verification_queue' %}"><span>Pending applications</span><strong>{{ s.verification.pending }}</strong></a>
   <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}"><span>New leads</span><strong>{{ s.enquiry_new }}</strong></a>
+  <a href="{% url 'admin:admissions_counsellingrequest_changelist' %}"><span>New counselling</span><strong>{{ s.new_counselling }}</strong></a>
+</section>
+
+<section class="be-directory be-lead-desk" aria-labelledby="enquiry-desk-heading">
+  <header>
+    <h2 id="enquiry-desk-heading">Admission enquiry desk</h2>
+    <a href="{% url 'admin:admissions_admissionenquiry_changelist' %}">View all leads</a>
+  </header>
+  <div class="be-lead-desk__table-wrap">
+    <table class="be-lead-desk__table">
+      <thead>
+        <tr><th>Lead</th><th>School / Location</th><th>Contact</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for lead in s.recent_enquiries %}
+        <tr>
+          <td><strong>{{ lead.guest_full_name|default:"Parent account" }}</strong><small>{{ lead.enquiry_code }}</small></td>
+          <td><strong>{{ lead.school__school_name }}</strong><small>{{ lead.school__city__city_name|default:"Location pending" }}</small></td>
+          <td><span>{{ lead.guest_phone|default:"No phone" }}</span><small>{{ lead.guest_email|default:"No email" }}</small></td>
+          <td>{{ lead.status }}</td>
+          <td>
+            <form method="post" action="{% url 'admin:lead_action' %}" class="be-lead-desk__actions">
+              {% csrf_token %}
+              <input type="hidden" name="kind" value="enquiry">
+              <input type="hidden" name="pk" value="{{ lead.enquiry_id }}">
+              <select name="assigned_to" aria-label="Assign admission lead">
+                <option value="">Assign to...</option>
+                {% for staff in s.staff_users %}
+                <option value="{{ staff.pk }}">{{ staff.first_name|default:staff.username }} {{ staff.last_name }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" name="action" value="approve">Approve</button>
+              <button type="submit" name="action" value="callback">Call back</button>
+              <button type="submit" name="action" value="contacted">Contacted</button>
+              <button type="submit" name="action" value="converted">Converted</button>
+              <button class="be-lead-desk__reject" type="submit" name="action" value="reject">Reject</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="be-empty">No admission enquiries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="be-directory be-lead-desk" aria-labelledby="counselling-desk-heading">
+  <header>
+    <h2 id="counselling-desk-heading">Counselling lead desk</h2>
+    <a href="{% url 'admin:admissions_counsellingrequest_changelist' %}">View all counselling requests</a>
+  </header>
+  <div class="be-lead-desk__table-wrap">
+    <table class="be-lead-desk__table">
+      <thead>
+        <tr><th>Parent</th><th>Contact</th><th>Category</th><th>Location</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for lead in s.recent_counselling %}
+        <tr>
+          <td><strong>{{ lead.parent_name }}</strong><small>{{ lead.reference|slice:'-12:' }}</small></td>
+          <td><span>{{ lead.phone }}</span>{% if lead.email != "—" %}<small>{{ lead.email }}</small>{% endif %}</td>
+          <td>{{ lead.category }}</td>
+          <td>{{ lead.location }}</td>
+          <td><span class="be-status be-status--{{ lead.status|lower }}">{{ lead.status_label }}</span></td>
+          <td>
+            <form method="post" action="{% url 'admin:lead_action' %}" class="be-lead-desk__actions">
+              {% csrf_token %}
+              <input type="hidden" name="kind" value="counselling">
+              <input type="hidden" name="pk" value="{{ lead.pk }}">
+              <select name="assigned_to" aria-label="Assign counselling request">
+                <option value="">Assign to...</option>
+                {% for staff in s.staff_users %}
+                <option value="{{ staff.pk }}">{{ staff.first_name|default:staff.username }} {{ staff.last_name }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" name="action" value="approve">Approve</button>
+              <button type="submit" name="action" value="callback">Call back</button>
+              <button type="submit" name="action" value="contacted">Contacted</button>
+              <button type="submit" name="action" value="converted">Converted</button>
+              <button class="be-lead-desk__reject" type="submit" name="action" value="reject">Reject</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="be-empty">No counselling requests yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="be-directory be-home-priority" aria-labelledby="priority-heading">
+  <header>
+    <h2 id="priority-heading">Priority operations</h2>
+  </header>
+  <div class="be-review-links">
+    <a href="{% url 'admin:reviews_review_changelist' %}"><strong>Reviews</strong><span>{{ s.total_reviews }} total</span></a>
+    <a href="{% url 'admin:admissions_counsellingrequest_changelist' %}"><strong>Counselling</strong><span>{{ s.total_counselling }} total</span></a>
+    <a href="{% url 'admin:schools_schoolpopularity_changelist' %}"><strong>Popularity</strong><span>{{ s.popularity_rows }} ranked rows</span></a>
+    <a href="{% url 'admin:schools_school_changelist' %}?is_featured__exact=1"><strong>Featured schools</strong><span>{{ s.featured_schools }} active</span></a>
+  </div>
 </section>
 
 {% if s.verification.pending %}

@@ -295,14 +295,17 @@ async function loadSchoolProfileForRequest(
   try {
     const school = await schools.bySlug(slug);
     if (!schoolSlugMatchesProfilePath(school, schoolSegments)) {
-      redirect(withBoardSelection(schoolProfilePath(school), selectedBoardId));
+      redirect(schoolProfilePath(school));
     }
     if (!schoolGeographyMatchesProfilePath(school, schoolSegments)) {
-      redirect(withBoardSelection(schoolProfilePath(school), selectedBoardId));
+      redirect(schoolProfilePath(school));
     }
     const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
+    if (selectedBoardId) {
+      redirect(expectedPath);
+    }
     if (requestedSchoolPath(rawSegments) !== expectedPath) {
-      redirect(withBoardSelection(expectedPath, selectedBoardId));
+      redirect(expectedPath);
     }
     return school;
   } catch (error) {
@@ -318,10 +321,6 @@ async function loadSchoolProfileForRequest(
  */
 function requestedSchoolPath(segments: string[]): string {
   return withTrailingSlash(`/${segments.join("/")}`);
-}
-
-function withBoardSelection(path: string, boardId?: string): string {
-  return boardId ? `${path}?board=${encodeURIComponent(boardId)}` : path;
 }
 
 function schoolPageMetadata(school: SchoolDetail, section?: SchoolSectionId): Metadata {
@@ -941,7 +940,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
       const school = await schools.bySlug(schoolSegments[3]!);
       const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
       if (requestedSchoolPath(segments) !== expectedPath) {
-        redirect(withBoardSelection(expectedPath, singleSearchParam(searchParams?.board)));
+        redirect(expectedPath);
       }
       return (
         <SchoolProfile
@@ -966,7 +965,7 @@ export default async function LocationRoute({ params, searchParams }: Props) {
         const school: SchoolDetail = await schools.bySlug(schoolSegments[4]!);
         const expectedPath = schoolRoutePath(school, schoolSection, enquiryRoute);
         if (requestedSchoolPath(segments) !== expectedPath) {
-          redirect(withBoardSelection(expectedPath, singleSearchParam(searchParams?.board)));
+          redirect(expectedPath);
         }
         return (
           <SchoolProfile

@@ -165,12 +165,98 @@ def panel_notifications(request):
     )
 
 
+@csrf_protect
+def lead_action(request):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    role = getattr(request.user, "role", None)
+    is_platform_admin = request.user.is_superuser or role in {"STAFF_ADMIN", "SUPER_ADMIN"}
+    if not (is_platform_admin or role == "SCHOOL_ADMIN"):
+        return JsonResponse({"detail": "You do not have permission to update leads."}, status=403)
+
+    kind = request.POST.get("kind")
+    pk = request.POST.get("pk")
+    action = request.POST.get("action")
+    assignee_id = request.POST.get("assigned_to")
+
+    if kind not in {"enquiry", "counselling"} or not pk or not action:
+        return JsonResponse({"detail": "Invalid lead action."}, status=400)
+
+    from apps.admissions.models import AdmissionEnquiry, CounsellingRequest
+    from apps.users.models import User
+
+    assigned_to = None
+    if assignee_id:
+        assigned_to = User.objects.filter(pk=assignee_id, is_active=True).first()
+        if assigned_to is None:
+            return JsonResponse({"detail": "The selected assignee is not available."}, status=400)
+
+    if kind == "enquiry":
+        queryset = AdmissionEnquiry.objects.all()
+        if role == "SCHOOL_ADMIN":
+            school_id = assigned_school_id(request.user)
+            if school_id is None:
+                return JsonResponse({"detail": "No school is assigned to this account."}, status=403)
+            queryset = queryset.filter(school_id=school_id)
+        lead = queryset.filter(pk=pk).first()
+        if lead is None:
+            return JsonResponse({"detail": "Lead not found."}, status=404)
+        status_map = {
+            "approve": "ASSIGNED",
+            "reject": "CLOSED_LOST",
+            "callback": "CALL_BACK",
+            "assign": "ASSIGNED",
+            "contacted": "IN_PROGRESS",
+            "converted": "CONVERTED",
+        }
+        if action not in status_map:
+            return JsonResponse({"detail": "Unsupported lead action."}, status=400)
+        lead.status = status_map[action]
+        if assigned_to is not None:
+            lead.assigned_to = assigned_to
+        lead.save(update_fields=["status", "assigned_to", "updated_at"])
+        messages.success(request, f"Lead {lead.enquiry_code} updated to {lead.get_status_display()}.")
+    else:
+        queryset = CounsellingRequest.objects.all()
+        if role == "SCHOOL_ADMIN":
+            school_id = assigned_school_id(request.user)
+            if school_id is None:
+                return JsonResponse({"detail": "No school is assigned to this account."}, status=403)
+            queryset = queryset.filter(preferred_school_id=school_id)
+        lead = queryset.filter(pk=pk).first()
+        if lead is None:
+            return JsonResponse({"detail": "Counselling request not found."}, status=404)
+        status_map = {
+            "approve": "APPROVED",
+            "reject": "REJECTED",
+            "callback": "CALL_BACK",
+            "assign": "ASSIGNED",
+            "contacted": "CONTACTED",
+            "converted": "CONVERTED",
+        }
+        if action not in status_map:
+            return JsonResponse({"detail": "Unsupported counselling action."}, status=400)
+        lead.status = status_map[action]
+        if assigned_to is not None:
+            lead.assigned_to = assigned_to
+        lead.save(update_fields=["status", "assigned_to", "updated_at"])
+        messages.success(request, f"Counselling request {lead.reference} updated to {lead.get_status_display()}.")
+
+    return redirect(request.META.get("HTTP_REFERER") or reverse("admin:index"))
+
+
 def build_stats():
     """Aggregate every admin-facing metric with a small, fixed number of queries."""
-    from apps.admissions.models import AdmissionEnquiry
+    from apps.admissions.models import AdmissionEnquiry, CounsellingRequest
     from apps.geography.models import City, Country, Location, State
     from apps.reviews.models import Review
-    from apps.schools.models import School, SchoolContentChange, SchoolProfileChange
+    from apps.schools.models import (
+        School,
+        SchoolContentChange,
+        SchoolPopularity,
+        SchoolProfileChange,
+    )
     from apps.users.models import User
 
     now = timezone.now()
@@ -197,6 +283,14 @@ def build_stats():
         converted=Count("pk", filter=Q(status="CONVERTED")),
         urgent=Count("pk", filter=Q(priority="URGENT")),
         this_month=Count("pk", filter=Q(created_at__gte=now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))),
+    )
+
+    counselling = CounsellingRequest.objects.aggregate(
+        total=Count("pk"),
+        new=Count("pk", filter=Q(status="NEW")),
+        assigned=Count("pk", filter=Q(status="ASSIGNED")),
+        callback=Count("pk", filter=Q(status="CALL_BACK")),
+        converted=Count("pk", filter=Q(status="CONVERTED")),
     )
 
     users = User.objects.aggregate(
@@ -233,6 +327,9 @@ def build_stats():
         _card("Missing descriptions", gaps["missing_about"], "schools_school_changelist", "warn", "Open the missing-description filter", "profile_gap=about"),
         _card("Missing locality", gaps["missing_locality"], "schools_school_changelist", "warn", "Open the missing-locality filter", "profile_gap=locality"),
         _card("New Enquiries", enquiries["new"], "admissions_admissionenquiry_changelist", "brand", f"{enquiries['total']} total"),
+        _card("New counselling requests", counselling["new"], "admissions_counsellingrequest_changelist", "warn", f"{counselling['total']} total"),
+        _card("Counselling call backs", counselling["callback"], "admissions_counsellingrequest_changelist", "info", "Call-back schedule"),
+        _card("Featured schools", School.objects.filter(is_featured=True).count(), "schools_school_changelist", "brand", "Featured directory", "is_featured__exact=1"),
         _card("Active Users", users["active"], "users_user_changelist", "info", f"{role_counts.get('PARENT', 0)} parents"),
         _card("School administrators", role_counts.get("SCHOOL_ADMIN", 0), "users_user_changelist", "info"),
         _card("Pending Reviews", reviews["pending"], "reviews_review_changelist", "warn", "Awaiting moderation"),
@@ -262,10 +359,27 @@ def build_stats():
         for role, count in sorted(role_counts.items(), key=lambda item: -item[1])
     ]
 
+    staff_users = list(
+        User.objects.filter(is_active=True, role__in=(User.ROLE_STAFF_ADMIN, User.ROLE_SUPER_ADMIN))
+        .order_by("first_name", "username")
+        .values("pk", "first_name", "last_name", "username")[:30]
+    )
+
     recent_enquiries = list(
         AdmissionEnquiry.objects.select_related("school")
+        .prefetch_related("school__school_types")
         .order_by("-created_at")
-        .values("enquiry_id", "enquiry_code", "school__school_name", "status", "created_at")[:6]
+        .values(
+            "enquiry_id",
+            "enquiry_code",
+            "school__school_name",
+            "school__city__city_name",
+            "status",
+            "created_at",
+            "guest_full_name",
+            "guest_phone",
+            "guest_email",
+        )[:8]
     )
     for enquiry in recent_enquiries:
         enquiry["url"] = reverse(
@@ -279,6 +393,37 @@ def build_stats():
         .order_by("-created_at")
         .values("review_id", "school__school_name", "rating", "author_name", "created_at")[:6]
     ]
+    recent_counselling = []
+    for request in (
+        CounsellingRequest.objects.select_related(
+            "preferred_state", "preferred_country", "preferred_school"
+        )
+        .prefetch_related("preferred_cities", "school_types")
+        .order_by("-created_at")[:8]
+    ):
+        types = {item.type_code for item in request.school_types.all()}
+        category = (
+            "Boarding"
+            if types & {"FULL-BOARDING", "BOARDING", "DAY-BOARDING"}
+            else "Day school"
+        )
+        location = request.home_city or (
+            request.preferred_cities.all()[0].city_name
+            if request.preferred_cities.exists()
+            else (request.preferred_state.state_name if request.preferred_state_id else "")
+        )
+        recent_counselling.append({
+            "reference": str(request.reference),
+            "parent_name": request.parent_name,
+            "email": request.email or "—",
+            "phone": request.phone,
+            "status": request.status,
+            "status_label": request.get_status_display(),
+            "category": category,
+            "location": location or "—",
+            "created_at": request.created_at,
+            "pk": str(request.pk),
+        })
 
     pending = schools["pending_verification"]
     school_total = schools["total"] or 1
@@ -308,6 +453,11 @@ def build_stats():
             "url": reverse("admin:admissions_admissionenquiry_changelist"),
         },
         {
+            "label": "Handle counselling requests",
+            "hint": f"{counselling['new']} new",
+            "url": reverse("admin:admissions_counsellingrequest_changelist"),
+        },
+        {
             "label": "Moderate reviews",
             "hint": f"{reviews['pending']} pending",
             "url": reverse("admin:reviews_review_changelist"),
@@ -325,6 +475,7 @@ def build_stats():
         "quick_links": quick_links,
         "coverage": coverage,
         "roles": roles,
+        "staff_users": staff_users,
         "verification": {
             "verified": schools["verified"],
             "pending": schools["pending_verification"],
@@ -357,10 +508,15 @@ def build_stats():
         ],
         "months": _enquiry_trend(now),
         "total_reviews": reviews["total"],
+        "total_counselling": counselling["total"],
+        "new_counselling": counselling["new"],
+        "popularity_rows": SchoolPopularity.objects.count(),
+        "featured_schools": School.objects.filter(is_featured=True).count(),
         "school_total": schools["total"],
         "enquiry_new": enquiries["new"],
         "recent_enquiries": recent_enquiries,
         "recent_reviews": recent_reviews,
+        "recent_counselling": recent_counselling,
         "recent_schools": list(
             School.objects.select_related("country", "state", "city")
             .prefetch_related("school_types")
@@ -1697,6 +1853,11 @@ def install_admin_dashboard():
                 "panel-notifications/",
                 admin.site.admin_view(panel_notifications),
                 name="panel_notifications",
+            ),
+            path(
+                "lead-action/",
+                admin.site.admin_view(lead_action),
+                name="lead_action",
             ),
             path(
                 "logout/",

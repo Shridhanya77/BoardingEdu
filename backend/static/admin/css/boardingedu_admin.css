@@ -3272,3 +3272,123 @@ body.be-school-admin .be-table-wrap {
     animation: none;
   }
 }
+
+.be-home-priority {
+  margin-top: 16px;
+}
+
+.be-lead-desk__table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.be-lead-desk__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.be-lead-desk__table th,
+.be-lead-desk__table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #edf1f5;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 13px;
+}
+
+.be-lead-desk__table th {
+  color: #64788c;
+  background: #f8fafc;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.be-lead-desk__table td strong,
+.be-lead-desk__table td small,
+.be-lead-desk__table td span {
+  display: block;
+}
+
+.be-lead-desk__table td small {
+  margin-top: 3px;
+  color: #718196;
+}
+
+.be-lead-desk__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 380px;
+}
+
+.be-lead-desk__actions select,
+.be-lead-desk__actions button {
+  min-height: 34px;
+  border: 1px solid #d8e2ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #17324b;
+  font-size: 12px;
+}
+
+.be-lead-desk__actions select {
+  max-width: 150px;
+  padding: 6px 8px;
+}
+
+.be-lead-desk__actions button {
+  padding: 6px 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.be-lead-desk__actions button:hover {
+  border-color: #1478a4;
+  background: #edf7fb;
+}
+
+.be-lead-desk__actions .be-lead-desk__reject {
+  color: #a32932;
+  border-color: #e4c4c7;
+}
+
+.be-status {
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef3f7;
+  color: #41566a;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.be-status--call_back,
+.be-status--in_progress,
+.be-status--assigned {
+  background: #fff3df;
+  color: #9a5a12;
+}
+
+.be-status--converted,
+.be-status--approved,
+.be-status--contacted {
+  background: #e7f5ec;
+  color: #2f7048;
+}
+
+.be-status--rejected,
+.be-status--closed_lost,
+.be-status--spam {
+  background: #fdebec;
+  color: #9f3038;
+}
+
+@media (max-width: 900px) {
+  .be-lead-desk__actions {
+    min-width: 320px;
+  }
+}

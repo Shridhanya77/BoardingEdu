@@ -36,6 +36,7 @@
           <a class="{% if request.resolver_match.url_name == 'schools_school_verification_queue' %}is-active{% endif %}" href="{% url 'admin:schools_school_verification_queue' %}">Pending school applications</a>
           <p>Admissions</p>
           <a class="{% if request.resolver_match.url_name == 'admissions_admissionenquiry_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_admissionenquiry_changelist' %}">Admission leads</a>
+          <a class="{% if request.resolver_match.url_name == 'admissions_counsellingrequest_changelist' %}is-active{% endif %}" href="{% url 'admin:admissions_counsellingrequest_changelist' %}">Counselling requests</a>
           <a class="{% if request.resolver_match.url_name == 'reviews_review_changelist' %}is-active{% endif %}" href="{% url 'admin:reviews_review_changelist' %}">Reviews</a>
           {% if user.is_superuser or user.role == "SUPER_ADMIN" %}
             <p>People</p>

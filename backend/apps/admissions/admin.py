@@ -35,7 +35,6 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         "next_followup_at",
         "created_at",
     )
-    list_editable = ("status", "priority")
     list_select_related = ("school", "applying_for_grade", "parent_profile__user")
     list_filter = ("status", "priority", "source", "school")
     search_fields = (
@@ -155,6 +154,24 @@ class AdmissionEnquiryAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
         fields = list(super().get_readonly_fields(request, obj))
         if "contact_lock_notice" not in fields:
             fields.append("contact_lock_notice")
+        if not manages_own_school(request.user):
+            fields.extend([
+                "enquiry_id",
+                "enquiry_code",
+                "source",
+                "message",
+                "parent_profile",
+                "child",
+                "school",
+                "academic_year",
+                "applying_for_grade",
+                "guest_full_name",
+                "guest_email",
+                "guest_phone",
+                "guest_child_name",
+                "guest_child_dob",
+                "guest_child_gender",
+            ])
         if manages_own_school(request.user):
             fields.extend([
                 "enquiry_code",
@@ -234,13 +251,34 @@ AdmissionEnquiry._meta.verbose_name_plural = "Leads"
 
 
 @admin.register(CounsellingRequest)
-class CounsellingRequestAdmin(admin.ModelAdmin):
-    list_display = ("reference", "parent_name", "email", "phone", "status", "created_at")
-    list_filter = ("status", "created_at")
+class CounsellingRequestAdmin(AssignedSchoolAdminMixin, admin.ModelAdmin):
+    school_filter = "preferred_school"
+    school_admin_can_add = False
+    school_admin_can_delete = False
+    list_display = ("reference", "parent_name", "email", "phone", "status", "assigned_to", "next_followup_at", "created_at")
+    list_filter = ("status", "preferred_states", "preferred_cities", "preferred_school", "school_types", "created_at")
     search_fields = ("reference", "parent_name", "email", "phone", "home_city", "message")
     autocomplete_fields = ("preferred_country", "preferred_state", "preferred_school")
     filter_horizontal = ("preferred_states", "preferred_cities", "grades", "school_types", "boards")
-    readonly_fields = ("request_id", "reference", "created_at", "updated_at")
+    readonly_fields = (
+        "request_id",
+        "reference",
+        "parent_name",
+        "email",
+        "phone",
+        "home_city",
+        "preferred_country",
+        "preferred_state",
+        "preferred_states",
+        "preferred_cities",
+        "grades",
+        "school_types",
+        "boards",
+        "preferred_school",
+        "message",
+        "created_at",
+        "updated_at",
+    )
 
 
 @admin.register(ApplicationStatusEvent)

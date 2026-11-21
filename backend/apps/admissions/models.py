@@ -297,7 +297,12 @@ class AdmissionEnquiry(models.Model):
 class CounsellingRequest(models.Model):
     STATUS_CHOICES = [
         ("NEW", "New"),
+        ("ASSIGNED", "Assigned"),
+        ("APPROVED", "Approved"),
         ("CONTACTED", "Contacted"),
+        ("CALL_BACK", "Call Back Scheduled"),
+        ("CONVERTED", "Converted"),
+        ("REJECTED", "Rejected"),
         ("CLOSED", "Closed"),
     ]
 
@@ -325,6 +330,14 @@ class CounsellingRequest(models.Model):
     )
     message = models.TextField(blank=True)
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="NEW", db_index=True)
+    assigned_to = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        related_name="assigned_counselling_requests",
+        null=True,
+        blank=True,
+    )
+    next_followup_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
